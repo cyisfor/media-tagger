@@ -1,0 +1,7 @@
+env = Environment(CCFLAGS=["-g"],LIBS="inotifytools")
+
+env.ParseConfig('pkg-config --cflags --libs ImageMagick')
+def makeProgram(name,main):
+    objects = (main,'lib.c','watch.c','filedb.c','make.c')
+    env.Program(name+'-bin',objects)
+makeProgram('lackey',env.Object('main.c'))
