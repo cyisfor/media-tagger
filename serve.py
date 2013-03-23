@@ -18,7 +18,7 @@ class Handler(BaseHTTPRequestHandler):
         pathurl,params = parsePath(self.path)
         path = pathurl.path
         path = path.split('/')
-        path = path[1:] # blank at the front
+        path = path[2:] # blank, art at the front
         if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
             mode = path[0][1:]
             if len(path)>1:

@@ -2,7 +2,6 @@ import sys,os
 sys.path.append(os.path.expanduser("~/code/postgresql-python"))
 import postgresql as pg
 from contextlib import contextmanager
-from progressbar import ProgressBar
 from itertools import count
 
 ProgrammingError = pg.SQLError

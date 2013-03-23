@@ -1,5 +1,6 @@
 import dirty.html as d
 from place import place
+from itertools import count
 
 import filedb
 
@@ -17,13 +18,18 @@ def degeneralize(tag):
     return tag
 
 def links(info):
+    counter = count(0)
+    row = []
     for id,name,type,tags in info:
-        # shiiit
-        tags = [str(tag) for tag in tags]
-        type = stripPrefix(type)
-        id = filedb.check(id)
-        yield ' '
-        yield d.a(d.img(src='/thumb/'+id,title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)
+        if next(counter)%9==0:
+            if row:
+                yield d.tr(*row)
+            row = []
+        else:
+            tags = [str(tag) for tag in tags]
+            type = stripPrefix(type)
+            id = filedb.check(id)
+            row.append(d.td(d.a(d.img(src='/thumb/'+id,title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
 
 def standardHead(title,*contents):
     return d.head(d.title(title),
@@ -94,4 +100,4 @@ def images(url,query,offset,info):
     return d.xhtml(standardHead("Images",
             (d.link(rel='prev',href=prevURI) if prevURI else None),
             d.link(rel='next',href=nextURI)),
-        d.body(d.p(links(info)),d.p((d.a('Prev',href=prevURI),' ') if prevURI else '',d.a('Next',href=nextURI))))
+        d.body(d.table(links(info)),d.p((d.a('Prev',href=prevURI),' ') if prevURI else '',d.a('Next',href=nextURI))))

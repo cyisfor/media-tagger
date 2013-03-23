@@ -29,8 +29,6 @@ with open(os.path.join(place,"withtags.sql")) as inp:
 
 
 class scalartuple(tuple):
-    def __init__(self,a=None):
-        super(scalartuple,self).__init__(a)
     def __add__(self,other):
         if not isinstance(other,tuple):
             other = (other,)

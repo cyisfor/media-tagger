@@ -38,7 +38,7 @@ with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
     try: out.close()
     except OSError: pass
 
-proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8118"})
+proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
 opener = urllib.request.build_opener(proxy,
         urllib.request.HTTPCookieProcessor(jar))
 opener.addheaders = [('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0')]
