@@ -1,8 +1,16 @@
 import dirty.html as d
 from place import place
 from itertools import count
+import fixprint
 
+from db import c
+from redirect import Redirect
 import filedb
+
+from urllib.parse import quote as derp
+
+def quote(s):
+    return derp(s).replace('/','%2f')
 
 def stripPrefix(type):
     if type:
@@ -17,19 +25,31 @@ def degeneralize(tag):
         return tag[len('general:'):]
     return tag
 
+def spaceBetween(elements):
+    first = True
+    for e in elements:
+        if first:
+            first = False
+        else:
+            yield ' '
+        yield e
+
+def doTags(top,tags):
+    return spaceBetween([d.a(tag,href=top+'/'+quote(tag)+'/') for tag in tags])
+
 def links(info):
     counter = count(0)
     row = []
     for id,name,type,tags in info:
-        if next(counter)%9==0:
+        if next(counter)%8==0:
             if row:
                 yield d.tr(*row)
             row = []
-        else:
-            tags = [str(tag) for tag in tags]
-            type = stripPrefix(type)
-            id = filedb.check(id)
-            row.append(d.td(d.a(d.img(src='/thumb/'+id,title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
+        tags = [str(tag) for tag in tags]
+        type = stripPrefix(type)
+        id = filedb.check(id)
+        row.append(d.td(d.a(d.img(src='/thumb/'+id,title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
+    if row: yield d.tr(*row)
 
 def standardHead(title,*contents):
     return d.head(d.title(title),
@@ -41,7 +61,7 @@ def makePage(title,*content):
 
 maxWidth = 800
 
-def page(info):
+def page(info,params):
     id,name,type,width,tags = info
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [degeneralize(tag) for tag in tags]
@@ -71,7 +91,7 @@ def stringize(key):
         return key.decode('utf-8')
     return str(key)
 
-def info(info):
+def info(info,params):
     print(info)
     id = '{:x}'.format(info['id'])
     return makePage("Info about "+id,
@@ -88,16 +108,57 @@ def like(info):
 def unparseQuery(query):
     return '&'.join(tuple('&'.join((n+'='+vv) for vv in v) for n,v in query.items()))
 
-def images(url,query,offset,info):
-    print('{:x}'.format(offset+1))
+def tagsURL(tags,negatags):
+    if not tags or negatags: return place+'/'
+    return place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
+
+def images(url,query,offset,info,related,tags,negatags):
     query['o'] = ['{:x}'.format(offset+1)]
-    nextURI = place+url.path+'?'+unparseQuery(query)
+    info = list(info)
+    if len(info)<0x30:
+        nextURI = None
+    else:
+        nextURI = url.path+'?'+unparseQuery(query)
     if offset == 0:
         prevURI = None
     else:
         query['o'] = ['{:x}'.format(offset-1)]
-        prevURI = place+url.path+('?'+unparseQuery(query) if offset > 1 else '')
+        prevURI = url.path+('?'+unparseQuery(query) if offset > 1 else '')
+    removers = []
+    for tag in tags:
+        removers.append(d.a(tag,href=tagsURL(tags.difference(set([tag])),negatags)))
+    for tag in negatags:
+        removers.append(d.a(tag,href=tagsURL(tags,negatags.difference(set([tag])))))
     return d.xhtml(standardHead("Images",
             (d.link(rel='prev',href=prevURI) if prevURI else None),
-            d.link(rel='next',href=nextURI)),
-        d.body(d.table(links(info)),d.p((d.a('Prev',href=prevURI),' ') if prevURI else '',d.a('Next',href=nextURI))))
+            d.link(rel='next',href=nextURI) if nextURI else None),
+        d.body(d.table(links(info)),
+            (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
+            (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
+            d.p((d.a('Prev',href=prevURI),' ') if prevURI else '',(d.a('Next',href=nextURI) if nextURI else ''))))
+
+def desktop(raw,params):
+    import desktop
+    history = desktop.history()
+    if not history:
+        return "No desktops yet!?"
+    if 'd' in params:
+        raise Redirect("/".join((place,"~page",'{:x}'.format(history[0]))))
+    current = history[0]
+    history = history[1:]
+    for id in history:
+        filedb.check(id)
+    name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+    type = stripPrefix(type)
+    named = c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,))
+    return makePage("Current Desktop",
+            d.p("Having tags ",doTags(place,tags)),
+            d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
+                href=("/".join((place,"~page",'{:x}'.format(current)))))),
+            d.hr(),
+            d.p("Past Desktops"),
+            d.div(
+                d.table(
+                    d.tr(
+                        [d.td(d.a(d.img(title=name,src="/thumb/"+'{:x}'.format(id),alt=name),
+                            href=place+"/~page/"+'{:x}'.format(id))) for id,name in named]))))

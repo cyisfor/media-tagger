@@ -1,6 +1,6 @@
 wanted 
-wanted(tags) AS (SELECT (
-        SELECT array_agg(tags.id) 
+wanted(tags) AS (SELECT array(
+        SELECT tags.id 
             FROM tags INNER JOIN things ON tags.id = things.id WHERE things.neighbors @> ARRAY[unnest.unnest]
         ) || unnest.unnest AS tags
     FROM unnest(%(tags)s::bigint[]) AS unnest);
@@ -28,10 +28,20 @@ ordering
     OFFSET %(offset)s LIMIT %(limit)s;
 main
 SELECT media.id,media.name,media.type,
-    (SELECT array_agg(tags.name) FROM tags WHERE tags.id = ANY(things.neighbors)) FROM
+    array(SELECT tags.name FROM tags WHERE tags.id = ANY(things.neighbors))
+FROM
         %(positiveClause)s
         %(negativeClause)s
     %(ordering)s;
+relatedNoTags
+(NOT tags.id = ANY(%%(tags)s::bigint[])) AND;
+related
+SELECT tags.name FROM tags WHERE %(relatedNoTags)s tags.id = ANY(
+    SELECT unnest(things.neighbors)
+FROM
+        %(positiveClause)s
+        %(negativeClause)s
+    %(ordering)s) LIMIT %%(taglimit)s::int;
 connect
 WITH nothing AS (
     UPDATE things SET neighbors = array(SELECT DISTINCT unnest(neighbors || $2::bigint)) WHERE id = $1)

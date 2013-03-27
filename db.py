@@ -4,8 +4,11 @@ import postgresql as pg
 from contextlib import contextmanager
 from itertools import count
 
+from threading import local
+
 ProgrammingError = pg.SQLError
 
+db = local()
 c = None
 
 def transaction(): return pg.transaction(c)
@@ -36,3 +39,10 @@ def reopen():
     c = pg.Connection(dbname='pics',port=5433,password=password)
     password = None
 reopen()
+
+def setup(*stmts):
+    c.execute("COMMIT")
+    for stmt in stmts:
+        try:
+            c.execute(stmt)
+        except ProgrammingError: pass

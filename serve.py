@@ -5,6 +5,7 @@ import db
 import filedb
 import urllib.parse
 
+from redirect import Redirect
 from dispatcher import dispatch
 
 def parsePath(pathquery):
@@ -25,7 +26,13 @@ class Handler(BaseHTTPRequestHandler):
                 id = int(path[1],0x10)
             else:
                 id = None
-            page = dispatch(mode,id)
+            try:
+                page = dispatch(mode,id,params)
+            except Redirect as r:
+                self.send_response(r.code,"GO")
+                self.send_header("Location",r.where)
+                self.end_headers()
+                return
         else:
             tags = set()
             negatags = set()
@@ -55,7 +62,8 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 offset = o = 0
             page = images(pathurl,params,o,
-                    withtags.searchForTags(tags,negatags,offset=offset,limit=0x30))
+                    withtags.searchForTags(tags,negatags,offset=offset,limit=0x30),
+                    withtags.searchForTags(tags,negatags,offset=offset,limit=0x30,wantRelated=True),tags,negatags)
         page = str(page).encode('utf-8')
         self.send_response(200,"OK")
         self.send_header('Content-Type','text/html; charset=utf-8')

@@ -1,6 +1,7 @@
 import create,withtags
 import filedb
 import db
+import fixprint
 
 from PIL import Image
 from Crypto.Hash import MD5
@@ -49,11 +50,11 @@ for top,dirs,names in os.walk(vtop):
         idnum = None
         source = db.c.execute("SELECT id FROM filesources WHERE path = $1",(path,))
         if source:
+            continue
             source = source[0][0]
             idnum = db.c.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
             if idnum:
                 idnum,hash = idnum[0]
-        print("derp",idnum)
         if not idnum:
             if not source:
                 source = db.c.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]

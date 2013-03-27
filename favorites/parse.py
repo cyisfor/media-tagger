@@ -3,14 +3,16 @@ if __name__ == '__main__':
     import sys,os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from parseBase import *
-import parsers
+import catchup
+from dbqueue import enqueue
 
 if __name__ == '__main__':
     import select
     import sys
+    catchup.start()
     if len(sys.argv)>1:
-        parse(sys.argv[1])
+        enqueue(sys.argv[1])
+        catchup.finish()
     else:
         import fcntl,os,time
         from itertools import count
@@ -33,17 +35,8 @@ if __name__ == '__main__':
                     print('counter',thing)
                     if thing < countdown: continue
                     if 'http' in piece:
-                        if alreadyHere(piece):
-                            print("WHEN I AM ALREADY HERE")
-                            #continue
-                        while True:
-                            try:
-                                parse(piece.strip())
-                                break
-                            except RuntimeError as e:
-                                print(e)
-                                break
-                            except urllib.error.URLError as e:
-                                print(e.getcode(),e.reason,e.geturl())
-                                time.sleep(3)
+                        print("Trying {}".format(piece.strip()))
+                        enqueue(piece.strip())
+                        catchup.poke()
             tbuf = pieces[-1]
+        catchup.finish()

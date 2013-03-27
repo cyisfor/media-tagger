@@ -85,6 +85,7 @@ def getanId(sources,uniqueSource,download,name):
             image = None
             db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
             data.become(id)
+            filedb.check(id)
             return id,True
     raise RuntimeError("huh?")
 

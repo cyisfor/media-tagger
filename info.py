@@ -9,3 +9,4 @@ def info(id):
 
 def like(id):
     return None
+

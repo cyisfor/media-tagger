@@ -35,7 +35,7 @@ class scalartuple(tuple):
         return scalartuple(super(scalartuple,self).__add__(other))
 
 
-def searchForTags(tags=None,negatags=None,offset=0,limit=50):
+def searchForTags(tags=None,negatags=None,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt = scalartuple()
     args = {}
     if tags or negatags:
@@ -67,12 +67,23 @@ def searchForTags(tags=None,negatags=None,offset=0,limit=50):
     else:
         negativeClause = ''
 
-    stmt += stmts['main'] % {'positiveClause': pc,
+    if wantRelated:
+        template = stmts['related']
+        targs = {'relatedNoTags': ((stmts['relatedNoTags'] % {'tags': tags}) if tags else '')}
+    else:
+        template = stmts['main']
+        targs = {}
+
+    targs.update({
+            'positiveClause': pc,
             'negativeClause': negativeClause,
-            'ordering': stmts['ordering']}
+            'ordering': stmts['ordering']})
+    stmt += template % targs
 
     stmt = " ".join(stmt)
     args = {'offset': offset,'limit': limit}
+    if wantRelated:
+        args['taglimit'] = taglimit
     if tags or negatags:
         if tags:
             args['tags'] = tags
@@ -80,12 +91,14 @@ def searchForTags(tags=None,negatags=None,offset=0,limit=50):
             args['negatags'] = negatags
     if explain:
         stmt = "EXPLAIN ANALYZE "+stmt
-        print(stmt)
     for row in c.execute(stmt,args):
         if explain:
             print(row[0])
         else:
-            yield row
+            if wantRelated:
+                yield row[0]
+            else:
+                yield row
     if explain:
         raise SystemExit
 
@@ -95,7 +108,6 @@ def makeTag(name):
         if result: break
         result = c.execute("WITH thing AS (INSERT INTO things DEFAULT VALUES RETURNING id) INSERT INTO tags (id,name) SELECT thing.id,$1 FROM thing RETURNING id",(name,))
     return result[0][0]
-
 
 def getTag(name):
     result = c.execute("SELECT id FROM tags WHERE name = $1",(name,))
