@@ -9,7 +9,7 @@ stmts = {}
 
 place = os.path.dirname(__file__)
 
-with open(os.path.join(place,"withtags.sql")) as inp:
+with open(os.path.join(place,"sql/withtags.sql")) as inp:
     mode = 0
     for line in inp:
         line = line.rstrip()

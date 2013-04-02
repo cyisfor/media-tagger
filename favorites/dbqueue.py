@@ -5,7 +5,8 @@ except ProgrammingError: pass
 
 def enqueue(uri):
     try: c.execute("INSERT INTO parseQueue (uri) VALUES ($1)",(uri,))
-    except ProgrammingError: pass
+    except ProgrammingError as e:
+        print("error",e)
 def top():
     r = c.execute("SELECT uri FROM parseQueue ORDER BY added DESC LIMIT 1")
     if r: return r[0][0]

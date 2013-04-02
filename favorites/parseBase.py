@@ -40,7 +40,7 @@ def parse(primarySource):
                 primarySource = handlers['normalize'](primarySource)
             image = urllib.parse.urljoin(primarySource,image)
             sources = [urllib.parse.urljoin(primarySource,source) for source in sources]
-            if False:
+            if True:
                 print("tags",tags)
                 print("Image",image)
                 print("PSource",primarySource)

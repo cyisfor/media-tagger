@@ -12,6 +12,7 @@ if __name__ == '__main__':
     catchup.start()
     if len(sys.argv)>1:
         enqueue(sys.argv[1])
+        catchup.poke()
         catchup.finish()
     else:
         import fcntl,os,time
@@ -26,17 +27,21 @@ if __name__ == '__main__':
             select.select([stdin],[],[],None)
             buf = os.read(stdin,0x1000)
             if not buf: break
+            print("er",repr(buf))
             tbuf += buf
             pieces = tbuf.split(b'\0')
             if len(pieces)>1:
                 for piece in pieces[:-1]:
                     piece = piece.decode('utf-8')
                     thing = next(counter)
-                    print('counter',thing)
+                    print('counter',piece,thing)
+                    sys.stdout.flush()
                     if thing < countdown: continue
                     if 'http' in piece:
                         print("Trying {}".format(piece.strip()))
+                        sys.stdout.flush()
                         enqueue(piece.strip())
                         catchup.poke()
+                        print("poked")
             tbuf = pieces[-1]
         catchup.finish()

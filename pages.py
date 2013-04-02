@@ -48,7 +48,7 @@ def links(info):
         tags = [str(tag) for tag in tags]
         type = stripPrefix(type)
         id = filedb.check(id)
-        row.append(d.td(d.a(d.img(src='/thumb/'+id,title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
+        row.append(d.td(d.a(d.img(src='/thumb/'+id,alt="...",title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
     if row: yield d.tr(*row)
 
 def standardHead(title,*contents):
@@ -59,14 +59,51 @@ def standardHead(title,*contents):
 def makePage(title,*content):
     return d.xhtml(standardHead(title),d.body(*content))
 
+def makeE(tag):
+    tag = d.Tag(tag)
+    def makeE(*a,**kw):
+        return d.Element(tag,*a,**kw)
+    return makeE
+audio = makeE('audio')
+video = makeE('video')
+source = makeE('source')
+embed = makeE('embed')
+
+def makeLink(type,thing):
+    if type.startswith('text'):
+        return None
+    if type.startswith('image'):
+        return d.img(alt="Still resizing...",src=thing)
+    wrapper = None
+    if type.startswith('audio') or type.startswith('video'):
+        if False:#type.endswith('webm') or type.endswith('ogg'):
+            if type[0]=='a':
+                wrapper = audio
+            else:
+                wrapper = video
+            return wrapper(source(src=thing,type=type),
+                    d.object(
+                        embed(src=thing,width='100%',height='100%',type=type),
+                        data=thing,height='100%',width='100%',type=type),
+                        autoplay=True,loop=True)
+        else:
+            return d.object(d.param(name='src',value=thing),height='100%',width='100%',type=type,loop=True,autoplay=True),embed(' ',src=thing,width='100%',height='100%',type=type,loop=True,autoplay=True),"Download"
+    if type == 'application/x-shockwave-flash':
+        return d.object(d.param(name='SRC',value=thing),
+                embed(' ',src=thing,width="100%", height="100%"),
+                width='100%',height='100%'),'Download'
+    raise RuntimeError("What is "+type)
+
 maxWidth = 800
 
 def page(info,params):
     id,name,type,width,tags = info
+    name = name.split('?')[0]
+    if not '.' in name:
+        name = name + '/untitled.jpg'
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [degeneralize(tag) for tag in tags]
-    type = stripPrefix(type)
-    if width > maxWidth:
+    if width and width > maxWidth and not 'ns' in params:
         id = filedb.checkResized(id,type,800)
         thing = '/resized/'+id+'/donotsave.this'
     else:
@@ -77,8 +114,9 @@ def page(info,params):
         tagderp = d.p("Tags: ",((' ',d.a(tag,href=place+"/"+tag)) for tag in tags))
     else:
         tagderp = ''
+    thing = makeLink(type,thing)
     return makePage("Page info for "+id,
-            d.p(d.a(d.img(src=thing),href='/'.join(('/image',id,type,name)))),
+            d.p(d.a(thing,href='/'.join(('/image',id,type,name)))),
             d.p(d.a('Info',href=place+"/~info/"+id)),
             tagderp)
 
@@ -112,7 +150,11 @@ def tagsURL(tags,negatags):
     if not tags or negatags: return place+'/'
     return place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
 
+def stripGeneral(tags):
+    return set([tag.replace('general:','') for tag in tags])
+
 def images(url,query,offset,info,related,tags,negatags):
+    related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
     info = list(info)
     if len(info)<0x30:

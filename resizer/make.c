@@ -34,9 +34,23 @@ static int make_thumbnail(context* ctx, uint32_t id) {
   Image* image = ReadImageCtx(source,strlen(source),ctx);
 
   if (!image) {
-    fprintf(stderr,"Could not read an image from '%x' (%s)\n",id,source);
-    free(source);
-    return 0;
+      int pid = fork();
+      if(pid==0) {
+          close(0);
+          char* dest = filedb_image("thumb",id);
+          execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
+                 "-loglevel","warning",
+                 "-i",source,"-s","150x150","-f","image2",dest,NULL);
+      }
+      int status;
+      waitpid(pid,&status,0);
+      if(status != 0) {
+        fprintf(stderr,"Could not read media from '%x' (%s)\n",id,source);
+        free(source);
+        return 0;
+      }
+      free(source);
+      return 1;
   }
   free(source);
 

@@ -31,12 +31,16 @@ def extract(doc):
                 rating = firstChild[len('Rating: '):].lower()
                 yield Tag('rating',rating)
             elif firstChild.startswith('Size: '):
-                gotImage = True
-                yield Image(li.find('a')['href'])
+                a = li.find('a')
+                if a:
+                    gotImage = True
+                    yield Image(a['href'])
     if not gotImage:
         for a in doc.findAll('a'):
-            if a.contents and a.contents[0].strip() == 'Download' and 'href' in a:
-                yield Image(a['href'])
+            if a.contents and a.contents[0].strip and a.contents[0].strip().lower() in ('download','original image'):
+                href = a.get('href')
+                if not href: continue
+                yield Image(href)
 
 toNum = re.compile('.*[0-9+]')
 
