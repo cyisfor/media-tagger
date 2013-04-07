@@ -1,10 +1,14 @@
 import create
 import setupurllib
 import db
+import fixprint
 
 from bs4 import BeautifulSoup
 import urllib.parse
 import urllib.request
+from setupurllib import myretrieve
+
+Request = urllib.request.Request
 
 import os
 import datetime
@@ -22,40 +26,55 @@ def parse(primarySource):
                 if 'gzip' in inp.headers.get('Content-encoding',''):
                     import gzip
                     doc = gzip.decompress(doc)
+                doc = BeautifulSoup(doc)
+                setattr(doc,'url',primarySource)
             sources = [primarySource]
-            image = None
+            medias = []
             tags = [Tag('general',tag) for tag in handlers.get('tags',[])]
-            for thing in handlers['extract'](BeautifulSoup(doc)):
+            for thing in handlers['extract'](doc):
                 if isinstance(thing,Tag):
                     tags.append(thing)
-                elif isinstance(thing,Image):
-                    sources.append(thing)
-                    image = thing
+                elif isinstance(thing,Media):
+                    medias.append(thing)
                 elif isinstance(thing,Source):
                     sources.append(thing)
-            if not image:
-                print("No image. Failing...")
+            if not medias:
+                print("No media. Failing...")
                 continue
             if 'normalize' in handlers:
                 primarySource = handlers['normalize'](primarySource)
-            image = urllib.parse.urljoin(primarySource,image)
-            sources = [urllib.parse.urljoin(primarySource,source) for source in sources]
             if True:
                 print("tags",tags)
-                print("Image",image)
+                print("Media",len(medias))
                 print("PSource",primarySource)
                 print("Sources",sources)
-            name = urllib.parse.unquote(image.rsplit('/')[1])
-            urllib.request._opener.addheaders.append(
+            for media in medias:
+                derpSources = sources + [media.url]
+                media.url = urllib.parse.urljoin(primarySource,media.url)
+                if len(medias) == 1:
+                    derpSource = primarySource
+                else:
+                    derpSource = media.url
+                derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
+                name = urllib.parse.unquote(media.url.rsplit('/')[1])
+                urllib.request._opener.addheaders.append(
                     ('Referer',primarySource))
-            def download(dest):
-                urllib.request.urlretrieve(image,dest.name)
-                dest.seek(0,0)
-                mtime = os.fstat(dest.fileno()).st_mtime
-                return datetime.datetime.fromtimestamp(mtime)
-            create.internet(download,image,tags,primarySource,sources)
+                def download(dest):
+                    myretrieve(Request(media.url,
+                        headers=media.headers),
+                        dest)
+                    dest.seek(0,0)
+                    mtime = os.fstat(dest.fileno()).st_mtime
+                    return datetime.datetime.fromtimestamp(mtime)
+                create.internet(download,media.url,tags,derpSource,derpSources)
             return
+    print(url.netloc)
     raise RuntimeError("Can't parse {}!".format(primarySource))
+
+def matchNetloc(s):
+    def matcher(url):
+        return url.netloc == s
+    return matcher
 
 def registerFinder(matcher,handler):
     if hasattr(matcher,'search'):
@@ -63,8 +82,7 @@ def registerFinder(matcher,handler):
         matcher = lambda url: temp.search(url.netloc)
     elif callable(matcher): pass
     else:
-        temp = matcher
-        matcher = lambda url: url.netloc == temp
+        matcher = matchNetloc(matcher)
     finders.append((matcher,handler))
 
 def alreadyHere(uri):

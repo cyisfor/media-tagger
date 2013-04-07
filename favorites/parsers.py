@@ -1,9 +1,11 @@
 import danbooru
+import derpibooru
 import furaffinity
 import inkbunny
 import rule34
 import sofurry
 import weasyl
+import pixiv
 import parseBase as parse
 import re
 parse.registerFinder(re.compile("wildcritters\..*"),
@@ -46,3 +48,12 @@ parse.registerFinder(re.compile('.*sofurry.com'),
 parse.registerFinder(re.compile('.*weasyl.com'),
         {'extract': weasyl.extract,
             'tags': ['weasyl']})
+
+parse.registerFinder('derpibooru.org',
+        {'extract': derpibooru.extract,
+            'normalize': derpibooru.normalize,
+            'tags': ['derpibooru','pony']})
+
+parse.registerFinder('www.pixiv.net',
+        {'extract': pixiv.extract,
+            'tags':['pixiv','japan']})

@@ -23,7 +23,7 @@ def imageHash(data):
 
 def isGood(type):
     category = type.split('/',1)[0]
-    return category in {'image','video','audio'}
+    return category in {'image','video','audio'} or type in {'application/x-shockwave-flash'}
 
 def sourceId(source):
     if isinstance(source,int): return source

@@ -3,6 +3,7 @@ import re
 import urllib.parse
 
 def extract(doc):
+    if '///files' in doc.url: return
     for div in doc.findAll('div'):
         if div.contents and str(div.contents[0]).strip()=='Keywords':
             kwdiv = div.parent
@@ -17,12 +18,33 @@ def extract(doc):
             raise SystemExit
         keyword = str(span.contents[0]).strip()
         yield Tag('general',keyword)
+    foundImage = False
     contentdiv = doc.find('div',{ 'id': 'size_container' })
     for a in contentdiv.findAll('a'):
         if not a.contents: continue
         span = a.find('span')
-        if not span: continue
-        if str(span.contents[0]).strip() != 'max. preview': continue
-        href = a.get('href')
-        if not href: continue
-        yield Image(href)
+        if span:
+            if str(span.contents[0]).strip() in {'max. preview','download'}:
+                href = a.get('href')
+                if not href: continue
+                foundImage = True
+                yield Image(href,{'Referer': doc.url})
+    if not foundImage:
+        image = None
+        maxSize = None
+        for img in doc.findAll('img'):
+            if img:
+                if not ( img.get('width') and img.get('height') ):
+                    continue
+                size = int(img.get('width')) * int(img.get('height'))
+                src = img.get('src')
+                if maxSize is None or size > maxSize:
+                    print(img.get('width'),img.get('height'))
+                    print(src)
+                    print(maxSize,"->",size)
+                    maxSize = size
+                    image = src
+        if image:
+            foundImage = True
+            print(image)
+            yield Image(image,{'Referer': doc.url})

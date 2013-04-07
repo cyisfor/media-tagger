@@ -1,4 +1,10 @@
-class Image(str): pass
+class Media:
+    def __init__(self,url,headers={}):
+        self.url = url
+        self.headers = headers
+
+Image = Media
+
 class Tag:
     def __init__(self,category,name):
         self.category = category

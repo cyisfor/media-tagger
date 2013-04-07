@@ -36,8 +36,8 @@ FROM
 relatedNoTags
 (NOT tags.id = ANY(%%(tags)s::bigint[])) AND;
 related
-SELECT tags.name FROM tags WHERE %(relatedNoTags)s tags.id = ANY(
-    SELECT unnest(things.neighbors)
+SELECT tags.name FROM tags INNER JOIN things ON tags.id = ANY(things.neighbors) WHERE %(relatedNoTags)s things.id = ANY(
+    SELECT things.id
 FROM
         %(positiveClause)s
         %(negativeClause)s

@@ -9,6 +9,11 @@ import filedb
 
 from urllib.parse import quote as derp
 
+import textwrap
+
+def wrappit(s):
+    return textwrap.fill(s,width=0x40)
+
 def quote(s):
     return derp(s).replace('/','%2f')
 
@@ -48,7 +53,7 @@ def links(info):
         tags = [str(tag) for tag in tags]
         type = stripPrefix(type)
         id = filedb.check(id)
-        row.append(d.td(d.a(d.img(src='/thumb/'+id,alt="...",title=','.join(tags) if tags else '???'),href=place+'/~page/'+id)))
+        row.append(d.td(d.a(d.img(src='/thumb/'+id,alt="...",title=name,href=place+'/~page/'+id),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '???',href=place+'/~page/'+id)))
     if row: yield d.tr(*row)
 
 def standardHead(title,*contents):
@@ -110,7 +115,6 @@ def page(info,params):
         id = '{:x}'.format(id)
         thing = '/'.join(('/image',id,type,name))
     if tags:
-        print(tags)
         tagderp = d.p("Tags: ",((' ',d.a(tag,href=place+"/"+tag)) for tag in tags))
     else:
         tagderp = ''
@@ -130,7 +134,6 @@ def stringize(key):
     return str(key)
 
 def info(info,params):
-    print(info)
     id = '{:x}'.format(info['id'])
     return makePage("Info about "+id,
             d.p(d.a(d.img(src="/thumb/"+id),d.br(),"Page",href=place+"/~page/"+id)),
@@ -154,6 +157,7 @@ def stripGeneral(tags):
     return set([tag.replace('general:','') for tag in tags])
 
 def images(url,query,offset,info,related,tags,negatags):
+    related = [str(tag) for tag in related]
     related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
     info = list(info)

@@ -51,15 +51,17 @@ for path in sys.stdin:
     #if length!=len(path):
     #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
     #print(path)
-    relpath = os.path.relpath(path,os.path.expanduser("~/art/"))
-    if '..' in relpath: continue
+    for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
+        relpath = os.path.relpath(path,start)
+        if '..' in relpath: break
+    else: continue
     discovered = tuple(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
     path = path.encode('utf-8')
     idnum = None
     source = db.c.execute("SELECT id FROM filesources WHERE path = $1",(path,))
     if source:
-        continue
+        if not 'recheck' in os.environ: continue
         source = source[0][0]
         idnum = db.c.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
         if idnum:
