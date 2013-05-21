@@ -28,7 +28,7 @@ def extract(doc):
                 href = a.get('href')
                 if not href: continue
                 foundImage = True
-                yield Image(href,{'Referer': doc.url})
+                yield Image(href)
     if not foundImage:
         image = None
         maxSize = None
@@ -47,4 +47,4 @@ def extract(doc):
         if image:
             foundImage = True
             print(image)
-            yield Image(image,{'Referer': doc.url})
+            yield Image(image)

@@ -18,7 +18,8 @@ def imageHash(data):
     shutil.copyfileobj(data,digest)
     digest = digest.digest()
     digest = base64.b64encode(digest)
-    digest = digest[:-3].decode()
+    print(digest)
+    digest = digest.decode().rstrip('=')
     return digest
 
 def isGood(type):
@@ -64,6 +65,10 @@ def getanId(sources,uniqueSource,download,name):
         if result:
             print("Oops, we already had this one, from another source!")
             return result[0][0],False
+        result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
+        if result:
+            # this hash is blacklisted
+            raise NoGood("blacklisted")
         if md5 is None:
             data.seek(0,0)
             md5 = MD5.new()
@@ -134,12 +139,15 @@ def internet(download,media,tags,primarySource,otherSources):
     donetags = []
     tags = set(tags)
     for tag in tags:
-        if hasattr(tag,'category'): # and tag.category != 'general':
-            category = withtags.makeTag(tag.category)
+        if hasattr(tag,'category'):
             name = withtags.makeTag(tag.name)
-            tag = withtags.makeTag(tag.category+':'+tag.name)
-            withtags.connect(name,tag)
-            withtags.connect(category,tag)
+            if tag.category and tag.category != 'general':
+                category = withtags.makeTag(tag.category)
+                tag = withtags.makeTag(tag.category+':'+tag.name)
+                withtags.connect(name,tag)
+                withtags.connect(category,tag)
+            else:
+                tag = name
         else:
             tag = withtags.makeTag(tag)
         donetags.append(tag)

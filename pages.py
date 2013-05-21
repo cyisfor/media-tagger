@@ -42,7 +42,7 @@ def spaceBetween(elements):
 def doTags(top,tags):
     return spaceBetween([d.a(tag,href=top+'/'+quote(tag)+'/') for tag in tags])
 
-def links(info):
+def makeLinks(info):
     counter = count(0)
     row = []
     for id,name,type,tags in info:
@@ -56,9 +56,44 @@ def links(info):
         row.append(d.td(d.a(d.img(src='/thumb/'+id,alt="...",title=name,href=place+'/~page/'+id),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '???',href=place+'/~page/'+id)))
     if row: yield d.tr(*row)
 
+class obj(object):
+    stack = []
+    def __init__(self, **d):
+        self.__dict__['__d'] = d
+    def __getattr__(self,n):
+        if n == '__d': return object.__getattr__(self,n)
+        return self.__dict__['__d'][n]
+    def __setattr__(self,n,v):
+        if n == '__d': return object.__setattr__(self,n,v)
+        self.__dict__['__d'][n] = v
+    def __delattr__(self,n):
+        del self.__dict['__d'][n]
+    def __enter__(self):
+        obj.stack.append(self.__dict__['__d'].items())
+        return self
+    def __exit__(self,*a):
+        self.__dict__['__d'].update(obj.stack.pop())
+
+links = obj(
+    next=None,
+    prev=None,
+    query=None,
+    params={},
+    style="/style/art.css")
+
 def standardHead(title,*contents):
+    if links.params:
+        params = []
+        for name,values in links.params.items():
+            for value in values:
+                params.append(name+'='+quote(value))
+        params = '?' + '&'.join(params)
+    else:
+        params = ''
     return d.head(d.title(title),
-        d.link(rel='stylesheet',type='text/css',href='/style/art.css'),
+        d.link(rel='stylesheet',type='text/css',href=links.style),
+        d.link(rel='next',href=links.next+params) if links.next else None,
+        d.link(rel='prev',href=links.prev+params) if links.prev else None,
         *contents)
 
 def makePage(title,*content):
@@ -102,27 +137,33 @@ def makeLink(type,thing):
 maxWidth = 800
 
 def page(info,params):
-    id,name,type,width,tags = info
+    id,next,prev,name,type,width,tags = info
     name = name.split('?')[0]
     if not '.' in name:
         name = name + '/untitled.jpg'
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [degeneralize(tag) for tag in tags]
     if width and width > maxWidth and not 'ns' in params:
-        id = filedb.checkResized(id,type,800)
-        thing = '/resized/'+id+'/donotsave.this'
+        fid = filedb.checkResized(id,type,800)
+        thing = '/resized/'+fid+'/donotsave.this'
     else:
-        id = '{:x}'.format(id)
-        thing = '/'.join(('/image',id,type,name))
+        fid = '{:x}'.format(id)
+        thing = '/'.join(('/image',fid,type,name))
     if tags:
         tagderp = d.p("Tags: ",((' ',d.a(tag,href=place+"/"+tag)) for tag in tags))
     else:
         tagderp = ''
     thing = makeLink(type,thing)
-    return makePage("Page info for "+id,
-            d.p(d.a(thing,href='/'.join(('/image',id,type,name)))),
-            d.p(d.a('Info',href=place+"/~info/"+id)),
-            tagderp)
+    with links:
+        links.params = params
+        if next:
+            links.next = '{:x}'.format(next)
+        if prev:
+            links.prev = '{:x}'.format(prev)
+        return makePage("Page info for "+fid,
+                d.p(d.a(thing,href='/'.join(('/image',fid,type,name)))),
+                d.p(d.a('Info',href=place+"/~info/"+fid)),
+                tagderp)
 
 def stringize(key):
     if hasattr(key,'isoformat'):
@@ -161,27 +202,24 @@ def images(url,query,offset,info,related,tags,negatags):
     related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
     info = list(info)
-    if len(info)<0x30:
-        nextURI = None
-    else:
-        nextURI = url.path+'?'+unparseQuery(query)
-    if offset == 0:
-        prevURI = None
-    else:
-        query['o'] = ['{:x}'.format(offset-1)]
-        prevURI = url.path+('?'+unparseQuery(query) if offset > 1 else '')
+
     removers = []
     for tag in tags:
         removers.append(d.a(tag,href=tagsURL(tags.difference(set([tag])),negatags)))
     for tag in negatags:
         removers.append(d.a(tag,href=tagsURL(tags,negatags.difference(set([tag])))))
-    return d.xhtml(standardHead("Images",
-            (d.link(rel='prev',href=prevURI) if prevURI else None),
-            d.link(rel='next',href=nextURI) if nextURI else None),
-        d.body(d.table(links(info)),
-            (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
-            (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
-            d.p((d.a('Prev',href=prevURI),' ') if prevURI else '',(d.a('Next',href=nextURI) if nextURI else ''))))
+
+    with links:
+        if len(info)>=0x30:
+            links.next = url.path+'?'+unparseQuery(query)
+        if offset != 0:
+            query['o'] = ['{:x}'.format(offset-1)]
+            links.prev = url.path+('?'+unparseQuery(query) if offset > 1 else '')
+        return makePage("Images",
+                d.table(makeLinks(info)),
+                (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
+                (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
+                d.p((d.a('Prev',href=links.prev),' ') if links.prev else '',(d.a('Next',href=links.next) if links.next else '')))
 
 def desktop(raw,params):
     import desktop

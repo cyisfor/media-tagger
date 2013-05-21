@@ -30,7 +30,17 @@ def parse(primarySource):
                 setattr(doc,'url',primarySource)
             sources = [primarySource]
             medias = []
-            tags = [Tag('general',tag) for tag in handlers.get('tags',[])]
+            def generalize(tag):
+                if isinstance(tag,Tag): return tag
+                try:
+                    if len(tag) == 2:
+                        if len(tag[0]) >= 3 and len(tag[1]) >= 3:
+                            return Tag(*tag)
+                except TypeError: pass
+                if ':' in tag:
+                    return Tag(*(tag.split(':')))
+                return Tag('general',tag)
+            tags = [generalize(tag) for tag in handlers.get('tags',[])]
             for thing in handlers['extract'](doc):
                 if isinstance(thing,Tag):
                     tags.append(thing)
@@ -57,8 +67,7 @@ def parse(primarySource):
                     derpSource = media.url
                 derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
                 name = urllib.parse.unquote(media.url.rsplit('/')[1])
-                urllib.request._opener.addheaders.append(
-                    ('Referer',primarySource))
+                media.headers.setdefault('Referer',primarySource)
                 def download(dest):
                     myretrieve(Request(media.url,
                         headers=media.headers),

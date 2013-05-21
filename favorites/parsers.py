@@ -1,3 +1,4 @@
+from things import Tag
 import danbooru
 import derpibooru
 import furaffinity
@@ -6,8 +7,18 @@ import rule34
 import sofurry
 import weasyl
 import pixiv
+import flickr
+import zerochan
 import parseBase as parse
 import re
+
+parse.registerFinder("www.zerochan.net",
+        {'extract': zerochan.extract})
+
+parse.registerFinder("furry.booru.org",
+        {'extract': danbooru.extract,
+         'tags': [Tag('booru','furry')]})
+
 parse.registerFinder(re.compile("wildcritters\..*"),
         {'extract': danbooru.extract,
          'tags': ['wildcritters'],
@@ -54,6 +65,19 @@ parse.registerFinder('derpibooru.org',
             'normalize': derpibooru.normalize,
             'tags': ['derpibooru','pony']})
 
+parse.registerFinder('derpiboo.ru',
+        {'extract': derpibooru.extract,
+            'normalize': derpibooru.normalize,
+            'tags': ['derpibooru','pony']})
+
 parse.registerFinder('www.pixiv.net',
         {'extract': pixiv.extract,
             'tags':['pixiv','japan']})
+
+tags = ['flickr','photo']
+parse.registerFinder('flickr.com',
+        {'extract': flickr.extract,
+            'tags':tags})
+parse.registerFinder('www.flickr.com',
+        {'extract': flickr.extract,
+            'tags':tags})

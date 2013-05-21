@@ -22,11 +22,23 @@ def extract(doc):
     if sauce:
         yield Source(sauce.find('a')['href'])
     imgr = doc.find('div',id='image_target').next.next
+    foundImage = False
     for img in imgr.findAll('img'):
         src = img.get('src')
         if not src: continue
         if '/thumbs/' in src: continue
         yield Image(src)
+        foundImage = True
+    if not foundImage:
+        for a in doc.findAll('a'):
+            rel = a.get('rel')
+            if not rel:
+                continue
+            if 'nofollow' in rel and a.contents[0].strip().lower()=='download':
+                href = a.get('href')
+                if '/media/' in href:
+                    yield Image(href)
+                    foundImage = True
 
 noquery = re.compile('^[^?]*')
 
