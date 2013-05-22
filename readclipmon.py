@@ -1,11 +1,9 @@
 import fcntl,select,os
 
 def readClipmon(inp,gotPiece,sep=None):
-    if 'sep' is None:
-        if 'sep' in os.environ:
-            sep = os.environ['sep']
-        else:
-            sep = '\0'
+    if sep is None:
+        sep = os.environ.get('sep','\0')
+    sep = sep.encode('utf-8')
     inp = inp.fileno()
     fl = fcntl.fcntl(inp, fcntl.F_GETFL)
     fcntl.fcntl(inp, fcntl.F_SETFL, fl | os.O_NONBLOCK)
