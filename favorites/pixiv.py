@@ -43,6 +43,7 @@ def extract(doc):
         raise Exception("No image!")
     artist = doc.find('h1',{'class': 'user'})
     if not artist:
+        print(doc)
         raise Exception("no artist?")
     yield Tag('artist',artist.contents[0].strip())
     for a in doc.findAll('a'):

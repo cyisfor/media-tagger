@@ -50,7 +50,6 @@ for path in sys.stdin:
     #bpath,length = cod.encode(path,'surrogateescape')
     #if length!=len(path):
     #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
-    #print(path)
     for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
         relpath = os.path.relpath(path,start)
         if '..' in relpath: break
@@ -61,21 +60,23 @@ for path in sys.stdin:
     idnum = None
     source = db.c.execute("SELECT id FROM filesources WHERE path = $1",(path,))
     if source:
-        if not 'recheck' in os.environ: continue
+        if not 'recheck' in os.environ:
+            #print("Not rechecking existing file")
+            continue
         source = source[0][0]
         idnum = db.c.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
         if idnum:
             idnum,hash = idnum[0]
+    else:
+        source = db.c.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
+        db.c.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
     if not idnum:
         with open(path,'rb') as inp:
             hash = create.imageHash(inp)
         idnum = db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
         if idnum: idnum = idnum[0][0]
         print("Hasho",idnum)
-        if not source:
-            source = db.c.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
-            db.c.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
-            if idnum:
-                db.c.execute("UPDATE media SET sources=array(SELECT unnest(sources) UNION SELECT $2) WHERE id = $1",(idnum,source))
+    if idnum:
+        db.c.execute("UPDATE media SET sources=array(SELECT unnest(sources) UNION SELECT $2) WHERE id = $1",(idnum,source))
     print("importing",path)
     create.internet(copyMe(path),path.decode('utf-8'),implied.union(discovered),source,())

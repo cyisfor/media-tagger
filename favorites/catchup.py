@@ -5,7 +5,7 @@ if __name__ == '__main__':
 
 from parseBase import *
 import parsers
-from dbqueue import top,dequeue
+from dbqueue import top,fail,win
 import threading
 from db import c
 import time
@@ -30,20 +30,29 @@ class Catchup(threading.Thread):
                 else:
                     break
                 continue
-            if alreadyHere(uri):
+            ah = alreadyHere(uri)
+            if ah:
                 print("WHEN I AM ALREADY HERE")
             #else:
-            while True:
-                try:
-                    parse(uri)
-                    break
-                except RuntimeError as e:
-                    print(e)
-                    break
-                except urllib.error.URLError as e:
-                    print(e.getcode(),e.reason,e.geturl())
-                    time.sleep(3)
-            dequeue(uri)
+            try:
+                for attempts in range(5):
+                    print("Parsing",uri)
+                    try:
+                        parse(uri)
+                        win(uri)
+                        break
+                    except urllib.error.URLError as e:
+                        print(e.getcode(),e.reason,e.geturl())
+                        time.sleep(3)
+                else:
+                    raise RuntimeError("Could not parse",uri)
+            except:
+                print("fail",uri)
+                fail(uri)
+                if ah: continue
+                import traceback,sys
+                traceback.print_exc(file=sys.stdout)
+                time.sleep(1)
 
 def poke():
     with poked:

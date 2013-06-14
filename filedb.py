@@ -31,7 +31,11 @@ def imagePath(id):
     return os.path.join(base,'image','{:x}'.format(id))
 
 def ImageBecomer(dir):
-    self = tempfile.NamedTemporaryFile(dir=dir)
+    if type(dir)==type(''):
+        self = tempfile.NamedTemporaryFile(dir=dir)
+    else:
+        print(type(dir))
+        self = dir
     def become(id):
         image = imagePath(id)
         if os.path.exists(image): return

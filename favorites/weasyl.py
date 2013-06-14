@@ -13,11 +13,16 @@ def extract(doc):
     for a in doc.findAll('a'):
         href = a.get('href')
         if not href: continue
-        if not href.startswith("/static/submission/"): continue
+        try: static,category,rest = href[1:].split('/',2)
+        except ValueError: continue
+        if static != 'static': continue
+        if not category in set(("submission","character")):
+            print("Strange category",category)
+            continue
         yield Image(href)
         image = True
     if not image:
-        raise Exception("Couldn't find image")
+        raise RuntimeError("Couldn't find image")
     div = doc.find('div',{'class': lambda e: e and 'tags' in e})
     tags = False
     for a in div.findAll('a'):

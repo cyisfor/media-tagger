@@ -5,6 +5,9 @@ import filedb
 from Crypto.Hash import SHA,MD5
 from PIL import Image
 
+from pprint import pprint
+
+import gzip
 import magic
 import base64
 import shutil
@@ -27,7 +30,9 @@ def isGood(type):
     return category in {'image','video','audio'} or type in {'application/x-shockwave-flash'}
 
 def sourceId(source):
+    if source is None: return None
     if isinstance(source,int): return source
+    if source[0] == '/': return None
     id = db.c.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
     if id:
         return id[0][0]
@@ -43,7 +48,7 @@ findMD5 = re.compile("[0-9a-fA-F]{32}")
 class NoGood(Exception): pass
 
 def getanId(sources,uniqueSource,download,name):
-    result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,))
+    result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
     if result:
         return result[0][0],False
     md5 = None
@@ -80,6 +85,11 @@ def getanId(sources,uniqueSource,download,name):
             id = id[0][0]
             image = None
             data.seek(0,0)
+            if data.name[-1] == 'z':
+                try:
+                    data = ImageBecomer(gzip.open(data))
+                except IOError as e:
+                    raise
             try:
                 image = Image.open(data)
             except IOError as e:
@@ -95,6 +105,7 @@ def getanId(sources,uniqueSource,download,name):
                     type = input("Type:")
                     if not type or not '/' in type:
                         raise SystemExit("Bailing out")
+            print('XXXXXXX',type)
             if not isGood(type): raise NoGood()
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
@@ -124,7 +135,10 @@ def internet(download,media,tags,primarySource,otherSources):
     else:
         name = name[0]
     name = name.rsplit('?',1)[-1]
-    sources = set([primarySource,media] + [source for source in otherSources])
+    if '://' in media and '://' in primarySource:
+        sources = set([primarySource,media] + [source for source in otherSources])
+    else:
+        sources = otherSources
     sources = [source for source in sources if source]
     with db.transaction():
         mediaId = sourceId(media)
@@ -144,12 +158,16 @@ def internet(download,media,tags,primarySource,otherSources):
             if tag.category and tag.category != 'general':
                 category = withtags.makeTag(tag.category)
                 tag = withtags.makeTag(tag.category+':'+tag.name)
+                withtags.connect(tag,name)
                 withtags.connect(name,tag)
                 withtags.connect(category,tag)
+                # NOT this:
+                # withtags.connect(tag,category)
             else:
                 tag = name
         else:
             tag = withtags.makeTag(tag)
         donetags.append(tag)
     for tag in donetags:
+        withtags.connect(id,tag)
         withtags.connect(tag,id)

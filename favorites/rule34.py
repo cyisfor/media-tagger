@@ -48,9 +48,15 @@ def extract(doc):
         if key == 'Rating':
             yield Tag('rating',rest.strip().lower())
         elif key == 'Source':
-            href = li.find('a')['href']
+            a = li.find('a')
+            if a:
+                href = a['href']
+            else:
+                href = rest
             if not 'adf.ly' in href:
-                yield Source(deredirect(href))
+                try:
+                    yield Source(deredirect(href))
+                except ValueError: pass
     options = stats.findNextSiblings('div')[0]
     for li in options.findAll('li'):
         a = li.find('a')

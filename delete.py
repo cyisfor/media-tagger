@@ -1,6 +1,6 @@
 import db,sys,os
 import filedb
-from readclipmon import readClipmon
+import clipboardy
 
 def delete(thing,reason=None):
     print("deleting",thing,reason)
@@ -25,4 +25,4 @@ else:
         try:
             delete(int(piece.rsplit('/',1)[-1],0x10),reason)
         except ValueError: pass
-    readClipmon(sys.stdin,gotPiece)
+    clipboardy.run(gotPiece)

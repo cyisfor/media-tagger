@@ -13,13 +13,22 @@ kwMatch = re.compile('/search/@keywords (.*)')
 
 def extract(doc):
     linx = doc.find('div',id='keywords')
-    if not linx: return
-    for a in linx.findAll('a'):
+    if linx:
+        for a in linx.findAll('a'):
+            href = a.get('href')
+            if not href: continue
+            m = kwMatch.match(href)
+            if not m: continue
+            yield Tag('general',m.group(1).lower())
+    auth = doc.findAll('td',{'class':'cat'})
+    if not auth or len(auth) < 2:
+        raise RuntimeError("No author on furaffinity?")
+    auth = auth[1]
+    for a in auth.findAll('a'):
         href = a.get('href')
         if not href: continue
-        m = kwMatch.match(href)
-        if not m: continue
-        yield Tag('general',m.group(1).lower())
+        if not href.startswith('/user/'): continue
+        yield Tag('artist',href[len('/user/'):].rstrip('/'))
     for a in doc.findAll('a'):
         if not a.contents: continue
         if not 'Download' == str(a.contents[0]).strip(): continue

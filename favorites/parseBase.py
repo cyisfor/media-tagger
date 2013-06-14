@@ -19,9 +19,11 @@ finders = []
 
 def parse(primarySource):
     url = urllib.parse.urlparse(primarySource)
-    for matcher,handlers in finders:
+    for name,matcher,handlers in finders:
         if matcher(url):
             with urllib.request.urlopen(primarySource) as inp:
+                if not inp.headers.get('Content-Type').startswith('text/html'):
+                    raise RuntimeError(primarySource,"not html")
                 doc = inp.read()
                 if 'gzip' in inp.headers.get('Content-encoding',''):
                     import gzip
@@ -49,7 +51,7 @@ def parse(primarySource):
                 elif isinstance(thing,Source):
                     sources.append(thing)
             if not medias:
-                print("No media. Failing...")
+                print(name,primarySource,"No media. Failing...")
                 continue
             if 'normalize' in handlers:
                 primarySource = handlers['normalize'](primarySource)
@@ -77,7 +79,6 @@ def parse(primarySource):
                     return datetime.datetime.fromtimestamp(mtime)
                 create.internet(download,media.url,tags,derpSource,derpSources)
             return
-    print(url.netloc)
     raise RuntimeError("Can't parse {}!".format(primarySource))
 
 def matchNetloc(s):
@@ -85,14 +86,15 @@ def matchNetloc(s):
         return url.netloc == s
     return matcher
 
-def registerFinder(matcher,handler):
+def registerFinder(matcher,handler,name=None):
+    if name is None: name = matcher
     if hasattr(matcher,'search'):
         temp = matcher
         matcher = lambda url: temp.search(url.netloc)
     elif callable(matcher): pass
     else:
         matcher = matchNetloc(matcher)
-    finders.append((matcher,handler))
+    finders.append((name,matcher,handler))
 
 def alreadyHere(uri):
     result = db.c.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))

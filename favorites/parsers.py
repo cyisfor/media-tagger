@@ -22,12 +22,14 @@ parse.registerFinder("furry.booru.org",
 parse.registerFinder(re.compile("wildcritters\..*"),
         {'extract': danbooru.extract,
          'tags': ['wildcritters'],
-         'normalize': danbooru.normalize})
+         'normalize': danbooru.normalize},
+        name="wildcritters")
 
 parse.registerFinder(re.compile("e621\..*"),
         {'extract': danbooru.extract,
          'tags': ['e621'],
-         'normalize': danbooru.normalize})
+         'normalize': danbooru.normalize},
+        name="e621")
 
 parse.registerFinder("mspabooru.com",
         {'extract': danbooru.extract,
@@ -37,16 +39,19 @@ parse.registerFinder("mspabooru.com",
 parse.registerFinder(re.compile("twentypercentcooler\..*"),
         {'extract': danbooru.extract,
          'tags': ['twentypercentcooler','pony'],
-         'normalize': danbooru.normalize})
+         'normalize': danbooru.normalize},
+        name="twentypercentcooler")
 
 parse.registerFinder(re.compile(".*furaffinity.net"),
         {'extract': furaffinity.extract,
          'tags': ['furaffinity'],
-         'normalize': furaffinity.normalize})
+         'normalize': furaffinity.normalize},
+        name="furaffinity")
 
 parse.registerFinder(re.compile(".*inkbunny.net"),
         {'extract': inkbunny.extract,
-         'tags': ['inkbunny']})
+         'tags': ['inkbunny']},
+        name="inkbunny")
 
 parse.registerFinder('rule34.xxx',
         {'extract': rule34.extract,
@@ -54,11 +59,13 @@ parse.registerFinder('rule34.xxx',
 
 parse.registerFinder(re.compile('.*sofurry.com'),
         {'extract': sofurry.extract,
-            'tags': ['sofurry']})
+            'tags': ['sofurry']},
+        name="sofurry")
 
 parse.registerFinder(re.compile('.*weasyl.com'),
         {'extract': weasyl.extract,
-            'tags': ['weasyl']})
+            'tags': ['weasyl']},
+        name="weasyl")
 
 parse.registerFinder('derpibooru.org',
         {'extract': derpibooru.extract,
@@ -70,9 +77,11 @@ parse.registerFinder('derpiboo.ru',
             'normalize': derpibooru.normalize,
             'tags': ['derpibooru','pony']})
 
+""" sigh...
 parse.registerFinder('www.pixiv.net',
         {'extract': pixiv.extract,
             'tags':['pixiv','japan']})
+"""
 
 tags = ['flickr','photo']
 parse.registerFinder('flickr.com',

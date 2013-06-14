@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-if __name__ == '__main__':
-    import sys,os
-    # sigh...
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import syspath
 
-from readclipmon import readClipmon
 import catchup
 from dbqueue import enqueue
 
@@ -19,6 +15,7 @@ if __name__ == '__main__':
     else:
         import fcntl,os,time
         from itertools import count
+        import clipboardy
         def gotPiece(piece):
             if 'http' in piece:
                 print("Trying {}".format(piece.strip()))
@@ -26,5 +23,5 @@ if __name__ == '__main__':
                 enqueue(piece.strip())
                 catchup.poke()
                 print("poked")
-        readClipmon(sys.stdin,gotPiece)
+        clipboardy.run(gotPiece)
         catchup.finish()
