@@ -17,7 +17,12 @@ from things import *
 
 finders = []
 
+skip = os.environ.get('skip')
+
 def parse(primarySource):
+    if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
+        print('skipping',primarySource)
+        return
     url = urllib.parse.urlparse(primarySource)
     for name,matcher,handlers in finders:
         if matcher(url):
@@ -30,7 +35,6 @@ def parse(primarySource):
                     doc = gzip.decompress(doc)
                 doc = BeautifulSoup(doc)
                 setattr(doc,'url',primarySource)
-            sources = [primarySource]
             medias = []
             def generalize(tag):
                 if isinstance(tag,Tag): return tag
@@ -43,6 +47,12 @@ def parse(primarySource):
                     return Tag(*(tag.split(':')))
                 return Tag('general',tag)
             tags = [generalize(tag) for tag in handlers.get('tags',[])]
+            if 'normalize' in handlers:
+                primarySource = handlers['normalize'](primarySource)
+            if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
+                print('fskipping',primarySource)
+                return
+            sources = [primarySource]
             for thing in handlers['extract'](doc):
                 if isinstance(thing,Tag):
                     tags.append(thing)
@@ -53,8 +63,6 @@ def parse(primarySource):
             if not medias:
                 print(name,primarySource,"No media. Failing...")
                 continue
-            if 'normalize' in handlers:
-                primarySource = handlers['normalize'](primarySource)
             if True:
                 print("tags",tags)
                 print("Media",len(medias))

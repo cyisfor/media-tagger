@@ -7,11 +7,9 @@ from dbqueue import enqueue
 if __name__ == '__main__':
     import select
     import sys
-    catchup.start()
     if len(sys.argv)>1:
         enqueue(sys.argv[1])
         catchup.poke()
-        catchup.finish()
     else:
         import fcntl,os,time
         from itertools import count

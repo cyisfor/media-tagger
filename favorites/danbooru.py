@@ -40,12 +40,14 @@ def extract(doc):
                 a = li.find('a')
                 if a:
                     gotImage = True
+                    print("Image",a['href'])
                     yield Image(a['href'])
     if not gotImage:
         for a in doc.findAll('a'):
             if a.contents and a.contents[0].strip and a.contents[0].strip().lower() in ('download','original image'):
                 href = a.get('href')
                 if not href: continue
+                print("Image",href)
                 yield Image(href)
 
 toNum = re.compile('.*[0-9+]')

@@ -6,75 +6,55 @@ if __name__ == '__main__':
 from parseBase import *
 import parsers
 from dbqueue import top,fail,win
-import threading
 from db import c
+import clipboardy
+
+from gi.repository import GLib, Gtk, Gdk
 import time
 import fixprint
 
-isThreading = True
-poked = threading.Condition()
+derpwhat = False
 
-notdone = True
-
-class Catchup(threading.Thread):
-    def run(self):
-        while notdone:
-            print("beep")
-            uri = top()
-            if uri is None:
-                if isThreading:
-                    with poked:
-                        print("waiting for poke")
-                        poked.wait()
-                        print("squeak!")
-                else:
+class Catchup:
+    def __init__(self):
+        self.notdone = True
+    def squeak(self,*a):
+        print("DERP",a)
+        uri = top()
+        if uri is None:
+            if derpwhat: Gtk.main_quit()
+            return
+        print("squeak!")
+        ah = alreadyHere(uri)
+        if ah:
+            print("WHEN I AM ALREADY HERE")
+        try:
+            for attempts in range(5):
+                print("Parsing",uri)
+                try:
+                    parse(uri)
+                    win(uri)
                     break
-                continue
-            ah = alreadyHere(uri)
-            if ah:
-                print("WHEN I AM ALREADY HERE")
-            #else:
-            try:
-                for attempts in range(5):
-                    print("Parsing",uri)
-                    try:
-                        parse(uri)
-                        win(uri)
-                        break
-                    except urllib.error.URLError as e:
-                        print(e.getcode(),e.reason,e.geturl())
-                        time.sleep(3)
-                else:
-                    raise RuntimeError("Could not parse",uri)
-            except:
-                print("fail",uri)
-                fail(uri)
-                if ah: continue
+                except urllib.error.URLError as e:
+                    print(e.getcode(),e.reason,e.geturl())
+                    time.sleep(3)
+            else:
+                raise RuntimeError("Could not parse",uri)
+        except:
+            print("fail",uri)
+            fail(uri)
+            if not ah:
                 import traceback,sys
                 traceback.print_exc(file=sys.stdout)
                 time.sleep(1)
+        GLib.idle_add(self.squeak)
+
+instance = Catchup()
 
 def poke():
-    with poked:
-        poked.notifyAll()
-
-started = False
-thread = None
-
-def start():
-    global thread
-    global started
-    if started: return
-    started = True
-    thread = Catchup()
-    thread.start()
-
-def finish():
-    global notdone
-    notdone = False
-    poke()
-    thread.join()
+    GLib.idle_add(instance.squeak)
 
 if __name__ == '__main__':
-    isThreading = False
-    Catchup().run()
+    derpwhat = True
+    poke()
+    Gtk.main()

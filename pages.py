@@ -119,7 +119,7 @@ def makeLink(type,thing,width=None):
             attrs['width'] = maxWidth
         return d.img(attrs)
     wrapper = None
-    if type.startswith('audio') or type.startswith('video'):
+    if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
         if False:#type.endswith('webm') or type.endswith('ogg'):
             if type[0]=='a':
                 wrapper = audio
@@ -141,9 +141,12 @@ def makeLink(type,thing,width=None):
 
 def page(info,path,params):
     id,next,prev,name,type,width,tags = info
-    name = name.split('?')[0]
-    if not '.' in name:
-        name = name + '/untitled.jpg'
+    if name:
+        name = name.split('?')[0]
+        if not '.' in name:
+            name = name + '/untitled.jpg'
+    else:
+        name = 'untitled.jpg'
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [degeneralize(tag) for tag in tags]
     boorutags = " ".join(tag.replace(' ','_') for tag in tags)
@@ -182,13 +185,17 @@ def stringize(key):
     return str(key)
 
 def info(info,path,params):
+    import info as derp
     id = '{:x}'.format(info['id'])
+    sources = [(id,derp.source(id)) for id in info['sources']]
+    sources = [pair for pair in sources if pair[1]]
+    print(sources)
     return makePage("Info about "+id,
             d.p(d.a(d.img(src="/thumb/"+id),d.br(),"Page",href=place+"/~page/"+id)),
             d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in info.keys() if key != "sources" and key != "id"),Class='info'),
             d.hr(),
             "Sources",
-            (d.p(d.a(source,href=source)) for source in info['sources']))
+            (d.p(d.a(str(id)+': '+source,href=source)) for id,source in sources))
 
 
 

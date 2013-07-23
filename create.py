@@ -85,9 +85,10 @@ def getanId(sources,uniqueSource,download,name):
             id = id[0][0]
             image = None
             data.seek(0,0)
+            savedData = data
             if data.name[-1] == 'z':
                 try:
-                    data = ImageBecomer(gzip.open(data))
+                    data = gzip.open(data)
                 except IOError as e:
                     raise
             try:
@@ -123,7 +124,8 @@ def getanId(sources,uniqueSource,download,name):
                     animated = False
                 image = None
                 db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
-            data.become(id)
+            data.flush()
+            savedData.become(id)
             filedb.check(id)
             return id,True
     raise RuntimeError("huh?")

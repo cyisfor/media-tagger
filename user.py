@@ -16,7 +16,7 @@ v.setup()
 userstack = []
 
 def currentUser():
-    return userstack[0]
+    return userstack[-1]
 
 class User(obj): pass
 
@@ -28,6 +28,7 @@ def being(ident):
             user = dict(zip(result.fields,result[0]))
             user['ident'] = ident
             user['rescaleImages'] = user['rescaleimages'] == 't'
+            print('userstack',userstack)
             userstack.append(user)
             yield user
             userstack.pop()

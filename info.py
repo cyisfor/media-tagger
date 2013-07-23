@@ -20,8 +20,12 @@ def page(path,params):
     WHERE media.id = $1
 """,(getID(path),))[0]
 
+def source(sourceID):
+    try: return db.c.execute("SELECT uri FROM urisources WHERE id = $1",(sourceID,))[0][0]
+    except IndexError: return None
+
 def info(path,params):
-    result = db.c.execute("SELECT media.id,name,type,array(SELECT uri FROM urisources WHERE id = ANY(sources)) AS sources,images.width,images.height,size,hash,created,added,md5 FROM media LEFT OUTER JOIN images ON images.id = media.id WHERE media.id = $1",(getID(path),))
+    result = db.c.execute("SELECT media.id,name,type,sources,images.width,images.height,size,hash,created,added,md5 FROM media LEFT OUTER JOIN images ON images.id = media.id WHERE media.id = $1",(getID(path),))
     return dict(zip(result.fields,result[0]))
 
 def user(path,params): pass

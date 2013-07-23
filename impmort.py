@@ -3,6 +3,7 @@
 import create,withtags
 import filedb
 import db
+import fixstdin
 import fixprint
 
 from PIL import Image
