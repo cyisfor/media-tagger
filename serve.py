@@ -58,31 +58,31 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 tags = set()
                 negatags = set()
-                implied = self.headers.get("X-Implied-Tags")
+                implied = self.headers.get("X-Implied-Tags")                
                 if implied:
-                    for thing in implied.split(','):
-                        thing = thing.strip()
-                        if thing[0] == '-':
-                            tags.discard(thing[1:])
-                            negatags.add(thing[1:])
-                        else:
-                            tags.add(thing)
+                    tags,negatags = withtags.parse(implied)
+                tags.update(User.tags())
+                negatags.update(User.tags(True))
+
                 for thing in path:
                     if thing:
                         thing = urllib.parse.unquote(thing)
                         if thing[0] == '-':
-                            tags.discard(thing[1:])
-                            negatags.add(thing[1:])
+                            tag = withtags.getTag(thing[1:])
+                            tags.discard(tag)
+                            negatags.add(tag)
                             continue
                         elif thing[0] == '+':
                             thing = thing[1:]
-                        tags.add(thing)
+                        tag = withtags.getTag(thing)
+                        tags.add(tag)
                 o = params.get('o')
                 if o:
                     o = int(o[0],0x10)
                     offset = 0x30*o
                 else:
                     offset = o = 0
+                print(tags,negatags)
                 page = images(pathurl,params,o,
                         withtags.searchForTags(tags,negatags,offset=offset,limit=0x30),
                         withtags.searchForTags(tags,negatags,offset=offset,limit=0x30,wantRelated=True),tags,negatags)

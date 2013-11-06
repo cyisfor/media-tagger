@@ -18,3 +18,4 @@ class Tag:
     def __eq__(self,other):
         return self.category == other.category and self.name == other.name
 class Source(str): pass
+class Name(str): pass

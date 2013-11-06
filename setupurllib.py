@@ -1,6 +1,7 @@
 from filedb import top
 from contextlib import closing
 
+import sys
 import os,tempfile
 import urllib.request
 import pickle
@@ -46,6 +47,17 @@ opener.addheaders = [('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gec
 urllib.request.install_opener(opener)
 
 def myretrieve(request,dest):
-    with closing(opener.open(request)) as inp:
-        shutil.copyfileobj(inp,dest)
-        return inp.headers
+    try:
+        request.full_url.encode('ascii')
+    except UnicodeEncodeError as e:
+        url = list(urllib.parse.urlparse(request.full_url))
+        for i in range(2,len(url)):
+            url[i] = urllib.parse.quote(url[i])
+        request.full_url = urllib.parse.urlunparse(url)
+    try:
+        with closing(opener.open(request)) as inp:
+            shutil.copyfileobj(inp,dest)
+            return inp.headers
+    except: 
+        print((request.get_data(),request.get_full_url(),request.headers),file=sys.stderr)
+        raise

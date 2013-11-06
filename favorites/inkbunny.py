@@ -4,9 +4,12 @@ import urllib.parse
 
 def extract(doc):
     if '///files' in doc.url: return
+    kwdiv = None
     for div in doc.findAll('div'):
         if div.contents and str(div.contents[0]).strip()=='Keywords':
             kwdiv = div.parent
+    if kwdiv is None:
+        return
     for a in kwdiv.findAll('a'):
         href = a.get('href')
         if not href: continue

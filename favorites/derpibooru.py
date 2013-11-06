@@ -11,7 +11,7 @@ def mystrip(s,chars):
 
 def extract(doc):
     gotImage = False
-    taglist = doc.find('div',{'class': 'image_tag_list'})
+    taglist = doc.find('div',{'class': 'tag-list'})
     for tag in taglist.findAll('a',rel="tag"):
         name = tag.contents[0].strip()
         if ':' in name:
@@ -23,22 +23,22 @@ def extract(doc):
         yield Source(sauce.find('a')['href'])
     imgr = doc.find('div',id='image_target').next.next
     foundImage = False
-    for img in imgr.findAll('img'):
-        src = img.get('src')
-        if not src: continue
-        if '/thumbs/' in src: continue
-        yield Image(src)
-        foundImage = True
+    for a in doc.findAll('a'):
+        rel = a.get('rel')
+        if not rel:
+            continue
+        if 'nofollow' in rel and a.contents[0].strip().lower()=='download':
+            href = a.get('href')
+            print('FOU',href);
+            yield Image(href)
+            foundImage = True
     if not foundImage:
-        for a in doc.findAll('a'):
-            rel = a.get('rel')
-            if not rel:
-                continue
-            if 'nofollow' in rel and a.contents[0].strip().lower()=='download':
-                href = a.get('href')
-                if '/media/' in href:
-                    yield Image(href)
-                    foundImage = True
+        for img in imgr.findAll('img'):
+            src = img.get('src')
+            if not src: continue
+            if '/thumbs/' in src: continue
+            yield Image(src)
+            foundImage = True
 
 noquery = re.compile('^[^?]*')
 

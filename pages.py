@@ -1,13 +1,12 @@
 import dirty.html as d
 from dirty import RawString
-def comment(s):
-    return RawString('<!-- '+s+' -->')
 from place import place
 from itertools import count
 import fixprint
 
-import user as herp
-from obj import obj
+from user import User
+import withtags
+import context
 from db import c
 from redirect import Redirect
 import filedb
@@ -28,6 +27,8 @@ def quote(s):
         print(repr(s))
         raise
 
+def comment(s):
+    return RawString('<!-- '+s+' -->')
 def stripPrefix(type):
     if type:
         a = type.split('/',1)
@@ -72,32 +73,34 @@ def makeLinks(info):
         row.append(d.td(d.a(d.img(src=src,alt="...",title=name,href=place+'/~page/'+id),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '???',href=place+'/~page/'+id)))
     if row: yield d.tr(*row)
 
-links = obj(
-    next=None,
-    prev=None,
-    query=None,
-    params={},
-    style="/style/art.css")
+class Links(context.Context):
+    next = None
+    prev = None
+    query = None
+    params = {}
+    style = "/style/art.css"
 
 def standardHead(title,*contents):
-    if links.params:
+    if Links.params:
         params = []
-        for name,values in links.params.items():
+        for name,values in Links.params.items():
             for value in values:
                 params.append(name+'='+quote(value))
         params = '?' + '&'.join(params)
     else:
         params = ''
     return d.head(d.title(title),
-        d.link(rel='stylesheet',type='text/css',href=links.style),
-        d.link(rel='next',href=links.next+params) if links.next else None,
-        d.link(rel='prev',href=links.prev+params) if links.prev else None,
+        d.link(rel='stylesheet',type='text/css',href=Links.style),
+        d.link(rel='next',href=Links.next+params) if Links.next else None,
+        d.link(rel='prev',href=Links.prev+params) if Links.prev else None,
         *contents)
 
 def makePage(title,*content):
     content = content + (
         d.p(d.a("User Settings",href=("/art/~user"))),)
-    return d.xhtml(standardHead(title),d.body(*content))
+    return d.xhtml(standardHead(title),d.body(
+#        d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
+        *content))
 
 def makeE(tag):
     tag = d.Tag(tag)
@@ -138,11 +141,14 @@ def makeLink(type,thing,width=None):
                 width='100%',height='100%'),'Download'
     raise RuntimeError("What is "+type)
 
+def simple(info,path,params):
+    id,type = info
+    return makePage("derp",d.a(d.img(src='/image/{:x}/{}'.format(id,type)),href=place+'/~page/{:x}'.format(id)))
 
 def page(info,path,params):
     id,next,prev,name,type,width,tags = info
     if name:
-        name = name.split('?')[0]
+        name = quote(name)
         if not '.' in name:
             name = name + '/untitled.jpg'
     else:
@@ -150,9 +156,10 @@ def page(info,path,params):
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [degeneralize(tag) for tag in tags]
     boorutags = " ".join(tag.replace(' ','_') for tag in tags)
-    guy = herp.currentUser()
-    print("Got guy",guy)
-    if guy['rescaleImages'] and width and width > maxWidth and not 'ns' in params:
+    print("Got guy",User,id)
+    print(tags)
+    doScale = not 'ns' in params
+    if doScale and guy['rescaleImages'] and width and width > maxWidth:
         fid = filedb.checkResized(id,type,800)
         thing = '/resized/'+fid+'/donotsave.this'
     else:
@@ -162,13 +169,13 @@ def page(info,path,params):
         tagderp = d.p("Tags: ",((' ',d.a(tag,href=place+"/"+tag)) for tag in tags))
     else:
         tagderp = ''
-    thing = makeLink(type,thing,width)
-    with links:
-        links.params = params
+    thing = makeLink(type,thing,width if doScale else None)
+    with Links.new():
+        Links.params = params
         if next:
-            links.next = '{:x}'.format(next)
+            Links.next = '{:x}'.format(next)
         if prev:
-            links.prev = '{:x}'.format(prev)
+            Links.prev = '{:x}'.format(prev)
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                 d.p(d.a(thing,href='/'.join(('/image',fid,type,name)))),
@@ -214,6 +221,9 @@ def stripGeneral(tags):
     return set([tag.replace('general:','') for tag in tags])
 
 def images(url,query,offset,info,related,tags,negatags):
+    related = withtags.names(related)
+    tags = withtags.names(tags)
+    negatags = withtags.names(negatags)
     related = [str(tag) for tag in related]
     related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
@@ -225,18 +235,18 @@ def images(url,query,offset,info,related,tags,negatags):
     for tag in negatags:
         removers.append(d.a(tag,href=tagsURL(tags,negatags.difference(set([tag])))))
 
-    with links:
+    with Links.new():
         if len(info)>=0x30:
-            links.next = url.path+'?'+unparseQuery(query)
+            Links.next = url.path+'?'+unparseQuery(query)
         if offset != 0:
             query['o'] = ['{:x}'.format(offset-1)]
-            links.prev = url.path+('?'+unparseQuery(query) if offset > 1 else '')
+            Links.prev = url.path+('?'+unparseQuery(query) if offset > 1 else '')
         return makePage("Images",
-                d.p("You are ",d.a(herp.currentUser()['ident'],href="/art/~user")),
+                d.p("You are ",d.a(User.ident,href="/art/~user")),
                 d.table(makeLinks(info)),
                 (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
                 (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
-                d.p((d.a('Prev',href=links.prev),' ') if links.prev else '',(d.a('Next',href=links.next) if links.next else '')))
+                d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
 
 def desktop(raw,path,params):
     import desktop
@@ -265,18 +275,37 @@ def desktop(raw,path,params):
                         [d.td(d.a(d.img(title=name,src="/thumb/"+'{:x}'.format(id),alt=name),
                             href=place+"/~page/"+'{:x}'.format(id))) for id,name in named]))))
 
+defaultTags = '-rating:explicit, -gore, ferret'
+tags,negatags = withtags.parse(defaultTags)
+
 def user(info,path,params):
-    self = herp.currentUser()
     iattr = {
             'type': 'checkbox',
             'name': 'rescale'}
-    if self.get('rescaleImages'):
+    if User.get('rescaleImages'):
         iattr['checked'] = True
     rescalebox = d.input(iattr)
+    tagnames = []
+    for name,nega in c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.id WHERE uzertags.uzer = $1',(User.id,)):
+        if nega == 't':
+            name = '-'+name
+        tagnames.append(name)
+    if len(tagnames)==0:
+        if User.noDefaultTags:
+            tagnames = ''
+        else:
+            c.execute('INSERT INTO uzertags (uzer,id) SELECT $1::int,unnest($2::bigint[])',(User.id,tags))
+            c.execute('INSERT INTO uzertags (uzer,id,nega) SELECT $1,unnest($2::bigint[]),TRUE',(User.id,negatags))
+            tagnames = defaultTags
+    else:
+        tagnames = ', '.join(tagnames)
+
+
     return makePage("User Settings",
         d.form(
         d.ul(
             d.li("Rescale Images? ",rescalebox),
+            d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
             d.li(d.input(type="submit",value="Submit"))),
         method="post",
         enctype="multipart/form-data"))

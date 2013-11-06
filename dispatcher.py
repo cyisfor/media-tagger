@@ -1,6 +1,7 @@
 import pages,info,process
 
 modes = {
+        'simple': (pages.simple,info.simple),
         'page': (pages.page,info.page),
         'info': (pages.info,info.info),
         'like': (pages.like,info.like),

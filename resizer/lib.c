@@ -61,13 +61,17 @@ Image* MakeThumbnail(Image* image, context* ctx) {
 	rect.height = SIDE; */
 
     // RollImage clones?
+    assert(image);
     thumb = RollImage(image,
 		      image->columns-(image->columns-rect.width)/2,
 		      image->rows-(image->rows-rect.height)/2,
 		      &ctx->exception);
     CatchExceptionAndReset(&ctx->exception);
-    DestroyImage(image);
-    image = thumb;
+    if(thumb) {
+        assert(thumb);
+        DestroyImage(image);
+        image = thumb;
+    }
 
     // CropImage clones
     thumb = CropImage(image,&rect,&ctx->exception);

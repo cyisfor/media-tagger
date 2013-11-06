@@ -64,6 +64,7 @@ parse.registerFinder(re.compile('.*sofurry.com'),
 
 parse.registerFinder(re.compile('.*weasyl.com'),
         {'extract': weasyl.extract,
+            'normalize': danbooru.normalize,
             'tags': ['weasyl']},
         name="weasyl")
 

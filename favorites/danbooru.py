@@ -44,7 +44,7 @@ def extract(doc):
                     yield Image(a['href'])
     if not gotImage:
         for a in doc.findAll('a'):
-            if a.contents and a.contents[0].strip and a.contents[0].strip().lower() in ('download','original image'):
+            if a.contents and a.contents[0].strip and a.contents[0].strip().lower() in ('download','original image','save this flash (right click and save)'):
                 href = a.get('href')
                 if not href: continue
                 print("Image",href)
@@ -55,6 +55,7 @@ toNum = re.compile('.*[0-9+]')
 def normalize(url):
     m = toNum.match(url)
     if not m: raise RuntimeError("Couldn't figure out {}".format(url))
+    print(url,'normalized to',m.group(0))
     return m.group(0)
 
 

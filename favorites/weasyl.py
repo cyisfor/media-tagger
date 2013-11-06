@@ -19,8 +19,18 @@ def extract(doc):
         if not category in set(("submission","character")):
             print("Strange category",category)
             continue
-        yield Image(href)
-        image = True
+        derp = href.rsplit('.',1)
+        if len(derp) == 2:
+            ext = derp[1]
+        else:
+            # ehhhhhh
+            ext = 'jpg'
+        img = a.find('img')
+        if img:
+            name = img['alt'] + '.' + ext
+            yield Name(name)
+            yield Image(href)
+            image = True
     if not image:
         raise RuntimeError("Couldn't find image")
     div = doc.find('div',{'class': lambda e: e and 'tags' in e})

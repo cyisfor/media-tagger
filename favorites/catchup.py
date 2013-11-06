@@ -5,24 +5,24 @@ if __name__ == '__main__':
 
 from parseBase import *
 import parsers
-from dbqueue import top,fail,win
+from dbqueue import top,fail,win,megafail
 from db import c
 import clipboardy
 
-from gi.repository import GLib, Gtk, Gdk
+import threading
 import time
 import fixprint
 
-derpwhat = False
-
-class Catchup:
+class Catchup(threading.Thread):
+    done = False
     def __init__(self):
-        self.notdone = True
+        super().__init__()
+        self.condition = threading.Condition()
     def squeak(self,*a):
         print("DERP",a)
         uri = top()
         if uri is None:
-            if derpwhat: Gtk.main_quit()
+            if self.done: raise SystemExit
             return
         print("squeak!")
         ah = alreadyHere(uri)
@@ -39,7 +39,9 @@ class Catchup:
                     print(e.getcode(),e.reason,e.geturl())
                     time.sleep(3)
             else:
-                raise RuntimeError("Could not parse",uri)
+                print("Could not parse",uri)
+        except ParseError:
+            megafail(uri)
         except:
             print("fail",uri)
             fail(uri)
@@ -47,14 +49,32 @@ class Catchup:
                 import traceback,sys
                 traceback.print_exc(file=sys.stdout)
                 time.sleep(1)
-        GLib.idle_add(self.squeak)
+        print('boosh')
+        return True
+    def run(self):
+        try:
+            while self.done is False:
+                while self.squeak() is True: pass
+                with self.condition:
+                    if self.done: break
+                    self.condition.wait()
+        except SystemExit: pass
+    def poke(self):
+        with self.condition:
+            self.condition.notifyAll()
+    def finish(self):
+        self.done = True
+        self.poke()
+        self.join()
+
+
 
 instance = Catchup()
+instance.start()
 
-def poke():
-    GLib.idle_add(instance.squeak)
+poke = instance.poke
+
+finish = instance.finish
 
 if __name__ == '__main__':
-    derpwhat = True
-    poke()
-    Gtk.main()
+    finish()

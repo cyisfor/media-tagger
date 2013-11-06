@@ -23,6 +23,7 @@ def parse(primarySource):
     if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
         print('skipping',primarySource)
         return
+    print('parsing',repr(primarySource))
     url = urllib.parse.urlparse(primarySource)
     for name,matcher,handlers in finders:
         if matcher(url):
@@ -53,6 +54,7 @@ def parse(primarySource):
                 print('fskipping',primarySource)
                 return
             sources = [primarySource]
+            name = None
             for thing in handlers['extract'](doc):
                 if isinstance(thing,Tag):
                     tags.append(thing)
@@ -60,11 +62,14 @@ def parse(primarySource):
                     medias.append(thing)
                 elif isinstance(thing,Source):
                     sources.append(thing)
+                elif isinstance(thing,Name):
+                    name = thing
             if not medias:
                 print(name,primarySource,"No media. Failing...")
                 continue
             if True:
-                print("tags",tags)
+                print("tags",[str(tag) for tag in tags])
+                print("name",repr(name))
                 print("Media",len(medias))
                 print("PSource",primarySource)
                 print("Sources",sources)
@@ -76,8 +81,7 @@ def parse(primarySource):
                 else:
                     derpSource = media.url
                 derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
-                name = urllib.parse.unquote(media.url.rsplit('/')[1])
-                media.headers.setdefault('Referer',primarySource)
+                media.headers['Referer'] = primarySource
                 def download(dest):
                     myretrieve(Request(media.url,
                         headers=media.headers),
@@ -85,9 +89,16 @@ def parse(primarySource):
                     dest.seek(0,0)
                     mtime = os.fstat(dest.fileno()).st_mtime
                     return datetime.datetime.fromtimestamp(mtime)
-                create.internet(download,media.url,tags,derpSource,derpSources)
+                try:
+                    create.internet(download,media.url,tags,derpSource,derpSources,
+                        name = name)
+                except create.NoGood:
+                    print("No good",media.url,media.headers)
+                    raise
             return
-    raise RuntimeError("Can't parse {}!".format(primarySource))
+    raise ParseError("Can't parse {}!".format(primarySource))
+
+class ParseError(RuntimeError): pass
 
 def matchNetloc(s):
     def matcher(url):

@@ -114,7 +114,14 @@ def getTag(name):
     if result: return result[0][0]
     return None
 
-
+def names(tags):
+    tags = list(tags)
+    if not tags or type(tags[0])==str:
+        return set(tags)
+    names = set()
+    for row in c.execute('SELECT name FROM tags WHERE id = ANY($1)',(tags,)):
+        names.add(row[0])
+    return names
 
 def connect(a,b):
     c.execute(stmts['connect'],(a,b))
@@ -124,3 +131,19 @@ def test():
         print(tag)
 #test()
 
+def parse(s):
+    tags = set()
+    negatags = set()
+    for thing in s.split(','):
+        thing = thing.strip()
+        if thing[0] == '-':
+            tags.discard(thing[1:])
+            negatags.add(thing[1:])
+        else:
+            tags.add(thing)
+    tags = set(makeTag(tag) for tag in tags)
+    negatags = set(makeTag(tag) for tag in negatags)
+    tags = tags.difference(negatags)
+    negatags = negatags.difference(tags)
+    print('wtparse',s,tags,negatags)
+    return tags,negatags

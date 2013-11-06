@@ -8,7 +8,7 @@ from PIL import Image
 from pprint import pprint
 
 import gzip
-import magic
+import derpmagic as magic
 import base64
 import shutil
 import re
@@ -21,9 +21,11 @@ def imageHash(data):
     shutil.copyfileobj(data,digest)
     digest = digest.digest()
     digest = base64.b64encode(digest)
-    print(digest)
     digest = digest.decode().rstrip('=')
+    print(digest)
     return digest
+
+Image.MIME['PCX'] = 'image/pcx'
 
 def isGood(type):
     category = type.split('/',1)[0]
@@ -95,10 +97,10 @@ def getanId(sources,uniqueSource,download,name):
                 image = Image.open(data)
             except IOError as e:
                 pass
-            if image:
+            if image:                
                 type = Image.MIME[image.format]
             else:
-                type, encoding = magic.guess_type(data.name)
+                type, encoding = magic.guess_type(data.name)[:2]
                 if type is None:
                     print("What is {}?".format(data.name))
                     os.chdir(filedb.top+'/temp')
@@ -106,8 +108,7 @@ def getanId(sources,uniqueSource,download,name):
                     type = input("Type:")
                     if not type or not '/' in type:
                         raise SystemExit("Bailing out")
-            print('XXXXXXX',type)
-            if not isGood(type): raise NoGood()
+            if not isGood(type): raise NoGood(uniqueSource,type)
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
             print("New {} with id {:x} ({})".format(type,id,name))
@@ -130,28 +131,25 @@ def getanId(sources,uniqueSource,download,name):
             return id,True
     raise RuntimeError("huh?")
 
-def internet(download,media,tags,primarySource,otherSources):
-    name = media.rsplit('/',1)
-    if len(name) == 2:
-        name = name[1]
-    else:
-        name = name[0]
-    name = name.rsplit('?',1)[-1]
+def internet(download,media,tags,primarySource,otherSources,name=None):
+    if not name:
+        name = media.rsplit('/',1)
+        if len(name) == 2:
+            name = name[1]
+        else:
+            name = name[0]
     if '://' in media and '://' in primarySource:
         sources = set([primarySource,media] + [source for source in otherSources])
     else:
-        sources = otherSources
+        sources = (primarySource,)+otherSources
     sources = [source for source in sources if source]
     with db.transaction():
         mediaId = sourceId(media)
-        try:
-            id,wasCreated = getanId(sources,mediaId,download,name)
-        except NoGood:
-            return
+        id,wasCreated = getanId(sources,mediaId,download,name)
         if not wasCreated:
              print("Old image with id {:x}".format(id))
-             sources = set([sourceId(source) for source in otherSources])
-             db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])) WHERE id = $2",(sources,id))
+        sources = set([sourceId(source) for source in sources])
+        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])) WHERE id = $2",(sources,id))
     donetags = []
     tags = set(tags)
     for tag in tags:
@@ -173,3 +171,4 @@ def internet(download,media,tags,primarySource,otherSources):
     for tag in donetags:
         withtags.connect(id,tag)
         withtags.connect(tag,id)
+    return id

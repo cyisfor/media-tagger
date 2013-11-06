@@ -5,6 +5,10 @@ def getID(path):
         return int(path[1],0x10)
     return None
 
+def simple(path,params):
+    id = getID(path)
+    return id,db.c.execute("SELECT type FROM media WHERE id = $1",(id,))[0][0]
+
 def page(path,params):
     return db.c.execute("""SELECT
     media.id,
