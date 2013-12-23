@@ -42,7 +42,3 @@ FROM
         %(positiveClause)s
         %(negativeClause)s
     %(ordering)s) LIMIT %%(taglimit)s::int;
-connect
-WITH nothing AS (
-    UPDATE things SET neighbors = array(SELECT DISTINCT unnest(neighbors || $2::bigint)) WHERE id = $1)
-UPDATE things SET neighbors = array(SELECT DISTINCT unnest(neighbors || $1::bigint)) WHERE id = $2;
