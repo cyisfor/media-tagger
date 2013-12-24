@@ -1,4 +1,4 @@
-from things import Image,Tag,Source
+from .things import Image,Tag,Source
 import os
 import re
 from contextlib import closing

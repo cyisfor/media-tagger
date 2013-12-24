@@ -1,15 +1,16 @@
-from things import Tag
-import danbooru
-import derpibooru
-import furaffinity
-import inkbunny
-import rule34
-import sofurry
-import weasyl
-import pixiv
-import flickr
-import zerochan
-import parseBase as parse
+from .things import Tag
+from . import danbooru
+from . import derpibooru
+from . import furaffinity
+from . import inkbunny
+from . import rule34
+from . import sofurry
+from . import weasyl
+from . import pixiv
+from . import flickr
+from . import zerochan
+from . import parseBase as parse
+
 import re
 
 parse.registerFinder("www.zerochan.net",

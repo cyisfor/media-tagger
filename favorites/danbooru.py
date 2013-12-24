@@ -1,4 +1,4 @@
-from things import *
+from .things import *
 import re
 import urllib.parse
 

@@ -7,6 +7,25 @@ import urllib.request
 import pickle
 import shutil
 
+isPypy = hasattr(pickle.Pickler,'dispatch')
+if isPypy:
+    print('ispypy')
+    import copyreg
+    import _thread
+    import struct
+    class DerpLock: pass
+    class MyPickler(pickle.Pickler):
+        def save_global(self,obj,name=None,pack=struct.pack):
+            if isinstance(obj,_thread.RLock):
+                obj = DerpLock()
+            if obj is _thread.RLock:
+                obj = DerpLock
+            super().save_global(obj,name,pack)
+        pickle.Pickler.dispatch[type] = save_global
+    copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
+else:
+    MyPickler = pickle.Pickler
+
 import sqlite3
 import http.cookiejar
 
@@ -28,12 +47,15 @@ cookiefile = os.path.join(top,"temp","cookies.pickle")
 try:
     with open(cookiefile,'rb') as inp:
         jar = pickle.load(inp)
-except IOError:
+    if isPypy:
+        jar._cookies_lock = _thread.RLock()
+except (IOError,AttributeError):
     jar = http.cookiejar.CookieJar()
 
 get_cookies(jar,os.path.join(top,"cookies.sqlite"))
 with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
-    pickle.dump(jar,out)
+    pickler = MyPickler(out)
+    pickler.dump(jar)
     if os.path.exists(cookiefile):
         os.unlink(cookiefile)
     os.rename(out.name,cookiefile)
@@ -61,3 +83,5 @@ def myretrieve(request,dest):
     except: 
         print((request.get_data(),request.get_full_url(),request.headers),file=sys.stderr)
         raise
+
+print('urllib has been setup for proxying')

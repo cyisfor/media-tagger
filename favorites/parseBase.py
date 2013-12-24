@@ -13,7 +13,9 @@ Request = urllib.request.Request
 import os
 import datetime
 
-from things import *
+try: from .things import *
+except SystemError:
+    from things import *
 
 finders = []
 
