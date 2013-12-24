@@ -4,8 +4,8 @@ from place import place
 from itertools import count
 import fixprint
 
-from user import User
-import withtags
+import comic
+from user import User,dtags as defaultTags
 import tags
 import context
 from db import c
@@ -123,12 +123,13 @@ embed = makeE('embed')
 
 def makeLink(type,thing,width=None):
     if type.startswith('text'):
-        return None
+        return d.pre(thing)
     if type.startswith('image'):
         attrs = {'src': thing,
                 'alt': 'Still resizing...'}
-        if width and width>maxWidth:
-            attrs['width'] = maxWidth
+        if width: 
+            width = min(maxWidth,width)
+            attrs['width'] = width
         return d.img(attrs)
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
@@ -202,12 +203,11 @@ def stringize(key):
 
 def info(info,path,params):
     import info as derp
-    id = '{:x}'.format(info['id'])
+    id = info['id']
     sources = [(id,derp.source(id)) for id in info['sources']]
     sources = [pair for pair in sources if pair[1]]
-    print(sources)
-    return makePage("Info about "+id,
-            d.p(d.a(d.img(src="/thumb/"+id),d.br(),"Page",href=place+"/~page/"+id)),
+    return makePage("Info about "+'{:x}'.format(id),
+            d.p(d.a(d.img(src="/thumb/"+'{:x}'.format(id)),d.br(),"Page",href=pageLink(id))),
             d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in info.keys() if key != "sources" and key != "id"),Class='info'),
             d.hr(),
             "Sources",
@@ -261,7 +261,7 @@ def desktop(raw,path,params):
     if not history:
         return "No desktops yet!?"
     if 'd' in params:
-        raise Redirect("/".join((place,"~page",'{:x}'.format(history[0]))))
+        raise Redirect(pageLink(0,history[0]))
     current = history[0]
     history = history[1:]
     for id in history:
