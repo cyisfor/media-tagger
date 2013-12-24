@@ -1,16 +1,15 @@
 import db
-import withtags
+import tags
 import filedb
 
 from Crypto.Hash import SHA,MD5
 from PIL import Image
 
-from pprint import pprint
-
 import gzip
 import derpmagic as magic
 import base64
 import shutil
+import datetime
 import re
 import os
 import subprocess
@@ -93,22 +92,18 @@ def getanId(sources,uniqueSource,download,name):
                     data = gzip.open(data)
                 except IOError as e:
                     raise
-            try:
-                image = Image.open(data)
-            except IOError as e:
-                pass
-            if image:                
-                type = Image.MIME[image.format]
-            else:
+            image,type = openImage(data)
+            if not image:
+                print('we hafe to guess')
                 type, encoding = magic.guess_type(data.name)[:2]
-                if type is None:
+                if type is None or type == 'binary':
                     print("What is {}?".format(data.name))
                     os.chdir(filedb.top+'/temp')
                     subprocess.call(['bash'])
                     type = input("Type:")
                     if not type or not '/' in type:
                         raise SystemExit("Bailing out")
-            if not isGood(type): raise NoGood(uniqueSource,type)
+            if not isGood(type): raise NoGood(uniqueSource if uniqueSource else name,type)
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
             print("New {} with id {:x} ({})".format(type,id,name))
@@ -116,20 +111,23 @@ def getanId(sources,uniqueSource,download,name):
             db.c.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
                 id,name,digest,created,
                 os.fstat(data.fileno()).st_size,type,md5,sources))
-            if image:
-                width,height = image.size
-                try:
-                    image.seek(1)
-                    animated = True
-                except EOFError:
-                    animated = False
-                image = None
-                db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
+            if image: createImageDBEntry(id,image)
+            else:
+                print('WARNING NOT AN IMAGE %x'.format(id))
             data.flush()
             savedData.become(id)
             filedb.check(id)
             return id,True
     raise RuntimeError("huh?")
+
+tagsModule = tags
+
+def update(id,sources,tags):
+    donetags = []
+    print('upd8',id,sources)
+    with db.transaction():
+        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])) WHERE id = $2",(sources,id))
+    tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
     if not name:
@@ -138,37 +136,26 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
             name = name[1]
         else:
             name = name[0]
-    if '://' in media and '://' in primarySource:
+    if media and primarySource and '://' in media and '://' in primarySource:
         sources = set([primarySource,media] + [source for source in otherSources])
     else:
         sources = (primarySource,)+otherSources
     sources = [source for source in sources if source]
     with db.transaction():
-        mediaId = sourceId(media)
+        if media:
+            mediaId = sourceId(media)
+        else:
+            mediaId = None
         id,wasCreated = getanId(sources,mediaId,download,name)
         if not wasCreated:
              print("Old image with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
-        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])) WHERE id = $2",(sources,id))
-    donetags = []
-    tags = set(tags)
-    for tag in tags:
-        if hasattr(tag,'category'):
-            name = withtags.makeTag(tag.name)
-            if tag.category and tag.category != 'general':
-                category = withtags.makeTag(tag.category)
-                tag = withtags.makeTag(tag.category+':'+tag.name)
-                withtags.connect(tag,name)
-                withtags.connect(name,tag)
-                withtags.connect(category,tag)
-                # NOT this:
-                # withtags.connect(tag,category)
-            else:
-                tag = name
-        else:
-            tag = withtags.makeTag(tag)
-        donetags.append(tag)
-    for tag in donetags:
-        withtags.connect(id,tag)
-        withtags.connect(tag,id)
+    update(id,sources,tags)
     return id
+
+def copyMe(source):
+    def download(dest):
+        shutil.copy2(source,dest.name)
+        return datetime.datetime.fromtimestamp(os.fstat(dest.fileno()).st_mtime)
+    return download
+

@@ -6,6 +6,7 @@ import fixprint
 
 from user import User
 import withtags
+import tags
 import context
 from db import c
 from redirect import Redirect
