@@ -54,26 +54,33 @@ def spaceBetween(elements):
 def doTags(top,tags):
     return spaceBetween([d.a(tag,href=top+'/'+quote(tag)+'/') for tag in tags])
 
-def makeLinks(info):
+def pageLink(id,i=0):
+    return place+'/~page/'+'{:x}'.format(id)
+
+def makeLinks(info,linkfor=None):
+    if linkfor is None:
+        linkfor = pageLink
     counter = count(0)
     row = []
     for id,name,type,tags in info:
-        if next(counter)%8==0:
+        i = next(counter)
+        if i%8==0:
             if row:
                 yield d.tr(*row)
             row = []
         tags = [str(tag) for tag in tags]
         if type == 'application/x-shockwave-flash':
-            id = '%x'%(id)
             src = '/flash.jpg'
         else:
-            id = filedb.check(id)
-            src='/thumb/'+id
+            filedb.check(id)
+            src='/thumb/'+'{:x}'.format(id)
         type = stripPrefix(type)
-        row.append(d.td(d.a(d.img(src=src,alt="...",title=name,href=place+'/~page/'+id),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '???',href=place+'/~page/'+id)))
+        link = linkfor(id,i)
+        row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '',href=link))
     if row: yield d.tr(*row)
 
-class Links(context.Context):
+@context.Context
+class Links:
     next = None
     prev = None
     query = None
@@ -90,9 +97,10 @@ def standardHead(title,*contents):
     else:
         params = ''
     return d.head(d.title(title),
+            d.meta(charset='utf-8'),
         d.link(rel='stylesheet',type='text/css',href=Links.style),
-        d.link(rel='next',href=Links.next+params) if Links.next else None,
-        d.link(rel='prev',href=Links.prev+params) if Links.prev else None,
+        d.link(rel='next',href=Links.next+params) if Links.next else '',
+        d.link(rel='prev',href=Links.prev+params) if Links.prev else '',
         *contents)
 
 def makePage(title,*content):
@@ -143,7 +151,7 @@ def makeLink(type,thing,width=None):
 
 def simple(info,path,params):
     id,type = info
-    return makePage("derp",d.a(d.img(src='/image/{:x}/{}'.format(id,type)),href=place+'/~page/{:x}'.format(id)))
+    return makePage("derp",d.a(d.img(src='/image/{:x}/{}'.format(id,type)),href=pageLink(id)))
 
 def page(info,path,params):
     id,next,prev,name,type,width,tags = info
@@ -154,23 +162,23 @@ def page(info,path,params):
     else:
         name = 'untitled.jpg'
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
-    tags = [degeneralize(tag) for tag in tags]
-    boorutags = " ".join(tag.replace(' ','_') for tag in tags)
+    tags = [(degeneralize(tag),tag) for tag in tags]
+    boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
     print("Got guy",User,id)
-    print(tags)
+    print([tag[1] for tag in tags])
     doScale = not 'ns' in params
-    if doScale and guy['rescaleImages'] and width and width > maxWidth:
-        fid = filedb.checkResized(id,type,800)
+    if doScale and User.rescaleImages and width and width > maxWidth:
+        fid = filedb.checkResized(id)
         thing = '/resized/'+fid+'/donotsave.this'
     else:
         fid = '{:x}'.format(id)
         thing = '/'.join(('/image',fid,type,name))
     if tags:
-        tagderp = d.p("Tags: ",((' ',d.a(tag,href=place+"/"+tag)) for tag in tags))
+        tagderp = d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags))
     else:
         tagderp = ''
     thing = makeLink(type,thing,width if doScale else None)
-    with Links.new():
+    with Links:
         Links.params = params
         if next:
             Links.next = '{:x}'.format(next)
@@ -178,7 +186,7 @@ def page(info,path,params):
             Links.prev = '{:x}'.format(prev)
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(thing,href='/'.join(('/image',fid,type,name)))),
+                d.p(d.a(thing,id='image',href='/'.join(('/image',fid,type,name)))),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tagderp)
 
@@ -220,22 +228,20 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
     return set([tag.replace('general:','') for tag in tags])
 
-def images(url,query,offset,info,related,tags,negatags):
-    related = withtags.names(related)
-    tags = withtags.names(tags)
-    negatags = withtags.names(negatags)
-    related = [str(tag) for tag in related]
+def images(url,query,offset,info,related,basic):
+    #related = tags.names(related) should already be done
+    basic = tags.names(basic)
     related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
     info = list(info)
 
     removers = []
-    for tag in tags:
-        removers.append(d.a(tag,href=tagsURL(tags.difference(set([tag])),negatags)))
-    for tag in negatags:
-        removers.append(d.a(tag,href=tagsURL(tags,negatags.difference(set([tag])))))
+    for tag in basic.posi:
+        removers.append(d.a(tag,href=tagsURL(basic.posi.difference(set([tag])),defaultTags.nega)))
+    for tag in basic.nega:
+        removers.append(d.a(tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
 
-    with Links.new():
+    with Links:
         if len(info)>=0x30:
             Links.next = url.path+'?'+unparseQuery(query)
         if offset != 0:
@@ -266,40 +272,40 @@ def desktop(raw,path,params):
     return makePage("Current Desktop",
             d.p("Having tags ",doTags(place,tags)),
             d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
-                href=("/".join((place,"~page",'{:x}'.format(current)))))),
+                href=pageLink(0,current))),
             d.hr(),
             d.p("Past Desktops"),
             d.div(
                 d.table(
                     d.tr(
                         [d.td(d.a(d.img(title=name,src="/thumb/"+'{:x}'.format(id),alt=name),
-                            href=place+"/~page/"+'{:x}'.format(id))) for id,name in named]))))
-
-defaultTags = '-rating:explicit, -gore, ferret'
-tags,negatags = withtags.parse(defaultTags)
+                            href=pageLink(id))) for id,name in named]))))
 
 def user(info,path,params):
     iattr = {
             'type': 'checkbox',
             'name': 'rescale'}
-    if User.get('rescaleImages'):
+    if User.rescaleImages:
         iattr['checked'] = True
     rescalebox = d.input(iattr)
+    if User.defaultTags:
+        def makeResult():
+            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
+            for name in result:
+                yield name[0],False
+            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.nega,))
+            for name in result:
+                yield name[0],True
+        result = makeResult()
+    else:
+        result = c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.id WHERE uzertags.uzer = $1',(User.id,))
+        result = ((row[0],row[1]=='t') for row in result)
     tagnames = []
-    for name,nega in c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.id WHERE uzertags.uzer = $1',(User.id,)):
-        if nega == 't':
+    for name,nega in result:
+        if nega:
             name = '-'+name
         tagnames.append(name)
-    if len(tagnames)==0:
-        if User.noDefaultTags:
-            tagnames = ''
-        else:
-            c.execute('INSERT INTO uzertags (uzer,id) SELECT $1::int,unnest($2::bigint[])',(User.id,tags))
-            c.execute('INSERT INTO uzertags (uzer,id,nega) SELECT $1,unnest($2::bigint[]),TRUE',(User.id,negatags))
-            tagnames = defaultTags
-    else:
-        tagnames = ', '.join(tagnames)
-
+    tagnames = ', '.join(tagnames)
 
     return makePage("User Settings",
         d.form(
@@ -309,3 +315,112 @@ def user(info,path,params):
             d.li(d.input(type="submit",value="Submit"))),
         method="post",
         enctype="multipart/form-data"))
+
+def getPage(params):
+    page = params.get('p')
+    if not page:
+        return 0
+    else:
+        return int(page[0])
+
+def getType(image):
+    return c.execute("SELECT type FROM media WHERE id = $1",(image,))[0][0]
+
+def comicPageLink(com,isDown=False):
+    def pageLink(image=None,counter=None):
+        if isDown:
+            link = ''
+        else:
+            link = '../'
+        link = link + '{:x}/'.format(com)
+        return link
+    return pageLink
+
+def comicNoExist():
+    raise RuntimeError("Comic no exist")
+
+def showAllComics(params):
+    page = getPage(params)
+    comics = comic.list(page)
+    def getInfos():
+        for id,title in comics:
+            try: 
+                image = comic.findImage(id,0)
+            except Redirect: 
+                image = 0x5c911
+            if not image: 
+                image = 0x5c911
+            yield image,title,getType(image),()
+    with Links:
+        if page > 0:
+            Links.prev = "?p={}".format(page-1)
+        if page + 1 < comic.numComics() / 0x20:
+            Links.next = "?p={}".format(page+1)
+        def formatLink(image,i):
+            if comic.pages(comics[i][0]) == 0:
+                return '{:x}/'.format(comics[i][0])
+            return '{:x}/0/'.format(comics[i][0])
+        links = makeLinks(getInfos(),formatLink)
+        return makePage("{:x} Page Comics".format(page),
+                d.table(links),
+                d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
+                    (' ' if Links.prev and Links.next else ''),
+                    (d.a("Next",href=Links.next)if Links.next else '')))
+def showPages(path,params):
+    com = int(path[0],0x10)
+    page = getPage(params)
+    offset = page * 0x20
+    if offset and offset >= comic.pages(com):
+        raise Redirect('..')
+    title,description,source = comic.findInfo(com,comicNoExist)
+    if not description: description = 'ehunno' 
+    numPages = comic.pages(com)
+    def getInfos():
+        for which in range(offset,min(0x20+offset,numPages)):
+            image = comic.findImage(com,which)
+            yield image,title + ' page {}'.format(which),getType(image),()
+    with Links:
+        if page > 0:
+            Links.prev = "?p={}".format(page-1)
+        if page + 1 < numPages:
+            Links.next = "?p={}".format(page+1)
+        return makePage(title + " - Comics",
+                d.h1(title),
+                d.table(makeLinks(getInfos(),lambda image,i: '{:x}/'.format(i+offset))) if numPages else '',
+                d.p(RawString(description)),
+                d.p(d.a('Source',href=source)) if source else '',
+                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
+                    d.a("Index",href=".."),
+                    (d.a(" Next",href=Links.next)if Links.next else '')))
+
+def showComicPage(path):
+    com = int(path[0],0x10)
+    which = int(path[1],0x10)
+    image = comic.findImage(com,which)
+    title,description,source = comic.findInfo(com,comicNoExist)
+    typ = getType(image)
+    name = title + '.' + typ.rsplit('/',1)[-1]
+    with Links:
+        if which > 0:
+            Links.prev = comicPageLink(which-1)()
+        if comic.pages(com) > which+1:
+            Links.next = comicPageLink(which+1)()
+        else:
+            Links.next = ".."
+        image = comic.findImage(com,which)
+        return makePage("{:x} page ".format(which)+title,
+                d.p(d.a(d.img(src='/image/{:x}/{}/{}'.format(image,typ,name),width='100%'),href=Links.next)),
+                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
+                    d.a("Index",href=".."),
+                    (d.a(" Next",href=Links.next)if Links.next else '')),
+                d.p(d.a("Page",href="/art/~page/{:x}".format(image))))
+        
+def showComic(info,path,params):
+    path = path[1:]
+    if len(path) == 0:
+        return showAllComics(params)
+    elif len(path) == 1:
+        return showPages(path,params)
+    else:
+        return showComicPage(path)
+        

@@ -6,60 +6,67 @@ def methodize(f):
             return f
     return Method
 
-def makeContext():
-    # we can't just return the Operations class
-    # because it has a different metaclass than Meta!
-    class Meta(type):
+def Classmethodize(klass):
+    for n,v in klass.__dict__.items():
+        if n == '__dict__': continue
+        if hasattr(v,'__call__') or hasattr(v,'__get__'):
+            setattr(klass,n,classmethod(v))
+    return klass
+
+def Context(klass):
+    defaults = dict()
+    rest = dict()
+    for n,v in klass.__dict__.items():
+        if n == '__dict__': continue
+        elif n.startswith('_') or hasattr(v,'__call__'):
+            rest[n] = v
+        else:
+            defaults[n] = v
+    stack = [defaults]   
+    class Derivate: 
+        __doc__ = rest.get('__doc__','')
         def __enter__(self):
-            self.stack.append(dict(self.stack[-1].items()))
+            derps = stack[-1]
+            items = tuple(derps.items())
+            stack[-1] = items
+            stack.append(derps)
         def __exit__(self,*a):
-            self.stack.pop()
-        def __getattr__(self,name):
-            if name == 'stack':
-                return self.__dict__['stack']
-            return self.stack[-1][name]
-        def __setattr__(self,name,value):
-            if name == 'stack':
-                setattr(super(),name,value)
+            stack.pop()
+            stack[-1] = dict(stack[-1])
+        def __getattr__(self,n):
+            if n == 'stack': return stack
+            elif n in rest: 
+                v = rest[n]
+            else:
+                v = stack[-1][n]
+            if hasattr(v,'__get__'):                
+                return v.__get__(klass)
+            return v
+        def __setattr__(self,n,v):
+            if n == 'stack':
+                setattr(super(),n,v)
                 return
-            self.stack[-1][name] = value
-        def __new__(cls,name,bases,dct):
-            d = dict()
-            methods = dict()
-            for n,v in dct.items():                
-                if not n.startswith('_'):
-                    if hasattr(v,'__call__') or \
-                        hasattr(v,'__get__'):
-                            # don't bother pushing/popping methods
-                        methods[n] = v
-                    else:
-                        d[n] = v
-            class State:
-                lastStack = {}
-                def __repr__(self):
-                    self.check()
-                    return repr(id(self.state.stack))
-                def __init__(self):
-                    self.state = threading.local()
-                def check(self):
-                    if not hasattr(self.state,'stack'):
-                        self.state.stack = (self.lastStack,)
-                    self.lastStack = dict(self.state.stack[-1].items())
-                def __getitem__(self,i):
-                    self.check()
-                    return self.state.stack[i]
-                def append(self,v):
-                    self.check()
-                    self.state.stack += (v,)
-                def pop(self):
-                    self.check()
-                    self.state.stack = self.state.stack[:-1]
-            methods['stack'] = State()
-            self = type.__new__(cls,name,bases,methods)
-            self.stack.append(d)            
-            return self
+            elif n in rest:
+                return rest[n]
+            stack[-1][n] = v
+    for n,v in rest.items():        
+        try: setattr(Derivate,n,v)
+        except AttributeError: pass
+    d = Derivate()
+    d.__name__ = klass.__name__
+    return d
 
-    class Context(metaclass=Meta): pass
-    return Context
+if False:
+    @Context
+    class Test:
+        a = 3
+        b = 4
+        def foo(self):
+            print(self.a+self.b)
+            return 3
 
-Context = makeContext()
+    print(Test.foo())
+    with Test:
+        Test.a = 5
+        print(Test.foo())
+    print(Test.foo())

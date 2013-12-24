@@ -1,6 +1,8 @@
 from http.server import BaseHTTPRequestHandler,HTTPServer
 import http.client as codes
 import cgi
+from user import User
+import user
 
 from pages import images
 import withtags
@@ -27,6 +29,7 @@ class Handler(BaseHTTPRequestHandler):
     def fail(self,message):
         self.send_error(message)
         raise UserFailure(message)
+        with user.being(self.headers['X-Real-IP']):
     def do_POST(self):
         with user.being(self.headers["X-Real-IP"]):
             path,parsed,derparams = parsePath(self.path)
