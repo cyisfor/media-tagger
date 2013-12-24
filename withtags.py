@@ -1,4 +1,5 @@
 from db import c
+import resultCache
 from itertools import count
 from tags import Taglist,stmts
 
@@ -68,7 +69,7 @@ def searchForTags(tags=None,negatags=None,offset=0,limit=0x30,taglimit=0x10,want
             args['negatags'] = tags.nega
     if explain:
         stmt = "EXPLAIN ANALYZE "+stmt
-    for row in c.execute(stmt,args):
+    for row in resultCache.encache(stmt,args):
         if explain:
             print(row[0])
         else:
