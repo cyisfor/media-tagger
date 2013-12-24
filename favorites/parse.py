@@ -4,11 +4,17 @@ import syspath
 import catchup
 from dbqueue import enqueue
 
+import os
+
 if __name__ == '__main__':
     import select
     import sys
     if len(sys.argv)>1:
         enqueue(sys.argv[1])
+        catchup.poke()
+    elif 'stdin' in os.environ:
+        for line in sys.stdin:
+            enqueue(line.strip())
         catchup.poke()
     else:
         import fcntl,os,time
@@ -22,4 +28,4 @@ if __name__ == '__main__':
                 catchup.poke()
                 print("poked")
         clipboardy.run(gotPiece)
-        catchup.finish()
+    catchup.finish()

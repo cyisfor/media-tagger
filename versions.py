@@ -17,7 +17,6 @@ class Versioner:
             version = 0
 
         for testversion,setup in self.versions:
-            print("Ere we go",testversion,version,setup)
             if testversion > version:
                 version = testversion
                 setup()

@@ -29,14 +29,15 @@ def extract(doc):
             firstChild = li.contents
             if len(firstChild)==0: continue
             if firstChild is None: continue
-            firstChild = str(firstChild[0])
+            firstChild = str(firstChild[0]).strip()
             if firstChild.startswith('Source:'):
                 try: yield Source(li.find('a')['href'])
-                except TypeError: pass
-            elif firstChild.startswith('Rating: '):
+                except TypeError: 
+                    yield Source(firstChild[len('Source: '):])
+            elif firstChild.startswith('Rating:'):
                 rating = firstChild[len('Rating: '):].lower()
                 yield Tag('rating',rating)
-            elif firstChild.startswith('Size: '):
+            elif firstChild.startswith('Size:'):
                 a = li.find('a')
                 if a:
                     gotImage = True
@@ -50,12 +51,14 @@ def extract(doc):
                 print("Image",href)
                 yield Image(href)
 
-toNum = re.compile('.*[0-9+]')
+toNum = re.compile('[^0-9]*[0-9]{2,}')
 
 def normalize(url):
-    m = toNum.match(url)
+    url = urllib.parse.urlparse(url)
+    m = toNum.match(url.path)
     if not m: raise RuntimeError("Couldn't figure out {}".format(url))
-    print(url,'normalized to',m.group(0))
-    return m.group(0)
+    url = (url.scheme, url.netloc, m.group(0), None, None, None)
+    return urllib.parse.urlunparse(url)
+
 
 

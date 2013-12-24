@@ -92,13 +92,21 @@ def parse(primarySource):
                     mtime = os.fstat(dest.fileno()).st_mtime
                     return datetime.datetime.fromtimestamp(mtime)
                 try:
-                    create.internet(download,media.url,tags,derpSource,derpSources,
+                    return create.internet(download,media.url,tags,derpSource,derpSources,
                         name = name)
                 except create.NoGood:
                     print("No good",media.url,media.headers)
                     raise
             return
     raise ParseError("Can't parse {}!".format(primarySource))
+
+def normalize(url):
+    burl = urllib.parse.urlparse(url)
+    for name,matcher,handlers in finders:
+        if matcher(burl):
+            if 'normalize' in handlers:
+                return handlers['normalize'](url)
+    return url
 
 class ParseError(RuntimeError): pass
 

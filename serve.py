@@ -163,9 +163,9 @@ class Server(HTTPServer,ThreadingMixIn):
             t.start()
             return
         elif type == UserFailure:
-            print('{}: {}'.format(client,ex),file=sys.stderr)
             return
         else:
             super(Server,self).handle_error(request,address)
-
+            
+#preforking.serve_forever(lambda: Server(("127.0.0.1",8029),Handler))
 Server(("127.0.0.1",8029),Handler).serve_forever()

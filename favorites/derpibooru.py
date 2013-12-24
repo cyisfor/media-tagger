@@ -12,12 +12,15 @@ def mystrip(s,chars):
 def extract(doc):
     gotImage = False
     taglist = doc.find('div',{'class': 'tag-list'})
-    for tag in taglist.findAll('a',rel="tag"):
-        name = tag.contents[0].strip()
-        if ':' in name:
-            yield Tag(*name.split(':'))
-        else:
-            yield Tag('general',name)
+    
+    for tag in taglist.findAll('span'):
+        if not 'tag' in tag.get('class',()): continue
+        namespace = tag.get('data-tag-namespace','general')
+        try: name = tag['data-tag-name-in-namespace']
+        except KeyError:
+            print('tag is',tag)
+            raise
+        yield Tag(namespace,name)
     sauce = doc.find('span',{'class': 'source_url'})
     if sauce:
         yield Source(sauce.find('a')['href'])
@@ -29,7 +32,6 @@ def extract(doc):
             continue
         if 'nofollow' in rel and a.contents[0].strip().lower()=='download':
             href = a.get('href')
-            print('FOU',href);
             yield Image(href)
             foundImage = True
     if not foundImage:

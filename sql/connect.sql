@@ -1,8 +1,23 @@
-CREATE OR REPLACE FUNCTION connect(a bigint, b bigint) RETURNS void AS $$
+-- DROP FUNCTION connect(a bigint, b bigint);
+-- DROP FUNCTION connectOne(a bigint, b bigint);
+-- DROP FUNCTION connectMany(a bigint[], b bigint[]);
+
+CREATE OR REPLACE FUNCTION connectOneToMany(a bigint, b bigint[]) RETURNS void AS $$
 BEGIN
-    IF (SELECT count(id) FROM things WHERE id = a AND neighbors @> ARRAY[b]) = 0 THEN
-        update things set neighbors = neighbors || b where things.id = a;
-    END IF;
+    update things set neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(b)) where things.id = a;
+END;
+$$ language 'plpgsql';
+
+CREATE OR REPLACE FUNCTION connectManyToOne(a bigint[], b bigint) RETURNS void AS $$
+BEGIN
+    update things set neighbors = array(SELECT unnest(neighbors) UNION SELECT b) where things.id = ANY(a);
+END;
+$$ language 'plpgsql';
+
+
+CREATE OR REPLACE FUNCTION connectOne(a bigint, b bigint) RETURNS void AS $$
+BEGIN
+    update things set neighbors = array(SELECT unnest(neighbors) UNION SELECT b) where things.id = a;
 END;
 $$ language 'plpgsql';
 

@@ -14,8 +14,13 @@ def delete(thing,reason=None):
             if os.path.exists(doomed):
                 os.unlink(doomed)
 
+print(sys.argv)
 if len(sys.argv)==3:
     delete(int(sys.argv[1],0x10),sys.argv[2])
+elif os.environ.get('stdin'):
+    reason = sys.stdin.readline()
+    for line in sys.stdin:
+        delete(int(line.rsplit('/',1)[-1],0x10),reason)
 else:
     def gotPiece(piece):
         if ' ' in piece:

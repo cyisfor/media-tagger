@@ -24,11 +24,13 @@ def _check(id,category,contents=None,delay=0.1):
 def check(id):
     return _check(id,'thumb',delay=0.01)
 
-def checkResized(id,type,width):
-    return _check(id,'resized',"{:x}".format(width),delay=0.1)
+def checkResized(id):
+    return _check(id,'resized',"{:x}".format(800),delay=0.1)
 
 def imagePath(id):
     return os.path.join(base,'image','{:x}'.format(id))
+def uploadPath(name):
+    return os.path.join(base,'uploads',name)
 
 def ImageBecomer(dir):
     if type(dir)==type(''):

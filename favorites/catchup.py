@@ -3,10 +3,11 @@ if __name__ == '__main__':
     import sys,os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from parseBase import *
-import parsers
+from favorites.parseBase import *
+from favorites import parsers
 from dbqueue import top,fail,win,megafail
 from db import c
+import db
 import clipboardy
 
 import threading
@@ -29,7 +30,7 @@ class Catchup(threading.Thread):
         if ah:
             print("WHEN I AM ALREADY HERE")
         try:
-            for attempts in range(5):
+            for attempts in range(2):
                 print("Parsing",uri)
                 try:
                     parse(uri)
@@ -37,10 +38,12 @@ class Catchup(threading.Thread):
                     break
                 except urllib.error.URLError as e:
                     print(e.getcode(),e.reason,e.geturl())
+                    if e.getcode() == 404: raise ParseError('Not found')
                     time.sleep(3)
             else:
                 print("Could not parse",uri)
         except ParseError:
+            print('megafail')
             megafail(uri)
         except:
             print("fail",uri)
@@ -52,8 +55,11 @@ class Catchup(threading.Thread):
         print('boosh')
         return True
     def run(self):
+        db.reopen()
+        with self.condition:
+            self.done = False
         try:
-            while self.done is False:
+            while True:
                 while self.squeak() is True: pass
                 with self.condition:
                     if self.done: break

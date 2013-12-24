@@ -20,4 +20,4 @@ class Flushfile(object):
         setattr(self,name,value)
         return value
 
-sys.stdout = Flushfile(io.TextIOWrapper(sys.stdout.detach(),encoding = 'utf-8'))
+#sys.stdout = Flushfile(io.TextIOWrapper(sys.stdout.buffer,encoding = 'utf-8'))

@@ -21,7 +21,6 @@ def imageHash(data):
     digest = digest.digest()
     digest = base64.b64encode(digest)
     digest = digest.decode().rstrip('=')
-    print(digest)
     return digest
 
 Image.MIME['PCX'] = 'image/pcx'
@@ -33,6 +32,7 @@ def isGood(type):
 def sourceId(source):
     if source is None: return None
     if isinstance(source,int): return source
+    if source == '': return None
     if source[0] == '/': return None
     id = db.c.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
     if id:
@@ -48,10 +48,33 @@ findMD5 = re.compile("[0-9a-fA-F]{32}")
 
 class NoGood(Exception): pass
 
+def openImage(data):
+    try:
+        image = Image.open(data)
+    except IOError as e:
+        return None,None
+    return image,Image.MIME[image.format]
+
+def createImageDBEntry(id,image):
+    width,height = image.size
+    try:
+        image.seek(1)
+        animated = True
+    except EOFError:
+        animated = False
+    image = None
+    db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
+
+def retryCreateImage(id):
+    image,type = openImage(filedb.imagePath(id))
+    if image: 
+        createImageDBEntry(id,image)
+
 def getanId(sources,uniqueSource,download,name):
-    result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
-    if result:
-        return result[0][0],False
+    if uniqueSource:
+        result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
+        if result:
+            return result[0][0],False
     md5 = None
     for source in sources:
         if isinstance(source,int): continue
@@ -65,7 +88,6 @@ def getanId(sources,uniqueSource,download,name):
 
     with filedb.imageBecomer() as data:
         created = download(data)
-        print("downloaded",created)
         digest = imageHash(data)
         result = db.c.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:

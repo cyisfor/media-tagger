@@ -38,12 +38,6 @@ def mysplit(s,cs):
 
 boring = set(["the","for","this","and","not","how","are","files","xcf","not","my","in"])
 
-def copyMe(source):
-    def download(dest):
-        shutil.copy2(source,dest.name)
-        return datetime.datetime.fromtimestamp(os.fstat(dest.fileno()).st_mtime)
-    return download
-
 cod = codecs.lookup('utf-8')
 
 try:
@@ -88,7 +82,7 @@ for path in sys.stdin:
             if idnum:
                 print("Adding saource",idnum,source)
                 db.c.execute("UPDATE media SET sources=array(SELECT unnest(sources) UNION SELECT $2) WHERE id = $1",(idnum,source))
-            print("importing",path)
-            create.internet(copyMe(path),path.decode('utf-8'),implied.union(discovered),source,())
+            print("importing",path,discovered)
+            create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,())
     except create.NoGood: 
         db.c.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
