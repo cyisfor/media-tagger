@@ -9,6 +9,8 @@ import os
 if __name__ == '__main__':
     import select
     import sys
+    import settitle
+    settitle.set('parse')
     if len(sys.argv)>1:
         enqueue(sys.argv[1])
         catchup.poke()

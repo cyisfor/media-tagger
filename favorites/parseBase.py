@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import urllib.request
 from setupurllib import myretrieve
+import tempfile
 
 Request = urllib.request.Request
 
@@ -27,15 +28,17 @@ def parse(primarySource):
         return
     print('parsing',repr(primarySource))
     url = urllib.parse.urlparse(primarySource)
+    doc = None
     for name,matcher,handlers in finders:
         if matcher(url):
-            with urllib.request.urlopen(primarySource) as inp:
-                if not inp.headers.get('Content-Type').startswith('text/html'):
+            with tempfile.NamedTemporaryFile() as temp:
+                headers = myretrieve(urllib.request.Request(primarySource),temp)
+                temp.seek(0,0)
+                inp = temp
+                
+                if not headers.get('Content-Type').startswith('text/html'):
                     raise RuntimeError(primarySource,"not html")
                 doc = inp.read()
-                if 'gzip' in inp.headers.get('Content-encoding',''):
-                    import gzip
-                    doc = gzip.decompress(doc)
                 doc = BeautifulSoup(doc)
                 setattr(doc,'url',primarySource)
             medias = []
@@ -112,7 +115,7 @@ class ParseError(RuntimeError): pass
 
 def matchNetloc(s):
     def matcher(url):
-        return url.netloc == s
+        return url.netloc.endswith(s)
     return matcher
 
 def registerFinder(matcher,handler,name=None):
