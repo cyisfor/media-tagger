@@ -30,7 +30,7 @@ def extract(doc):
         rel = a.get('rel')
         if not rel:
             continue
-        if 'nofollow' in rel and a.contents[0].strip().lower()=='download':
+        if 'nofollow' in rel and a.contents[0].strip and a.contents[0].strip().lower()=='download':
             href = a.get('href')
             yield Image(href)
             foundImage = True
@@ -45,6 +45,5 @@ def extract(doc):
 noquery = re.compile('^[^?]*')
 
 def normalize(url):
-    m = noquery.match(url)
-    if not m: raise RuntimeError("Couldn't figure out {}".format(url))
-    return m.group(0)
+    url = urllib.parse.urlparse(url)
+    return urllib.parse.urlunparse(('http','derpibooru.org',url.path,None,None,None))
