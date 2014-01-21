@@ -148,7 +148,7 @@ def update(id,sources,tags):
     donetags = []
     print('upd8',id,sources)
     with db.transaction():
-        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])) WHERE id = $2",(sources,id))
+        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id))
     tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
