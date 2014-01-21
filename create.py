@@ -96,7 +96,7 @@ def getanId(sources,uniqueSource,download,name):
         result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted
-            raise NoGood("blacklisted")
+            raise NoGood("blacklisted",digest)
         if md5 is None:
             data.seek(0,0)
             md5 = MD5.new()
