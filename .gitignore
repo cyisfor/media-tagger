@@ -1,3 +1,4 @@
 *.o
 *.pyc
 passwd
+__pycache__
