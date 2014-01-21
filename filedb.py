@@ -10,16 +10,19 @@ top = base
 def _check(id,category,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     image = oj(base,category,id)
-    if os.path.exists(image): return id
+    if os.path.exists(image): return id,True
     target = oj(base,'temp',id)
     with open(target,'wb') as out:
         if contents:
             out.write(contents.encode('utf-8'))
     os.rename(target,oj(base,'incoming',id))
+    exists = False
     for i in range(10):
-        if os.path.exists(image): break
+        if os.path.exists(image): 
+            exists = True
+            break
         time.sleep(delay)
-    return id
+    return id,exists
 
 def check(id):
     return _check(id,'thumb',delay=0.01)

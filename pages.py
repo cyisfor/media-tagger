@@ -6,6 +6,7 @@ import fixprint
 
 import comic
 from user import User,dtags as defaultTags
+from session import Session
 import tags
 import context
 from db import c
@@ -58,11 +59,21 @@ def doTags(top,tags):
 def pageLink(id,i=0):
     return place+'/~page/'+'{:x}'.format(id)
 
+# Cannot set modified from the set of images in this because:
+# If the 1st page has a newly added image, the 3rd page will change,
+# but the images on the 3rd page will still have older modified times.
+# You'd need to request the first page AND the 3rd page, then just use the max modified from
+# the first page, for every query. Could just request offset 0 limit 1 I guess...
+# withtags.searchTags(tags,negatags,offset=0,limit=1,justModifiedField=True)
+# XXX: do this, but write story for now.
+# but then you add a tag to the 29th page image, and page 30 changes but page 1 stays the same!
+
 def makeLinks(info,linkfor=None):
     if linkfor is None:
         linkfor = pageLink
     counter = count(0)
     row = []
+    allexists = True
     for id,name,type,tags in info:
         i = next(counter)
         if i%8==0:
@@ -73,25 +84,25 @@ def makeLinks(info,linkfor=None):
         if type == 'application/x-shockwave-flash':
             src = '/flash.jpg'
         else:
-            filedb.check(id)
-            src='/thumb/'+'{:x}'.format(id)
+            fid,oneexists = filedb.check(id)
+            allexists = allexists and oneexists
+            src='/thumb/'+fid
         type = stripPrefix(type)
         link = linkfor(id,i)
         row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '',href=link))
     if row: yield d.tr(*row)
+    Session.refresh = not allexists
 
 @context.Context
 class Links:
     next = None
     prev = None
-    query = None
-    params = {}
     style = "/style/art.css"
 
 def standardHead(title,*contents):
-    if Links.params:
+    if Session.params:
         params = []
-        for name,values in Links.params.items():
+        for name,values in Session.params.items():
             for value in values:
                 params.append(name+'='+quote(value))
         params = '?' + '&'.join(params)
@@ -128,7 +139,6 @@ def makeLink(type,thing,width=None):
         attrs = {'src': thing,
                 'alt': 'Still resizing...'}
         if width: 
-            width = min(maxWidth,width)
             attrs['width'] = width
         return d.img(attrs)
     wrapper = None
@@ -166,12 +176,13 @@ def page(info,path,params):
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
     tags = [(degeneralize(tag),tag) for tag in tags]
     boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
-    print("Got guy",User,id)
-    print([tag[1] for tag in tags])
+    # even if not rescaling, sets img width unless ns in params
     doScale = not 'ns' in params
-    if doScale and User.rescaleImages and width and width > maxWidth:
-        fid = filedb.checkResized(id)
+    if doScale and User.rescaleImages and size > maxSize:
+        fid,exists = filedb.checkResized(id)
         thing = '/resized/'+fid+'/donotsave.this'
+        Session.refresh = not exists
+        type = 'image/jpeg'
     else:
         fid = '{:x}'.format(id)
         thing = '/'.join(('/image',fid,type,name))
@@ -264,12 +275,19 @@ def desktop(raw,path,params):
         raise Redirect(pageLink(0,history[0]))
     current = history[0]
     history = history[1:]
-    for id in history:
-        filedb.check(id)
     name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
     tags = [str(tag) for tag in tags]
     type = stripPrefix(type)
-    named = c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,))
+    def makeDesktopLinks():
+        allexists = True
+        for id,name in c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
+            fid,exists = filedb.check(id) 
+            allexists = allexists and exists
+            return d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
+                            href=pageLink(id)))
+        Session.refresh = not allexists
+
+    Session.modified = db.c.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
     return makePage("Current Desktop",
             d.p("Having tags ",doTags(place,tags)),
             d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
