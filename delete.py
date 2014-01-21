@@ -14,13 +14,19 @@ def delete(thing,reason=None):
             if os.path.exists(doomed):
                 os.unlink(doomed)
 
+def findId(uri):
+    uri = uri.rstrip("\n/")
+    uri = uri.rsplit('/')[-1].rstrip()
+    return int(uri,0x10)
+
 print(sys.argv)
 if len(sys.argv)==3:
-    delete(int(sys.argv[1],0x10),sys.argv[2])
+    delete(findId(sys.argv[1],sys.argv[2]))
 elif os.environ.get('stdin'):
     reason = sys.stdin.readline()
     for line in sys.stdin:
-        delete(int(line.rsplit('/',1)[-1],0x10),reason)
+        print('got',line)
+        delete(findId(line),reason)
 else:
     def gotPiece(piece):
         if ' ' in piece:
@@ -28,6 +34,6 @@ else:
         else:
             reason = None
         try:
-            delete(int(piece.rsplit('/',1)[-1],0x10),reason)
+            delete(findId(piece),reason)
         except ValueError: pass
     clipboardy.run(gotPiece)
