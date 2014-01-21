@@ -51,8 +51,8 @@ def being(ident):
             with User:
                 User.ident = ident
                 User.id = result[0]
-                User.rescaleImages = result[1] == 't'
-                User.defaultTags = result[2] == 't'
+                User.rescaleImages = result[1]
+                User.defaultTags = result[2]
                 yield User
                 return
         db.c.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
@@ -64,4 +64,5 @@ def set(news):
     values = tuple(new[1] for new in news)
     names = tuple("{} = ${}".format(name,i+1) for i,name in enumerate(names))
     stmt = "UPDATE uzers SET "+", ".join(names) + " WHERE id = ${}".format(len(names)+1)
-    db.c.execute(stmt,values+(User.id,))
+    with db.transaction():
+        db.c.execute(stmt,values+(User.id,))

@@ -24,7 +24,7 @@ NOT neighbors && array(select id from unwanted %(anyWanted)s);
 anyWanted
 where id != ANY(array(SELECT unnest(wanted.tags) FROM wanted)); 
 ordering
-    ORDER BY media.added DESC NULLS LAST 
+    ORDER BY media.added DESC
     OFFSET %(offset)s LIMIT %(limit)s;
 main
 SELECT media.id,media.name,media.type,
@@ -36,9 +36,11 @@ FROM
 relatedNoTags
 (NOT tags.id = ANY(%%(tags)s::bigint[])) AND;
 related
-SELECT tags.name FROM tags INNER JOIN things ON tags.id = ANY(things.neighbors) WHERE %(relatedNoTags)s things.id = ANY(
+SELECT derp.id,derp.name FROM (SELECT tags.id,first(tags.name) as name FROM tags INNER JOIN things ON tags.id = ANY(things.neighbors) WHERE %(relatedNoTags)s things.id = ANY(
     SELECT things.id
 FROM
         %(positiveClause)s
         %(negativeClause)s
-    %(ordering)s) LIMIT %%(taglimit)s::int;
+    %(ordering)s) 
+    GROUP BY tags.id
+    LIMIT %%(taglimit)s::int) AS derp ORDER BY derp.name;

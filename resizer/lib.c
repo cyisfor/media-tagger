@@ -232,7 +232,7 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   ctx->image_info->quality = getQuality(image,ctx->image_info->quality);
 
   fprintf(stderr,"Quality %lu ->",ctx->image_info->quality);
-
+  thumb = 1; // derp
   if(thumb) {
     if(strcmp(image->magick,"JPEG")) {
       // force it to be a jpeg.

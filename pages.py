@@ -14,10 +14,12 @@ from redirect import Redirect
 import filedb
 
 from urllib.parse import quote as derp
+import time
 
 import textwrap
 
 maxWidth = 800
+maxSize = 0x20000
 
 def wrappit(s):
     return textwrap.fill(s,width=0x40)
@@ -166,7 +168,8 @@ def simple(info,path,params):
     return makePage("derp",d.a(d.img(src='/image/{:x}/{}'.format(id,type)),href=pageLink(id)))
 
 def page(info,path,params):
-    id,next,prev,name,type,width,tags = info
+    id,next,prev,name,type,width,size,modified,tags = info
+    Session.modified = modified
     if name:
         name = quote(name)
         if not '.' in name:
@@ -190,13 +193,13 @@ def page(info,path,params):
         tagderp = d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags))
     else:
         tagderp = ''
+    # even if not rescaling, sets img width unless ns in params
     thing = makeLink(type,thing,width if doScale else None)
     with Links:
-        Links.params = params
         if next:
-            Links.next = '{:x}'.format(next)
+            Links.next = '../{:x}/'.format(next)
         if prev:
-            Links.prev = '{:x}'.format(prev)
+            Links.prev = '../{:x}/'.format(prev)
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                 d.p(d.a(thing,id='image',href='/'.join(('/image',fid,type,name)))),
@@ -213,19 +216,19 @@ def stringize(key):
     return str(key)
 
 def info(info,path,params):
+    Session.modified = info['sessmodified']
+    del info['sessmodified']
     import info as derp
     id = info['id']
     sources = [(id,derp.source(id)) for id in info['sources']]
     sources = [pair for pair in sources if pair[1]]
+    keys = sorted(info.keys())
     return makePage("Info about "+'{:x}'.format(id),
             d.p(d.a(d.img(src="/thumb/"+'{:x}'.format(id)),d.br(),"Page",href=pageLink(id))),
-            d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in info.keys() if key != "sources" and key != "id"),Class='info'),
+            d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in keys if key != "sources" and key != "id"),Class='info'),
             d.hr(),
             "Sources",
             (d.p(d.a(str(id)+': '+source,href=source)) for id,source in sources))
-
-
-
 
 def like(info):
     return "Under construction!"
@@ -238,14 +241,13 @@ def tagsURL(tags,negatags):
     return place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
 
 def stripGeneral(tags):
-    return set([tag.replace('general:','') for tag in tags])
+    return [tag.replace('general:','') for tag in tags]
 
 def images(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
     related=stripGeneral(related)
     query['o'] = ['{:x}'.format(offset+1)]
-    info = list(info)
 
     removers = []
     for tag in basic.posi:
@@ -254,6 +256,7 @@ def images(url,query,offset,info,related,basic):
         removers.append(d.a(tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
 
     with Links:
+        info = list(info)
         if len(info)>=0x30:
             Links.next = url.path+'?'+unparseQuery(query)
         if offset != 0:
@@ -296,9 +299,7 @@ def desktop(raw,path,params):
             d.p("Past Desktops"),
             d.div(
                 d.table(
-                    d.tr(
-                        [d.td(d.a(d.img(title=name,src="/thumb/"+'{:x}'.format(id),alt=name),
-                            href=pageLink(id))) for id,name in named]))))
+                    d.tr(makeDesktopLinks()))))
 
 def user(info,path,params):
     iattr = {

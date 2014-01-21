@@ -126,10 +126,12 @@ def manage(serv):
     if len(db.c.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
         db.c.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
             (User.id,media))
+        db.retransaction();
         message = 'Uploaded '+name+' to your queue for tagging.'
     else:
         message = 'You already seem to have uploaded this.'
 
+    print('resp',message)
     message = (message+'\r\n').encode('utf-8')
     serv.send_response(codes.OK,"yay")
     serv.send_header("Content-Length",len(message))
@@ -148,6 +150,7 @@ def page(info,path,params):
         INNER JOIN things ON media.id = things.id
         LEFT OUTER JOIN images ON images.id = media.id
     WHERE media.id = $1''',(media,))[0]
+            print('name upload',name)
             media = filedb.checkResized(media)
             
             location = '/resized/'+media+'/donotsave.this'

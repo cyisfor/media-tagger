@@ -1,6 +1,9 @@
 from filedb import top
 from contextlib import closing
 
+from io import StringIO
+
+import gzip,zlib
 import sys
 import os,tempfile
 import urllib.request
@@ -65,7 +68,9 @@ with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
 proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
 opener = urllib.request.build_opener(proxy,
         urllib.request.HTTPCookieProcessor(jar))
-opener.addheaders = [('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0')]
+opener.addheaders = [
+        ('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0'),
+        ('Accept-Encoding', 'gzip,deflate')]
 urllib.request.install_opener(opener)
 
 def myretrieve(request,dest):
@@ -74,12 +79,22 @@ def myretrieve(request,dest):
     except UnicodeEncodeError as e:
         url = list(urllib.parse.urlparse(request.full_url))
         for i in range(2,len(url)):
-            url[i] = urllib.parse.quote(url[i])
+            url[i] = urllib.parse.quote(url[i],safe="/&=?+")
         request.full_url = urllib.parse.urlunparse(url)
     try:
         with closing(opener.open(request)) as inp:
+            headers = inp.headers
+            encoding = headers['Content-Encoding']
+            if encoding == 'gzip':
+                inp = gzip.GzipFile(fileobj=inp,mode='rb')
+            elif encoding == 'deflate':
+                data = inp.read(0x40000)
+                try: data = zlib.decompress(data)
+                except zlib.error:
+                    data = zlib.decompress(data,-zlib.MAX_WBITS)
+                inp = StringIO(data)
             shutil.copyfileobj(inp,dest)
-            return inp.headers
+            return headers
     except: 
         print((request.get_data(),request.get_full_url(),request.headers),file=sys.stderr)
         raise

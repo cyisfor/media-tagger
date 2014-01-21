@@ -44,7 +44,7 @@ def tag(thing,tags):
                 categories = collections.defaultdict(list)
                 tags.posi = list(tags.posi)
                 # note: do NOT set tags.posi since we still need them as string names
-                ntags = set(row[0] for row in db.c.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,)))
+                ntags = tuple(set(row[0] for row in db.c.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,))))
                 for i in range(len(tags.posi)):
                     if ':' in tags.posi[i]:
                         category,name = tags.posi[i].split(':')
@@ -56,8 +56,8 @@ def tag(thing,tags):
                         # XXX: ...until we can fix the search to be breadth first...?
                         db.c.execute("SELECT connectOne($1,$2)",(name,wholetag))
                         db.c.execute("SELECT connectOne($1,$2)",(wholetag,name))
-                for category,tags in categories.items():
-                    db.c.execute("SELECT connectManyToOne($1,$2)",(tags,category))
+                for category,ctags in categories.items():
+                    db.c.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
                 tags.posi = ntags
             elif hasattr(list(tags.posi)[0],'category'):
                 categories = collections.defaultdict(list)

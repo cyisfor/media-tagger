@@ -13,7 +13,19 @@ class scalartuple(tuple):
             other = (other,)
         return scalartuple(super(scalartuple,self).__add__(other))
 
-def searchForTags(tags=None,negatags=None,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+def nonumbers(f):
+    def filter(tags):
+        for id,tag in tags:
+            if isinstance(tag,'str'):
+                yield tag
+            else:
+                c.execute("DELETE FROM tags WHERE id = $1",(id,))
+    def wrapper(*k,**a):
+        return filter(f(*k,**a))
+    return wrapper
+        
+
+def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt = scalartuple()
     args = {}
     if tags.posi or tags.nega:
@@ -29,7 +41,7 @@ def searchForTags(tags=None,negatags=None,offset=0,limit=0x30,taglimit=0x10,want
             stmt += stmts['unwanted'] % {'notWanted': notWanted}
         if tags.posi:
             tags.posi = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]
-        if negatags:
+        if tags.nega:
             tags.nega = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]
     pc = stmts['positiveClause']
     if tags.posi:
@@ -74,7 +86,11 @@ def searchForTags(tags=None,negatags=None,offset=0,limit=0x30,taglimit=0x10,want
             print(row[0])
         else:
             if wantRelated:
-                yield row[0]
+                id,tag = row
+                if isinstance(tag,str):
+                    yield tag
+                else:
+                    c.execute("DELETE FROM tags WHERE id = $1",(id,))
             else:
                 yield row
     if explain:
