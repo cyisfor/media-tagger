@@ -13,7 +13,8 @@ from db import c
 from redirect import Redirect
 import filedb
 
-from urllib.parse import quote as derp
+import json
+from urllib.parse import quote as derp, urljoin
 import time
 
 import textwrap
@@ -89,7 +90,6 @@ def makeLinks(info,linkfor=None):
             fid,oneexists = filedb.check(id)
             allexists = allexists and oneexists
             src='/thumb/'+fid
-        type = stripPrefix(type)
         link = linkfor(id,i)
         row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '',href=link))
     if row: yield d.tr(*row)
@@ -100,6 +100,9 @@ class Links:
     next = None
     prev = None
     style = "/style/art.css"
+    id = None
+    url = 'http://oembed.sucks/'
+
 
 def standardHead(title,*contents):
     if Session.params:
@@ -112,9 +115,14 @@ def standardHead(title,*contents):
         params = ''
     return d.head(d.title(title),
             d.meta(charset='utf-8'),
+        d.link(rel="icon",type="image/png",href="/favicon.png"),
         d.link(rel='stylesheet',type='text/css',href=Links.style),
         d.link(rel='next',href=Links.next+params) if Links.next else '',
         d.link(rel='prev',href=Links.prev+params) if Links.prev else '',
+        d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id),
+            # oembed sucks:
+            quote(Links.url)
+            ) if Links.id else '',
         *contents)
 
 def makePage(title,*content):
@@ -135,6 +143,7 @@ source = makeE('source')
 embed = makeE('embed')
 
 def makeLink(type,thing,width=None):
+    print('type',type)
     if type.startswith('text'):
         return d.pre(thing)
     if type.startswith('image'):
@@ -163,12 +172,17 @@ def makeLink(type,thing,width=None):
                 width='100%',height='100%'),'Download'
     raise RuntimeError("What is "+type)
 
+def imageLink(id,type):
+    return '/image/{:x}/{}'.format(id,type)
+
 def simple(info,path,params):
     id,type = info
-    return makePage("derp",d.a(d.img(src='/image/{:x}/{}'.format(id,type)),href=pageLink(id)))
+    return makePage("derp",d.a(d.img(src=imageLink(id,type)),href=pageLink(id)))
 
-def page(info,path,params):
+def page(info,path,params,url):
     id,next,prev,name,type,width,size,modified,tags = info
+    Links.id = id
+    Links.url = url
     Session.modified = modified
     if name:
         name = quote(name)
@@ -181,11 +195,11 @@ def page(info,path,params):
     boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
     # even if not rescaling, sets img width unless ns in params
     doScale = not 'ns' in params
-    if doScale and User.rescaleImages and size > maxSize:
+    doScale = doScale and User.rescaleImages and size > maxSize
+    if doScale:
         fid,exists = filedb.checkResized(id)
         thing = '/resized/'+fid+'/donotsave.this'
         Session.refresh = not exists
-        type = 'image/jpeg'
     else:
         fid = '{:x}'.format(id)
         thing = '/'.join(('/image',fid,type,name))
@@ -215,6 +229,9 @@ def stringize(key):
         return key.decode('utf-8')
     return str(key)
 
+def thumbLink(id):
+    return "/thumb/"+'{:x}'.format(id)
+
 def info(info,path,params):
     Session.modified = info['sessmodified']
     del info['sessmodified']
@@ -224,7 +241,7 @@ def info(info,path,params):
     sources = [pair for pair in sources if pair[1]]
     keys = sorted(info.keys())
     return makePage("Info about "+'{:x}'.format(id),
-            d.p(d.a(d.img(src="/thumb/"+'{:x}'.format(id)),d.br(),"Page",href=pageLink(id))),
+            d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
             d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in keys if key != "sources" and key != "id"),Class='info'),
             d.hr(),
             "Sources",
@@ -271,35 +288,53 @@ def images(url,query,offset,info,related,basic):
 
 def desktop(raw,path,params):
     import desktop
-    history = desktop.history()
+    if 'n' in params:
+        n = int(params['n'][0],0x10)
+    else:
+        n = 0x10
+    history = desktop.history(n)
     if not history:
         return "No desktops yet!?"
     if 'd' in params:
         raise Redirect(pageLink(0,history[0]))
-    current = history[0]
-    history = history[1:]
-    name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
-    tags = [str(tag) for tag in tags]
-    type = stripPrefix(type)
+    if n == 0x10:
+        current = history[0]
+        history = history[1:]
+        name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+        tags = [str(tag) for tag in tags]
+        type = stripPrefix(type)
+        middle = (
+            d.p("Having tags ",doTags(place,tags)),
+            d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
+                href=pageLink(current,0))),
+            d.hr())
+    else:
+        middle = ''
     def makeDesktopLinks():
         allexists = True
         for id,name in c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
             fid,exists = filedb.check(id) 
             allexists = allexists and exists
-            return d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
+            yield d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
                             href=pageLink(id)))
         Session.refresh = not allexists
+    def makeDesktopRows():
+        row = []
+        for td in makeDesktopLinks():
+            row.append(td)
+            if len(row) == 8:
+                yield d.tr(row)
+                row = []
+        if len(row):
+            yield d.tr(row)
 
-    Session.modified = db.c.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
+    Session.modified = c.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
     return makePage("Current Desktop",
-            d.p("Having tags ",doTags(place,tags)),
-            d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
-                href=pageLink(0,current))),
-            d.hr(),
+            middle,
             d.p("Past Desktops"),
             d.div(
                 d.table(
-                    d.tr(makeDesktopLinks()))))
+                    makeDesktopRows())))
 
 def user(info,path,params):
     iattr = {
@@ -444,3 +479,22 @@ def showComic(info,path,params):
     else:
         return showComicPage(path)
         
+def oembed(info, path, params):
+    id,tags = info
+    base = 'http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/'
+    xid, exists = filedb.check(id)
+    Session.type = 'application/json'
+    thumb = urljoin(base,thumbLink(id))
+    response = {
+            'type': 'photo',
+            'tags': tags,
+            'version': 1.0,
+            'url': thumb,
+            'width': 150,
+            'height': 150,
+            'thumbnail_url': thumb,
+            'thumbnail_width': 150,
+            'thumbnail_height': 150,
+            'provider_url': base,
+            }
+    return json.dumps(response)

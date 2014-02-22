@@ -1,6 +1,6 @@
 import db
 import comic
-from user import User
+from user import User,UserError
 
 db.setup("CREATE TABLE visited (id SERIAL PRIMARY KEY, uzer INTEGER REFERENCES uzers(id), medium bigint REFERENCES media(id), visits INTEGER DEFAULT 0)",
         "create unique index visitorunique on visited(uzer,medium)")
@@ -14,6 +14,10 @@ def simple(path,params):
     id = getID(path)
     return id,db.c.execute("SELECT type FROM media WHERE id = $1",(id,))[0][0]
 
+def oembed(path,params):
+    id = getID(path)
+    return id,[row[0] for row in db.c.execute("SELECT tags.name FROM tags, things where id = ANY(things.neighbors) AND things.id = $1 ORDER BY name",(id,))]
+
 def pageInfo(id):
     info = db.c.execute("""SELECT
     media.id,
@@ -26,15 +30,20 @@ def pageInfo(id):
     EXTRACT (epoch FROM media.modified),
     array(SELECT tags.name FROM tags 
         where id = ANY(thing1.neighbors) ORDER BY name)
-        FROM things as thing1
-        INNER JOIN media ON media.id = thing1.id
-        LEFT OUTER JOIN images ON images.id = media.id
+
+    FROM things as thing1
+    INNER JOIN media ON media.id = thing1.id
+    LEFT OUTER JOIN images ON images.id = media.id
+
     WHERE media.id = $1
 """,(id,))
     db.c.execute("""WITH upda AS (
-    UPDATE visited SET visits = visits + 1 WHERE uzer = $1 AND medium = $2 RETURNING id)    
-    INSERT INTO visited (uzer,medium,visits) SELECT $1,$2,1 WHERE NOT EXISTS(SELECT id FROM upda) RETURNING id
+        UPDATE visited SET visits = visits + 1 WHERE uzer = $1 AND medium = $2 RETURNING id),
+    goodmedium AS ( SELECT id FROM media WHERE id = $2 )
+    INSERT INTO visited (uzer,medium,visits) SELECT $1,$2,1 WHERE NOT EXISTS(SELECT id FROM upda) AND EXISTS(SELECT id FROM goodmedium) RETURNING id
     """,(User.id,id))
+    if not info:
+        raise UserError("Image {:x} not found.".format(id))
     return info[0]
 
 def page(path,params):

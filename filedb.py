@@ -30,6 +30,9 @@ def check(id):
 def checkResized(id):
     return _check(id,'resized',"{:x}".format(800),delay=0.1)
 
+def checkOEmbed(id,maxWidth):
+    return _check(id,'oembed','{:x}'.format(maxWidth))
+
 def imagePath(id):
     return os.path.join(base,'image','{:x}'.format(id))
 def uploadPath(name):

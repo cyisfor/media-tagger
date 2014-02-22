@@ -66,3 +66,9 @@ def set(news):
     stmt = "UPDATE uzers SET "+", ".join(names) + " WHERE id = ${}".format(len(names)+1)
     with db.transaction():
         db.c.execute(stmt,values+(User.id,))
+
+class UserError(Exception): 
+    def __init__(self,message,*args):
+        self.message = message
+        super().__init__((message,)+args)
+

@@ -1,6 +1,6 @@
 #import preforking
 
-from user import User
+from user import User,UserError
 import user
 from redirect import Redirect
 from dispatcher import dispatch,process
@@ -26,8 +26,6 @@ import io
 import time
 import sys
 
-class UserFailure(Exception): pass
-
 def encodeDict(d):
     for n,v in d.items():
         d[n] = v.encode('utf-8')
@@ -46,7 +44,6 @@ def parsePath(pathquery):
 
 class Handler(BaseHTTPRequestHandler):
     def fail(self,message):
-        self.send_error(500,message)        
         raise UserFailure(message)
     def log_message(self,format,*args):
         sys.stderr.write(("%s %s %s (%s) "%(self.headers['X-Real-IP'],self.command,self.path,time.time()))+(format%args)+'\n')
@@ -71,6 +68,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(r.code,"go")
                 self.send_header("location",r.where)
                 self.end_headers()
+            except UserError as e:   
+                self.send_error(500,e.message)
+                return
     def do_POST(self):
         assert(self.headers.get('Connection','') == 'close')
         with user.being(self.headers["X-Real-IP"]):
@@ -94,11 +94,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("location",r.where)
                 self.end_headers()
                 return
+            except UserError as e:   
+                self.send_error(500,e.message)
+                return
             self.send_response(codes.FOUND,"go")
             self.send_header("location",location)
             self.end_headers()
     def do_GET(self):
-        with user.being(self.headers["X-Real-IP"]), Session:
+        with user.being(self.headers["X-Real-IP"]), Session:            
+            Session.handler = self
             try:
                 path,pathurl,params = parsePath(self.path)
                 Session.params = params
@@ -147,8 +151,11 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("location",r.where)
                 self.end_headers()
                 return
+            except UserError as e:   
+                self.send_error(500,e.message)
+                return
             self.send_response(200,"OK")
-            self.send_header('Content-Type','text/html; charset=utf-8')
+            self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')
             if Session.modified:
                 self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
             self.send_header('Content-Length',len(page))
@@ -159,6 +166,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(page)
 
+Handler.responses[500] = 'Error','Server derped'
 class Server(HTTPServer,ThreadingMixIn):
     def handle_error(self,request,address):
         import sys
@@ -174,7 +182,7 @@ class Server(HTTPServer,ThreadingMixIn):
             t.setDaemon(True)
             t.start()
             return
-        elif type == UserFailure:
+        elif type == UserError:
             return
         else:
             super(Server,self).handle_error(request,address)

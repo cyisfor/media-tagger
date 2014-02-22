@@ -12,19 +12,22 @@ def mystrip(s,chars):
 def extract(doc):
     gotImage = False
     for li in doc.findAll('li'):
-        klass = li.get('class')
-        if klass and klass[0].startswith('tag-type-'):
-            foundTag = False
-            category = klass[0][len('tag-type-'):]
-            anchors = li.findAll('a')
-            for a in anchors:
-                if len(a.contents)>0:
-                    if a.contents[0] == '?':
-                        foundTag = True
-                        yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
-            if not foundTag:
-                a = anchors[0]
-                yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
+        for klass in li.attrs.get('class',()):
+            if isinstance(klass,str):
+                klass = (klass,)
+            if klass and klass[0].startswith('tag-type-'):
+                foundTag = False
+                category = klass[0][len('tag-type-'):]
+                anchors = li.findAll('a')
+                for a in anchors:
+                    if len(a.contents)>0:
+                        if a.contents[0] == '?':
+                            foundTag = True
+                            yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
+                if not foundTag:
+                    a = anchors[0]
+                    yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
+                break
         else:
             firstChild = li.contents
             if len(firstChild)==0: continue

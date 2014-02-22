@@ -39,7 +39,7 @@ def reopen():
         password = None
     c = pg.Connection(dbname='pics',port=5433,password=password)
     #c.verbose = True
-    #c.out = open('/tmp/db.log','at')
+    c.out = open('/tmp/db.log','at')
     password = None
 reopen()
 

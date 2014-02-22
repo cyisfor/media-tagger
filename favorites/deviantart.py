@@ -13,9 +13,11 @@ def extract(doc):
     for a in doc.findAll('a'):
         href = a.get('href')
         if not href: continue
-        try: name,category,rest = href[1:].split('/',2)
+        try: static,category,rest = href[1:].split('/',2)
         except ValueError: continue
-        if not category in set(("submission","character")):            
+        if static != 'static': continue
+        if not category in set(("submission","character")):
+            print("Strange category",category)
             continue
         derp = href.rsplit('.',1)
         if len(derp) == 2:

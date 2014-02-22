@@ -229,26 +229,26 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   // set filename to nothin and image_info->file to somethin to write to a file handle
   image->filename[0] = '\0';
   ctx->image_info->file = temp;
-  ctx->image_info->quality = getQuality(image,ctx->image_info->quality);
+  image->quality = getQuality(image,image->quality);
 
-  fprintf(stderr,"Quality %lu ->",ctx->image_info->quality);
+  fprintf(stderr,"Quality %lu ->",image->quality);
   thumb = 1; // derp
   if(thumb) {
     if(strcmp(image->magick,"JPEG")) {
       // force it to be a jpeg.
-      ctx->image_info->quality = 40;
+      image->quality = 40;
       strcpy(image->magick,"JPEG");
     } else {
-      ctx->image_info->quality = min(40,ctx->image_info->quality);
+      image->quality = min(40,image->quality);
     }
     ctx->image_info->compression = JPEGCompression;
     ctx->image_info->interlace = LineInterlace;
   } else if(!strcmp(image->magick,"JPEG")) {
     // adjust quality different if it's a jpeg or...
-    if(ctx->image_info->quality < 60)
-      ctx->image_info->quality = max(10,ctx->image_info->quality / 2);
-    else
-      ctx->image_info->quality = 30;
+    if(image->quality < 60)
+      image->quality = max(10,image->quality / 2);
+    else if(image->quality > 30)
+      image->quality = 30;
     ctx->image_info->compression = JPEGCompression;
     ctx->image_info->interlace = LineInterlace;
   } else {
@@ -261,11 +261,11 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
     if(!strcmp(image->magick,"PNG")) {
       ctx->image_info->type = OptimizeType;
       ctx->image_info->compression = ZipCompression;
-      ctx->image_info->quality = 9;
+      image->quality = 9;
       Reduce(image,ctx);
     } else {
       // Don't let any weird ones slip through
-      ctx->image_info->quality = 30;
+      image->quality = 30;
       ctx->image_info->compression = JPEGCompression;
       ctx->image_info->interlace = LineInterlace;
       strcpy(image->magick,"JPEG");
