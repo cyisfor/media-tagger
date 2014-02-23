@@ -74,31 +74,31 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         assert(self.headers.get('Connection','') == 'close')
         with user.being(self.headers["X-Real-IP"]):
-            try:
-                path,parsed,derparams = parsePath(self.path)
-                mode = path[0][1:]
-                ctype, pdict = cgi.parse_header(self.headers['content-type'])
-                if ctype != 'multipart/form-data':
-                    self.fail("You can only post form data!")
+            path,parsed,params = parsePath(self.path)
+            mode = path[0][1:]
+            ctype, pdict = cgi.parse_header(self.headers['content-type'])
+            if ctype == 'multipart/form-data':                    
                 boundary = pdict['boundary']
                 if hasattr(boundary,'decode'):
                     pdict['boundary'] = boundary.decode()
                 length = int(self.headers.get('Content-Length'))
                 data = self.rfile.read(length)
                 encodeDict(pdict) # sigh
-                params = cgi.parse_multipart(io.BytesIO(data), pdict)
+                params.update(cgi.parse_multipart(io.BytesIO(data), pdict))            
+            print(params)
+            try:
                 location = process(mode,parsed,params)
             except Redirect as r:
                 # this is kinda pointless...
-                self.send_response(r.code,"go")
-                self.send_header("location",r.where)
+                self.send_response(r.code,"goe")
+                self.send_header("Location",r.where)
                 self.end_headers()
                 return
             except UserError as e:   
                 self.send_error(500,e.message)
                 return
             self.send_response(codes.FOUND,"go")
-            self.send_header("location",location)
+            self.send_header("Location",location)
             self.end_headers()
     def do_GET(self):
         with user.being(self.headers["X-Real-IP"]), Session:            

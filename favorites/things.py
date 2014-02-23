@@ -14,7 +14,7 @@ class Tag:
     def __repr__(self):
         return 'Tag('+repr(self.category)+','+repr(self.name)+')'
     def __hash__(self):
-        return hash(self.category)+hash(self.name)
+        return hash(self.category)^hash(self.name)
     def __eq__(self,other):
         return self.category == other.category and self.name == other.name
 class Source(str): pass

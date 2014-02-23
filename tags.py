@@ -20,7 +20,11 @@ db.c.execute("SET work_mem TO 100000")
 def tag(thing,tags):
     if not isinstance(tags,Taglist):
         derp = Taglist()
-        derp.posi = set(tags)
+        try:
+            derp.posi = set(tags)
+        except OverflowError:
+            print('???',tags)
+            raise
         tags = derp
     implied = os.environ.get('tags')
     if implied:

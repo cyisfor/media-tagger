@@ -2,6 +2,8 @@ import db
 import tags
 import filedb
 
+import imageInfo
+
 from Crypto.Hash import SHA,MD5
 from PIL import Image
 
@@ -51,24 +53,31 @@ class NoGood(Exception): pass
 def openImage(data):
     try:
         image = Image.open(data)
+        type = Image.MIME[image.format]
+        try:
+            image.seek(1)
+            animated = True
+        except EOFError:
+            animated = False
+        width,height = image.size
+        image = (animated,width,height)        
     except IOError as e:
-        return None,None
-    return image,Image.MIME[image.format]
+        try: image,type = imageInfo.get(data.name)
+        except:
+            data.seek(0,0)
+            print(repr(data.read(20)))
+            raise
+    return image,type
 
 def createImageDBEntry(id,image):
-    width,height = image.size
-    try:
-        image.seek(1)
-        animated = True
-    except EOFError:
-        animated = False
-    image = None
-    db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
+    db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,)+image)
 
 def retryCreateImage(id):
-    image,type = openImage(filedb.imagePath(id))
-    if image: 
-        createImageDBEntry(id,image)
+    source = filedb.imagePath(id)
+    image,type = openImage(source)
+    createImageDBEntry(id,image)
+    return image,type
+
 
 def getanId(sources,uniqueSource,download,name):
     if uniqueSource:
@@ -109,11 +118,11 @@ def getanId(sources,uniqueSource,download,name):
             image = None
             data.seek(0,0)
             savedData = data
-            if data.name[-1] == 'z':
-                try:
-                    data = gzip.open(data)
-                except IOError as e:
-                    raise
+#            if data.name[-1] == 'z':
+#                try:
+#                    data = gzip.open(data)
+#                except IOError as e:
+#                    raise
             image,type = openImage(data)
             if not image:
                 print('we hafe to guess')
@@ -135,7 +144,7 @@ def getanId(sources,uniqueSource,download,name):
                 os.fstat(data.fileno()).st_size,type,md5,sources))
             if image: createImageDBEntry(id,image)
             else:
-                print('WARNING NOT AN IMAGE %x'.format(id))
+                raise RuntimeError('WARNING NOT AN IMAGE %x'.format(id))
             data.flush()
             savedData.become(id)
             filedb.check(id)

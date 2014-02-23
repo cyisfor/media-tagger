@@ -95,13 +95,16 @@ def makeLinks(info,linkfor=None):
     if row: yield d.tr(*row)
     Session.refresh = not allexists
 
+def makeBase():
+    # drop bass
+    return 'http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/'
+
 @context.Context
 class Links:
     next = None
     prev = None
     style = "/style/art.css"
     id = None
-    url = 'http://oembed.sucks/'
 
 
 def standardHead(title,*contents):
@@ -113,16 +116,18 @@ def standardHead(title,*contents):
         params = '?' + '&'.join(params)
     else:
         params = ''
+    # oembed sucks:
+    if Links.id:
+        url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
     return d.head(d.title(title),
             d.meta(charset='utf-8'),
         d.link(rel="icon",type="image/png",href="/favicon.png"),
         d.link(rel='stylesheet',type='text/css',href=Links.style),
         d.link(rel='next',href=Links.next+params) if Links.next else '',
         d.link(rel='prev',href=Links.prev+params) if Links.prev else '',
-        d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id),
+        d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id,
             # oembed sucks:
-            quote(Links.url)
-            ) if Links.id else '',
+            quote(url))) if Links.id else '',
         *contents)
 
 def makePage(title,*content):
@@ -179,10 +184,9 @@ def simple(info,path,params):
     id,type = info
     return makePage("derp",d.a(d.img(src=imageLink(id,type)),href=pageLink(id)))
 
-def page(info,path,params,url):
+def page(info,path,params):
     id,next,prev,name,type,width,size,modified,tags = info
     Links.id = id
-    Links.url = url
     Session.modified = modified
     if name:
         name = quote(name)
@@ -481,7 +485,7 @@ def showComic(info,path,params):
         
 def oembed(info, path, params):
     id,tags = info
-    base = 'http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/'
+    base = makeBase()
     xid, exists = filedb.check(id)
     Session.type = 'application/json'
     thumb = urljoin(base,thumbLink(id))

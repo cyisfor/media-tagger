@@ -76,10 +76,13 @@ def getPool(base):
             doc = BeautifulSoup(inp)
 
         if title is None:
-            title = doc.find('h4').string.strip()
+            h4 = doc.find('h4')
+            title = h4.string.strip()
             print(title)
 
             def getinfo():
+                description = h4.next_element.string.strip()
+                if description: return description
                 return input('Description: ').strip()
 
             com = comic.findComicByTitle(title,getinfo)

@@ -15,7 +15,7 @@ setup("""CREATE TABLE comics
         which INTEGER,
         image INTEGER REFERENCES images(id) ON DELETE CASCADE ON UPDATE CASCADE)""",
         "CREATE UNIQUE INDEX unique_pages ON comicPage(comic,which)",
-        """CREATE OR REPLACE FUNCTION setcomicpage(_image integer, _comic integer, _which integer) RETURNS void) AS
+        """CREATE OR REPLACE FUNCTION setcomicpage(_image integer, _comic integer, _which integer) RETURNS void AS
 $$
 
 BEGIN                                                  
@@ -29,7 +29,7 @@ BEGIN
          -- if someone else inserts the same key concurrently
          -- we could get a unique-key failure           
          BEGIN                                          
-             INSERT INTO comicPage(image,comic,which) VALUES (_image,_comic,_which)
+             INSERT INTO comicPage(image,comic,which) VALUES (_image,_comic,_which);
              RETURN;                                    
          EXCEPTION WHEN unique_violation THEN           
              -- Do nothing, and loop to try the UPDATE again.
