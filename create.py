@@ -5,7 +5,6 @@ import filedb
 import imageInfo
 
 from Crypto.Hash import SHA,MD5
-from PIL import Image
 
 import gzip
 import derpmagic as magic
@@ -24,8 +23,6 @@ def imageHash(data):
     digest = base64.b64encode(digest)
     digest = digest.decode().rstrip('=')
     return digest
-
-Image.MIME['PCX'] = 'image/pcx'
 
 def isGood(type):
     category = type.split('/',1)[0]
@@ -51,23 +48,11 @@ findMD5 = re.compile("[0-9a-fA-F]{32}")
 class NoGood(Exception): pass
 
 def openImage(data):
-    try:
-        image = Image.open(data)
-        type = Image.MIME[image.format]
-        try:
-            image.seek(1)
-            animated = True
-        except EOFError:
-            animated = False
-        width,height = image.size
-        image = (animated,width,height)        
-    except IOError as e:
-        try: image,type = imageInfo.get(data.name)
-        except:
-            data.seek(0,0)
-            print(repr(data.read(20)))
-            raise
-    return image,type
+    try: return imageInfo.get(data.name)
+    except:
+        data.seek(0,0)
+        print(repr(data.read(20)))
+        raise
 
 def createImageDBEntry(id,image):
     db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,)+image)
