@@ -1,5 +1,5 @@
 from filedb import top
-from contextlib import closing
+from contextlib import closing,contextmanager
 
 from io import StringIO
 
@@ -7,6 +7,7 @@ import gzip,zlib
 import sys
 import os,tempfile
 import urllib.request
+Request = urllib.request.Request
 import pickle
 import shutil
 
@@ -73,7 +74,10 @@ opener.addheaders = [
         ('Accept-Encoding', 'gzip,deflate')]
 urllib.request.install_opener(opener)
 
-def myretrieve(request,dest):
+@contextmanager
+def myopen(request):
+    if not isinstance(request,Request):
+        request = Request(request)
     try:
         request.full_url.encode('ascii')
     except UnicodeEncodeError as e:
@@ -81,22 +85,23 @@ def myretrieve(request,dest):
         for i in range(2,len(url)):
             url[i] = urllib.parse.quote(url[i],safe="/&=?+")
         request.full_url = urllib.parse.urlunparse(url)
-    try:
-        with closing(opener.open(request)) as inp:
-            headers = inp.headers
-            encoding = headers['Content-Encoding']
-            if encoding == 'gzip':
-                inp = gzip.GzipFile(fileobj=inp,mode='rb')
-            elif encoding == 'deflate':
-                data = inp.read(0x40000)
-                try: data = zlib.decompress(data)
-                except zlib.error:
-                    data = zlib.decompress(data,-zlib.MAX_WBITS)
-                inp = StringIO(data)
-            shutil.copyfileobj(inp,dest)
-            return headers
-    except: 
-        print((request.get_data(),request.get_full_url(),request.headers),file=sys.stderr)
-        raise
+    with closing(opener.open(request)) as inp:
+        headers = inp.headers
+        encoding = headers['Content-Encoding']
+        if encoding == 'gzip':
+            inp = gzip.GzipFile(fileobj=inp,mode='rb')
+        elif encoding == 'deflate':
+            data = inp.read(0x40000)
+            try: data = zlib.decompress(data)
+            except zlib.error:
+                data = zlib.decompress(data,-zlib.MAX_WBITS)
+            inp = StringIO(data)
+        inp.headers = headers
+        yield inp
+
+def myretrieve(request,dest):
+    with myopen(request) as inp:
+        shutil.copyfileobj(inp,dest)
+        return inp.headers
 
 print('urllib has been setup for proxying')

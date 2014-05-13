@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import db
 from delete import delete, findId
@@ -46,8 +46,9 @@ def merge(dest,source):
         delete(source,os.environ.get('reason','dupe of {:x}'.format(dest)))
 
 def main():
+    #note b will be DESTROYED and a should be the good one.
     a = findId(sys.argv[1])
     b = findId(sys.argv[2])
-    merge(min(a,b),max(a,b))
+    merge(a,b)
 
 if __name__ == '__main__': main()

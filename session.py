@@ -9,3 +9,4 @@ class Session:
     params = {}
     type = 'text/html; charset=utf-8'
     handler = None
+    head = False

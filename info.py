@@ -1,6 +1,7 @@
 import db
 import comic
 from user import User,UserError
+from session import Session
 
 db.setup("CREATE TABLE visited (id SERIAL PRIMARY KEY, uzer INTEGER REFERENCES uzers(id), medium bigint REFERENCES media(id), visits INTEGER DEFAULT 0)",
         "create unique index visitorunique on visited(uzer,medium)")
@@ -8,15 +9,17 @@ db.setup("CREATE TABLE visited (id SERIAL PRIMARY KEY, uzer INTEGER REFERENCES u
 def getID(path):
     if len(path)>1:
         return int(path[1],0x10)
-    return None
+    raise RuntimeError("No ID found in path")
 
 def simple(path,params):
+    if Session.head: return
     id = getID(path)
     return id,db.c.execute("SELECT type FROM media WHERE id = $1",(id,))[0][0]
 
 def oembed(path,params):
+    if Session.head: return
     id = getID(path)
-    return id,[row[0] for row in db.c.execute("SELECT tags.name FROM tags, things where id = ANY(things.neighbors) AND things.id = $1 ORDER BY name",(id,))]
+    return id,[row[0] for row in db.c.execute("SELECT tags.name FROM tags, things where tags.id = ANY(things.neighbors) AND things.id = $1 ORDER BY name",(id,))]
 
 def pageInfo(id):
     info = db.c.execute("""SELECT
@@ -47,6 +50,8 @@ def pageInfo(id):
     return info[0]
 
 def page(path,params):
+    if Session.head:
+        return db.c.execute("SELECT id,EXTRACT(EPOCH FROM modified),size FROM media WHERE id = $1",(getID(path),))[0]
     return pageInfo(getID(path))
 
 
@@ -56,6 +61,9 @@ def source(sourceID):
     except IndexError: return None
 
 def info(path,params):
+    if Session.head:
+        return {'sessmodified': 
+                db.c.execute("SELECT EXTRACT(epoch FROM modified) FROM media WHERE id = $1",(getID(path),))[0][0]}
     result = db.c.execute("""SELECT 
     media.id,
     name,
@@ -76,18 +84,18 @@ def info(path,params):
 
 def user(path,params): pass
 
-def comicInfoer(path,params):
-    if len(path) == 1:
-        def pages(offset):
-            return comic.list(offset)
-        return pages
-    elif len(path) == 2:
-        def pages(offset):
-            return comic.pages(int(path[1]),offset)
-        return pages
-    elif len(path) > 2:
-        return comic.findImage(int(path[1]),int(path[2]))
-
+# def comicInfoer(path,params):
+#     if len(path) == 1:
+#         def pages(offset):
+#             return comic.list(offset)
+#         return pages
+#     elif len(path) == 2:
+#         def pages(offset):
+#             return comic.pages(int(path[1]),offset)
+#         return pages
+#     elif len(path) > 2:
+#         return comic.findImage(int(path[1]),int(path[2]))
+ 
 def like(*a):
     return None
 

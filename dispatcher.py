@@ -1,6 +1,7 @@
 import pages,info,process,uploader
 
 modes = {
+        'resized': (pages.resized,lambda path,params: None),
         'simple': (pages.simple,info.simple),
         'page': (pages.page,info.page),
         'info': (pages.info,info.info),
@@ -16,11 +17,8 @@ modes = {
 def dispatch(mode,path,params):
     try:
         handler = modes[mode]
-    except KeyError:
-        import traceback,sys
-        traceback.print_exc()
-        print('OK????')
-        raise
+    except KeyError as e:
+        raise KeyError("No handler for /~{}/".format(mode),e)
     return handler[0](handler[1](path,params),path,params)
 
 def process(mode,path,params):

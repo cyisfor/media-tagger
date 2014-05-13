@@ -49,10 +49,11 @@ def setup(*stmts):
         try:
             c.execute(stmt)
         except ProgrammingError as e:
-            sys.stdout.write(stmt)
-            print('')
-            sys.stdout.write(e.info['message'].decode('utf-8'))
-            print('')
+            if c.verbose:
+                sys.stdout.write(stmt)
+                print('')
+                sys.stdout.write(e.info['message'].decode('utf-8'))
+                print('')
 
 place = os.path.dirname(__file__)
 

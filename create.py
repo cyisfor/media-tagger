@@ -48,9 +48,19 @@ findMD5 = re.compile("[0-9a-fA-F]{32}")
 class NoGood(Exception): pass
 
 def openImage(data):
+    print('inside openIMAGE')
+    if isinstance(data,str):
+        return imageInfo.get(data)
     try: return imageInfo.get(data.name)
+    except imageInfo.Error:
+        import sys
+        et,e,tb = sys.exc_info()
+        if e['reason'].startswith('no decode delegate for this image format'):
+            return None,None
+        raise
     except:
         data.seek(0,0)
+        print('Unknown file type')
         print(repr(data.read(20)))
         raise
 
@@ -60,7 +70,8 @@ def createImageDBEntry(id,image):
 def retryCreateImage(id):
     source = filedb.imagePath(id)
     image,type = openImage(source)
-    createImageDBEntry(id,image)
+    if image:
+        createImageDBEntry(id,image)
     return image,type
 
 

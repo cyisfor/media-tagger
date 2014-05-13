@@ -1,4 +1,4 @@
-#include <magick/api.h>
+#include "MagickCore/MagickCore.h"
 #include <stdint.h>
 
 typedef struct context_s context;

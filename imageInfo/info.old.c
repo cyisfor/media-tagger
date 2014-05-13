@@ -1,4 +1,6 @@
+#if memoryok
 #include "memory.h"
+#endif
 
 #include "MagickCore/MagickCore.h"
 
@@ -25,9 +27,11 @@ int main(void) {
     char* path = NULL;
     size_t space = 0;
 
+#if memoryok
     memory_pushContext();
 
     SetMagickMemoryMethods(memory_alloc, memory_realloc, memory_free);
+#endif
 
     MagickCoreGenesis(NULL,MagickFalse);
 
@@ -43,7 +47,9 @@ int main(void) {
     fputs("here we go!",stderr);
 
     for(;;) {
+#if memoryok
         memory_pushContext();
+#endif
         ssize_t amt = getline(&path,&space,stdin);
         if(amt <= 0) break;
         if(path[amt-1] == '\n')
@@ -73,7 +79,9 @@ int main(void) {
         write(1,&height,2);
 
         DestroyImage(image);
+#if memoryok
         memory_popContext(); // NOW will you free the memory???
+#endif
     }
     return 0;
 }

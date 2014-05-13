@@ -15,8 +15,11 @@ def extract(doc):
     else:
         for img in doc.findAll('img'):
             if 'preview?' in img['src']:
-                yield Image(img.parent['href'])
-                break
+                try: yield Image(img.parent['href'])
+                except KeyError:
+                    print('no href?',img.parent)
+                else:
+                    break
         else:
             raise RuntimeError("Can't find an image...",doc)
     for tag in doc.findAll('a',{'class': 'sf-tag'}):

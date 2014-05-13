@@ -8,6 +8,9 @@ import context
 
 v = versions.Versioner('user')
 
+# defaultTags means when there is no tags for a user, use the default ones as implied tags.
+# defaultTags=False means when there are no tags, have no implied tags.
+
 class VersionHolder:
     @v(version=1)
     def initially():
@@ -15,6 +18,15 @@ class VersionHolder:
     @v(version=2)
     def impliedList():
         db.setup("CREATE TABLE uzerTags (id bigint REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)");
+    @v(version=3)
+    def sameTags():
+        "Two users might want to have the same tag, one nega and one posi!"
+        db.setup("CREATE TABLE uzerTags2 (id SERIAL PRIMARY KEY, tag bigint REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)",
+            "INSERT INTO uzerTags2 (tag,uzer,nega) SELECT id,uzer,nega FROM uzerTags",
+            "DROP TABLE uzerTags",
+            "ALTER TABLE uzerTags2 RENAME TO uzerTags",
+            "CREATE UNIQUE INDEX nodupeuzertags ON uzerTags(tag,uzer)")
+
 
 v.setup()
 
@@ -31,7 +43,7 @@ class User:
         if self.defaultTags:
             return dtags
         result = tags.Taglist()
-        for id,nega in db.c.execute("SELECT id,nega FROM uzertags WHERE uzer = $1",(self.id,)):
+        for id,nega in db.c.execute("SELECT tag,nega FROM uzertags WHERE uzer = $1",(self.id,)):
             if nega:
                 result.nega.add(id)
             else:

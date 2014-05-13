@@ -7,7 +7,6 @@ import db
 from bs4 import BeautifulSoup
 import os
 import urllib.parse
-import urllib.request
 
 from itertools import count
 
@@ -72,11 +71,14 @@ def getPool(base):
     title = None
     while True:    
         #with open('derp.html') as inp:
-        with urllib.request.urlopen(base) as inp:
+        with setupurllib.myopen(base) as inp:
             doc = BeautifulSoup(inp)
 
         if title is None:
             h4 = doc.find('h4')
+            if not h4:
+                print(doc)
+                raise SystemExit
             title = h4.string.strip()
             print(title)
 

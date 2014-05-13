@@ -6,6 +6,8 @@ from redirect import Redirect
 from dispatcher import dispatch,process
 import uploader
 
+from setupurllib import isPypy
+
 from session import Session
 
 from pages import images
@@ -20,11 +22,15 @@ from http.server import BaseHTTPRequestHandler,HTTPServer
 import http.client as codes
 import cgi
 
+import socket
 import urllib.parse
 from urllib.parse import urlparse,parse_qs
 import io
 import time
 import sys
+import os
+
+debugging = 'debug' in os.environ
 
 def encodeDict(d):
     for n,v in d.items():
@@ -46,8 +52,64 @@ class Handler(BaseHTTPRequestHandler):
     def fail(self,message):
         raise UserFailure(message)
     def log_message(self,format,*args):
-        sys.stderr.write(("%s %s %s (%s) "%(self.headers['X-Real-IP'],self.command,self.path,time.time()))+(format%args)+'\n')
+        ip = self.headers['X-Real-IP']
+        if not debugging and ip == 'fc1b:3f1e:dc7f:952a:f8e7:62c6:85cb:d7ea': return
+        sys.stderr.write(("{} {} {} ({}) ".format(ip,self.command,self.path,time.time()))+
+                (format%args)+'\n')
         sys.stderr.flush()
+    def handle_one_request(self):
+        try:
+            self.raw_requestline = self.rfile.readline(0x10001)
+            if len(self.raw_requestline) > 0x10000:
+                self.requestline = ''
+                self.request_version = ''
+                self.command = ''
+                self.send_error(414)
+                return
+            if not self.raw_requestline:
+                self.close_connection = 1
+                return
+            if not self.parse_request():
+                # An error code has been sent, just exit
+                return
+            self.do()
+            self.wfile.flush()            
+        except socket.timeout as e:
+            self.log_error("Request timed out")
+            self.close_connection = 1
+            return
+        except socket.error as e:
+            if e.errno == errno.EPIPE:
+                self.log_error("Client closed connection")
+                self.close_connection = 1
+            else:
+                raise
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            if e.args:
+                e = e.args[0]
+            else:
+                e = str(e)
+            self.send_error(500,e)
+            self.log_error(e)
+            return
+
+    def do(self):
+        mname = 'do_' + self.command
+        if not hasattr(self, mname):
+            self.send_error(501, "Unsupported method (%r)" % self.command)
+            return
+        method = getattr(self, mname)
+        with user.being(self.headers['X-Real-IP']), Session:
+            try: method()
+            except Redirect as r:
+                self.send_response(r.code,"go")
+                self.send_header("location",r.where)
+                self.end_headers()
+            except UserError as e:   
+                self.send_error(500,e.message)
+                return
     def do_OPTIONS(self):
         self.send_response(200,"OK")
         self.send_header('Content-Length',0)
@@ -56,114 +118,92 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers',self.headers['access-control-request-headers'])
         self.end_headers()
     def do_PUT(self):
-        with user.being(self.headers['X-Real-IP']):
             try: uploader.manage(self)
             except uploader.Error as e:
                 e = str(e)
-                self.send_response(500,e)
-                self.end_headers()
-                e += '\r\n'
-                self.wfile.write(e.encode('utf-8'))
-            except Redirect as r:
-                self.send_response(r.code,"go")
-                self.send_header("location",r.where)
-                self.end_headers()
-            except UserError as e:   
-                self.send_error(500,e.message)
-                return
+                self.send_error(500,e)
     def do_POST(self):
         assert(self.headers.get('Connection','') == 'close')
-        with user.being(self.headers["X-Real-IP"]):
-            path,parsed,params = parsePath(self.path)
-            mode = path[0][1:]
-            ctype, pdict = cgi.parse_header(self.headers['content-type'])
-            if ctype == 'multipart/form-data':                    
-                boundary = pdict['boundary']
-                if hasattr(boundary,'decode'):
-                    pdict['boundary'] = boundary.decode()
-                length = int(self.headers.get('Content-Length'))
-                data = self.rfile.read(length)
+        path,parsed,params = parsePath(self.path)
+        mode = path[0][1:]
+        ctype, pdict = cgi.parse_header(self.headers['content-type'])
+        if ctype == 'multipart/form-data':                    
+            boundary = pdict['boundary']
+            if hasattr(boundary,'decode'):
+                pdict['boundary'] = boundary.decode()
+            length = int(self.headers.get('Content-Length'))
+            data = self.rfile.read(length)
+            if isPypy: 
+                data = io.StringIO(data.decode('utf-8'))
+            else:
+                data = io.BytesIO(data)
                 encodeDict(pdict) # sigh
-                params.update(cgi.parse_multipart(io.BytesIO(data), pdict))            
-            print(params)
-            try:
-                location = process(mode,parsed,params)
-            except Redirect as r:
-                # this is kinda pointless...
-                self.send_response(r.code,"goe")
-                self.send_header("Location",r.where)
-                self.end_headers()
-                return
-            except UserError as e:   
-                self.send_error(500,e.message)
-                return
-            self.send_response(codes.FOUND,"go")
-            self.send_header("Location",location)
-            self.end_headers()
+            params.update(cgi.parse_multipart(data, pdict))            
+        print(params)
+        location = process(mode,parsed,params)
+        
+        self.send_response(codes.FOUND,"go")
+        self.send_header("Location",location)
+        self.end_headers()
+    def do_HEAD(self):
+        Session.head = True
+        return self.do_GET()
     def do_GET(self):
-        with user.being(self.headers["X-Real-IP"]), Session:            
-            Session.handler = self
-            try:
-                path,pathurl,params = parsePath(self.path)
-                Session.params = params
-                # Session.query = ...
-                if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
-                    mode = path[0][1:]
-                    page = dispatch(mode,path,params)
-                else:
-                    tags = Taglist()
-                    implied = self.headers.get("X-Implied-Tags")                
-                    if implied:
-                        tags = tagsModule.parse(implied)
-                    tags.update(User.tags())
-                    basic = Taglist()
+        Session.handler = self
+        path,pathurl,params = parsePath(self.path)
+        Session.params = params
+        # Session.query = ...
+        if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
+            mode = path[0][1:]
+            page = dispatch(mode,path,params)
+        else:
+            implied = self.headers.get("X-Implied-Tags")                
+            if implied:
+                tags = tagsModule.parse(implied)
+            else:
+                tags = tagsModule.parse("-special:rl")
+            tags.update(User.tags())
+            basic = Taglist()
 
-                    for thing in path:
-                        if thing:
-                            thing = urllib.parse.unquote(thing)
-                            if thing[0] == '-':
-                                tag = tagsModule.getTag(thing[1:])
-                                if tag:
-                                    tags.posi.discard(tag)
-                                    tags.nega.add(tag)
-                                    basic.nega.add(tag)
-                                continue
-                            elif thing[0] == '+':
-                                thing = thing[1:]
-                            tag = tagsModule.getTag(thing)
-                            if tag:
-                                tags.posi.add(tag)
-                                basic.posi.add(tag)
-                    o = params.get('o')
-                    if o:
-                        o = int(o[0],0x10)
-                        offset = 0x30*o
-                    else:
-                        offset = o = 0
-                    #withtags.explain = True
-                    #withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True)
-                    page = images(pathurl,params,o,
-                            withtags.searchForTags(tags,offset=offset,limit=0x30),
-                            withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True),basic)
-                page = str(page).encode('utf-8')
-            except Redirect as r:
-                self.send_response(r.code,"go")
-                self.send_header("location",r.where)
-                self.end_headers()
-                return
-            except UserError as e:   
-                self.send_error(500,e.message)
-                return
-            self.send_response(200,"OK")
-            self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')
-            if Session.modified:
-                self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
-            self.send_header('Content-Length',len(page))
-            if Session.refresh:
-                if Session.refresh is True:
-                    Session.refresh = 5
-                self.send_header('Refresh',str(Session.refresh))
-            self.end_headers()
+            for thing in path:
+                if thing:
+                    thing = urllib.parse.unquote(thing)
+                    if thing[0] == '-':
+                        tag = tagsModule.getTag(thing[1:])
+                        if tag:
+                            tags.posi.discard(tag)
+                            tags.nega.add(tag)
+                            basic.nega.add(tag)
+                        continue
+                    elif thing[0] == '+':
+                        thing = thing[1:]
+                    tag = tagsModule.getTag(thing)
+                    if tag:
+                        tags.posi.add(tag)
+                        basic.posi.add(tag)
+            o = params.get('o')
+            if o:
+                o = int(o[0],0x10)
+                offset = 0x30*o
+            else:
+                offset = o = 0
+            #withtags.explain = True
+            #withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True)
+            page = images(pathurl,params,o,
+                    withtags.searchForTags(tags,offset=offset,limit=0x30),
+                    withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True),basic)
+        page = str(page).encode('utf-8')
+        self.send_response(200,"OK")
+        self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')
+        if Session.modified:
+            self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
+        self.send_header('Content-Length',len(page))
+        if Session.refresh:
+            if Session.refresh is True:
+                Session.refresh = 5
+            self.send_header('Refresh',str(Session.refresh))
+        self.end_headers()
+        if Session.head is False:
             self.wfile.write(page)
 
 Handler.responses[500] = 'Error','Server derped'

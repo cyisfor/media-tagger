@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <sys/stat.h>
-#include <magick/api.h>
+
 
 #include <string.h>
 #include <assert.h>
@@ -29,7 +29,7 @@ Image* MyResize(Image* image, int width, context* ctx) {
 
   // ResizeImage clones?
   thumb = ResizeImage(image, width, image->rows*width/image->columns,
-		      BoxFilter,1,
+		      BoxFilter,
 		      &ctx->exception);
   CatchExceptionAndReset(&ctx->exception);
   DestroyImage(image);
@@ -141,11 +141,10 @@ static int TooSimilar(ColorPacket* aa, ColorPacket* bb) {
   return (sqdist < 5);
   }*/
 
-static unsigned long getQuality(Image* image, unsigned long quality) {
-  const ImageAttribute* attribute = GetImageAttribute(image,"JPEG-Quality");
-  if ((attribute != (const ImageAttribute *) NULL) &&
-      (attribute->value != (char *) NULL)) {
-    sscanf(attribute->value,"%lu",&quality);
+static unsigned long getQuality(context* ctx, Image* image, unsigned long quality) {
+  const char* value = GetImageProperty(image,"JPEG-Quality",&ctx->exception);
+  if (value != NULL && *value) {
+    sscanf(value,"%lu",&quality);
   }
 
   return quality;
@@ -210,11 +209,13 @@ static void Reduce(Image* image, context* ctx) {
 
   qi.number_colors = 0x10;
   qi.measure_error = MagickFalse;
-  qi.dither = MagickFalse;
+  qi.dither_method = NoDitherMethod;
   qi.tree_depth = 2;
 
-  QuantizeImage(&qi,image);
-  CompressImageColormap(image);
+  QuantizeImage(&qi,image,&ctx->exception);
+  CatchExceptionAndReset(&ctx->exception);
+  CompressImageColormap(image,&ctx->exception);
+  CatchExceptionAndReset(&ctx->exception);
   // this is only if mallocked? DestroyQuantizeInfo(&qi);
 }
 
@@ -229,7 +230,7 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   // set filename to nothin and image_info->file to somethin to write to a file handle
   image->filename[0] = '\0';
   ctx->image_info->file = temp;
-  image->quality = getQuality(image,image->quality);
+  image->quality = getQuality(ctx, image,image->quality);
 
   fprintf(stderr,"Quality %lu ->",image->quality);
   thumb = 1; // derp
@@ -272,12 +273,15 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
     }
   }
 
+  ctx->image_info->quality = image->quality; // not sure which of these is the one you set
   fprintf(stderr,"%lu\n",ctx->image_info->quality);
 
-  if(!WriteImage(ctx->image_info,image)) {
+  if(!WriteImage(ctx->image_info,image,&ctx->exception)) {
+  CatchExceptionAndReset(&ctx->exception);
     fprintf(stderr,"Could not write the image!");
     exit(1);
   }
+  CatchExceptionAndReset(&ctx->exception);
 
   DoneWithImage(image,ctx);
   fchmod(tempfd,0644);

@@ -23,6 +23,8 @@ def Context(klass):
         else:
             defaults[n] = v
     stack = [defaults]   
+    # below top the stack must be tuples, so they don't mutate when the top does
+    # must push a copy every enter, because even if same "self" must not mutate after exit
     class Derivate: 
         __doc__ = rest.get('__doc__','')
         def __enter__(self):
@@ -56,12 +58,13 @@ def Context(klass):
     d.__name__ = klass.__name__
     return d
 
-if False:
+def test():
     @Context
     class Test:
         a = 3
         b = 4
         def foo(self):
+            print('')
             print(self.a+self.b)
             return 3
 
@@ -69,4 +72,10 @@ if False:
     with Test:
         Test.a = 5
         print(Test.foo())
+        with Test:
+            Test.a = 7
+            print(Test.foo())
+        print(Test.foo())
+
     print(Test.foo())
+if __name__ == '__main__': test()

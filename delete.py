@@ -29,11 +29,8 @@ if __name__ == '__main__':
             print('got',line)
             delete(findId(line),reason)
     else:
+        reason = os.environ['reason']
         def gotPiece(piece):
-            if ' ' in piece:
-                piece,reason = piece.split(' ',1)
-            else:
-                reason = None
             try:
                 delete(findId(piece),reason)
             except ValueError: pass

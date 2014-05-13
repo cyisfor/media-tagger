@@ -37,6 +37,16 @@ parse.registerFinder("mspabooru.com",
          'tags': ['mspaint'],
          'normalize': danbooru.normalize})
 
+parse.registerFinder("bronibooru.com",
+        {'extract': danbooru.extract,
+            'normalize': danbooru.normalize,
+            'tags': ['pony','bronibooru','booru']})
+
+parse.registerFinder("www.bronibooru.com",
+        {'extract': danbooru.extract,
+            'normalize': danbooru.normalize,
+            'tags': ['pony','bronibooru','booru']})
+
 parse.registerFinder(re.compile("twentypercentcooler\..*"),
         {'extract': danbooru.extract,
          'tags': ['twentypercentcooler','pony'],

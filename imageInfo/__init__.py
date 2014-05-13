@@ -14,11 +14,13 @@ def makeProcess():
 process = makeProcess()
 def getProcess():
     global process
-    if process.poll() is not None:
+    if (not process) or (process.poll() is not None):
         process = makeProcess()
     return process
 
-class Error(Exception): pass
+class Error(Exception): 
+    def __getitem__(self,key):
+        return self.args[0][key]
 
 def readString(inp):
     size = inp.read(1)[0]
@@ -35,18 +37,21 @@ def get(path):
         description = readString(process.stdout)
         error = readString(process.stdout)
         num = struct.unpack(">H",process.stdout.read(2))[0]
+        print('error',description)
         raise Error({
             'reason': reason,
             'description': description,
             'error': error,
             'num': num})
     elif result == "I":
+        print('image info yay')
         type = readString(process.stdout)
         animated = (process.stdout.read(1)[0] > 1)
         width = struct.unpack('>H',process.stdout.read(2))[0]
         height = struct.unpack('>H',process.stdout.read(2))[0]
         return (animated,width,height),type
     else:
+        print('unsync')
         process.terminate()
         process.wait()
         process = None
