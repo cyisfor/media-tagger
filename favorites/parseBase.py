@@ -56,7 +56,7 @@ def parse(primarySource):
             if 'normalize' in handlers:
                 primarySource = handlers['normalize'](primarySource)
             if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
-                print('fskipping',primarySource)
+                print('skipping',primarySource)
                 return
             sources = [primarySource]
             name = None
@@ -95,8 +95,9 @@ def parse(primarySource):
                     mtime = os.fstat(dest.fileno()).st_mtime
                     return datetime.datetime.fromtimestamp(mtime)
                 try:
-                    return create.internet(download,media.url,tags,derpSource,derpSources,
+                    image,wasCreated = create.internet(download,media.url,tags,derpSource,derpSources,
                         name = name)
+                    return image
                 except create.NoGood:
                     print("No good",media.url,media.headers)
                     raise
@@ -109,6 +110,7 @@ def normalize(url):
         if matcher(burl):
             if 'normalize' in handlers:
                 return handlers['normalize'](url)
+            return url
     return url
 
 class ParseError(RuntimeError): pass

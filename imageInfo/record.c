@@ -1,0 +1,1 @@
+../resizer/record.c

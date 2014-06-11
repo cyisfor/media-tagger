@@ -2,6 +2,8 @@
 #include "make.h"
 #include "filedb.h"
 
+#include "record.h"
+
 #include <string.h> /* strndup */
 
 #include <sys/time.h> /* futimes */
@@ -24,13 +26,13 @@
 int errsock = -1;
 
 static void error(ExceptionType type, const char* reason, const char* description) {
-  fprintf(stderr,"ERROR: %d: %s %s",type,reason,description);
+  record(WARN,"ERROR: %d: %s %s",type,reason,description);
 }
 
 static int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_image("image",id);
   assert(source);
-  fprintf(stderr,"Thumbnail %x\n", id);
+  record(WARN,"Thumbnail %x", id);
   Image* image = ReadImageCtx(source,strlen(source),ctx);
 
   if (!image) {
@@ -45,7 +47,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
       int status;
       waitpid(pid,&status,0);
       if(status != 0) {
-        fprintf(stderr,"Could not read media from '%x' (%s)\n",id,source);
+        record(WARN,"Could not read media from '%x' (%s)",id,source);
         free(source);
         return 0;
       }
@@ -69,11 +71,11 @@ static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   Image* image;
   char* source = filedb_image("image",id);
   assert(source);
-  fprintf(stderr,"Resize %x %d\n",id,newwidth);
+  record(WARN,"Resize %x %d",id,newwidth);
   image = ReadImageCtx(source,strlen(source),ctx);
   free(source);
   if (!image) {
-    fprintf(stderr,"Could not read an image from '%x'\n",id);
+    record(WARN,"Could not read an image from '%x'",id);
     return 0;
   }
 
@@ -109,8 +111,10 @@ void make_create(const char* incoming, const char* name) {
       perror("flock failed");
       exit(3);
     }
+    record(WARNING,"Didn't get flock for %s",name);
     return;
   }
+  record(WARNING,"Got flock for %s",name);
 
   char buf[1024];
   ssize_t len = read(ofd,&buf,1024);
@@ -120,7 +124,7 @@ void make_create(const char* incoming, const char* name) {
     buf[len] = '\0';
     uint32_t width = strtoul(buf,NULL,0x10);
     if(width > 0) {
-      fprintf(stderr,"Got width %x!\n",width);
+      record(WARN,"Got width %x!",width);
       success = make_resized(ctx,id,width);
       make_thumb = 0;
     }

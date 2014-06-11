@@ -14,6 +14,7 @@ if __name__ == '__main__':
     else:
         sys.stdin = io.TextIOWrapper(sys.stdin.detach(),'utf-8')
         for line in sys.stdin:
+            print('parsing',line.encode('utf-8'))
             try: parse(line.strip())
             except ParseError: pass
             except Exception as e:

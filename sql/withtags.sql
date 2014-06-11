@@ -28,7 +28,7 @@ ordering
     OFFSET %(offset)s LIMIT %(limit)s;
 main
 SELECT media.id,media.name,media.type,
-    array(SELECT tags.name FROM tags WHERE tags.id = ANY(things.neighbors))
+    array(SELECT tags.name FROM tags INNER JOIN (SELECT unnest(neighbors)) AS neigh ON neigh.unnest = tags.id)
 FROM
         %(positiveClause)s
         %(negativeClause)s

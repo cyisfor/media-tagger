@@ -28,7 +28,8 @@ def pageInfo(id):
     (SELECT MIN(id) FROM media AS next WHERE next.id > media.id),
     name,
     type,
-    images.width,
+    COALESCE(images.width,videos.width),
+    COALESCE(images.height,videos.height),
     media.size,
     EXTRACT (epoch FROM media.modified),
     array(SELECT tags.name FROM tags 
@@ -37,6 +38,7 @@ def pageInfo(id):
     FROM things as thing1
     INNER JOIN media ON media.id = thing1.id
     LEFT OUTER JOIN images ON images.id = media.id
+    LEFT OUTER JOIN videos ON videos.id = media.id
 
     WHERE media.id = $1
 """,(id,))
@@ -60,6 +62,14 @@ def source(sourceID):
     try: return db.c.execute("SELECT uri FROM urisources WHERE id = $1",(sourceID,))[0][0]
     except IndexError: return None
 
+def random(path,params):
+    if Session.head: return
+    return db.c.execute(stmts['main'] % {'positiveClause': stmts['positiveClause'],
+        'negativeClause': '',
+        'ordering': 'ORDER BY random() LIMIT 48'
+        })
+    
+
 def info(path,params):
     if Session.head:
         return {'sessmodified': 
@@ -69,16 +79,17 @@ def info(path,params):
     name,
     type,
     sources,
-    images.
-    width,
-    images.height,
+    COALESCE(images.width,videos.width) AS width,
+    COALESCE(images.height,videos.height) AS height,
     size,
     hash,
     created,
     added,
     EXTRACT (epoch FROM modified) AS sessmodified,
     md5 FROM media 
-    LEFT OUTER JOIN images ON images.id = media.id WHERE media.id = $1""",
+    LEFT OUTER JOIN videos ON videos.id = media.id
+    LEFT OUTER JOIN images ON images.id = media.id 
+    WHERE media.id = $1""",
         (getID(path),))
     return dict(zip(result.fields,result[0]))
 

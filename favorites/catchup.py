@@ -20,12 +20,10 @@ class Catchup(threading.Thread):
         super().__init__()
         self.condition = threading.Condition()
     def squeak(self,*a):
-        print("DERP",a)
         uri = top()
         if uri is None:
             if self.done: raise SystemExit
             return
-        print("squeak!")
         ah = alreadyHere(uri)
         if ah:
             print("WHEN I AM ALREADY HERE")
@@ -52,7 +50,6 @@ class Catchup(threading.Thread):
                 import traceback,sys
                 traceback.print_exc(file=sys.stdout)
                 time.sleep(1)
-        print('boosh')
         return True
     def run(self):
         db.reopen()
@@ -70,8 +67,12 @@ class Catchup(threading.Thread):
             self.condition.notifyAll()
     def finish(self):
         self.done = True
-        self.poke()
-        self.join()
+        while True:
+            self.poke()
+            self.join(1)
+            if not self.isAlive(): break
+            self.done = True
+
 
 
 

@@ -1,6 +1,8 @@
 #include "lib.h"
 #include "filedb.h"
 
+#include "record.h"
+
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -97,7 +99,7 @@ Image* FirstImage(Image* image) {
     // but DestroyImageList won't get it
     frame = RemoveFirstImageFromList(&image);
     if(!frame)
-      fprintf(stderr,"Could not extract first frame\n");
+      record(WARN,"Could not extract first frame");
 
     // destroys all images left in list (frame 2 and up)
     DestroyImageList(image);
@@ -112,7 +114,7 @@ Image* ReadImageCtx(const char* source, uint32_t slen, context* ctx) {
   memcpy(ctx->image_info->filename,source,slen);
   ctx->image_info->filename[slen] = '\0';
   ctx->image_info->file = NULL;
-  ctx->image_info->verbose = MagickTrue;
+  ctx->image_info->verbose = MagickFalse;
   stat(ctx->image_info->filename,&ctx->stat);
 
   Image* ret = ReadImage(ctx->image_info,&ctx->exception);
@@ -185,7 +187,7 @@ static void Reduce(Image* image, context* ctx) {
   unsigned int j;
 
   unsigned int num2 = num;
-  //fprintf(stderr,"Checking %d\n",num);
+  //record(WARN,"Checking %d",num);
   for(i=0;i<num;++i) {
     for(j=i+1;j<num;++j) {
       if(TooSimilar(colors[i],colors[j])) {
@@ -196,7 +198,7 @@ static void Reduce(Image* image, context* ctx) {
     }
   }
 
-  //fprintf(stderr,"Found %d unique\n",num2);
+  //record(WARN,"Found %d unique",num2);
 
   // How to now use colors for quantizing?
 
@@ -226,13 +228,13 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   int tempfd = mkstemp(tempName);
   FILE* temp = fdopen(tempfd,"wb");
 
-  fprintf(stderr,"Writing to %s\n",dest);
+  record(WARN,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
   image->filename[0] = '\0';
   ctx->image_info->file = temp;
   image->quality = getQuality(ctx, image,image->quality);
 
-  fprintf(stderr,"Quality %lu ->",image->quality);
+  record(WARN,"Quality %lu ->",image->quality);
   thumb = 1; // derp
   if(thumb) {
     if(strcmp(image->magick,"JPEG")) {
@@ -274,11 +276,11 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   }
 
   ctx->image_info->quality = image->quality; // not sure which of these is the one you set
-  fprintf(stderr,"%lu\n",ctx->image_info->quality);
+  record(WARN,"%lu",ctx->image_info->quality);
 
   if(!WriteImage(ctx->image_info,image,&ctx->exception)) {
   CatchExceptionAndReset(&ctx->exception);
-    fprintf(stderr,"Could not write the image!");
+    record(WARN,"Could not write the image!");
     exit(1);
   }
   CatchExceptionAndReset(&ctx->exception);
@@ -312,13 +314,13 @@ static void _cheat_copy(const char* source,
 			const char* dest) {
   FILE* in = fopen(source,"rb");
   if(!in) {
-    fprintf(stderr,"Open r %s\n",source);
+    record(WARN,"Open r %s",source);
     return;
   }
 
   FILE* out = fopen(dest,"wb");
   if(!out) {
-    fprintf(stderr,"Open w %s",dest);
+    record(WARN,"Open w %s",dest);
     return;
   }
 

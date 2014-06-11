@@ -20,7 +20,7 @@ import time
 import textwrap
 
 maxWidth = 800
-maxSize = 0x20000
+maxSize = 0x40000
 
 def wrappit(s):
     return textwrap.fill(s,width=0x40)
@@ -127,7 +127,7 @@ def makeLinks(info,linkfor=None):
         link = linkfor(id,i)
         if name is None:
             name = fixName(id,type)
-        row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('...',title=wrappit(', '.join(tags))) if tags else '',href=link))
+        row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
     if row: yield d.tr(*row)
     Session.refresh = not allexists
 
@@ -174,15 +174,36 @@ video = makeE('video')
 source = makeE('source')
 embed = makeE('embed')
 
-def makeLink(type,thing,width=None):
+def makeLink(id,type,name,doScale,width=None,height=None,style=None):
+    if doScale:
+        fid,exists = filedb.checkResized(id)
+        resized = '/resized/'+fid+'/donotsave.this'
+        Session.refresh = not exists and type.startswith('image')
+        width = height = None
+    else:
+        fid = '{:x}'.format(id)
+        resized = None
+
+    if not style:
+        if width:
+            style="width: "+str(width)+'px;'
+        else:
+            style = None
+        if height:
+            sty = ' height: '+str(height)+'px;'
+            style = style + sty if style else sty
+    width = height = None
+
+    thing = '/'.join(('/image',fid,type,name))
+
     if type.startswith('text'):
-        return d.pre(thing)
+        return fid,d.pre(thing),thing
     if type.startswith('image'):
-        attrs = {'src': thing,
-                'alt': 'Still resizing...'}
-        if width: 
-            attrs['width'] = width
-        return d.img(attrs)
+        if resized:
+            return fid,d.img(src=resized,alt='Still resizing...'),thing
+        else:
+            return fid,d.img(src=thing,style=style),thing
+    # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
         if False:#type.endswith('webm') or type.endswith('ogg'):
@@ -190,17 +211,19 @@ def makeLink(type,thing,width=None):
                 wrapper = audio
             else:
                 wrapper = video
-            return wrapper(source(src=thing,type=type),
+            return fid,wrapper(source(src=thing,type=type),
                     d.object(
-                        embed(src=thing,width='100%',height='100%',type=type),
-                        data=thing,height='100%',width='100%',type=type),
-                        autoplay=True,loop=True)
+                        embed(src=thing,style=style,type=type),
+                        data=thing,style=style,type=type),
+                        autoplay=True,loop=True),thing
         else:
-            return d.object(d.param(name='src',value=thing),height='100%',width='100%',type=type,loop=True,autoplay=True),embed(' ',src=thing,width='100%',height='100%',type=type,loop=True,autoplay=True),"Download"
+            return fid,(d.object(
+                    embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
+                    d.param(name='src',value=thing),style=style,type=type,loop=True,autoplay=True),d.br(),"Download"),thing
     if type == 'application/x-shockwave-flash':
-        return d.object(d.param(name='SRC',value=thing),
-                embed(' ',src=thing,width="100%", height="100%"),
-                width='100%',height='100%'),'Download'
+        return fid,(d.object(d.param(name='SRC',value=thing),
+                embed(' ',src=thing,style=style),
+                style=style),d.br(),'Download'),thing
     raise RuntimeError("What is "+type)
 
 def imageLink(id,type):
@@ -222,15 +245,15 @@ def page(info,path,params):
     if Session.head:
         id,modified,size = info
     else:
-        id,next,prev,name,type,width,size,modified,tags = info
-    
+        id,next,prev,name,type,width,height,size,modified,tags = info
+
     doScale = not 'ns' in params
-    doScale = doScale and User.rescaleImages and size > maxSize
+    doScale = doScale and User.rescaleImages and size >= maxSize
 
     if Session.head:
         if doScale: 
             fid, exists = filedb.checkResized(id)
-            Session.refresh = not exists
+            Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
         return
     Links.id = id
@@ -245,19 +268,11 @@ def page(info,path,params):
     tags = [(degeneralize(tag),tag) for tag in tags]
     boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
     # even if not rescaling, sets img width unless ns in params
-    if doScale:
-        fid,exists = filedb.checkResized(id)
-        thing = '/resized/'+fid+'/donotsave.this'
-        Session.refresh = not exists
-    else:
-        fid = '{:x}'.format(id)
-        thing = '/'.join(('/image',fid,type,name))
+    fid,link,thing = makeLink(id,type,name,doScale,width,height)
     if tags:
         tagderp = d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags))
     else:
         tagderp = ''
-    # even if not rescaling, sets img width unless ns in params
-    thing = makeLink(type,thing,width if doScale else None)
     with Links:
         if next:
             Links.next = '../{:x}/'.format(next)+unparseQuery()
@@ -265,7 +280,7 @@ def page(info,path,params):
             Links.prev = '../{:x}/'.format(prev)+unparseQuery()
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(thing,id='image',href='/'.join(('/image',fid,type,name)))),
+                d.p(d.a(link,id='image',href=thing)),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tagderp)
 
@@ -339,7 +354,6 @@ def images(url,query,offset,info,related,basic):
     with Links:
         info = list(info)
         if len(info)>=0x30:
-            print('offset + 1 {:x} {:x}',offset,offset+1)
             query['o'] = offset + 1
             Links.next = url.path+unparseQuery(query)
         if offset > 0:
@@ -451,6 +465,17 @@ def getPage(params):
 def getType(image):
     return c.execute("SELECT type FROM media WHERE id = $1",(image,))[0][0]
 
+def getStuff(image):
+    return c.execute('''SELECT 
+    type,
+    size,
+    COALESCE(images.width,videos.width),
+    COALESCE(images.height,videos.height)
+    FROM media 
+    LEFT OUTER JOIN images ON media.id = images.id 
+    LEFT OUTER JOIN videos ON media.id = videos.id 
+    WHERE media.id = $1''',(image,))[0]
+
 def comicPageLink(com,isDown=False):
     def pageLink(image=None,counter=None):
         if isDown:
@@ -544,7 +569,7 @@ def showComicPage(path):
     checkModified(image)
     if Session.head: return
     title,description,source = comic.findInfo(com,comicNoExist)
-    typ = getType(image)
+    typ,size,width,height = getStuff(image)
     name = title + '.' + typ.rsplit('/',1)[-1]
     with Links:
         if which > 0:
@@ -554,12 +579,16 @@ def showComicPage(path):
         else:
             Links.next = ".."
         image = comic.findImage(com,which)
+        doScale = User.rescaleImages and size >= maxSize
+        fid,link,thing = makeLink(image,typ,name,
+                doScale,style='width: 100%')
+                
         return makePage("{:x} page ".format(which)+title,
-                d.p(d.a(d.img(src='/image/{:x}/{}/{}'.format(image,typ,name),width='100%'),href=Links.next)),
+                d.p(d.a(link,href=Links.next)),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
-                d.p(d.a("Page",href="/art/~page/{:x}".format(image))))
+                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Image",href=thing)) if doScale else None))
         
 def showComic(info,path,params):
     path = path[1:]

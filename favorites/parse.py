@@ -29,5 +29,6 @@ if __name__ == '__main__':
                 enqueue(piece.strip())
                 catchup.poke()
                 print("poked")
+        print('Ready to parse')
         clipboardy.run(gotPiece)
     catchup.finish()

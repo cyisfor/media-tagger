@@ -44,8 +44,6 @@ int main(void) {
     //SetLogEventMask("All");
     GetExceptionInfo(&exception);
 
-    fputs("here we go!",stderr);
-
     for(;;) {
 #if memoryok
         memory_pushContext();
@@ -69,8 +67,8 @@ int main(void) {
 
         uint8_t frames = GetImageListLength(image);
 
-        uint16_t width = htons(image->rows);
-        uint16_t height = htons(image->columns);
+        uint16_t width = htons(image->columns);
+        uint16_t height = htons(image->rows);
 
         write(1,"I",1);
         writeString(1,MagickToMime(image->magick));

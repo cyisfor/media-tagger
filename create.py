@@ -48,7 +48,6 @@ findMD5 = re.compile("[0-9a-fA-F]{32}")
 class NoGood(Exception): pass
 
 def openImage(data):
-    print('inside openIMAGE')
     if isinstance(data,str):
         return imageInfo.get(data)
     try: return imageInfo.get(data.name)
@@ -129,7 +128,7 @@ def getanId(sources,uniqueSource,download,name):
                     subprocess.call(['bash'])
                     type = input("Type:")
                     if not type or not '/' in type:
-                        raise SystemExit("Bailing out")
+                        raise NoGood("Couldn't determine type of",id)
             if not isGood(type): raise NoGood(uniqueSource if uniqueSource else name,type)
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
@@ -140,7 +139,10 @@ def getanId(sources,uniqueSource,download,name):
                 os.fstat(data.fileno()).st_size,type,md5,sources))
             if image: createImageDBEntry(id,image)
             else:
-                raise RuntimeError('WARNING NOT AN IMAGE %x'.format(id))
+                if type.startswith('video'):
+                    movie.isMovie(id)
+                else:
+                    print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))
             data.flush()
             savedData.become(id)
             filedb.check(id)
@@ -178,7 +180,7 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
              print("Old image with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
     update(id,sources,tags)
-    return id
+    return id,wasCreated
 
 def copyMe(source):
     def download(dest):

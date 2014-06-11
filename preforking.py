@@ -13,5 +13,4 @@ def serve_forever(makeServer):
         for i in range(200):
             server._handle_request_noblock()
     while True:
-        print('boop')
         pool.map(one_request,range(40))

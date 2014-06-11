@@ -2,6 +2,8 @@
 #include "watch.h"
 #include "filedb.h"
 
+#include "record.h"
+
 #include <sys/resource.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -11,6 +13,11 @@ int main(int argc, char** argv) {
   //setrlimit(RLIMIT_DATA,&memlimit);
   //setrlimit(RLIMIT_STACK,&memlimit);
   //setrlimit(RLIMIT_AS,&memlimit);
+  recordInit();
+  record(ERROR,"error");
+  record(WARN,"warning");
+  record(INFO,"info");
+  record(DEBUG,"debug");
   assert(argc==2);
   filedb_top(argv[1]);
   char* temp = filedb_file("temp",NULL);

@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "record.h"
 #include <assert.h>
 
 #include <stdio.h>
@@ -30,7 +31,7 @@ void memory_pushContext(void) {
 void freeChain(pointer* top, size_t num) { 
     while(top) {
         pointer* lower = (pointer*) *(top); // ->next
-        fprintf(stderr,"free %d %p>%p\n",num--,top,lower);
+        record(INFO,"free %d %p>%p\n",num--,top,lower);
         free(top);
         top = lower;
     }
@@ -38,7 +39,7 @@ void freeChain(pointer* top, size_t num) {
 
 void memory_popContext(void) {
     if(contexts == NULL) return;
-    fprintf(stderr,"num %d\n",contexts->num);
+    record(INFO,"num %d\n",contexts->num);
     freeChain(contexts->first,contexts->num);
     context* throwaway = contexts;
     contexts = contexts->below;
@@ -59,7 +60,7 @@ void* memory_alloc(size_t size) {
     pointer* second = contexts->first;
     *top = (pointer) second;
     contexts->first = buf;
-    fprintf(stderr,"alloc %p>%p %d\n",second,top,size);
+    record(INFO,"alloc %p>%p %d\n",second,top,size);
     return buf + sizeof(pointer);
 }
 
@@ -74,7 +75,7 @@ void* memory_realloc(void* mem, size_t size) {
     buf = realloc(buf,size + sizeof(pointer));
     pointer newbelow = *((pointer*)buf);
     assert(below == newbelow);
-    fprintf(stderr,"realloc %p %d\n",buf,size);
+    record(INFO,"realloc %p %d\n",buf,size);
     // it's rainin miracles up here!
     return buf + sizeof(pointer);
 }

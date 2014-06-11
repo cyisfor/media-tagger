@@ -39,7 +39,7 @@ def uploadPath(name):
     return os.path.join(base,'uploads',name)
 
 def ImageBecomer(dir):
-    if type(dir)==type(''):
+    if isinstance(dir,type('')):
         self = tempfile.NamedTemporaryFile(dir=dir)
     else:
         print(type(dir))

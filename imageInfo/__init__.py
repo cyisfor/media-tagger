@@ -44,7 +44,6 @@ def get(path):
             'error': error,
             'num': num})
     elif result == "I":
-        print('image info yay')
         type = readString(process.stdout)
         animated = (process.stdout.read(1)[0] > 1)
         width = struct.unpack('>H',process.stdout.read(2))[0]

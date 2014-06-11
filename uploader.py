@@ -131,7 +131,6 @@ def manage(serv):
     else:
         message = 'You already seem to have uploaded this.'
 
-    print('resp',message)
     message = (message+'\r\n').encode('utf-8')
     serv.send_response(codes.OK,"yay")
     serv.send_header("Content-Length",len(message))
@@ -150,7 +149,6 @@ def page(info,path,params):
         INNER JOIN things ON media.id = things.id
         LEFT OUTER JOIN images ON images.id = media.id
     WHERE media.id = $1''',(media,))[0]
-            print('name upload',name)
             media = filedb.checkResized(media)
             
             location = '/resized/'+media+'/donotsave.this'

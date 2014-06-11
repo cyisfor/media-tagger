@@ -1,3 +1,5 @@
+#!/usr/bin/env pypy3
+
 #import preforking
 
 from user import User,UserError
@@ -10,6 +12,7 @@ from setupurllib import isPypy
 
 from session import Session
 
+import pages
 from pages import images
 import withtags
 import tags as tagsModule
@@ -79,6 +82,7 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = 1
             return
         except socket.error as e:
+            import errno
             if e.errno == errno.EPIPE:
                 self.log_error("Client closed connection")
                 self.close_connection = 1
@@ -139,7 +143,6 @@ class Handler(BaseHTTPRequestHandler):
                 data = io.BytesIO(data)
                 encodeDict(pdict) # sigh
             params.update(cgi.parse_multipart(data, pdict))            
-        print(params)
         location = process(mode,parsed,params)
         
         self.send_response(codes.FOUND,"go")
@@ -182,16 +185,31 @@ class Handler(BaseHTTPRequestHandler):
                         tags.posi.add(tag)
                         basic.posi.add(tag)
             o = params.get('o')
-            if o:
-                o = int(o[0],0x10)
-                offset = 0x30*o
+            if 'q' in params:
+                if o:
+                    o = int(o[0],0x10)
+                else:
+                    o = 0
+                ident,name,type,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
+                with pages.Links:
+                    params['o'] = o + 1
+                    pages.Links.next = pages.unparseQuery(params)
+                    if o > 0:
+                        params['o'] = o - 1
+                        pages.Links.prev = pages.unparseQuery(params)
+                    page = pages.page((ident,None,None,name,type,0,0,0,0,tags),path,params)
             else:
-                offset = o = 0
-            #withtags.explain = True
-            #withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True)
-            page = images(pathurl,params,o,
-                    withtags.searchForTags(tags,offset=offset,limit=0x30),
-                    withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True),basic)
+                if o:
+                    o = int(o[0],0x10)
+                    offset = 0x30*o
+                else:
+                    offset = o = 0
+                    
+                #withtags.explain = True
+                #withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True)
+                page = images(pathurl,params,o,
+                        withtags.searchForTags(tags,offset=offset,limit=0x30),
+                        withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True),basic)
         page = str(page).encode('utf-8')
         self.send_response(200,"OK")
         self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')

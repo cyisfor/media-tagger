@@ -44,17 +44,24 @@ try:
     db.c.execute("CREATE TABLE badfiles (path TEXT PRIMARY KEY)")
 except: pass
 
+skipping = False
+
 for path in sys.stdin:
     path = os.path.abspath(path.strip())
+    if skipping: 
+        if path == '/home/user/art/laptop/frozen elsa disney movie poster black.jpg':
+            skipping = False
+        continue    
     #bpath,length = cod.encode(path,'surrogateescape')
     #if length!=len(path):
     #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
     for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
         relpath = os.path.relpath(path,start)
-        if '..' in relpath: break
+        if not '..' in relpath: break
     else: continue
     discovered = tuple(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
+    #print(implied.union(discovered))
     path = path.encode('utf-8')
     bad = db.c.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
     if bad[0][0] != 0: continue
@@ -63,7 +70,7 @@ for path in sys.stdin:
     try:
         with db.transaction():
             if source:
-                if not 'recheck' in os.environ:
+                if not os.environ.get('recheck'):
                     #print("Not rechecking existing file")
                     continue
                 source = source[0][0]
