@@ -228,13 +228,13 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   int tempfd = mkstemp(tempName);
   FILE* temp = fdopen(tempfd,"wb");
 
-  record(WARN,"Writing to %s",dest);
+  record(INFO,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
   image->filename[0] = '\0';
   ctx->image_info->file = temp;
   image->quality = getQuality(ctx, image,image->quality);
 
-  record(WARN,"Quality %lu ->",image->quality);
+  record(INFO,"Quality %lu ->",image->quality);
   thumb = 1; // derp
   if(thumb) {
     if(strcmp(image->magick,"JPEG")) {
@@ -276,7 +276,7 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   }
 
   ctx->image_info->quality = image->quality; // not sure which of these is the one you set
-  record(WARN,"%lu",ctx->image_info->quality);
+  record(INFO,"%lu",ctx->image_info->quality);
 
   if(!WriteImage(ctx->image_info,image,&ctx->exception)) {
   CatchExceptionAndReset(&ctx->exception);

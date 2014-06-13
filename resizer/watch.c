@@ -3,7 +3,7 @@
 #include "record.h"
 
 #include <stdio.h>
-#include <string.h>
+#include <string.h> // strerror
 #include <stdlib.h> // NULL
 #include <sys/types.h> // opendir etc
 #include <dirent.h>
@@ -11,6 +11,7 @@
 #include <unistd.h> //pipe
 
 #include <signal.h>
+#include <errno.h>
 
 int pid = -1;
 int p[2] = {};
@@ -42,9 +43,24 @@ void restart(void) {
 }
 
 void sigchld(int signal) {
-    waitpid(pid,NULL,0);
-    pid = -1;
-    exit(0);
+    int status;
+    int died = waitpid((pid_t)-1,&status,WNOHANG);
+    if(died == 0) {
+        record(WARN, "Erroneous SIGCHLD");
+        return;
+    }
+    if(died == -1) {
+        if(errno != ECHILD)
+            record(ERROR, "Error while waiting %s",strerror(errno));
+        return;
+    }
+    if(died != pid) {
+        record(ERROR, "We waited for process %d but never forked except for %d %x!",died,pid,status);
+    } else {
+        record(WARN, "inotifywait died %d %x",pid,status);
+        pid = -1;
+        exit(0);
+    }
 }
 
 void watch_run(void (*handle)(const char*,const char*)) {

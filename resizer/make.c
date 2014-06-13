@@ -26,13 +26,13 @@
 int errsock = -1;
 
 static void error(ExceptionType type, const char* reason, const char* description) {
-  record(WARN,"ERROR: %d: %s %s",type,reason,description);
+  record(ERROR,"%d: %s %s",type,reason,description);
 }
 
 static int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_image("image",id);
   assert(source);
-  record(WARN,"Thumbnail %x", id);
+  record(INFO,"Thumbnail %x", id);
   Image* image = ReadImageCtx(source,strlen(source),ctx);
 
   if (!image) {
@@ -71,7 +71,7 @@ static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   Image* image;
   char* source = filedb_image("image",id);
   assert(source);
-  record(WARN,"Resize %x %d",id,newwidth);
+  record(INFO,"Resize %x %d",id,newwidth);
   image = ReadImageCtx(source,strlen(source),ctx);
   free(source);
   if (!image) {
@@ -99,22 +99,25 @@ void make_create(const char* incoming, const char* name) {
 
   int fd = open(incoming,O_RDONLY|O_DIRECTORY);
   assert(fd>0);
-  int ofd = openat(fd,name,O_RDONLY);
+  int ofd = openat(fd,name,O_RDWR);
 
+  close(fd);
   if(ofd==-1) {
     // it got deleted...somehow.
     return;
   }
-  close(fd);
-  if(0!=flock(ofd,LOCK_EX|LOCK_NB)) {
-    if(errno!=EWOULDBLOCK) {
-      perror("flock failed");
+  struct flock desc = {};
+  desc.l_type = F_WRLCK;
+  desc.l_pid = getpid();
+  if(0!=fcntl(ofd,F_SETLK,&desc)) {
+    if(errno!=EBADF) {
+      record(ERROR,"file lock failed %s",strerror(errno));
       exit(3);
     }
-    record(WARNING,"Didn't get flock for %s",name);
+    record(WARNING,"Didn't get file lock for %s",name);
     return;
   }
-  record(WARNING,"Got flock for %s",name);
+  record(INFO,"Got file lock for %s",name);
 
   char buf[1024];
   ssize_t len = read(ofd,&buf,1024);
@@ -124,7 +127,7 @@ void make_create(const char* incoming, const char* name) {
     buf[len] = '\0';
     uint32_t width = strtoul(buf,NULL,0x10);
     if(width > 0) {
-      record(WARN,"Got width %x!",width);
+      record(INFO,"Got width %x!",width);
       success = make_resized(ctx,id,width);
       make_thumb = 0;
     }
@@ -133,13 +136,13 @@ void make_create(const char* incoming, const char* name) {
     success = make_thumbnail(ctx,id);
   }
 
-  if(success) {
-    // all done, so we can remove this from incoming.
-    fd = open(incoming,O_RDONLY);
-    assert(fd>0);
-    unlinkat(fd,name,0);
-    close(ofd);
-  }
+  // regardless of success, if fail this'll just repeatedly fail 
+  // so delete it anyway
+  fd = open(incoming,O_RDONLY);
+  assert(fd>0);
+  unlinkat(fd,name,0);
+
+  close(ofd); // this will free the lock
 
   // more files may exist which need handling.
 
