@@ -86,7 +86,11 @@ def info(path,params):
     created,
     added,
     EXTRACT (epoch FROM modified) AS sessmodified,
-    md5 FROM media 
+    md5,
+    array(SELECT tags.name FROM tags 
+        where id = ANY(thing1.neighbors) ORDER BY name) AS tags
+    FROM things as thing1
+    INNER JOIN media ON media.id = thing1.id
     LEFT OUTER JOIN videos ON videos.id = media.id
     LEFT OUTER JOIN images ON images.id = media.id 
     WHERE media.id = $1""",

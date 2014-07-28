@@ -304,15 +304,21 @@ def info(info,path,params):
     id = info['id']
     sources = [(id,derp.source(id)) for id in info['sources']]
     sources = [pair for pair in sources if pair[1]]
-    keys = sorted(info.keys())
+    keys = set(info.keys())
+    keys.discard('id')
+    keys.discard('sources')
+    keys = sorted(keys)
     fid,exists = filedb.check(id)
     Session.refresh = not exists
+    tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
+    info['tags'] = ', '.join(tags)
+
     return makePage("Info about "+fid,
             d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
-            d.table((d.tr(d.td(key),d.td(stringize(info[key]))) for key in keys if key != "sources" and key != "id"),Class='info'),
+            d.table((d.tr(d.td(key),d.td(stringize(info[key]),id=key)) for key in keys),Class='info'),
             d.hr(),
             "Sources",
-            (d.p(d.a(source,href=source)) for id,source in sources))
+            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
 
 def like(info):
     return "Under construction!"
