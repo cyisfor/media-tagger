@@ -1,0 +1,72 @@
+If anyone wants to run that monstrosity, basically 
+
+0. get postgresql-python
+
+python has HORRIBLE postgresql support. When you use psycopg, you submit your statement with parameters. psycopg then gets rid of any parameters by literally pasting them into the SQL statement. Then it sends the parameter-less query to the postgresql server. Your defense against SQL injection is dependent not on the professional hard line database programmers, but on the escape functions designed by a couple of python programmers who thought they could do better. To be fair, escaping SQL safely is not a Herculean task, and I haven't heard about psycopg letting any injections slip through, but it's just moronic not to use postgresql's existing parameters, and existing server side interpolation. Furthermore it allows postgresql to ACTUALLY ANALYZE the statements it gets sent, instead of having to treat them like unknowns every time.
+
+I got sick of it so I wrote a postgresql module in about a half hour, a pure python ctypes module that uses libpq transparently, which is exactly what psycopg should do, but doesn't.
+
+git://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/postgresql-python
+
+Make sure your PYTHONPATH points to the resulting directory. I hate requiring people to install stuff as root, so I didn't make any of that awful setuptools or pip stuff. If you look at the image tagger source, you'll see in db.py I hard coded 'sys.path.insert(0,os.path.expanduser("~/code/postgresql-python"))' since that's where I keep postgresql-python. YOU MAY WANT TO CHANGE THIS.
+
+Step 0 done? Good grief why are you trying to do this? I'm a horrible programmer. Go get some ruby on rails crap instead. Sure their tagging doesn't allow you to have both "name:flower" and "plant:flower" at the same time, but who cares about that right? Sure half the code in danbooru is completely nonfunctional and incomprehensible unless you execute it in the precisely correct context, of which the source file makes no mention of. Sure the templates are unholy syntax horrors trying to incorporate looping constructs in ruby around HTML fragments without getting any parentheses or brackets confused. But it like, does database versioning or... something.
+
+1. Hack the source to set the file database (filedb) somewhere you want to store all your images.
+I use ~/art/filedb/. If you change that, you have to hack/recompile "master" in the resizer directory, because python and C can't efficiently share the same configuration, otherwise we might not pull all our hair out.
+
+2. Setup postgresql. Default is a database called "pics" on port 5433. (5432 is normal, but I run a local user postgres as if I didn't have root access...) As I can't do versioning to save my life, it probably won't work. I dumped my current schema into sql/base.sql so import that, and then the database should work. If it doesn't, sorry.
+
+3. Run ./resizer/master and ./serve.py as two separate processes in the background. 
+
+To compile resizer you'll need ImageMagick. 
+
+To run serve.py you'll need a metric ton of obscure python modules, all of which should be available through your package manager or on pypi, except "magic" which is stupidly hard to find because there are like 3 incompatible python modules that do the same damn thing, only one of which works right. I use "pip3 install python-magic" Not pymagic. Not magic. Not python-libmagic. And no magic that ends in a k. All my ImageMagick stuff is in C because ImageMagick leaks memory like crazy and ruins any server trying to use it, so I contain that in subprocesses.
+
+Just keep running serve.py I guess until you have all the requirements installed so there's no error. I don't even remember what ones I had to install.
+
+4. Setup your frontend web server
+
+It should HTTP proxy to wherever serve.py is listening (port 8029 on localhost by default). You set X-Real-IP to the cjdns IP, since the only IP a web application behind a proxy sees is 127.0.0.1. 
+
+You should HTTP proxy from /art/ to http://127.0.0.1:8029/. /art/ can be changed but again it's hard coded into the source, and I can't be assed to generalize it. Point blank it's a lot less trouble for you to edit a bit of source code than it is for me to develop a flexible efficient cross filesystem scheme that works for everyone and nobody complains about.
+
+This is what I do in nginx:
+
+location /art {
+    proxy_pass http://127.0.0.1:8029;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+
+
+Besides that HTTP proxy, have /image/ and /thumb/ and /resized/ be symbolic links to the relevant directories wherever your filedb is
+
+image -> ~/art/filedb/image/ etc 
+
+If only it was simple as that though. I don't store arbitrary file names in my filedb, just the database number. Instead I encode the file name (and MIME type) in the URL to the image. It's a bit of processing initially, but then it's just a sendfile of binary data like any file you'd transfer. Specifying the type in the URL might even allow the web server to forgo examining the file's contents to try to divine its purpose.
+
+So basically /image/33333 is the file, but you have to deal with URLs like /image/33333/image/jpeg/somerandomname.tiff. This is how I do it in nginx:
+
+location ~ ^/image/([0-9a-fA-F-]*)/([^/]*)/([^/]*).* {
+        alias /home/nginxsux/art/filedb/image/$1;
+        more_set_headers 'Content-Type: $2/$3';
+}
+
+Yes the nginx web server does NOT let you override content type headers it guesses from filename extensions. Yes that's moronic. There's a mod for it fortunately. nginx also can't grok tildes so you have to specify the absolute path to your filedb.
+
+The resized and thumbnail directories are easier because I force them all to be jpeg files in resizer, so you can basically:
+
+location ~ ^/resized/([0-9a-fA-F]*).* {
+    alias /home/user/art/filedb/resized/$1;
+    add_header Content-Type "image/jpeg";
+}
+
+and
+
+location /thumb/ {
+    default_type image/jpeg;
+}
+
+links to the resized directory are always like /resized/33333/donotsave.this and thumbnail links are just /thumb/33333 (so no regex matching needed). I could probably have resized also go to just /resized/33333 but I feel it a horrible catastrophe when someone saves the blocky artifacts scaled down JPEG when they should have saved the link instead, so calling it "donotsave.this" is the best warning I can think of.
+
+Once you do all that, your gallery will be totally empty! Yay! Uh... try pull.py on my gallery I guess. (I THINK it will work, but without a second gallery to test it on....) There's also some scripts in favorites/ that 
