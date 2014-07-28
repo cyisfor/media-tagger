@@ -131,7 +131,10 @@ def gotImage(image,pageSet=None):
     if isinstance(image,int):
         haveImage(image)
     else:
-        print('source?',parse.normalize(image))
+        try: 
+            image = parse.normalize(image)
+        except RuntimeError: pass
+        print('source?', image)
         def fail():
             global getting
             getting = False

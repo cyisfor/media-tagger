@@ -1,6 +1,7 @@
 import db
 import tags
 import filedb
+import movie
 
 import imageInfo
 

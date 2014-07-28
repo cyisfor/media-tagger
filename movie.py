@@ -7,6 +7,7 @@ import io
 from contextlib import contextmanager
 from functools import reduce
 import re
+import time
 
 v = versions.Versioner('movies')
 
@@ -44,6 +45,8 @@ def process(*a):
             try:
                 oldsig = signal.signal(signal.SIGALRM,signal.SIG_IGN)
                 if pid.wait(): return
+            except ValueError:
+                time.sleep(1)
             finally:
                 if oldsig:
                     signal.signal(signal.SIGALRM,oldsig)

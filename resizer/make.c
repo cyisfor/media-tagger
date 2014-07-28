@@ -109,8 +109,8 @@ void make_create(const char* incoming, const char* name) {
   struct flock desc = {};
   desc.l_type = F_WRLCK;
   desc.l_pid = getpid();
-  if(0!=fcntl(ofd,F_SETLK,&desc)) {
-    if(errno!=EBADF) {
+  while(0!=fcntl(ofd,F_SETLK,&desc)) {
+    if(errno!=EBADF && errno!=EAGAIN) {
       record(ERROR,"file lock failed %s",strerror(errno));
       exit(3);
     }

@@ -1,1 +1,1 @@
-SELECT connectOne(images.id,findTag('animated')) FROM images WHERE images.animated IS TRUE;
+SELECT connectManyToOne(array(SELECT id FROM images WHERE animated IS TRUE),findTag('animated'));
