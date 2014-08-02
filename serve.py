@@ -7,6 +7,8 @@ import user
 from redirect import Redirect
 from dispatcher import dispatch,process
 import uploader
+import tagfilter
+from dimensions import thumbnailPageSize
 
 from setupurllib import isPypy
 
@@ -165,6 +167,7 @@ class Handler(BaseHTTPRequestHandler):
                 tags = tagsModule.parse(implied)
             else:
                 tags = tagsModule.parse("-special:rl")
+            tagfilter.filter(tags)
             tags.update(User.tags())
             basic = Taglist()
 
@@ -201,15 +204,13 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 if o:
                     o = int(o[0],0x10)
-                    offset = 0x30*o
+                    offset = thumbnailPageSize*o
                 else:
                     offset = o = 0
                     
-                #withtags.explain = True
-                #withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True)
                 page = images(pathurl,params,o,
-                        withtags.searchForTags(tags,offset=offset,limit=0x30),
-                        withtags.searchForTags(tags,offset=offset,limit=0x30,wantRelated=True),basic)
+                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
+                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic)
         page = str(page).encode('utf-8')
         self.send_response(200,"OK")
         self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')
@@ -246,4 +247,5 @@ class Server(HTTPServer,ThreadingMixIn):
             super(Server,self).handle_error(request,address)
             
 #preforking.serve_forever(lambda: Server(("127.0.0.1",8029),Handler))
+print('OK')
 Server(("127.0.0.1",8029),Handler).serve_forever()

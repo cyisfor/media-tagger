@@ -4,6 +4,8 @@ from place import place
 from itertools import count
 import fixprint
 
+from dimensions import thumbnailPageSize,thumbnailRowSize
+
 import comic
 from user import User,dtags as defaultTags
 from session import Session
@@ -113,7 +115,7 @@ def makeLinks(info,linkfor=None):
     allexists = True
     for id,name,type,tags in info:
         i = next(counter)
-        if i%8==0:
+        if i%thumbnailRowSize==0:
             if row:
                 yield d.tr(*row)
             row = []
@@ -340,8 +342,9 @@ def unparseQuery(query={}):
     return ''
 
 def tagsURL(tags,negatags):
-    if not tags or negatags: return place+'/'
-    return place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
+    if not (tags or negatags): return place+'/'
+    res = place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
+    return res
 
 def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
@@ -353,13 +356,13 @@ def images(url,query,offset,info,related,basic):
 
     removers = []
     for tag in basic.posi:
-        removers.append(d.a(tag,href=tagsURL(basic.posi.difference(set([tag])),defaultTags.nega)))
+        removers.append(d.a(tag,href=tagsURL(basic.posi.difference(set([tag])),basic.nega)))
     for tag in basic.nega:
-        removers.append(d.a(tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
+        removers.append(d.a('-'+tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
 
     with Links:
         info = list(info)
-        if len(info)>=0x30:
+        if len(info)>=thumbnailPageSize:
             query['o'] = offset + 1
             Links.next = url.path+unparseQuery(query)
         if offset > 0:
