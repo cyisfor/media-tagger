@@ -110,13 +110,31 @@ def ffmpegInfo(thing):
 
 def isMovie(thing,getInfo=ffmpegInfo):
     id = db.c.execute("SELECT id FROM videos WHERE id = $1",(thing,))
-    if id: return id[0][0]
 
     info = getInfo(thing)
-    info['id'] = thing
 
     keys,values = zip(*info.items())
 
-    id = db.c.execute("INSERT INTO videos ("+",".join(keys)+") VALUES ("+",".join("$"+str(i+1) for i in range(len(keys)))+") RETURNING id",values)
-    return id[0][0]
+    if id:
+        stmt = "UPDATE videos SET "
+        for i in range(len(keys)):
+            key = keys[i]
+            if i > 0:
+                stmt += ', '
+            stmt += key + ' = $'+str(i+1)
+        db.c.execute(stmt,values)
+    else:
+        info['id'] = thing
+        stmt = "INSERT INTO videos ("
+        for key in keys:
+            if i > 0:
+                stmt += ', '
+            stmt += key
+        stmt += ') VALUES ('
+        for i in range(len(keys)):
+            if i > 0:
+                stmt += ', '
+            stmt += '$'+str(i+1)
+        id = db.c.execute(stmt,values)[0][0]
+    return id
 

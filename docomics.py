@@ -106,7 +106,9 @@ def gotImage(image,pageSet=None):
     global getting
     if getting: return
     getting = True
-    if not gobutton.get_active(): return
+    if not gobutton.get_active(): 
+        getting = False
+        return
 
     def haveImage(image):
         print('yay',image)
@@ -131,6 +133,8 @@ def gotImage(image,pageSet=None):
     if isinstance(image,int):
         haveImage(image)
     else:
+        try: return haveImage(int(image.rstrip('/').rsplit('/',1)[-1],0x10))
+        except ValueError as e: pass
         try: 
             image = parse.normalize(image)
         except RuntimeError: pass

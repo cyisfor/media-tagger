@@ -9,7 +9,7 @@ modes = {
         'user': (pages.user,info.user,process.user),
         'desktop': (pages.desktop,lambda path,params: path),
         'comic': (pages.showComic,(lambda *a: None)),
-        'uploads': (uploader.page, lambda path,params: None, uploader.doPost),
+        'uploads': (uploader.page, uploader.post),
         'oembed': (pages.oembed, info.oembed)
         }
 

@@ -1,3 +1,5 @@
+import process
+
 import dirty.html as d
 from dirty import RawString
 from place import place
@@ -181,7 +183,6 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
         fid,exists = filedb.checkResized(id)
         resized = '/resized/'+fid+'/donotsave.this'
         Session.refresh = not exists and type.startswith('image')
-        width = height = None
     else:
         fid = '{:x}'.format(id)
         resized = None
@@ -194,13 +195,14 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
         if height:
             sty = ' height: '+str(height)+'px;'
             style = style + sty if style else sty
-    width = height = None
 
     thing = '/'.join(('/image',fid,type,name))
 
     if type.startswith('text'):
         return fid,d.pre(thing),thing
     if type.startswith('image'):
+        if doScale:
+            height = width = None # already resized the pixels
         if resized:
             return fid,d.img(src=resized,alt='Still resizing...'),thing
         else:
@@ -216,12 +218,19 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
             return fid,wrapper(source(src=thing,type=type),
                     d.object(
                         embed(src=thing,style=style,type=type),
+                        width=width, height=height,
                         data=thing,style=style,type=type),
                         autoplay=True,loop=True),thing
         else:
             return fid,(d.object(
                     embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
-                    d.param(name='src',value=thing),style=style,type=type,loop=True,autoplay=True),d.br(),"Download"),thing
+                    d.param(name='src',value=thing),
+                        style=style,
+                        type=type,
+                        loop=True,
+                        autoplay=True, 
+                        width=width, 
+                        height=height),d.br(),"Download"),thing
     if type == 'application/x-shockwave-flash':
         return fid,(d.object(d.param(name='SRC',value=thing),
                 embed(' ',src=thing,style=style),
@@ -369,7 +378,7 @@ def images(url,query,offset,info,related,basic):
             query['o'] = offset - 1
             Links.prev = url.path+unparseQuery(query)
         return makePage("Images",
-                d.p("You are ",d.a(User.ident,href="/art/~user")),
+                d.p("You are ",d.a(User.ident,href=place+"~user")),
                 d.table(makeLinks(info)),
                 (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
                 (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
@@ -430,6 +439,9 @@ def desktop(raw,path,params):
 
 def user(info,path,params):
     if Session.head: return
+    if 'submit' in params:
+        process.user(path,params)
+        raise Redirect(place+'/~user')
     iattr = {
             'type': 'checkbox',
             'name': 'rescale'}
@@ -461,8 +473,8 @@ def user(info,path,params):
             d.li("Rescale Images? ",rescalebox),
             d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
             d.li(d.input(type="submit",value="Submit"))),
-        method="post",
-        enctype="multipart/form-data"))
+        action=place+'/~user',
+        method="get"))
 
 def getPage(params):
     page = params.get('p')

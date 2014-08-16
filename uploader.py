@@ -173,9 +173,11 @@ def page(info,path,params):
         Links.style = "/style/upload.css"
         return pages.makePage('Pending uploads',contents())
 
-def addInfoToMedia(form):
-    media = form.get('media')
-    if not media: return
+def addInfoToMedia(form,media=None):
+    if not media:
+        media = form.get('media')
+        if not media: return
+        media = int(media[0],0x10)
     dertags = form.get('tags')
     if not dertags: return
     sources = form.get('sources')    
@@ -184,7 +186,6 @@ def addInfoToMedia(form):
     # XXX: should do something with type
     if not mime: return
     dertags = tags.parse(dertags[0])
-    media = int(media[0],0x10)
     sources = sources[0].split('\n')    
 
     with db.transaction():
@@ -200,6 +201,18 @@ def addInfoToMedia(form):
         db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) "+operation+" SELECT unnest($1::bigint[])) WHERE id = $2",(derp,media))
         db.c.execute("UPDATE uploads SET checked = TRUE WHERE uzer = $1 AND media = $2",(User.id,media))
 
-def doPost(path,form):
-    addInfoToMedia(form)
+def post(path,header,data):
+    boundary = header['boundary']
+    media = None
+    if data and data.startswith(boundary):
+        # we have a file included to upload.
+        sources = form.get('sources')[0].split('\n')
+        def download(dest):
+            dest.write(data[:-(2+len(boundary))])
+        media = create.internet(download,None,
+                tags.parse(form.get('tags')[0]),
+                sources[0],
+                sources[1:],
+                form.get('name')[0])
+    addInfoToMedia(form,media)
     return '/art/~uploads'

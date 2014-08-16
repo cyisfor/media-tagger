@@ -57,9 +57,8 @@ class Handler(BaseHTTPRequestHandler):
     def fail(self,message):
         raise UserFailure(message)
     def log_message(self,format,*args):
-        ip = self.headers['X-Real-IP']
-        if not debugging and ip == 'fc1b:3f1e:dc7f:952a:f8e7:62c6:85cb:d7ea': return
-        sys.stderr.write(("{} {} {} ({}) ".format(ip,self.command,self.path,time.time()))+
+        if not debugging and self.ip == 'fc1b:3f1e:dc7f:952a:f8e7:62c6:85cb:d7ea': return
+        sys.stderr.write(("{} {} {} ({}) ".format(self.ip,self.command,self.path,time.time()))+
                 (format%args)+'\n')
         sys.stderr.flush()
     def handle_one_request(self):
@@ -102,6 +101,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
     def do(self):
+        self.ip = self.headers.get('X-Real-IP')
+        if not self.ip:
+            self.ip = self.headers['X-Forwarded-For']
         mname = 'do_' + self.command
         if not hasattr(self, mname):
             self.send_error(501, "Unsupported method (%r)" % self.command)
@@ -133,19 +135,27 @@ class Handler(BaseHTTPRequestHandler):
         path,parsed,params = parsePath(self.path)
         mode = path[0][1:]
         ctype, pdict = cgi.parse_header(self.headers['content-type'])
-        if ctype == 'multipart/form-data':                    
-            boundary = pdict['boundary']
-            if hasattr(boundary,'decode'):
-                pdict['boundary'] = boundary.decode()
-            length = int(self.headers.get('Content-Length'))
-            data = self.rfile.read(length)
-            if isPypy: 
-                data = io.StringIO(data.decode('utf-8'))
-            else:
-                data = io.BytesIO(data)
-                encodeDict(pdict) # sigh
-            params.update(cgi.parse_multipart(data, pdict))            
-        location = process(mode,parsed,params)
+        if ctype != 'multipart/form-data': return
+        boundary = pdict['boundary']
+
+        if hasattr(boundary,'decode'):
+            pdict['boundary'] = boundary.decode()
+
+        length = int(self.headers.get('Content-Length'))
+        data = self.rfile.read(length)
+        try:
+            header,data = data.split('\r\n\r\n',1)
+        except ValueError: return
+
+        if isPypy: 
+            header = io.StringIO(header.decode('utf-8'))
+        else:
+            header = io.BytesIO(header)
+            encodeDict(pdict) # sigh
+
+        params.update(cgi.parse_multipart(header, pdict))
+
+        location = process(mode,parsed,params,data)
         
         self.send_response(codes.FOUND,"go")
         self.send_header("Location",location)

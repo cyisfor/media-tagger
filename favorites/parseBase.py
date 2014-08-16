@@ -31,6 +31,8 @@ def parse(primarySource):
     doc = None
     for name,matcher,handlers in finders:
         if matcher(url):
+            if 'normalize' in handlers:
+                primarySource = handlers['normalize'](primarySource)
             with tempfile.NamedTemporaryFile() as temp:
                 headers = myretrieve(urllib.request.Request(primarySource),temp)
                 temp.seek(0,0)
@@ -53,8 +55,6 @@ def parse(primarySource):
                     return Tag(*(tag.split(':')))
                 return Tag('general',tag)
             tags = [generalize(tag) for tag in handlers.get('tags',[])]
-            if 'normalize' in handlers:
-                primarySource = handlers['normalize'](primarySource)
             if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
                 print('skipping',primarySource)
                 return
