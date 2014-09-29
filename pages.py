@@ -378,7 +378,7 @@ def images(url,query,offset,info,related,basic):
             query['o'] = offset - 1
             Links.prev = url.path+unparseQuery(query)
         return makePage("Images",
-                d.p("You are ",d.a(User.ident,href=place+"~user")),
+                d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 d.table(makeLinks(info)),
                 (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
                 (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
