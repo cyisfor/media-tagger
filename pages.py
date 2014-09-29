@@ -161,9 +161,10 @@ def standardHead(title,*contents):
             quote(url))) if Links.id else '',
         *contents)
 
-def makePage(title,*content):
-    content = content + (
-        d.p(d.a("User Settings",href=("/art/~user"))),)
+def makePage(title,*content,**kw):
+    if kw.get('nouser') is None:
+        content = content + (
+            d.p(d.a("User Settings",href=("/art/~user"))),)
     return d.xhtml(standardHead(title),d.body(
 #        d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
         *content))
