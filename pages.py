@@ -477,7 +477,9 @@ def user(info,path,params):
             d.li(d.input(type="submit",value="Submit"))),
         action=place+'/~user/',
         type='application/x-www-form-urlencoded',
-        method="post"))
+        method="post"),
+        d.p(d.a('Main Page',href=place)),
+        nouser=True)
 
 def getPage(params):
     page = params.get('p')
