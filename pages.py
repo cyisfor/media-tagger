@@ -210,7 +210,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
-        if False:#type.endswith('webm') or type.endswith('ogg'):
+        if type.endswith('webm') or type.endswith('ogg'):
             if type[0]=='a':
                 wrapper = audio
             else:
@@ -441,6 +441,7 @@ def user(info,path,params):
     if Session.head: return
     if 'submit' in params:
         process.user(path,params)
+        print('processed boo')
         raise Redirect(place+'/~user')
     iattr = {
             'type': 'checkbox',
@@ -473,8 +474,9 @@ def user(info,path,params):
             d.li("Rescale Images? ",rescalebox),
             d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
             d.li(d.input(type="submit",value="Submit"))),
-        action=place+'/~user',
-        method="get"))
+        action=place+'/~user/',
+        type='application/x-www-form-urlencoded',
+        method="post"))
 
 def getPage(params):
     page = params.get('p')
