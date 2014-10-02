@@ -180,22 +180,27 @@ source = makeE('source')
 embed = makeE('embed')
 
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
+    isImage = None
     if doScale:
+        isImage = type.startswith('image')
         fid,exists = filedb.checkResized(id)
         resized = '/resized/'+fid+'/donotsave.this'
-        Session.refresh = not exists and type.startswith('image')
+        Session.refresh = not exists and isImage
     else:
         fid = '{:x}'.format(id)
         resized = None
 
     if not style:
-        if width:
-            style="width: "+str(width)+'px;'
-        else:
-            style = None
-        if height:
-            sty = ' height: '+str(height)+'px;'
-            style = style + sty if style else sty
+        if isImage is None:
+            isImage = type.startswith('image')
+        if isImage:
+            if width:
+                style="width: "+str(width)+'px;'
+            else:
+                style = None
+            if height:
+                sty = ' height: '+str(height)+'px;'
+                style = style + sty if style else sty
 
     thing = '/'.join(('/image',fid,type,name))
 
@@ -258,6 +263,8 @@ def page(info,path,params):
         id,modified,size = info
     else:
         id,next,prev,name,type,width,height,size,modified,tags = info
+        print('width',width)
+        print('height',height)
 
     doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize
