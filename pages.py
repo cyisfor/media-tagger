@@ -193,7 +193,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     if not style:
         if isImage is None:
             isImage = type.startswith('image')
-        if isImage:
+        if not isImage:
             if width:
                 style="width: "+str(width)+'px;'
             else:
