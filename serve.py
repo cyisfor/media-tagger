@@ -41,6 +41,12 @@ def encodeDict(d):
     for n,v in d.items():
         d[n] = v.encode('utf-8')
 
+def decodeDict(d):
+    newd = {}
+    for n,v in d.items():
+        newd[n.decode('utf-8')] = [vv.decode('utf-8') for vv in v]
+    return newd
+
 def parsePath(pathquery):
     parsed = urlparse(pathquery)
     params = parse_qs(parsed.query)
@@ -118,6 +124,9 @@ class Handler(BaseHTTPRequestHandler):
             except UserError as e:   
                 self.send_error(500,e.message)
                 return
+            except Exception as e:
+                print('um',e)
+                raise
     def do_OPTIONS(self):
         self.send_response(200,"OK")
         self.send_header('Content-Length',0)
@@ -131,31 +140,28 @@ class Handler(BaseHTTPRequestHandler):
                 e = str(e)
                 self.send_error(500,e)
     def do_POST(self):
-        assert(self.headers.get('Connection','') == 'close')
+        if not self.headers.get('Connection','') == 'close':
+            print("WARN connection won't close!")
         path,parsed,params = parsePath(self.path)
         mode = path[0][1:]
         ctype, pdict = cgi.parse_header(self.headers['content-type'])
-        if ctype != 'multipart/form-data': return
-        boundary = pdict['boundary']
-
-        if hasattr(boundary,'decode'):
-            pdict['boundary'] = boundary.decode()
-
         length = int(self.headers.get('Content-Length'))
-        data = self.rfile.read(length)
-        try:
-            header,data = data.split('\r\n\r\n',1)
-        except ValueError: return
 
-        if isPypy: 
-            header = io.StringIO(header.decode('utf-8'))
+        if ctype != 'multipart/form-data':
+            pdict = cgi.parse_qs(self.rfile.read(length))
+            if isPypy:
+                pdict = decodeDict(pdict)
+            params.update(pdict)
+            location = process(mode,parsed,params,None)
         else:
-            header = io.BytesIO(header)
-            encodeDict(pdict) # sigh
+            boundary = pdict['boundary']
+            if hasattr(boundary,'decode'):
+                pdict['boundary'] = boundary.decode()
+            if not isPypy:
+                encodeDict(pdict) # sigh
 
-        params.update(cgi.parse_multipart(header, pdict))
-
-        location = process(mode,parsed,params,data)
+            parts = self.rfile.read(length).split(boundary)
+            location = process(mode,parsed,params,parts)
         
         self.send_response(codes.FOUND,"go")
         self.send_header("Location",location)
