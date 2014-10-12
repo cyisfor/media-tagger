@@ -60,6 +60,10 @@ def parsePath(pathquery):
     return path,parsed,params
 
 class Handler(BaseHTTPRequestHandler):
+    def send_response(self, code, message = None):
+        self.log_request(code)
+        self.send_response_only(code, message)
+        self.send_header('Date', self.date_time_string())
     def fail(self,message):
         raise UserFailure(message)
     def log_message(self,format,*args):
