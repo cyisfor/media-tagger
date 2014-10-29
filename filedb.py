@@ -33,8 +33,11 @@ def checkResized(id):
 def checkOEmbed(id,maxWidth):
     return _check(id,'oembed','{:x}'.format(maxWidth))
 
-def imagePath(id):
-    return os.path.join(base,'image','{:x}'.format(id))
+def imagePath(id=None):
+    loc = os.path.join(base,'image')
+    if id:
+        return os.path.join(loc,'{:x}'.format(id))
+    return loc
 def uploadPath(name):
     return os.path.join(base,'uploads',name)
 

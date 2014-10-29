@@ -104,8 +104,10 @@ def getPool(base):
             if image:
                 image = image[0][0]
             else:
-                image = parse.parse(url)
-                db.retransaction()
+                try: 
+                    image = parse.parse(url)
+                except parse.ParseError: continue
+                db.retransaction()                
             which = next(whicher)
             for tries in range(2):
                 try: db.c.execute('SELECT setComicPage($1,$2,$3)',(image,com,which))

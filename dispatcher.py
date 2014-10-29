@@ -21,6 +21,6 @@ def dispatch(mode,path,params):
         raise KeyError("No handler for /~{}/".format(mode),e)
     return handler[0](handler[1](path,params),path,params)
 
-def process(mode,path,params):
+def process(mode,path,params,data):
     handler = modes[mode]
-    return handler[2](path,params)
+    return handler[2](path,params,data)

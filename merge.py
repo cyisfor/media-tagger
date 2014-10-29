@@ -14,22 +14,26 @@ DECLARE
 _aadd timestamptz;
 _badd timestamptz;
 BEGIN
-    _aadd := added FROM media WHERE id = _a;
-    _badd := added FROM media WHERE id = _b;
+    _aadd := COALESCE(added,modified,created,now()) FROM media WHERE id = _a;
+    _badd := COALESCE(added,modified,created,now()) FROM media WHERE id = _b;
     UPDATE media SET added = NULL WHERE id = _b;
     UPDATE media SET added = GREATEST(_aadd,_badd) WHERE id = _a;
 END
 $$ language 'plpgsql'""")
 
 
-def merge(dest,source):
+def merge(dest,source,reason=None):
     "source is destroyed, its info sent to dest"
     with db.transaction():
         db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(things2.neighbors) FROM things as things2 where things2.id = $2) WHERE id = $1",
                 (dest,source))
+        
+        # this will make it appear as if the newer image is kept, but possibly with the older image id
         db.c.execute("SELECT mergeAdded($1,$2)",(dest,source))
         db.c.execute("""UPDATE media as m1 SET sources = array(SELECT unnest(m1.sources) UNION SELECT unnest(m2.sources)), created = LEAST(m1.created,m2.created), modified = LEAST(m1.modified,m2.modified) FROM media AS m2 WHERE  m2.id = $2 AND m1.id = $1""",
                 (dest,source))
+        # created/modified not unique, so can just smash them through
+
         db.c.execute("UPDATE media SET sources = NULL WHERE id = $1",(source,)) 
         # don't delete the sources, they pass to the dest!
 
@@ -47,7 +51,9 @@ def merge(dest,source):
         db.c.execute("UPDATE uploads as u1 SET media = $1 WHERE media = $2 AND NOT EXISTS(SELECT * FROM uploads as u2 WHERE media = $1 AND uzer = u1.uzer)",
                 (dest,source))
         # the leftover uploads will be deleted by cascade
-        delete(source,os.environ.get('reason','dupe of {:x}'.format(dest)))
+        if reason is None:
+            reason = os.environ.get('reason','dupe of {:x}'.format(dest))
+        delete(source,reason)
 
 def main():
     #note b will be DESTROYED and a should be the good one.

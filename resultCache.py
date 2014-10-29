@@ -55,7 +55,7 @@ $$ language 'plpgsql' ''',
 '''CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
     EXECUTE PROCEDURE resultCache.expireQueriesTrigger()''')
 
-def encache(query,args):
+def encache(query,args,docache=True):
     #db.c.verbose = True
     with db.transaction():
         name = hashlib.sha1()
@@ -68,6 +68,8 @@ def encache(query,args):
         for arg in vals:
             name.update(str(arg).encode('utf-8'))
         name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
+        if docache == False:
+            return db.c.execute(query,args)
         try: 
             with db.saved():
                 db.c.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)

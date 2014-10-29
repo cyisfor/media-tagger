@@ -2,11 +2,22 @@ import db,sys,os
 import filedb
 import clipboardy
 
+def start(s):
+    sys.stdout.write(s+'...')
+    sys.stdout.flush()
+
+def done(s=None):
+    if s is None: s = 'done.'
+    print(s)
+
 def delete(thing,reason=None):
     print("deleting {:x}".format(thing),reason)
     with db.transaction():
-        db.c.execute("INSERT INTO blacklist (hash,reason) SELECT hash,$1 from media where media.id = $2",(reason,thing))
+        # the old LEFT OUTER JOIN trick to skip dupes
+        db.c.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,thing))
+        start("tediously clearing neighbors")
         db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(thing,))
+        done()
         db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(thing,))
         db.c.execute("DELETE FROM things WHERE id = $1",(thing,))
         for category in ('image','thumb','resized'):

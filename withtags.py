@@ -79,9 +79,12 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             args['tags'] = tags.posi
         if tags.nega:
             args['negatags'] = tags.nega
+
     if explain:
-        stmt = "EXPLAIN ANALYZE "+stmt
-    for row in resultCache.encache(stmt,args):
+        print(stmt)
+        print(args)
+        stmt = "EXPLAIN ANALYZE "+stmt        
+    for row in resultCache.encache(stmt,args,not explain):
         if explain:
             print(row[0])
         else:

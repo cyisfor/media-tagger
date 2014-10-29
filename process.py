@@ -2,7 +2,8 @@ import user as derp
 import tags as tagsModule
 import db
 
-def user(path,params):
+def user(path,params,data):
+    assert(data is None)
     params = dict(params)
     rescale = params.get('rescale')
     if rescale:

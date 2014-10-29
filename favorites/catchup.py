@@ -22,6 +22,7 @@ class Catchup(threading.Thread):
     def squeak(self,*a):
         uri = top()
         if uri is None:
+            print('none dobu')
             if self.done: raise SystemExit
             return
         ah = alreadyHere(uri)

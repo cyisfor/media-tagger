@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from functools import reduce
 import re
 import time
+import os
 
 v = versions.Versioner('movies')
 
@@ -78,9 +79,10 @@ def lookup(ff):
 conversion("mov,mp4,m4a,3gp,3g2,mj2,",("video/mp4","mp4"))
 conversion("matroska,webm",("video/webm","webm"))
 
-def ffmpegInfo(thing):
+def ffmpegInfo(thing,data):
     info = {}
-    with process("ffmpeg","-i",filedb.imagePath(thing)) as pid:
+    assert(os.path.exists(data.name))
+    with process("ffmpeg","-i",data.name) as pid:
         inp = io.TextIOWrapper(pid.stderr)
         while True:
             line = inp.readline()
@@ -108,12 +110,15 @@ def ffmpegInfo(thing):
         
 
 
-def isMovie(thing,getInfo=ffmpegInfo):
+def isMovie(thing,data,getInfo=ffmpegInfo):
     id = db.c.execute("SELECT id FROM videos WHERE id = $1",(thing,))
 
-    info = getInfo(thing)
+    info = getInfo(thing,data)
 
-    keys,values = zip(*info.items())
+    try:
+        keys,values = zip(*info.items())
+    except ValueError as e:
+        raise ValueError(str(info),e)
 
     if id:
         stmt = "UPDATE videos SET "
@@ -124,9 +129,10 @@ def isMovie(thing,getInfo=ffmpegInfo):
             stmt += key + ' = $'+str(i+1)
         db.c.execute(stmt,values)
     else:
-        info['id'] = thing
+        keys += ('id',)
+        values += (thing,)
         stmt = "INSERT INTO videos ("
-        for key in keys:
+        for i,key in enumerate(keys):
             if i > 0:
                 stmt += ', '
             stmt += key
@@ -135,6 +141,7 @@ def isMovie(thing,getInfo=ffmpegInfo):
             if i > 0:
                 stmt += ', '
             stmt += '$'+str(i+1)
+        stmt += ') RETURNING id'
         id = db.c.execute(stmt,values)[0][0]
     return id
 

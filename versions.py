@@ -17,12 +17,13 @@ class Versioner:
             version = 0
 
         for testversion,setup in self.versions:
+            #print(testversion,'>',version)
             if testversion > version:
                 version = testversion
                 setup()
                 db.c.execute("UPDATE "+self.name+" SET latest = $1",(version,))
 
-    def __call__(self,*a,version=0):
+    def __call__(self,version=0):
         def decorator(go):
             self.versions.append((version,go))
             return staticmethod(go)

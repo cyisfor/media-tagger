@@ -104,7 +104,9 @@ def cleanSource(url):
 
 def gotImage(image,pageSet=None):
     global getting
-    if getting: return
+    if getting: 
+        print('getting',image)
+        return
     getting = True
     if not gobutton.get_active(): 
         getting = False

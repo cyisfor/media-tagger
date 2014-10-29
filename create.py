@@ -141,7 +141,7 @@ def getanId(sources,uniqueSource,download,name):
             if image: createImageDBEntry(id,image)
             else:
                 if type.startswith('video'):
-                    movie.isMovie(id)
+                    movie.isMovie(id,data)
                 else:
                     print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))
             data.flush()

@@ -27,7 +27,6 @@ class VersionHolder:
             "ALTER TABLE uzerTags2 RENAME TO uzerTags",
             "CREATE UNIQUE INDEX nodupeuzertags ON uzerTags(tag,uzer)")
 
-
 v.setup()
 
 def currentUser():
@@ -49,6 +48,8 @@ class User:
             else:
                 result.posi.add(id)
         return result
+    def visit(self,media):
+        db.c.execute('SELECT uzerVisitsInsert($1,$2)',self.id,media)
     def __str__(self):
         return self.ident
     def __repr__(self):
