@@ -36,5 +36,7 @@ if __name__ == '__main__':
     import shutil,os,filedb
     setup()
     id = next()
-    shutil.copy2(os.path.join(filedb.top,"image",'{:x}'.format(id)),
-            os.path.expanduser("/usr/share/nginx/html/desktop/desktop"))
+    desktop = os.path.expanduser("/usr/share/nginx/html/desktop/desktop")
+    os.unlink(desktop)
+    shutil.copy2(os.path.join(filedb.top,"image",'{:x}'.format(id)),desktop)
+    os.execlp("xfdesktop","xfdesktop","--reload")
