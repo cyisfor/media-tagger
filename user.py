@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from functools import reduce
 
 import versions,db
-import context
+import context2
 
 v = versions.Versioner('user')
 
@@ -35,9 +35,12 @@ def currentUser():
 defaultTags = '-rating:explicit, -gore'
 dtags = tags.parse(defaultTags)
 
-@context.Context
+@context2.Context
 class User:
     ident = None
+    id = None
+    rescaleImages = False
+    defaultTags = None
     def tags(self):
         if self.defaultTags:
             return dtags
@@ -54,22 +57,20 @@ class User:
         return self.ident
     def __repr__(self):
         return '<user '+self.ident+'>'
-
-@contextmanager
-def being(ident):
-    for go in range(2):
-        result = db.c.execute("SELECT id,rescaleImages,defaultTags FROM uzers WHERE ident = $1",(ident,))
-        if result and len(result[0]) == 3:
-            result = result[0]
-            with User:
-                User.ident = ident
-                User.id = result[0]
-                User.rescaleImages = result[1]
-                User.defaultTags = result[2]
-                yield User
+    def __init__(self,ident):
+        for go in range(2):
+            result = db.c.execute("SELECT id,rescaleImages,defaultTags FROM uzers WHERE ident = $1",(ident,))
+            if result and len(result[0]) == 3:
+                result = result[0]
+                self.ident = ident
+                self.id = result[0]
+                self.rescaleImages = result[1]
+                self.defaultTags = result[2]
                 return
-        db.c.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
-    raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")
+            db.c.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
+        raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")
+
+being = User
 
 def set(news):
     news = tuple(news)

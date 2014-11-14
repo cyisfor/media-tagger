@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+try:
+    import pgi
+    pgi.install_as_gi()
+except ImportError: pass
+
 import db
 import filedb
 import collections
@@ -137,8 +142,9 @@ def parse(s):
     for thing in s.split(','):
         thing = thing.strip()
         if thing[0] == '-':
-            tags.posi.discard(thing[1:])
-            tags.nega.add(thing[1:])
+            thing = thing[1:]
+            tags.posi.discard(thing)
+            tags.nega.add(thing)
         else:
             tags.posi.add(thing)
     tags.posi = set(makeTag(tag) for tag in tags.posi)

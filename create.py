@@ -6,6 +6,7 @@ import movie
 import imageInfo
 
 from Crypto.Hash import SHA,MD5
+from tornado.concurrent import is_future, Future
 
 import gzip
 import derpmagic as magic
@@ -74,12 +75,17 @@ def retryCreateImage(id):
         createImageDBEntry(id,image)
     return image,type
 
+def assureFuture(val):
+    if is_future(val): return val
+    future = Future()
+    future.set_result(val)
+    return future
 
 def getanId(sources,uniqueSource,download,name):
     if uniqueSource:
         result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
         if result:
-            return result[0][0],False
+            yield result[0][0],False
     md5 = None
     for source in sources:
         if isinstance(source,int): continue
@@ -89,15 +95,15 @@ def getanId(sources,uniqueSource,download,name):
             result = db.c.execute("SELECT id FROM media WHERE md5 = $1",
                         (md5,))
             if result:
-                return result[0][0],False
+                yield result[0][0],False
 
     with filedb.imageBecomer() as data:
-        created = download(data)
+        created = yield assureFuture(download(data))
         digest = imageHash(data)
         result = db.c.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
             print("Oops, we already had this one, from another source!")
-            return result[0][0],False
+            yield result[0][0],False
         result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted
@@ -147,7 +153,7 @@ def getanId(sources,uniqueSource,download,name):
             data.flush()
             savedData.become(id)
             filedb.check(id)
-            return id,True
+            yield id,True
     raise RuntimeError("huh?")
 
 tagsModule = tags
@@ -159,7 +165,8 @@ def update(id,sources,tags):
         db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id))
     tagsModule.tag(id,tags)
 
-def internet(download,media,tags,primarySource,otherSources,name=None):
+def internet_yield(download,media,tags,primarySource,otherSources,name=None):
+    "yields a Future if it needs a download until it's done, then yields the result"
     if not name:
         name = media.rsplit('/',1)
         if len(name) == 2:
@@ -176,12 +183,36 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
             mediaId = sourceId(media)
         else:
             mediaId = None
-        id,wasCreated = getanId(sources,mediaId,download,name)
+        g = getanId(sources,mediaId,download,name)
+        result = next(g)
+        if is_future(result):
+            result = yield result
+        id,wasCreated = g.send(result)
         if not wasCreated:
              print("Old image with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
     update(id,sources,tags)
-    return id,wasCreated
+    yield id,wasCreated
+
+def internet_future(ioloop,*a,**kw):
+    "the async version of internet_yield"
+    g = internet_yield(*a,**kw)
+    future = next(g)
+    if is_future(future):
+        result = concurrent.Future()
+        def got_result(created):
+            result.set_result(g.send(created))
+        ioloop.add_future(future,got_result)
+        return result
+    else:
+        future = created
+        return g.send(created)
+
+def internet(*a,**kw):
+    "the sync version of internet_yield"
+    result = next(internet_yield(*a,**kw))
+    assert(not is_future(result),"Download can't complete right away, but this is the sync version!")
+    return result
 
 def copyMe(source):
     def download(dest):

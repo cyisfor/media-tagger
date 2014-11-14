@@ -41,9 +41,11 @@ def imagePath(id=None):
 def uploadPath(name):
     return os.path.join(base,'uploads',name)
 
-def ImageBecomer(dir):
+def ImageBecomer(dir=None):
     if isinstance(dir,type('')):
         self = tempfile.NamedTemporaryFile(dir=dir)
+    elif dir is None:
+        self = tempfile.NamedTemporaryFile(dir=os.path.join(base,'temp'))
     else:
         print(type(dir))
         self = dir
@@ -61,7 +63,7 @@ def ImageBecomer(dir):
 def imageBecomer():
     th = None
     try:
-        th = ImageBecomer(dir=os.path.join(base,'temp'))
+        th = ImageBecomer()
         yield th
     finally:
         if th: th.close()

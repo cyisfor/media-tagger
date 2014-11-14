@@ -1,4 +1,5 @@
 import process
+from note import note
 
 import dirty.html as d
 from dirty import RawString
@@ -468,14 +469,15 @@ def user(info,path,params):
         result = makeResult()
     else:
         result = c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.tag WHERE uzertags.uzer = $1',(User.id,))
-        result = ((row[0],row[1]=='t') for row in result)
+        note('raw uzer tag result',result)
+        result = ((row[0],row[1] is True or row[1]=='t') for row in result)
     tagnames = []
     for name,nega in result:
         if nega:
             name = '-'+name
         tagnames.append(name)
     tagnames = ', '.join(tagnames)
-
+    note('tagnames',tagnames)
     return makePage("User Settings",
         d.form(
         d.ul(

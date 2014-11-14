@@ -27,6 +27,7 @@ def Context(klass):
     # must push a copy every enter, because even if same "self" must not mutate after exit
     class Derivate: 
         __doc__ = rest.get('__doc__','')
+        def __init__(self): pass
         def __enter__(self):
             derps = stack[-1]
             items = tuple(derps.items())
@@ -51,7 +52,8 @@ def Context(klass):
             elif n in rest:
                 return rest[n]
             stack[-1][n] = v
-    for n,v in rest.items():        
+    for n,v in rest.items():
+        if n == '__init__': continue
         try: setattr(Derivate,n,v)
         except AttributeError: pass
     d = Derivate()

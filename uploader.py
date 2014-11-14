@@ -34,7 +34,7 @@ def mycopy(src,dst,length=None):
             if left < len(buf):
                 buf = bytearray(left)
 
-def manage(serv):
+def manage(user,serv):
     message = 'Uploaded.'
     name = serv.headers.get('X-File-Name')
     checkderp = False
@@ -95,47 +95,70 @@ def manage(serv):
             raise Error("Please don't use chunked transfer encoding!")
         raise Error("Your client didn't set the Content-Length header for some reason.")
 
+    def have_media(media,*a):
+        filedb.checkResized(media)
+        if len(db.c.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
+            db.c.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
+                (User.id,media))
+            db.retransaction();
+            message = 'Uploaded '+name+' to your queue for tagging.'
+        else:
+            message = 'You already seem to have uploaded this.'
+
+        message = (message+'\r\n').encode('utf-8')
+        serv.send_response(codes.OK,"yay")
+        serv.send_header("Content-Length",len(message))
+        serv.end_headers()
+        serv.wfile.write(message)
+
     if media is None:
-        def download(dest):
-            mycopy(serv.rfile,dest,length)
-            assert(dest.tell()>0)
-            modified = serv.headers['Last-Modified']
-            if modified is None:
-                modified = serv.headers.get('If-Modified-Since')
-            if modified is None:
-                modified = datetime.datetime.now()
-            else:
-                modified = email.utils.parsedate(modified)
-                modified = datetime.datetime(*(modified[:6]))
-            if hasattr(modified,'timestamp'):
-                timestamp = modified.timestamp()
-            else:
-                import time
-                timestamp = time.mktime(modified.timetuple())
-            os.utime(dest.name,(timestamp,timestamp))
-            dest.seek(0,0)
-            return modified    
-        media = create.internet(download,primarySource,tags,primarySource,sources,name)
+        class Uploader:
+            dest = None
+            def start(self,dest):
+                self.dest = dest
+                return self.future
+            def __init__(self):
+                self.future = concurrent.Future()
+                self.result = create.internet_future(
+                        serv.stream.ioloop, 
+                        self.start,
+                        primarySource,
+                        tags,
+                        primarySource,
+                        sources,
+                        name)
+                serv.stream.io_loop.add_future(self.result,have_media)
+            def data_received(self,chunk):
+                self.dest.write(chunk)
+            def commit(self):
+                self.dest.flush()
+                assert(self.dest.tell()>0)
+                modified = serv.headers['Last-Modified']
+                if modified is None:
+                    modified = serv.headers.get('If-Modified-Since')
+                if modified is None:
+                    modified = datetime.datetime.now()
+                else:
+                    modified = email.utils.parsedate(modified)
+                    modified = datetime.datetime(*(modified[:6]))
+                if hasattr(modified,'timestamp'):
+                    timestamp = modified.timestamp()
+                else:
+                    import time
+                    timestamp = time.mktime(modified.timetuple())
+                os.utime(self.dest.name,(timestamp,timestamp))
+                self.dest.seek(0,0)
+                # close as we can get to when it was created...
+                self.future.set_result(modified)
+                # this closes the crab
+        return Uploader()
     else:
         result = db.c.execute("SELECT id FROM media WHERE id = $1",(media,))
         if not result:
             raise Error("No media by that ID")
         create.update(media,sources,tags)
-
-    filedb.checkResized(media)
-    if len(db.c.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
-        db.c.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
-            (User.id,media))
-        db.retransaction();
-        message = 'Uploaded '+name+' to your queue for tagging.'
-    else:
-        message = 'You already seem to have uploaded this.'
-
-    message = (message+'\r\n').encode('utf-8')
-    serv.send_response(codes.OK,"yay")
-    serv.send_header("Content-Length",len(message))
-    serv.end_headers()
-    serv.wfile.write(message)
+        have_media(media)
+        return media
 
 def page(info,path,params):
     def contents():

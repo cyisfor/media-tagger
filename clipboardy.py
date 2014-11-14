@@ -17,10 +17,12 @@ def gotClip(clipboard, text, nun=None):
             text = res
     if text and not text in seen:
         seen.add(text)
-        handler(text)
+        handler(text.decode('utf-8'))
     GLib.timeout_add(200,start,clipboard)
 
-def start(clipboard):
+def start(ignore=None):
+    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+    assert(clipboard)
     clipboard.request_text(gotClip,None)
     return False
 
@@ -30,7 +32,7 @@ def monitor(_handler,_check=None):
     check = _check
     clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     clipboard.set_text('',0)
-    GLib.idle_add(lambda *a: start(clipboard))
+    GLib.idle_add(start)
 
 def run(_handler,_check=None):
     monitor(_handler,_check)

@@ -45,7 +45,7 @@ try:
 except: pass
 
 skipping = False
-
+recheck = os.environ.get('recheck')
 for path in sys.stdin:
     path = os.path.abspath(path.strip())
     if skipping: 
@@ -59,7 +59,16 @@ for path in sys.stdin:
         relpath = os.path.relpath(path,start)
         if not '..' in relpath: break
     else: continue
-    discovered = tuple(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
+    name = os.path.basename(relpath)
+    discovered = set()
+    officialTags = False
+    if ' - ' in name:
+        tags,rest = name.split(' - ',1)
+        if not '-' in tags:
+            print('found official tags header',tags)
+            officialtags = True
+            discovered = set(tag.strip() for tag in tags.split(','))
+    discovered = discovered.union(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
     #print(implied.union(discovered))
     path = path.encode('utf-8')
@@ -70,7 +79,7 @@ for path in sys.stdin:
     try:
         with db.transaction():
             if source:
-                if not os.environ.get('recheck'):
+                if not recheck: #(officialTags or recheck):
                     #print("Not rechecking existing file")
                     continue
                 source = source[0][0]

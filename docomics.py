@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+try: 
+    import pgi
+    pgi.install_as_gi()
+except ImportError: pass
+
 import db,sys,os
 import filedb
 import favorites.parsers
