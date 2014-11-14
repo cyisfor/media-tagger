@@ -184,17 +184,16 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         g = getanId(sources,mediaId,download,name)
         result = next(g)
         while True:
-            print('got from getanid',result)
             # pass up
             result = yield result
             try:
                 # pass back down
-                print('sending to getanid',result)
                 result = g.send(result)
             except StopIteration: break
             except gen.Return as ret:
                 print('ret')
                 result = ret.value
+                break
         print('final result',result)
         id,wasCreated = result
         if not wasCreated:

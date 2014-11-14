@@ -98,11 +98,11 @@ def parse(primarySource):
 #                        shutil.copyfileobj(dest,out)
                     dest.seek(0,0)
                     return datetime.datetime.fromtimestamp(mtime)
-                def download(dest):
-                    with open('/tmp/derp.image','rb') as inp:
-                        shutil.copyfileobj(inp,dest)
-                        mtime = os.fstat(inp.fileno()).st_mtime
-                    return datetime.datetime.fromtimestamp(mtime)
+#                def download(dest):
+#                    with open('/tmp/derp.image','rb') as inp:
+#                        shutil.copyfileobj(inp,dest)
+#                        mtime = os.fstat(inp.fileno()).st_mtime
+#                    return datetime.datetime.fromtimestamp(mtime)
                 try:
                     image,wasCreated = create.internet(download,media.url,tags,derpSource,derpSources,
                         name = name)

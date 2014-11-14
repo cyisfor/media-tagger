@@ -7,14 +7,6 @@ def assureFuture(val):
     future.set_result(val)
     return future
 
-def stackdepth():
-    n = 1
-    frame = sys._getframe(1)
-    while frame:
-        n = n + 1
-        frame = frame.f_back
-    return n
-
 def drain(ioloop,g):
     # g yields possibly futures, and finally raises Return a result
     # or the last result it yielded is the final result
@@ -26,26 +18,35 @@ def drain(ioloop,g):
     # passthrough functions that need the result of g but don't themselves yield futures
     # should have the following form:
     #
-    # result = next(g)
-    # while is_future(result):
-    #     result = yield result
-    #     result = g.send(result)
+'''
+        g = something(...)
+        result = None
+        while True:
+            # pull from below
+            try:
+                result = g.send(result)
+            except StopIteration: break
+            except gen.Return as ret:
+                result = ret.value
+                break
+            # pull from above
+            result = yield result
+'''
 
     # they can also call drain(ioloop,g) and add a callback to the resulting future.
 
-    # drain itself cannot have that form because it has to return a future, and not be a
-    # generator. Can't have turtles all the way down after all.
+    # drain itself has the above form, but deals with the result as a possible future
+    # instead of yielding it.
 
-    # note a = g.send(None) is equivalent to a = next(g)
-    
+    # Can't have turtles all the way down after all.
+
     # note done callback return values are silently dropped
     # must set_result in a second future to have a return value    
     done = Future()
 
-    bottom = stackdepth()
-    threshold = sys.getrecursionlimit() - bottom - 0x20
-
-    def once(result=None, level=1):
+    # note a = g.send(None) is equivalent to a = next(g)
+    
+    def once(result=None):
         try:
             result = g.send(result)
         except Return as ret:
@@ -58,20 +59,9 @@ def drain(ioloop,g):
 
         if is_future(result):
             # the result of the future must be sent back to g
+            # but we can't go back to once() again right away
             ioloop.add_future(result, once)
-        else:
-            # not a future, so can be passed directly to the next iteration
-            # ...unless the stack is full. Then trampoline!
-            # but how much space to leave for functions that assume there's stack space?
-            # 0x20 should be enough...?
-
-            # note if drain calls drain, the second drain will have a higher stack bottom
-            # so still won't stack smash
-
-            if level >= threshold:
-                ioloop.add_callback(once, result)
-            else:
-                result = once(result, level+1)
+            return
     once()
     return done
 
