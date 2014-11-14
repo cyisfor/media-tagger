@@ -51,6 +51,8 @@ class Catchup(threading.Thread):
                 import traceback,sys
                 traceback.print_exc(file=sys.stdout)
                 time.sleep(1)
+        print("DERP")
+        self.done = True
         return True
     def run(self):
         db.reopen()

@@ -9,6 +9,7 @@ import imageInfo
 
 from Crypto.Hash import SHA,MD5
 from tornado.concurrent import is_future, Future
+from tornado import gen
 
 import gzip
 import derpmagic as magic
@@ -94,12 +95,14 @@ def getanId(sources,uniqueSource,download,name):
                 yield result[0][0],False
 
     with filedb.imageBecomer() as data:
-        created = yield assureFuture(download(data))
+        created = yield download(data)
+        print('got created', created)
         digest = imageHash(data)
         result = db.c.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
             print("Oops, we already had this one, from another source!")
             yield result[0][0],False
+            return
         result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted
@@ -150,7 +153,6 @@ def getanId(sources,uniqueSource,download,name):
             savedData.become(id)
             filedb.check(id)
             yield id,True
-    raise RuntimeError("huh?")
 
 tagsModule = tags
 
@@ -181,11 +183,19 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             mediaId = None
         g = getanId(sources,mediaId,download,name)
         result = next(g)
-        while is_future(result):
+        while True:
+            print('got from getanid',result)
             # pass up
             result = yield result
-            # pass back down
-            result = g.send(result)
+            try:
+                # pass back down
+                print('sending to getanid',result)
+                result = g.send(result)
+            except StopIteration: break
+            except gen.Return as ret:
+                print('ret')
+                result = ret.value
+        print('final result',result)
         id,wasCreated = result
         if not wasCreated:
              print("Old image with id {:x}".format(id))
@@ -195,23 +205,25 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
 
 def internet_future(ioloop,*a,**kw):
     "the async version of internet_yield"
-    done = Future()
-    g = internet_yield(*a,**kw)
-    def once(down):
-        result = next(g)
-        if is_future(result):
-            ioloop.add_future(result,once)
-        else:
-            done.set_result(result)
-    return done
+    return drain(ioloop,internet_yield(*a,**kw))
 
 def internet(*a,**kw):
     "the sync version of internet_yield"
-    result = next(internet_yield(*a,**kw))
-    if is_future(result):
-        if result.running():
-            raise RuntimeError("Download can't complete right away, but this is the sync version!")
-        result = result.result()
+    g = internet_yield(*a,**kw)
+    result = next(g)
+    while True:
+        if is_future(result):
+            if result.running():
+                raise RuntimeError("Download can't complete right away, but this is the sync version!")
+            result = result.result()
+            print('future produced',result)
+        try:
+            result = g.send(result)
+        except StopIteration: 
+            break
+        except gen.Return as ret:
+            result = ret.value
+            break
     return result
 
 def copyMe(source):

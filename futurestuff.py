@@ -1,4 +1,5 @@
 from tornado.concurrent import Future, is_future
+import sys
 
 def assureFuture(val):
     if is_future(val): return val
