@@ -3,6 +3,8 @@ import tags
 import filedb
 import movie
 
+from futurestuff import drain
+
 import imageInfo
 
 from Crypto.Hash import SHA,MD5
@@ -75,41 +77,6 @@ def retryCreateImage(id):
         createImageDBEntry(id,image)
     return image,type
 
-def assureFuture(val):
-    if is_future(val): return val
-    future = Future()
-    future.set_result(val)
-    return future
-
-def drain(ioloop,g):
-    # g yields possibly futures, and finally raises Return a result
-    # or the last result it yielded is the final result
-    # note a = g.send(None) is equivalent to a = next(g)
-    done = Future()
-    def once(result=None, level=1):
-        try:
-            result = g.send(result)
-        except Return as ret:
-            done.set_result(ret.value)
-            return
-        except StopIteration:
-            # result was not set in the above expression, so it's the last result yielded still
-            done.set_result(ret.value)
-            return
-        # note done callback return values are silently dropped
-        # must set_result in a second future to have a return value
-        if is_future(result):
-            # the result of the future must be sent back to g
-            ioloop.add_future(result, once)
-        else:
-            # not a future, so can be passed directly to the next iteration
-            # ...unless the stack is full. Then trampoline!
-            if level >= sys.getrecursionlimit():
-                ioloop.add_callback(once, result)
-            else:
-                result = once(result, level+1)
-    once()
-    return done
 def getanId(sources,uniqueSource,download,name):
     if uniqueSource:
         result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
