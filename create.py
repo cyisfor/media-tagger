@@ -81,6 +81,35 @@ def assureFuture(val):
     future.set_result(val)
     return future
 
+def drain(ioloop,g):
+    # g yields possibly futures, and finally raises Return a result
+    # or the last result it yielded is the final result
+    # note a = g.send(None) is equivalent to a = next(g)
+    done = Future()
+    def once(result=None, level=1):
+        try:
+            result = g.send(result)
+        except Return as ret:
+            done.set_result(ret.value)
+            return
+        except StopIteration:
+            # result was not set in the above expression, so it's the last result yielded still
+            done.set_result(ret.value)
+            return
+        # note done callback return values are silently dropped
+        # must set_result in a second future to have a return value
+        if is_future(result):
+            # the result of the future must be sent back to g
+            ioloop.add_future(result, once)
+        else:
+            # not a future, so can be passed directly to the next iteration
+            # ...unless the stack is full. Then trampoline!
+            if level >= sys.getrecursionlimit():
+                ioloop.add_callback(once, result)
+            else:
+                result = once(result, level+1)
+    once()
+    return done
 def getanId(sources,uniqueSource,download,name):
     if uniqueSource:
         result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
@@ -185,9 +214,12 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             mediaId = None
         g = getanId(sources,mediaId,download,name)
         result = next(g)
-        if is_future(result):
+        while is_future(result):
+            # pass up
             result = yield result
-        id,wasCreated = g.send(result)
+            # pass back down
+            result = g.send(result)
+        id,wasCreated = result
         if not wasCreated:
              print("Old image with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
@@ -196,22 +228,23 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
 
 def internet_future(ioloop,*a,**kw):
     "the async version of internet_yield"
+    done = Future()
     g = internet_yield(*a,**kw)
-    future = next(g)
-    if is_future(future):
-        result = concurrent.Future()
-        def got_result(created):
-            result.set_result(g.send(created))
-        ioloop.add_future(future,got_result)
-        return result
-    else:
-        future = created
-        return g.send(created)
+    def once(down):
+        result = next(g)
+        if is_future(result):
+            ioloop.add_future(result,once)
+        else:
+            done.set_result(result)
+    return done
 
 def internet(*a,**kw):
     "the sync version of internet_yield"
     result = next(internet_yield(*a,**kw))
-    assert(not is_future(result),"Download can't complete right away, but this is the sync version!")
+    if is_future(result):
+        if result.running():
+            raise RuntimeError("Download can't complete right away, but this is the sync version!")
+        result = result.result()
     return result
 
 def copyMe(source):
