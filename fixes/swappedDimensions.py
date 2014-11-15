@@ -9,7 +9,7 @@ Fuzzy = []
 def samewidth(offset):
     image,width,height = getit(offset)
     if width == height: return Fuzzy # don't want a false positive here
-    animated,owidth,oheight = create.openImage(filedb.imagePath(image))[0]
+    animated,owidth,oheight = create.openImage(filedb.mediaPath(image))[0]
     return width == owidth
 
 toohigh = 5000

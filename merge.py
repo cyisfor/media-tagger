@@ -28,7 +28,7 @@ def merge(dest,source,inferior=True):
         db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(things2.neighbors) FROM things as things2 where things2.id = $2) WHERE id = $1",
                 (dest,source))
         
-        # this will make it appear as if the newer image is kept, but possibly with the older image id
+        # this will make it appear as if the newer medium is kept, but possibly with the older id
         db.c.execute("SELECT mergeAdded($1,$2)",(dest,source))
         db.c.execute("""UPDATE media as m1 SET sources = array(SELECT unnest(m1.sources) UNION SELECT unnest(m2.sources)), created = LEAST(m1.created,m2.created), modified = LEAST(m1.modified,m2.modified) FROM media AS m2 WHERE  m2.id = $2 AND m1.id = $1""",
                 (dest,source))
@@ -38,7 +38,7 @@ def merge(dest,source,inferior=True):
         db.c.execute("UPDATE media SET sources = NULL WHERE id = $1",(source,)) 
         # don't delete the sources, they pass to the dest!
 
-        db.c.execute("UPDATE comicpage SET image = $1 WHERE image = $2",
+        db.c.execute("UPDATE comicpage SET medium = $1 WHERE medium = $2",
                 (dest,source))
         db.c.execute("UPDATE desktops SET id = $1 WHERE id = $2 AND NOT EXISTS(SELECT id FROM desktops WHERE id = $1)",    
                 (dest,source))

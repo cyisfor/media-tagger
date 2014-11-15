@@ -30,7 +30,8 @@ def pull(url):
     tags = tagsModule.parse(doc.find(id='tags').contents[0])
     filetype = doc.find(id='type').contents[0]
 
-    media = newpath(base+'/image/{:x}/{}/{}'.format(ident,filetype,name))
+    # XXX: can't use filedb.mediaPath why...?
+    media = newpath(base+'/media/{:x}/{}/{}'.format(ident,filetype,name))
 
     def download(dest):
         myretrieve(Request(media,

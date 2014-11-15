@@ -45,7 +45,7 @@ def get(category=0,limit=0x30,where=None):
         idents = [row[0] for row in rows]
         db.c.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM randomSeen LEFT OUTER JOIN (SELECT unnest($2::bigint[])) AS boop ON randomSeen.media = boop.unnest WHERE randomSeen.id IS NULL',(category,idents))
     else:
-        # out of images, better throw some back into the pot
+        # out of media, better throw some back into the pot
         with db:
             db.c.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen)',(category,))
             db.c.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen) WHERE category = $1',(category,))

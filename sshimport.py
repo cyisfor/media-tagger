@@ -17,16 +17,16 @@ def main():
         tags = [tag.strip() for tag in os.environ['tags'].split(',')]
         tags = [(Tag(*tag.split(':')) if ':' in tag else tag) for tag in tags]
         sourceURI = os.environ.get('source')
-        hash = create.imageHash(temp)
+        hash = create.mediaHash(temp)
         idnum =  db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
         if idnum:
-            print("Existing image found. Updating...")
+            print("Existing medium found. Updating...")
         create.internet(copyMe(temp.name),None,tags,sourceURI,())
         try: temp.close()
         except OSError: pass
     if idnum:
-        print("Image updated!")
+        print("Medium updated!")
     else:
-        print("Image added to gallery!")
+        print("Media added to gallery!")
 
 if __name__ == '__main__': main()

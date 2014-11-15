@@ -91,7 +91,7 @@ for path in sys.stdin:
                 db.c.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
             if not idnum:
                 with open(path,'rb') as inp:
-                    hash = create.imageHash(inp)
+                    hash = create.mediaHash(inp)
                 idnum = db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
                 if idnum: idnum = idnum[0][0]
                 print("Hasho",idnum)

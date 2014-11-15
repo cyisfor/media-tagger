@@ -38,5 +38,6 @@ if __name__ == '__main__':
     id = next()
     desktop = os.path.expanduser("/usr/share/nginx/html/desktop/desktop")
     os.unlink(desktop)
-    shutil.copy2(os.path.join(filedb.top,"image",'{:x}'.format(id)),desktop)
+    # Can't use filedb.mediaPath why...?
+    shutil.copy2(os.path.join(filedb.top,"media",'{:x}'.format(id)),desktop)
     os.execlp("xfdesktop","xfdesktop","--reload")
