@@ -11,27 +11,28 @@ import sys,os
 
 recovered = withtags.makeTag('special:recovered')
 
-for path in os.listdir(os.path.join(filedb.base,'image')):
+for path in os.listdir(os.path.join(filedb.base,'media')):
     base = path
-    path = os.path.join(filedb.base,'image',base)
+    path = os.path.join(filedb.base,'media',base)
     try:
         id = int(base,0x10)
         if db.c.execute("SELECT id FROM things WHERE id = $1",(id,)):
             continue
     except ValueError: continue
     with open(path,'rb') as inp:
-        hash = create.imageHash(inp)
+        hash = create.mediaHash(inp)
     oldid = db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
     if oldid:
         oldid = oldid[0][0]
         # we got this, OK to delete.
-        mtime = min(os.stat(filedb.imagePath(oldid)).st_mtime, os.stat(path).st_mtime)
-        os.utime(filedb.imagePath(oldid),(mtime,mtime))
+        mtime = min(os.stat(filedb.mediaPath(oldid)).st_mtime, os.stat(path).st_mtime)
+        os.utime(filedb.mediaPath(oldid),(mtime,mtime))
         print('rm',path)
         continue
-    # now we're sure path is a lost image!
+    # now we're sure path is a lost medium!
     with db.transaction():
         db.c.execute("INSERT INTO things (id) VALUES ($1)",(id,))
+        # TODO: recover lost media not just lost images
         try: image = Image.open(path)
         except:
             print(path)

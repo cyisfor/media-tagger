@@ -15,12 +15,12 @@ from itertools import count
 
 #db.c.execute('DROP FUNCTION setComicPage(INT,INT,INT)')
 db.setup('''
-CREATE OR REPLACE FUNCTION setComicPage(_image INT, _comic INT, _which INT) RETURNS VOID AS
+CREATE OR REPLACE FUNCTION setComicPage(_medium INT, _comic INT, _which INT) RETURNS VOID AS
 $$
 BEGIN
     LOOP
         -- first try to update the key
-        UPDATE comicPage set image = _image where comic = _comic and which = _which;
+        UPDATE comicPage set medium = _medium where comic = _comic and which = _which;
         IF found THEN
             RETURN;
         END IF;
@@ -28,7 +28,7 @@ BEGIN
         -- if someone else inserts the same key concurrently,
         -- we could get a unique-key failure
         BEGIN
-            INSERT INTO comicPage(image,comic,which) VALUES (_image,_comic,_which);
+            INSERT INTO comicPage(medium,comic,which) VALUES (_medium,_comic,_which);
             RETURN;
         EXCEPTION WHEN unique_violation THEN
             -- Do nothing, and loop to try the UPDATE again.
@@ -100,21 +100,21 @@ def getPool(base):
             if (not a) or (a.name != 'a') or (not a.has_attr('href')): continue
             url = urllib.parse.urljoin(base,a['href'])
             url = parse.normalize(url)
-            image = db.c.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
-            if image:
-                image = image[0][0]
+            medium = db.c.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
+            if medium:
+                medium = medium[0][0]
             else:
                 try: 
-                    image = parse.parse(url)
+                    medium = parse.parse(url)
                 except parse.ParseError: continue
                 db.retransaction()                
             which = next(whicher)
             for tries in range(2):
-                try: db.c.execute('SELECT setComicPage($1,$2,$3)',(image,com,which))
+                try: db.c.execute('SELECT setComicPage($1,$2,$3)',(medium,com,which))
                 except db.ProgrammingError as original:
                     db.retransaction(rollback=True)
                     import create
-                    try: create.retryCreateImage(image)
+                    try: create.retryCreateImage(medium)
                     except db.ProgrammingError:
                         # giving up
                         raise original
