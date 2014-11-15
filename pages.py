@@ -67,14 +67,14 @@ def doTags(top,tags):
 def pageLink(id,i=0):
     return place+'/~page/'+'{:x}/'.format(id)
 
-# Cannot set modified from the set of images in this because:
-# If the 1st page has a newly added image, the 3rd page will change,
-# but the images on the 3rd page will still have older modified times.
+# Cannot set modified from the set of mediums in this because:
+# If the 1st page has a newly added medium, the 3rd page will change,
+# but the mediums on the 3rd page will still have older modified times.
 # You'd need to request the first page AND the 3rd page, then just use the max modified from
 # the first page, for every query. Could just request offset 0 limit 1 I guess...
 # withtags.searchTags(tags,negatags,offset=0,limit=1,justModifiedField=True)
 # XXX: do this, but write story for now.
-# but then you add a tag to the 29th page image, and page 30 changes but page 1 stays the same!
+# but then you add a tag to the 29th page medium, and page 30 changes but page 1 stays the same!
 
 def tail(s,delim):
     i = s.rfind(delim)
@@ -87,7 +87,7 @@ assert tail("test.jpg",".")=='jpg'
 def fixType(id):
     import derpmagic as magic
     import filedb
-    info = magic.guess_type(filedb.imagePath(id))
+    info = magic.guess_type(filedb.mediumPath(id))
     type = info[0]
     if type == 'application/octet-stream':
         raise RuntimeError("Please inspect {:x} could not determine type!".format(id))
@@ -153,7 +153,7 @@ def standardHead(title,*contents):
         url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
     return d.head(d.title(title),
             d.meta(charset='utf-8'),
-        d.link(rel="icon",type="image/png",href="/favicon.png"),
+        d.link(rel="icon",type="medium/png",href="/favicon.png"),
         d.link(rel='stylesheet',type='text/css',href=Links.style),
         d.link(rel='next',href=Links.next if Links.next else ''),
         d.link(rel='prev',href=Links.prev if Links.prev else ''),
@@ -181,20 +181,20 @@ source = makeE('source')
 embed = makeE('embed')
 
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
-    isImage = None
+    isMedium = None
     if doScale:
-        isImage = type.startswith('image')
+        isMedium = type.startswith('medium')
         fid,exists = filedb.checkResized(id)
         resized = '/resized/'+fid+'/donotsave.this'
-        Session.refresh = not exists and isImage
+        Session.refresh = not exists and isMedium
     else:
         fid = '{:x}'.format(id)
         resized = None
 
     if not style:
-        if isImage is None:
-            isImage = type.startswith('image')
-        if not isImage:
+        if isMedium is None:
+            isMedium = type.startswith('medium')
+        if not isMedium:
             if width:
                 style="width: "+str(width)+'px;'
             else:
@@ -203,11 +203,11 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                 sty = ' height: '+str(height)+'px;'
                 style = style + sty if style else sty
 
-    thing = '/'.join(('/image',fid,type,name))
+    thing = '/'.join(('/medium',fid,type,name))
 
     if type.startswith('text'):
         return fid,d.pre(thing),thing
-    if type.startswith('image'):
+    if type.startswith('medium'):
         if doScale:
             height = width = None # already resized the pixels
         if resized:
@@ -244,13 +244,13 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                 style=style),d.br(),'Download'),thing
     raise RuntimeError("What is "+type)
 
-def imageLink(id,type):
-    return '/image/{:x}/{}'.format(id,type)
+def mediumLink(id,type):
+    return '/medium/{:x}/{}'.format(id,type)
 
 def simple(info,path,params):
     if Session.head: return
     id,type = info
-    return makePage("derp",d.a(d.img(src=imageLink(id,type)),href=pageLink(id)))
+    return makePage("derp",d.a(d.img(src=mediumLink(id,type)),href=pageLink(id)))
 
 def resized(info,path,params):
     id = int(path[1],0x10)
@@ -268,12 +268,12 @@ def page(info,path,params):
         print('height',height)
 
     doScale = not 'ns' in params
-    doScale = doScale and User.rescaleImages and size >= maxSize
+    doScale = doScale and User.rescaleMediums and size >= maxSize
 
     if Session.head:
         if doScale: 
             fid, exists = filedb.checkResized(id)
-            Session.refresh = not exists and type.startswith('image')
+            Session.refresh = not exists and type.startswith('medium')
         Session.modified = modified
         return
     Links.id = id
@@ -300,7 +300,7 @@ def page(info,path,params):
             Links.prev = '../{:x}/'.format(prev)+unparseQuery()
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(link,id='image',href=thing)),
+                d.p(d.a(link,id='medium',href=thing)),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tagderp)
 
@@ -371,7 +371,7 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
 
-def images(url,query,offset,info,related,basic):
+def mediums(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
     related=stripGeneral(related)
@@ -390,7 +390,7 @@ def images(url,query,offset,info,related,basic):
         if offset > 0:
             query['o'] = offset - 1
             Links.prev = url.path+unparseQuery(query)
-        return makePage("Images",
+        return makePage("Mediums",
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 d.table(makeLinks(info)),
                 (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
@@ -419,7 +419,7 @@ def desktop(raw,path,params):
         type = stripPrefix(type)
         middle = (
             d.p("Having tags ",doTags(place,tags)),
-            d.p(d.a(d.img(src="/".join(("","image",'{:x}'.format(current),type,name))),
+            d.p(d.a(d.img(src="/".join(("","medium",'{:x}'.format(current),type,name))),
                 href=pageLink(current,0))),
             d.hr())
     else:
@@ -459,7 +459,7 @@ def user(info,path,params):
     iattr = {
             'type': 'checkbox',
             'name': 'rescale'}
-    if User.rescaleImages:
+    if User.rescaleMediums:
         iattr['checked'] = True
     rescalebox = d.input(iattr)
     if User.defaultTags:
@@ -485,7 +485,7 @@ def user(info,path,params):
     return makePage("User Settings",
         d.form(
         d.ul(
-            d.li("Rescale Images? ",rescalebox),
+            d.li("Rescale Mediums? ",rescalebox),
             d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
             d.li(d.input(type="submit",value="Submit"))),
         action=place+'/~user/',
@@ -501,22 +501,22 @@ def getPage(params):
     else:
         return int(page[0])
 
-def getType(image):
-    return c.execute("SELECT type FROM media WHERE id = $1",(image,))[0][0]
+def getType(medium):
+    return c.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
 
-def getStuff(image):
+def getStuff(medium):
     return c.execute('''SELECT 
     type,
     size,
-    COALESCE(images.width,videos.width),
-    COALESCE(images.height,videos.height)
+    COALESCE(mediums.width,videos.width),
+    COALESCE(mediums.height,videos.height)
     FROM media 
-    LEFT OUTER JOIN images ON media.id = images.id 
+    LEFT OUTER JOIN mediums ON media.id = mediums.id 
     LEFT OUTER JOIN videos ON media.id = videos.id 
-    WHERE media.id = $1''',(image,))[0]
+    WHERE media.id = $1''',(medium,))[0]
 
 def comicPageLink(com,isDown=False):
-    def pageLink(image=None,counter=None):
+    def pageLink(medium=None,counter=None):
         if isDown:
             link = ''
         else:
@@ -528,8 +528,8 @@ def comicPageLink(com,isDown=False):
 def comicNoExist():
     raise RuntimeError("Comic no exist")
 
-def checkModified(image):
-    modified = c.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(image,))[0][0]
+def checkModified(medium):
+    modified = c.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(medium,))[0][0]
     if modified:
         if Session.modified:
             Session.modified = max(modified,Session.modified)
@@ -542,13 +542,13 @@ def showAllComics(params):
     def getInfos():
         for id,title in comics:
             try: 
-                image = comic.findImage(id,0)
+                medium = comic.findMedium(id,0)
             except Redirect: 
-                image = 0x5c911
-            if not image: 
-                image = 0x5c911
-            checkModified(image)
-            yield image,title,getType(image),()
+                medium = 0x5c911
+            if not medium: 
+                medium = 0x5c911
+            checkModified(medium)
+            yield medium,title,getType(medium),()
     if Session.head:
         for stuff in getInfos(): pass
         return
@@ -557,7 +557,7 @@ def showAllComics(params):
             Links.prev = unparseQuery({'p':page-1})
         if page + 1 < comic.numComics() / 0x20:
             Links.next = unparseQuery({'p':page+1})
-        def formatLink(image,i):
+        def formatLink(medium,i):
             if comic.pages(comics[i][0]) == 0:
                 return '{:x}/'.format(comics[i][0])
             return '{:x}/0/'.format(comics[i][0])
@@ -574,19 +574,19 @@ def showPages(path,params):
     if offset and offset >= comic.pages(com):
         raise Redirect('..')
     numPages = comic.pages(com)
-    def getImages():
+    def getMediums():
         for which in range(offset,min(0x20+offset,numPages)):
-            image = comic.findImage(com,which)
-            checkModified(image)
-            yield image,which
+            medium = comic.findMedium(com,which)
+            checkModified(medium)
+            yield medium,which
     if Session.head:
-        for stuff in getImages(): pass
+        for stuff in getMediums(): pass
         return
     title,description,source = comic.findInfo(com,comicNoExist)
     if not description: description = 'ehunno' 
     def getInfos():
-        for image,which in getImages():
-            yield image,title + ' page {}'.format(which),getType(image),()
+        for medium,which in getMediums():
+            yield medium,title + ' page {}'.format(which),getType(medium),()
     with Links:
         if page > 0:
             Links.prev = unparseQuery({'p':page-1})
@@ -594,7 +594,7 @@ def showPages(path,params):
             Links.next = unparseQuery({'p':page+1})
         return makePage(title + " - Comics",
                 d.h1(title),
-                d.table(makeLinks(getInfos(),lambda image,i: '{:x}/'.format(i+offset))) if numPages else '',
+                d.table(makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))) if numPages else '',
                 d.p(RawString(description)),
                 d.p(d.a('Source',href=source)) if source else '',
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
@@ -604,11 +604,11 @@ def showPages(path,params):
 def showComicPage(path):
     com = int(path[0],0x10)
     which = int(path[1],0x10)
-    image = comic.findImage(com,which)
-    checkModified(image)
+    medium = comic.findMedium(com,which)
+    checkModified(medium)
     if Session.head: return
     title,description,source = comic.findInfo(com,comicNoExist)
-    typ,size,width,height = getStuff(image)
+    typ,size,width,height = getStuff(medium)
     name = title + '.' + typ.rsplit('/',1)[-1]
     with Links:
         if which > 0:
@@ -617,9 +617,9 @@ def showComicPage(path):
             Links.next = comicPageLink(which+1)()
         else:
             Links.next = ".."
-        image = comic.findImage(com,which)
-        doScale = User.rescaleImages and size >= maxSize
-        fid,link,thing = makeLink(image,typ,name,
+        medium = comic.findMedium(com,which)
+        doScale = User.rescaleMediums and size >= maxSize
+        fid,link,thing = makeLink(medium,typ,name,
                 doScale,style='width: 100%')
                 
         return makePage("{:x} page ".format(which)+title,
@@ -627,7 +627,7 @@ def showComicPage(path):
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
-                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Image",href=thing)) if doScale else None))
+                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None))
         
 def showComic(info,path,params):
     path = path[1:]
