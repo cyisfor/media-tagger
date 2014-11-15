@@ -49,7 +49,7 @@ def pageInfo(id):
     INSERT INTO visited (uzer,medium,visits) SELECT $1,$2,1 WHERE NOT EXISTS(SELECT id FROM upda) AND EXISTS(SELECT id FROM goodmedium) RETURNING id
     """,(User.id,id))
     if not info:
-        raise UserError("Image {:x} not found.".format(id))
+        raise UserError("Medium {:x} not found.".format(id))
     return info[0]
 
 def page(path,params):
@@ -99,18 +99,6 @@ def info(path,params):
     return dict(zip(result.fields,result[0]))
 
 def user(path,params): pass
-
-# def comicInfoer(path,params):
-#     if len(path) == 1:
-#         def pages(offset):
-#             return comic.list(offset)
-#         return pages
-#     elif len(path) == 2:
-#         def pages(offset):
-#             return comic.pages(int(path[1]),offset)
-#         return pages
-#     elif len(path) > 2:
-#         return comic.findImage(int(path[1]),int(path[2]))
  
 def like(*a):
     return None

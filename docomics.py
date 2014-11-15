@@ -107,18 +107,18 @@ def notGetting(text):
 def cleanSource(url):
     return url.split('?',1)[0]
 
-def gotImage(image,pageSet=None):
+def gotMedium(medium,pageSet=None):
     global getting
     if getting: 
-        print('getting',image)
+        print('getting',medium)
         return
     getting = True
     if not gobutton.get_active(): 
         getting = False
         return
 
-    def haveImage(image):
-        print('yay',image)
+    def haveMedium(medium):
+        print('yay',medium)
         try:
             com = int(comic.get_text(),0x10)
             pag = int(page.get_text(),0x10)
@@ -127,7 +127,7 @@ def gotImage(image,pageSet=None):
             return
         def setPage():
             global getting
-            db.c.execute('SELECT setComicPage($1,$2,$3)',(image,com,pag))
+            db.c.execute('SELECT setComicPage($1,$2,$3)',(medium,com,pag))
             page.set_text('{:x}'.format(pag+1))
             getting = False
             if pageSet: pageSet()
@@ -137,26 +137,26 @@ def gotImage(image,pageSet=None):
             else:
                 setPage()
 
-    if isinstance(image,int):
-        haveImage(image)
+    if isinstance(medium,int):
+        haveMedium(medium)
     else:
-        try: return haveImage(int(image.rstrip('/').rsplit('/',1)[-1],0x10))
+        try: return haveMedium(int(medium.rstrip('/').rsplit('/',1)[-1],0x10))
         except ValueError as e: pass
         try: 
-            image = parse.normalize(image)
+            medium = parse.normalize(medium)
         except RuntimeError: pass
-        print('source?', image)
+        print('source?', medium)
         def fail():
             global getting
             getting = False
 
         def foundSource(res):
             if res: 
-                haveImage(res)
+                haveMedium(res)
             else:
-                try: haveImage(int(image.rstrip('/').rsplit('/',1)[-1],0x10))
+                try: haveMedium(int(medium.rstrip('/').rsplit('/',1)[-1],0x10))
                 except ValueError: return
-        findBySource(cleanSource(image),foundSource,fail)
+        findBySource(cleanSource(medium),foundSource,fail)
 
 def checkInitialized(e=None):
     com = comic.get_text()
@@ -192,5 +192,5 @@ def main():
     gobutton.connect('toggled',checkInitialized)
 
     window.show_all()
-    clipboardy.run(gotImage,notGetting)
+    clipboardy.run(gotMedium,notGetting)
 if __name__ == '__main__': main()

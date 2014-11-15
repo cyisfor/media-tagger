@@ -20,7 +20,7 @@ import re
 import os
 import subprocess
 
-def imageHash(data):
+def mediaHash(data):
     digest = SHA.new()
     setattr(digest,'write',digest.update)
     shutil.copyfileobj(data,digest)
@@ -72,7 +72,7 @@ def createImageDBEntry(id,image):
     db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,)+image)
 
 def retryCreateImage(id):
-    source = filedb.imagePath(id)
+    source = filedb.mediaPath(id)
     image,type = openImage(source)
     if image:
         createImageDBEntry(id,image)
@@ -94,10 +94,10 @@ def getanId(sources,uniqueSource,download,name):
             if result:
                 yield result[0][0],False
 
-    with filedb.imageBecomer() as data:
+    with filedb.mediaBecomer() as data:
         created = yield download(data)
         print('got created', created)
-        digest = imageHash(data)
+        digest = mediaHash(data)
         result = db.c.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
             print("Oops, we already had this one, from another source!")
@@ -198,7 +198,7 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
                 break
         id,wasCreated = result
         if not wasCreated:
-             print("Old image with id {:x}".format(id))
+             print("Old medium with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
     update(id,sources,tags)
     yield id,wasCreated
