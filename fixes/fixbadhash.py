@@ -2,8 +2,8 @@ import db,create,filedb,os
 
 
 for guy, in db.c.execute("SELECT id FROM media WHERE char_length(hash) = 25"):    
-    with open(filedb.imagePath(guy),'rb') as inp:
-        hash = create.imageHash(inp)
+    with open(filedb.mediaPath(guy),'rb') as inp:
+        hash = create.mediaHash(inp)
     print("fixing short hash for ",guy)
     conflict = db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
     if conflict:
@@ -23,7 +23,7 @@ for guy, in db.c.execute("SELECT id FROM media WHERE char_length(hash) = 25"):
                 (hash,guy))
     if conflict:
         try: 
-            os.unlink(filedb.imagePath(conflict))
+            os.unlink(filedb.mediaPath(conflict))
         except OSError: pass
         try: 
             os.unlink(os.path.join(filedb.base,'thumb','{:x}'.format(conflict)))

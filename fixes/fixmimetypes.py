@@ -15,8 +15,8 @@ exceptionallyBadlyNamed = {
 
 with db.transaction():
     for image,name in db.c.execute('''SELECT media.id,media.name FROM media 
-    LEFT OUTER JOIN images ON media.id = images.id 
-    WHERE images.id IS NOT NULL AND 
+    INNER JOIN images ON media.id = images.id 
+    WHERE 
     media.type = 'image/jpeg' AND NOT (
         media.name LIKE '%.jpg' OR
         media.name LIKE '%.jpeg' OR
@@ -36,7 +36,7 @@ with db.transaction():
         elif '?' in name:
             db.c.execute('UPDATE media SET name = $1 WHERE id = $2',(name.split('?')[0],image))
         else:
-            source = filedb.imagePath(image)
+            source = filedb.mediaPath(image)
             info,type = create.openImage(source)
             if type == 'image/jpeg':
                 print('WARNING BAD EXTENSION')
