@@ -33,7 +33,8 @@ def pageInfo(id):
     media.size,
     EXTRACT (epoch FROM media.modified),
     array(SELECT tags.name FROM tags 
-        where id = ANY(thing1.neighbors) ORDER BY name)
+        where id = ANY(thing1.neighbors) ORDER BY name),
+    (SELECT comic FROM comicpage WHERE medium = media.id)
 
     FROM things as thing1
     INNER JOIN media ON media.id = thing1.id

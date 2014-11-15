@@ -17,9 +17,12 @@ class Finder:
     def reload(self):
         self.dupes = iter(db.c.execute(findStmt));
     a = b = -1
+    starting = True
     def __init__(self):
         self.reload()
+        print('starting finder')
         self.next(None)
+        self.starting = False
     def next(self,then):
         self.source, self.dest, self.hash = next(self.dupes)
         if not (
@@ -33,8 +36,12 @@ class Finder:
         if self.source < self.dest:
             self.swap()
         else:
-            print('now checking',self.dest,self.source)
-        if then:
+            print('now checking2',self.dest,self.source,then)
+        if self.starting:
+            if then:
+                then()
+        else:
+            assert(then)
             then()
     def nodupe(self,then=None):
         print('nadupe',self.dest,self.source)
@@ -50,7 +57,7 @@ class Finder:
         temp = self.dest
         self.dest = self.source
         self.source = temp
-        print('now checking',self.dest,self.source)
+        print('now checking',self.dest,self.source,then)
         if then: then()
 
 finder = Finder()

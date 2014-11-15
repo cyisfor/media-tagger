@@ -13,15 +13,15 @@ setup("""CREATE TABLE comics
     """CREATE TABLE comicPage (id SERIAL PRIMARY KEY, 
         comic INTEGER REFERENCES comics(id) ON DELETE CASCADE ON UPDATE CASCADE,
         which INTEGER,
-        image INTEGER REFERENCES images(id) ON DELETE CASCADE ON UPDATE CASCADE)""",
+        medium INTEGER REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE)""",
         "CREATE UNIQUE INDEX unique_pages ON comicPage(comic,which)",
-        """CREATE OR REPLACE FUNCTION setcomicpage(_image integer, _comic integer, _which integer) RETURNS void AS
+        """CREATE OR REPLACE FUNCTION setcomicpage(_medium integer, _comic integer, _which integer) RETURNS void AS
 $$
 
 BEGIN                                                  
      LOOP                                               
          -- first try to update the key 
-         UPDATE comicPage set image = _image where comic = _comic and which = _which;
+         UPDATE comicPage set medium = _medium where comic = _comic and which = _which;
          IF found THEN                                  
              RETURN;                                    
          END IF;                                        
@@ -29,7 +29,7 @@ BEGIN
          -- if someone else inserts the same key concurrently
          -- we could get a unique-key failure           
          BEGIN                                          
-             INSERT INTO comicPage(image,comic,which) VALUES (_image,_comic,_which);
+             INSERT INTO comicPage(medium,comic,which) VALUES (_medium,_comic,_which);
              RETURN;                                    
          EXCEPTION WHEN unique_violation THEN           
              -- Do nothing, and loop to try the UPDATE again.
@@ -62,24 +62,24 @@ def findInfo(id,getinfo):
         return title, description,source
     return rows[0]
 
-def findImageDerp(comic,which,image=None):
-    rows = c.execute("SELECT image FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))
+def findMediumDerp(comic,which,medium=None):
+    rows = c.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))
     if len(rows)==0:
-        if image:
-            c.execute("INSERT INTO comicPage (comic,which,image) VALUES ($1,$2,$3)",(comic,which,image))
+        if medium:
+            c.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
             c.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
-        return image
+        return medium
     return rows[0][0]
 
-def findImage(comic,which,image=None):
-    if image:
-        return findImageDerp(comic,which,image)
+def findMedium(comic,which,medium=None):
+    if medium:
+        return findMediumDerp(comic,which,medium)
     for tries in range(2):
-        image = findImageDerp(comic,which)
-        if image:
-            return image
+        medium = findMediumDerp(comic,which)
+        if medium:
+            return medium
         else:
-            print('No image for ',comic,which)
+            print('No medium for ',comic,which)
             np = pages(comic)
             if which == 0 and np == 0:
                 return 0x5c911
