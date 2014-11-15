@@ -15,7 +15,7 @@ from setupurllib import isPypy
 from session import Session
 
 import pages
-from pages import images
+from pages import media
 import withtags
 import tags as tagsModule
 from tags import Taglist
@@ -226,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     offset = o = 0
                     
-                page = images(pathurl,params,o,
+                page = media(pathurl,params,o,
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic)
         page = str(page).encode('utf-8')

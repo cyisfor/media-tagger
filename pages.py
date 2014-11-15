@@ -67,9 +67,9 @@ def doTags(top,tags):
 def pageLink(id,i=0):
     return place+'/~page/'+'{:x}/'.format(id)
 
-# Cannot set modified from the set of mediums in this because:
+# Cannot set modified from the set of media in this because:
 # If the 1st page has a newly added medium, the 3rd page will change,
-# but the mediums on the 3rd page will still have older modified times.
+# but the media on the 3rd page will still have older modified times.
 # You'd need to request the first page AND the 3rd page, then just use the max modified from
 # the first page, for every query. Could just request offset 0 limit 1 I guess...
 # withtags.searchTags(tags,negatags,offset=0,limit=1,justModifiedField=True)
@@ -95,7 +95,7 @@ def fixType(id):
     return type
 
 def fixName(id,type):
-    for uri, in c.execute("SELECT uri FROM urisources,media WHERE media.sources @> ARRAY[urisources.id] AND media.id = $1",(id,)):
+    for uri, in c.execute("SELECT uri FROM urisources INNER JOIN media ON media.sources @> ARRAY[urisources.id] AND media.id = $1",(id,)):
         name = tail(uri,'/').rstrip('.')
         if name: break
     else:
@@ -153,7 +153,7 @@ def standardHead(title,*contents):
         url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
     return d.head(d.title(title),
             d.meta(charset='utf-8'),
-        d.link(rel="icon",type="medium/png",href="/favicon.png"),
+        d.link(rel="icon",type="image/png",href="/favicon.png"),
         d.link(rel='stylesheet',type='text/css',href=Links.style),
         d.link(rel='next',href=Links.next if Links.next else ''),
         d.link(rel='prev',href=Links.prev if Links.prev else ''),
@@ -181,20 +181,20 @@ source = makeE('source')
 embed = makeE('embed')
 
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
-    isMedium = None
+    isImage = None
     if doScale:
-        isMedium = type.startswith('medium')
+        isImage = type.startswith('image')
         fid,exists = filedb.checkResized(id)
         resized = '/resized/'+fid+'/donotsave.this'
-        Session.refresh = not exists and isMedium
+        Session.refresh = not exists and isImage
     else:
         fid = '{:x}'.format(id)
         resized = None
 
     if not style:
-        if isMedium is None:
-            isMedium = type.startswith('medium')
-        if not isMedium:
+        if isImage is None:
+            isImage = type.startswith('image')
+        if not isImage:
             if width:
                 style="width: "+str(width)+'px;'
             else:
@@ -207,7 +207,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 
     if type.startswith('text'):
         return fid,d.pre(thing),thing
-    if type.startswith('medium'):
+    if type.startswith('image'):
         if doScale:
             height = width = None # already resized the pixels
         if resized:
@@ -268,12 +268,12 @@ def page(info,path,params):
         print('height',height)
 
     doScale = not 'ns' in params
-    doScale = doScale and User.rescaleMediums and size >= maxSize
+    doScale = doScale and User.rescaleImages and size >= maxSize
 
     if Session.head:
         if doScale: 
             fid, exists = filedb.checkResized(id)
-            Session.refresh = not exists and type.startswith('medium')
+            Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
         return
     Links.id = id
@@ -371,7 +371,7 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
 
-def mediums(url,query,offset,info,related,basic):
+def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
     related=stripGeneral(related)
@@ -390,7 +390,7 @@ def mediums(url,query,offset,info,related,basic):
         if offset > 0:
             query['o'] = offset - 1
             Links.prev = url.path+unparseQuery(query)
-        return makePage("Mediums",
+        return makePage("Media",
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 d.table(makeLinks(info)),
                 (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
@@ -459,7 +459,7 @@ def user(info,path,params):
     iattr = {
             'type': 'checkbox',
             'name': 'rescale'}
-    if User.rescaleMediums:
+    if User.rescaleImages:
         iattr['checked'] = True
     rescalebox = d.input(iattr)
     if User.defaultTags:
@@ -485,7 +485,7 @@ def user(info,path,params):
     return makePage("User Settings",
         d.form(
         d.ul(
-            d.li("Rescale Mediums? ",rescalebox),
+            d.li("Rescale Media? ",rescalebox),
             d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
             d.li(d.input(type="submit",value="Submit"))),
         action=place+'/~user/',
@@ -508,10 +508,10 @@ def getStuff(medium):
     return c.execute('''SELECT 
     type,
     size,
-    COALESCE(mediums.width,videos.width),
-    COALESCE(mediums.height,videos.height)
+    COALESCE(images.width,videos.width),
+    COALESCE(images.height,videos.height)
     FROM media 
-    LEFT OUTER JOIN mediums ON media.id = mediums.id 
+    LEFT OUTER JOIN images ON media.id = images.id 
     LEFT OUTER JOIN videos ON media.id = videos.id 
     WHERE media.id = $1''',(medium,))[0]
 
@@ -574,18 +574,18 @@ def showPages(path,params):
     if offset and offset >= comic.pages(com):
         raise Redirect('..')
     numPages = comic.pages(com)
-    def getMediums():
+    def getMedia():
         for which in range(offset,min(0x20+offset,numPages)):
             medium = comic.findMedium(com,which)
             checkModified(medium)
             yield medium,which
     if Session.head:
-        for stuff in getMediums(): pass
+        for stuff in getMedia(): pass
         return
     title,description,source = comic.findInfo(com,comicNoExist)
     if not description: description = 'ehunno' 
     def getInfos():
-        for medium,which in getMediums():
+        for medium,which in getMedia():
             yield medium,title + ' page {}'.format(which),getType(medium),()
     with Links:
         if page > 0:
@@ -618,10 +618,10 @@ def showComicPage(path):
         else:
             Links.next = ".."
         medium = comic.findMedium(com,which)
-        doScale = User.rescaleMediums and size >= maxSize
+        doScale = User.rescaleImages and size >= maxSize
         fid,link,thing = makeLink(medium,typ,name,
                 doScale,style='width: 100%')
-                
+
         return makePage("{:x} page ".format(which)+title,
                 d.p(d.a(link,href=Links.next)),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
