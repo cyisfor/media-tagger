@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import db
-from delete import delete, findId
+import delete
 
 import sys,os
 
@@ -34,6 +34,7 @@ def merge(dest,source,reason=None):
                 (dest,source))
         # created/modified not unique, so can just smash them through
 
+        print('updatan')
         db.c.execute("UPDATE media SET sources = NULL WHERE id = $1",(source,)) 
         # don't delete the sources, they pass to the dest!
 
@@ -50,15 +51,14 @@ def merge(dest,source,reason=None):
                 (dest,source))
         db.c.execute("UPDATE uploads as u1 SET media = $1 WHERE media = $2 AND NOT EXISTS(SELECT * FROM uploads as u2 WHERE media = $1 AND uzer = u1.uzer)",
                 (dest,source))
+        print('deletan')
         # the leftover uploads will be deleted by cascade
-        if reason is None:
-            reason = os.environ.get('reason','dupe of {:x}'.format(dest))
-        delete(source,reason)
+        delete.dupe(dest, source)
 
 def main():
     #note b will be DESTROYED and a should be the good one.
-    a = findId(sys.argv[1])
-    b = findId(sys.argv[2])
+    a = delete.findId(sys.argv[1])
+    b = delete.findId(sys.argv[2])
     merge(a,b)
 
 if __name__ == '__main__': main()

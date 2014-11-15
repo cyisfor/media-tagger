@@ -179,7 +179,6 @@ class ResponseHandler(object):
         print(json.dumps((self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))
     def received_header(self,name,value):
         "received a header just now, can setup, or raise an error if this is not a good header"
-        print('header',name)
         if name == 'Content-Length':
             note('setting length')
             self.length = int(value)

@@ -122,10 +122,10 @@ class Handler(FormCollector,myserver.ResponseHandler):
             return super().data_received(data)
     def received_header(self, name, value):
         if self.ip is None:
-            if name == 'X-Real-Ip'.lower():
+            if name == 'X-Real-Ip':
                 note('setting real',value)
                 self.ip = value
-            elif name == 'X-Forwarded-For'.lower():
+            elif name == 'X-Forwarded-For':
                 note('setting forw',value)
                 self.ip = value
         return super().received_header(name,value)

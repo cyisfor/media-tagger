@@ -126,4 +126,9 @@ def getPool(base):
         base = urllib.parse.urljoin(base,nextbase)
 
 if __name__ == '__main__':
-    getPool(os.environ['url'])
+    if 'stdin' in os.environ:
+        import sys
+        for line in sys.stdin:
+            getPool(line)
+    else:
+        getPool(os.environ['url'])

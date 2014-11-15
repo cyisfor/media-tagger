@@ -103,6 +103,12 @@ def getanId(sources,uniqueSource,download,name):
             print("Oops, we already had this one, from another source!")
             yield result[0][0],False
             return
+        result = db.c.execute("SELECT medium FROM dupes WHERE hash = $1",(digest,))
+        if result:
+            id = result[0][0]
+            print("Dupe of {:x}".format(id))
+            yield id, False
+            return
         result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted

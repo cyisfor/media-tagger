@@ -2,6 +2,16 @@ import db,sys,os
 import filedb
 import clipboardy
 
+db.setup('''CREATE TABLE blacklist(
+        id SERIAL PRIMARY KEY,
+        hash character varying(28) UNIQUE,
+        reason TEXT)''',
+        '''CREATE TABLE dupes(
+        id SERIAL PRIMARY KEY,
+        medium bigint REFERENCES media(id),
+        hash character varying(28) UNIQUE,
+        UNIQUE(medium,hash))''')
+
 def start(s):
     sys.stdout.write(s+'...')
     sys.stdout.flush()
@@ -10,20 +20,29 @@ def done(s=None):
     if s is None: s = 'done.'
     print(s)
 
+def realdelete(thing):
+    start("tediously clearing neighbors")
+    db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(thing,))
+    done()
+    db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(thing,))
+    db.c.execute("DELETE FROM things WHERE id = $1",(thing,))
+    for category in ('image','thumb','resized'):
+        doomed=os.path.join(filedb.top,category,'{:x}'.format(thing))
+        if os.path.exists(doomed):
+            os.unlink(doomed)
+
+def dupe(good, bad):
+    with db.transaction():
+        # the old LEFT OUTER JOIN trick to skip dupes
+        db.c.execute("INSERT INTO dupes (id,hash) SELECT $1,media.hash from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad))
+        realdelete(bad)
+
 def delete(thing,reason=None):
     print("deleting {:x}".format(thing),reason)
     with db.transaction():
         # the old LEFT OUTER JOIN trick to skip dupes
         db.c.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,thing))
-        start("tediously clearing neighbors")
-        db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(thing,))
-        done()
-        db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(thing,))
-        db.c.execute("DELETE FROM things WHERE id = $1",(thing,))
-        for category in ('image','thumb','resized'):
-            doomed=os.path.join(filedb.top,category,'{:x}'.format(thing))
-            if os.path.exists(doomed):
-                os.unlink(doomed)
+        realdelete(thing)
 
 def findId(uri):
     uri = uri.rstrip("\n/")
