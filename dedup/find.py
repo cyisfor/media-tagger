@@ -42,9 +42,9 @@ class Finder:
             '0'*15+'3'+'0'*(16-len(self.hash))+self.hash,
             self.dest, self.source))
         self.next(then)
-    def dupe(self,reason=None,then=None):
+    def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
-        merge.merge(self.dest,self.source,reason)
+        merge.merge(self.dest,self.source,inferior)
         self.next(then)
     def swap(self,then=None):
         temp = self.dest
@@ -196,13 +196,14 @@ def addButton(label,shortcut,ambusy=True):
         buttonkeys[shortcut] = btn
     return decorator
 
-@addButton("Inferior",Gdk.KEY_a)
+@addButton("Superior",Gdk.KEY_a)
 def answer(e):
-    finder.dupe("inferior version of {:x}".format(finder.dest),then=refillimages)
+    # therefore the right one is inferior (finder.source)
+    finder.dupe(True,then=refillimages)
 
 @addButton("Yes",Gdk.KEY_o)
 def answer(e):
-    finder.dupe(then=refillimages)
+    finder.dupe(False,then=refillimages)
 
 @addButton("Swap",Gdk.KEY_e,ambusy=False)
 def answer(e):

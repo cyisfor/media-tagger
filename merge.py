@@ -22,7 +22,7 @@ END
 $$ language 'plpgsql'""")
 
 
-def merge(dest,source,reason=None):
+def merge(dest,source,inferior=True):
     "source is destroyed, its info sent to dest"
     with db.transaction():
         db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(things2.neighbors) FROM things as things2 where things2.id = $2) WHERE id = $1",
@@ -53,7 +53,7 @@ def merge(dest,source,reason=None):
                 (dest,source))
         print('deletan')
         # the leftover uploads will be deleted by cascade
-        delete.dupe(dest, source)
+        delete.dupe(dest, source, inferior)
 
 def main():
     #note b will be DESTROYED and a should be the good one.

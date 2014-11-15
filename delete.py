@@ -10,6 +10,7 @@ db.setup('''CREATE TABLE blacklist(
         id SERIAL PRIMARY KEY,
         medium bigint REFERENCES media(id),
         hash character varying(28) UNIQUE,
+        inferior BOOLEAN DEFAULT FALSE,
         UNIQUE(medium,hash))''')
 
 def start(s):
@@ -31,10 +32,10 @@ def realdelete(thing):
         if os.path.exists(doomed):
             os.unlink(doomed)
 
-def dupe(good, bad):
+def dupe(good, bad, inferior=True):
     with db.transaction():
         # the old LEFT OUTER JOIN trick to skip dupes
-        db.c.execute("INSERT INTO dupes (id,hash) SELECT $1,media.hash from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad))
+        db.c.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
         realdelete(bad)
 
 def delete(thing,reason=None):

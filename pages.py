@@ -322,8 +322,12 @@ def info(info,path,params):
     del info['sessmodified']
     import info as derp
     id = info['id']
-    sources = [(id,derp.source(id)) for id in info['sources']]
-    sources = [pair for pair in sources if pair[1]]
+    sources = info['sources']
+    if sources is None:
+        sources = ()
+    else:
+        sources = ((id,derp.source(id)) for id in sources)
+        sources = [pair for pair in sources if pair[1]]
     keys = set(info.keys())
     keys.discard('id')
     keys.discard('sources')
