@@ -182,19 +182,14 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         else:
             mediaId = None
         g = getanId(sources,mediaId,download,name)
-        result = next(g)
+        result = None
         while True:
-            # pass up
-            result = yield result
             try:
-                # pass back down
                 result = g.send(result)
             except StopIteration: break
             except gen.Return as ret:
-                print('ret')
                 result = ret.value
                 break
-        print('final result',result)
         id,wasCreated = result
         if not wasCreated:
              print("Old image with id {:x}".format(id))
@@ -209,13 +204,8 @@ def internet_future(ioloop,*a,**kw):
 def internet(*a,**kw):
     "the sync version of internet_yield"
     g = internet_yield(*a,**kw)
-    result = next(g)
+    result = None
     while True:
-        if is_future(result):
-            if result.running():
-                raise RuntimeError("Download can't complete right away, but this is the sync version!")
-            result = result.result()
-            print('future produced',result)
         try:
             result = g.send(result)
         except StopIteration: 
@@ -223,6 +213,11 @@ def internet(*a,**kw):
         except gen.Return as ret:
             result = ret.value
             break
+        if is_future(result):
+            if result.running():
+                raise RuntimeError("Download can't complete right away, but this is the sync version!")
+            result = result.result()
+            print('future produced',result)
     return result
 
 def copyMe(source):

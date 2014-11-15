@@ -17,7 +17,9 @@ def gotClip(clipboard, text, nun=None):
             text = res
     if text and not text in seen:
         seen.add(text)
-        handler(text.decode('utf-8'))
+        if type(text)==bytes:
+            text = text.decode('utf-8')
+        handler(text)
     GLib.timeout_add(200,start,clipboard)
 
 def start(ignore=None):
