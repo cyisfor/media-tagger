@@ -30,7 +30,7 @@ static void error(ExceptionType type, const char* reason, const char* descriptio
 }
 
 static int make_thumbnail(context* ctx, uint32_t id) {
-  char* source = filedb_image("image",id);
+  char* source = filedb_image("media",id);
   assert(source);
   record(INFO,"Thumbnail %x", id);
   Image* image = ReadImageCtx(source,strlen(source),ctx);
@@ -69,13 +69,13 @@ static int make_thumbnail(context* ctx, uint32_t id) {
 
 static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   Image* image;
-  char* source = filedb_image("image",id);
+  char* source = filedb_image("media",id);
   assert(source);
   record(INFO,"Resize %x %d",id,newwidth);
   image = ReadImageCtx(source,strlen(source),ctx);
   free(source);
   if (!image) {
-    record(WARN,"Could not read an image from '%x'",id);
+    record(WARN,"Could not read media from '%x'",id);
     return 0;
   }
 
