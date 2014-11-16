@@ -3,3 +3,4 @@
 passwd
 __pycache__
 tagfilter.py
+*.api
