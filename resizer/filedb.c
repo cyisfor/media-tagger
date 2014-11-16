@@ -36,7 +36,7 @@ char* filedb_file(const char* category, const char* name) {
   return ret;
 }
 
-char* filedb_image(const char* category, uint32_t id) {
+char* filedb_path(const char* category, uint32_t id) {
   static char buf[0x100] = "";
   snprintf(buf,0x100,"%x",id);
   return filedb_file(category,buf);

@@ -30,7 +30,7 @@ static void error(ExceptionType type, const char* reason, const char* descriptio
 }
 
 static int make_thumbnail(context* ctx, uint32_t id) {
-  char* source = filedb_image("media",id);
+  char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Thumbnail %x", id);
   Image* image = ReadImageCtx(source,strlen(source),ctx);
@@ -39,7 +39,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
       int pid = fork();
       if(pid==0) {
           close(0);
-          char* dest = filedb_image("thumb",id);
+          char* dest = filedb_path("thumb",id);
           execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
                  "-loglevel","warning",
                  "-i",source,"-s","150x150","-f","image2",dest,NULL);
@@ -57,7 +57,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
   free(source);
 
   Image* thumb = MakeThumbnail(image,ctx);
-  char* dest = filedb_image("thumb",id);
+  char* dest = filedb_path("thumb",id);
   if(thumb) {
     WriteImageCtx(thumb,dest,1,ctx);
   } else {
@@ -69,7 +69,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
 
 static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   Image* image;
-  char* source = filedb_image("media",id);
+  char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Resize %x %d",id,newwidth);
   image = ReadImageCtx(source,strlen(source),ctx);
@@ -82,7 +82,7 @@ static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   image = FirstImage(image);
   image = MyResize(image,newwidth,ctx);
 
-  char* dest = filedb_image("resized",id);
+  char* dest = filedb_path("resized",id);
 
   WriteImageCtx(image,dest,0,ctx);
   free(dest);

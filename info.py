@@ -34,10 +34,14 @@ def pageInfo(id):
     EXTRACT (epoch FROM media.modified),
     array(SELECT tags.name FROM tags 
         where id = ANY(thing1.neighbors) ORDER BY name),
-    (SELECT comic FROM comicpage WHERE medium = media.id)
+    comics.id, comics.title,
+    CASE WHEN which > 0 THEN (select medium from comicpage AS sub where sub.comic = comics.id and sub.which = comicpage.which - 1) END,
+    (select medium from comicpage AS sub where sub.comic = comics.id and sub.which = comicpage.which + 1)
 
     FROM things as thing1
     INNER JOIN media ON media.id = thing1.id
+    LEFT OUTER JOIN comicpage ON medium = media.id
+    LEFT OUTER JOIN comics ON comicpage.comic = comics.id 
     LEFT OUTER JOIN images ON images.id = media.id
     LEFT OUTER JOIN videos ON videos.id = media.id
 
@@ -50,7 +54,8 @@ def pageInfo(id):
     """,(User.id,id))
     if not info:
         raise UserError("Medium {:x} not found.".format(id))
-    return info[0]
+    row = info[0]
+    return tuple(row[:-4])+(row[-4:],)
 
 def page(path,params):
     if Session.head:

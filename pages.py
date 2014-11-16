@@ -263,7 +263,8 @@ def page(info,path,params):
     if Session.head:
         id,modified,size = info
     else:
-        id,next,prev,name,type,width,height,size,modified,tags = info
+        print('info',info)
+        id,next,prev,name,type,width,height,size,modified,tags,comic = info
         print('width',width)
         print('height',height)
 
@@ -289,15 +290,23 @@ def page(info,path,params):
     boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
     # even if not rescaling, sets img width unless ns in params
     fid,link,thing = makeLink(id,type,name,doScale,width,height)
+    tail = []
+    def pageURL(id):
+        return '../{:x}'.format(id)
+    if comic:
+        def comicURL(id):
+            return '/~comic/{:x}/'.format(id)
+        print('yay',comic)
+        id, title, next, prev = comic
+        tail.append(d.p(d.a("Pool ",title,href=comicURL(id)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
+    
     if tags:
-        tagderp = d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags))
-    else:
-        tagderp = ''
+        tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
     with Links:
         if next:
-            Links.next = '../{:x}/'.format(next)+unparseQuery()
+            Links.next = pageURL(next)+unparseQuery()
         if prev:
-            Links.prev = '../{:x}/'.format(prev)+unparseQuery()
+            Links.prev = pageURL(prev)+unparseQuery()
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                 d.p(d.a(link,id='medium',href=thing)),
