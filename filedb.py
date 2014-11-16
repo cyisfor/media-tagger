@@ -51,9 +51,9 @@ def MediaBecomer(dir=None):
         self = dir
     def become(id):
         medium = mediaPath(id)
-        if os.path.exists(media): return
+        if os.path.exists(medium): return
         os.chmod(self.name,0o644)
-        os.rename(self.name,media)
+        os.rename(self.name,medium)
         try: self.close()
         except OSError: pass
     setattr(self,'become',become)

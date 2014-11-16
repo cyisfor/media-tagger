@@ -55,7 +55,7 @@ def pageInfo(id):
     if not info:
         raise UserError("Medium {:x} not found.".format(id))
     row = info[0]
-    return tuple(row[:-4])+(row[-4:],)
+    return tuple(row[:-4])+(row[-4:] if row[-4] else None,)
 
 def page(path,params):
     if Session.head:

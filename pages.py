@@ -203,7 +203,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                 sty = ' height: '+str(height)+'px;'
                 style = style + sty if style else sty
 
-    thing = '/'.join(('/medium',fid,type,name))
+    thing = '/'.join(('/media',fid,type,name))
 
     if type.startswith('text'):
         return fid,d.pre(thing),thing
@@ -244,13 +244,13 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                 style=style),d.br(),'Download'),thing
     raise RuntimeError("What is "+type)
 
-def mediumLink(id,type):
-    return '/medium/{:x}/{}'.format(id,type)
+def mediaLink(id,type):
+    return '/media/{:x}/{}'.format(id,type)
 
 def simple(info,path,params):
     if Session.head: return
     id,type = info
-    return makePage("derp",d.a(d.img(src=mediumLink(id,type)),href=pageLink(id)))
+    return makePage("derp",d.a(d.img(src=mediaLink(id,type)),href=pageLink(id)))
 
 def resized(info,path,params):
     id = int(path[1],0x10)
@@ -293,13 +293,14 @@ def page(info,path,params):
     tail = []
     def pageURL(id):
         return '../{:x}'.format(id)
-    if comic:
+    def updateComic(comic):
         def comicURL(id):
-            return '/~comic/{:x}/'.format(id)
+            return '/art/~comic/{:x}/'.format(id)
         print('yay',comic)
-        id, title, next, prev = comic
-        tail.append(d.p(d.a("Pool ",title,href=comicURL(id)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
-    
+        comic, title, prev, next = comic
+        tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
+    if comic:
+        updateComic(comic)
     if tags:
         tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
     with Links:
@@ -309,9 +310,9 @@ def page(info,path,params):
             Links.prev = pageURL(prev)+unparseQuery()
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(link,id='medium',href=thing)),
+                d.p(d.a(link,id='mediumu',href=thing)),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
-                tagderp)
+                tail)
 
 def stringize(key):
     if hasattr(key,'isoformat'):
@@ -428,7 +429,7 @@ def desktop(raw,path,params):
         type = stripPrefix(type)
         middle = (
             d.p("Having tags ",doTags(place,tags)),
-            d.p(d.a(d.img(src="/".join(("","medium",'{:x}'.format(current),type,name))),
+            d.p(d.a(d.img(src="/".join(("","media",'{:x}'.format(current),type,name))),
                 href=pageLink(current,0))),
             d.hr())
     else:
