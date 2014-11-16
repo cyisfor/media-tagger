@@ -1,0 +1,1 @@
+update things set neighbors = q.both from (select id,array(select unnest(neighbors) union select unnest(back)) as both from (select t1.id,t1.neighbors,array_agg(t2.id) as back from things as t1, things as t2 where t2.neighbors @> ARRAY[t1.id] group by t1.id) as q where not neighbors @> back) as q where q.id = things.id;
