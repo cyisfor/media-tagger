@@ -37,7 +37,8 @@ if __name__ == '__main__':
     setup()
     id = next()
     desktop = os.path.expanduser("/usr/share/nginx/html/desktop/desktop")
-    os.unlink(desktop)
+    try: os.unlink(desktop)
+    except OSError: pass
     # Can't use filedb.mediaPath why...?
     shutil.copy2(os.path.join(filedb.top,"media",'{:x}'.format(id)),desktop)
     os.execlp("xfdesktop","xfdesktop","--reload")

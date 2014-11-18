@@ -230,5 +230,5 @@ class Handler(FormCollector,myserver.ResponseHandler):
             self.write(page)
 
 #myserver.Server(Handler).listen(8934)
-myserver.Server(Handler).listen(8029)
+myserver.Server(Handler).listen(8029,address='::1')
 ioloop.IOLoop.instance().start()

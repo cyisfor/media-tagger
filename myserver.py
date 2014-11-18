@@ -175,8 +175,9 @@ class ResponseHandler(object):
                 yield self.end_headers()
         finally:
             self.recordAccess()
+    ip = None
     def recordAccess(self):
-        print(json.dumps((self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))
+        print(json.dumps((self.ip or self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))
     def received_header(self,name,value):
         "received a header just now, can setup, or raise an error if this is not a good header"
         if name == 'Content-Length':

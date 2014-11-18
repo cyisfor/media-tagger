@@ -66,7 +66,7 @@ for path in sys.stdin:
         tags,rest = name.split(' - ',1)
         if not '-' in tags:
             print('found official tags header',tags)
-            officialtags = True
+            officialTags = True
             discovered = set(tag.strip() for tag in tags.split(','))
     discovered = discovered.union(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
