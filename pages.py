@@ -263,10 +263,7 @@ def page(info,path,params):
     if Session.head:
         id,modified,size = info
     else:
-        print('info',info)
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
-        print('width',width)
-        print('height',height)
 
     doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize
@@ -296,7 +293,6 @@ def page(info,path,params):
     def updateComic(comic):
         def comicURL(id):
             return '/art/~comic/{:x}/'.format(id)
-        print('yay',comic)
         comic, title, prev, next = comic
         tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
     if comic:
@@ -464,7 +460,6 @@ def user(info,path,params):
     if Session.head: return
     if 'submit' in params:
         process.user(path,params)
-        print('processed boo')
         raise Redirect(place+'/~user')
     iattr = {
             'type': 'checkbox',

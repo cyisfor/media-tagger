@@ -65,7 +65,7 @@ for path in sys.stdin:
     if ' - ' in name:
         tags,rest = name.split(' - ',1)
         if not '-' in tags:
-            print('found official tags header',tags)
+            #print('found official tags header',tags)
             officialTags = True
             discovered = set(tag.strip() for tag in tags.split(','))
     discovered = discovered.union(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))

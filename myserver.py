@@ -56,7 +56,6 @@ class ResponseHandler(object):
         self.start_time = time.time()
         self.method, self.path, self.version = start_line
         self.version = self.version.rstrip()
-        print(self.version)
         if not self.conn.old_client and self.version == 'HTTP/1.0':
             self.conn.old_client = True
             self.conn.old_client = True

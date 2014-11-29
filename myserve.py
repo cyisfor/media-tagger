@@ -101,10 +101,17 @@ class FormCollector:
             self.chunks = []
         return super().received_header(name,value)
 
+IGNORED = {
+        'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c'
+}
+
 class Handler(FormCollector,myserver.ResponseHandler):
     ip = None
     uploading_put = False
     uploader = None
+    def recordAccess(self, *a, **kw):
+        if not self.ip in IGNORED:
+            return super().recordAccess(*a, **kw)
     def __init__(self,*a,**kw):
         super().__init__(*a,**kw)
         self.uploading_put = self.method == 'PUT'

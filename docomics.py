@@ -79,8 +79,21 @@ def createComic(com,created):
 
     win.show_all()
 
+def sourceFinder(inp,out):
+    while True:
+        source = inp.get()
+        while True:
+            res = db.c.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+            if res:
+                out.put(res[0][0])
+                break
+            else:
+                try: parse.parse(source)
+                except Exception as e:
+                    out.put(e)
+                    break
+
 def findBySource(source,foundSource,fail):
-    res = db.c.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
     if res:
         print('found source ',source,res)
         foundSource(res[0][0])

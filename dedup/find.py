@@ -81,13 +81,13 @@ class Image:
     def __init__(self,name):
         self.name = name
         self.id = getattr(finder,name)
-        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.imagePath(self.id))
+        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
         self.image = Gtk.Image.new_from_animation(self.pixbuf)
         self.label = Gtk.Label(label='{:x}'.format(self.id))
         labelbox.pack_start(self.label,True,True,0)
         imagebox.pack_start(self.image,True,True,0)
     def update(self):
-        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.imagePath(getattr(finder,self.name)))
+        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(getattr(finder,self.name)))
         self.refresh()
     def refresh(self):
         self.image.set_from_animation(self.pixbuf)
