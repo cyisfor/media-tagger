@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import os,time
 oj = os.path.join
 
-base = os.path.expanduser("~/art/filedb")
+base = os.path.expanduser("/extra/user/filedb")
 top = base
 
 def _check(id,category,contents=None,delay=0.1):

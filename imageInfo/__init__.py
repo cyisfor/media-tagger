@@ -2,6 +2,8 @@ import os
 import subprocess
 import struct
 
+os.environ['LD_LIBRARY_PATH'] = '/opt/ImageMagick/lib'
+
 here = os.path.dirname(__file__)
 exe = os.path.join(here,'imageInfo')
 

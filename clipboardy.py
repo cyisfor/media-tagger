@@ -1,43 +1,33 @@
-try: 
-    import pgi
-    pgi.install_as_gi()
-except ImportError: pass
+import time
+import subprocess as s
+import sys,os
 
-from gi.repository import GLib, Gtk, Gdk
+here = os.path.dirname(sys.modules[__name__].__file__)
+
+exe = os.path.join(here,"xwatch-0.1/xclipwatch")
+
+if not os.path.exists(exe):
+    pid = os.fork()
+    if pid == 0:
+        os.chdir(os.path.join(here,"xwatch-0.1"))
+        s.call(["./configure"])
+        os.execlp("make","make")
+    os.waitpid(pid)
 
 seen = set()
 
-handler = None
-check = None
-
-def gotClip(clipboard, text, nun=None):
-    if check:
-        res = check(text)
-        if res is not True:
-            text = res
-    if text and not text in seen:
-        seen.add(text)
-        if type(text)==bytes:
-            text = text.decode('utf-8')
-        handler(text)
-    GLib.timeout_add(200,start,clipboard)
-
-def start(ignore=None):
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    assert(clipboard)
-    clipboard.request_text(gotClip,None)
-    return False
-
-def monitor(_handler,_check=None):
-    global handler,check
-    handler = _handler
-    check = _check
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    clipboard.set_text('',0)
-    GLib.idle_add(start)
-
-def run(_handler,_check=None):
-    monitor(_handler,_check)
-    import signal
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    Gtk.main()
+def run(handler,check=None):
+    proc = s.Popen([exe],stdout=s.PIPE)
+    while True:
+        amt = int(proc.stdout.readline().decode('utf-8'))
+        text = proc.stdout.read(amt)
+        if check:
+            res = check(text)
+            if res is not True:
+                text = res
+        if text and not text in seen:
+            seen.add(text)
+            if type(text) == bytes:
+                text = text.decode('utf-8')
+            handler(text)
+        time.sleep(0.2)

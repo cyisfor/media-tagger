@@ -56,11 +56,7 @@ int main(int argc, char** argv) {
     }
     
     {
-        amt = strlen(getenv("HOME"));
-        buf = malloc(amt + sizeof("/art/filedb"));
-        memcpy(buf,getenv("HOME"),amt);
-        memcpy(buf+amt,"/art/filedb",sizeof("/art/filedb"));
-        filedb = buf;
+        filedb = strdup("/extra/user/filedb");
         record(INFO, "filedb '%s'",filedb);
     }
 

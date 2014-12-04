@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import syspath
-
+import fixprint
 import catchup
 from dbqueue import enqueue
 
@@ -23,6 +23,7 @@ if __name__ == '__main__':
         from itertools import count
         import clipboardy
         def gotPiece(piece):
+            print("uhh")
             if 'http' in piece:
                 print("Trying {}".format(piece.strip()))
                 sys.stdout.flush()

@@ -1,5 +1,5 @@
 import sys,os
-sys.path.insert(0,os.path.expanduser("~/code/postgresql-python"))
+sys.path.insert(0,os.path.expanduser("/extra/user/code/postgresql-python"))
 import postgresql as pg
 from contextlib import contextmanager
 from itertools import count

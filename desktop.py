@@ -36,7 +36,7 @@ if __name__ == '__main__':
     import shutil,os,filedb
     setup()
     id = next()
-    desktop = os.path.expanduser("/usr/share/nginx/html/desktop/desktop")
+    desktop = os.path.expanduser("/extra/user/.config/desktop")
     try: os.unlink(desktop)
     except OSError: pass
     # Can't use filedb.mediaPath why...?

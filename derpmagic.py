@@ -3,12 +3,14 @@
 import magic,os,threading
 from mimetypes import guess_extension
 
-class MyGuesser(magic.Magic):
+class MyGuesser:
     def __init__(self,magic_file):
         self.cookie = magic.magic_open(magic.MAGIC_COMPRESS|magic.MAGIC_MIME|magic.MAGIC_CONTINUE|magic.MAGIC_PRESERVE_ATIME|magic.MAGIC_ERROR|magic.MAGIC_MIME_ENCODING)
         # lolololo
-        magic.magic_load(self.cookie,magic_file)
+        magic.magic_load(self.cookie,magic_file.encode('utf-8'))
         self.thread = threading.currentThread()
+    def from_file(self, path):
+        return magic.magic_file(self.cookie,path.encode('utf-8'))
 
 guesser = None
 def init():
