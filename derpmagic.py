@@ -11,6 +11,8 @@ class MyGuesser:
         self.thread = threading.currentThread()
     def from_file(self, path):
         return magic.magic_file(self.cookie,path.encode('utf-8'))
+    def from_buffer(self, data, length):
+        return magic.magic_buffer(self.cookie, data, length)
 
 guesser = None
 def init():
@@ -34,19 +36,22 @@ def init():
     print("loading "+database)
     guesser = MyGuesser(database)
 
-def guess_type_raw(data):
+def guess_type_raw(data, length=None):
     if not guesser: init()
     if isinstance(data,str):
         return guesser.from_file(data)
-    elif isinstance(data,bytes):
-        return guesser.from_buffer(data,len(data))
+    elif isinstance(data,bytes) or isinstance(data,bytearray):
+        length = length or len(bytes)
+        return guesser.from_buffer(data, length)
     elif isinstance(data,int):
         return magic.libmagic.magic_descriptor(guesser.cookie,data)
     elif hasattr(data,'fileno'):
-        return guess_type_raw(data.fileno())
+        return guess_type_raw(data.fileno(), length)
+    else:
+        raise RuntimeError('No idea what to do with '+str(type(data)))
 
-def guess_type(data):
-    return guess_type_raw(data).decode('utf-8').split('; charset=')
+def guess_type(data,length=None):
+    return guess_type_raw(data,length).decode('utf-8').split('; charset=')
 
 if __name__=='__main__':
     import sys

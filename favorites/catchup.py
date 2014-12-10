@@ -63,6 +63,7 @@ class Catchup(threading.Thread):
                     if self.done: break
                     self.condition.wait()
         except SystemExit: pass
+        except KeyboardInterrupt: pass
     def poke(self):
         with self.condition:
             self.condition.notifyAll()

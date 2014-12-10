@@ -83,6 +83,8 @@ opener.addheaders = [
         ('Accept-Encoding', 'gzip,deflate')]
 urllib.request.install_opener(opener)
 
+class URLError(Exception): pass
+
 @contextmanager
 def myopen(request):
     if not isinstance(request,Request):
@@ -94,19 +96,22 @@ def myopen(request):
         for i in range(2,len(url)):
             url[i] = urllib.parse.quote(url[i],safe="/&=?+")
         request.full_url = urllib.parse.urlunparse(url)
-    with closing(opener.open(request)) as inp:
-        headers = inp.headers
-        encoding = headers['Content-Encoding']
-        if encoding == 'gzip':
-            inp = gzip.GzipFile(fileobj=inp,mode='rb')
-        elif encoding == 'deflate':
-            data = inp.read(0x40000)
-            try: data = zlib.decompress(data)
-            except zlib.error:
-                data = zlib.decompress(data,-zlib.MAX_WBITS)
-            inp = StringIO(data)
-        inp.headers = headers
-        yield inp
+    try:
+        with closing(opener.open(request)) as inp:
+            headers = inp.headers
+            encoding = headers['Content-Encoding']
+            if encoding == 'gzip':
+                inp = gzip.GzipFile(fileobj=inp,mode='rb')
+            elif encoding == 'deflate':
+                data = inp.read(0x40000)
+                try: data = zlib.decompress(data)
+                except zlib.error:
+                    data = zlib.decompress(data,-zlib.MAX_WBITS)
+                inp = StringIO(data)
+            inp.headers = headers
+            yield inp
+    except urllib.error.URLError as e:
+        raise URLError(request,e)
 
 def myretrieve(request,dest):
     with myopen(request) as inp:

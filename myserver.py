@@ -1,7 +1,6 @@
 from note import note
-import fixfuture
 
-from tornado import httputil, gen, concurrent, iostream
+from tornado import httputil, gen, concurrent, iostream, util
 from tornado.concurrent import is_future
 from tornado.ioloop import TimeoutError
 from tornado.escape import utf8
@@ -11,6 +10,9 @@ from tornado.http1connection import HTTP1Connection, HTTP1ConnectionParameters
 
 import json
 
+from datetime import datetime
+import calendar
+import email
 import time,sys,os
 
 # Handler must handle 1 connection, which may manage many requests
@@ -31,9 +33,19 @@ def derpid(wut):
     return 'id('+str(id(wut) - id(derp))+')'
 
 def denumber(n):
-    if isinstance(n,bytes): return n # avoid "b'0'"
+    if isinstance(n,bytes): return n # avoid str(b) aka "b'0'"
     elif isinstance(n,str): return utf8(n)
     return utf8(str(n))
+
+def decodeHeader(name,value):
+    if isinstance(value,datetime):
+        return utf8(email.utils.formatdate(calendar.timegm(value.utctimetuple())))
+    elif isinstance(value,(bytes,memoryview,bytearray)):
+        return value
+    elif isinstance(value,str):
+        return utf8(value)
+    else:
+        return utf8(str(value))
 
 def send_header(stream, name, normalized_value):
     return stream.write(utf8(name)+ b': ' + utf8(normalized_value) + b'\r\n')
@@ -60,7 +72,7 @@ class ResponseHandler(object):
             self.conn.old_client = True
             self.conn.old_client = True
         else:
-            assert(self.version == 'HTTP/1.1')
+            assert self.version == 'HTTP/1.1'
         self.headers = HTTPHeaders()
         self.headers.add("Server", "MYOB/1.0")
         self.pending = [] # delay body writes until headers sent
@@ -68,7 +80,10 @@ class ResponseHandler(object):
         """Return the current date and time formatted for a message header."""
         if timestamp is None:
             timestamp = time.time()
-        year, month, day, hh, mm, ss, wd, y, z = time.gmtime(timestamp)
+        if isinstance(timestamp,(int,float)):
+            year, month, day, hh, mm, ss, wd, y, z = time.gmtime(timestamp)
+        else:
+            year, month, day, hh, mm, ss, wd, y, z = timestamp
         s = "%s, %02d %3s %4d %02d:%02d:%02d GMT" % (
                 self.weekdayname[wd],
                 day, self.monthname[month], year,
@@ -81,53 +96,69 @@ class ResponseHandler(object):
                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     
     def set_chunked(self):
-        assert(self.length is None, "You can't both be chunked and have a length!")
+        assert False, "uuu"
+        assert self.length is None, "You can't both be chunked and have a length!"
         self.headers["Transport-Encoding"] = "chunked"
         self.chunked = True
         return self.actually_send_header("Transport-Encoding")
     def set_length(self,length):
         if self.conn.old_client: return # connection terminates at end of data anyway
-        assert(self.chunked is None, "You can't specify a length when chunking")
-        assert(self.code not in {301,302,303,304,204},"No length for these codes")
+        assert self.chunked is not True, "You can't specify a length when chunking"
+        assert self.code not in {301,302,303,304,204},"No length for these codes"
         self.headers['Content-Length'] = denumber(length)
         self.length = length
+        note('set the length te',length)
         return self.actually_send_header('Content-Length')
-    def check_header(self,name):
+    def check_header(self,name,value):
         if not self.chunked and name == 'Transport-Encoding' and 'chunked' in self.headers[name]:
+            assert False, 'wonk'
             self.chunked = True
         elif name == 'Content-Length':
             if self.conn.old_client: return True # connection terminates at end of data anyway
-            if not length:
-                assert(self.code not in {204},"No length for these codes")
-                self.length = self.headers[name]
+            if not self.length:
+                assert self.code not in {204},"No length for these codes"
+                self.length = value
     status_sent = False
     def send_status(self,code,message):
+        print('status',code,message)
         self.code = code
         self.message = message
         self.status_sent = True
         return self.stream.write(b'HTTP/1.1 '+utf8(denumber(code))+b' '+utf8(message)+b'\r\n')
     def send_header(self,name,value=None):
         if value is not None:
-            self.headers.add(name,value)
-        if self.check_header(name): 
+            self.headers.add(name,decodeHeader(name,value))
+        if self.check_header(name,value): 
             del self.headers[name]
         else:
             return self.actually_send_header(name)
+    needDate = True
     @gen.coroutine
     def actually_send_header(self,name):
-        assert(self.status_sent is True,"need to send status first")
-        yield send_header(self.stream, name, denumber(self.headers[name]))
+        if self.status_sent is not True:
+            if self.code:
+                yield self.send_status(self.code,self.message)
+            else:
+                print("need to send status first!")
+                raise RuntimeError('please send status')
+        yield send_header(self.stream, name, self.headers[name])
+        if name == 'Date':
+            self.needDate = False
         del self.headers[name]
     @gen.coroutine
     def end_headers(self):
+        if self.finished_headers:
+            raise RuntimeError('finished headers already!')
         if not self.conn.old_client:
             self.headers.add("Connection","keep-alive")
+        if self.needDate:
+            yield self.send_header('Date',datetime.now())
         for name,normalized_value in self.headers.get_all():
-            self.check_header(name)
+            self.check_header(name,normalized_value)
             yield send_header(self.stream, name, normalized_value)
         if not self.chunked and self.length is None:
             if self.code in {304,204}: #...?
-                assert(not self.pending,"No data for these codes allowed (or length header)")
+                assert not self.pending,"No data for these codes allowed (or length header)"
             else:
                 if not self.conn.old_client:
                     length = 0
@@ -155,10 +186,12 @@ class ResponseHandler(object):
         if self.chunked:
             chunk = self.conn._format_chunk(chunk)
         elif self.length:
-            chunk = utf8(chunk)
+            if isinstance(chunk,str):
+                chunk = utf8(chunk)
             self.length -= len(chunk)
         elif self.conn.old_client:
-            chunk = utf8(chunk)
+            if isinstance(chunk,str):
+                chunk = utf8(chunk)
         elif self.length == 0:
             raise RuntimeError("Either tried to send 2 chunks while setting a length, or body was supposed to be empty.")
         else:
@@ -177,6 +210,7 @@ class ResponseHandler(object):
     ip = None
     def recordAccess(self):
         print(json.dumps((self.ip or self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))
+    def received_headers(self): pass
     def received_header(self,name,value):
         "received a header just now, can setup, or raise an error if this is not a good header"
         if name == 'Content-Length':
@@ -184,6 +218,7 @@ class ResponseHandler(object):
             self.length = int(value)
         elif name == 'Transport-Encoding':
             if 'chunked' in value:
+                assert False, 'uhhh'
                 self.chunked = True
     def OK(self):
         "Check headers/IP if this request's body is OK to push."
@@ -350,13 +385,13 @@ class ConnectionHandler(HTTP1Connection):
         yield self.startWriting()
         note('del self.request (started writing)',derpid(self))
         del self.request
-        assert(self.request is None, "boop")
+        assert self.request is None, "boop"
         if self.old_client:
             self.stream.close()
         else:
             self.read_next_message('next')
     def read_next_message(self,kind):
-        assert(self.request is None,kind)
+        assert self.request is None,kind
         note('reading next message',kind,derpid(self))
         # since this is a generator, lazy generation means this won't recurse infinitely
         # but will trampoline.
@@ -385,7 +420,7 @@ class ConnectionHandler(HTTP1Connection):
             return
         self.done_writing = gen.Future()
         self.writing = self.request.respond()
-        assert(is_future(self.writing))
+        assert is_future(self.writing)
         self.stream.io_loop.add_future(self.writing,self.doneWriting)
         if self.request.timeout:
             self.writing.timeout = self.stream.io_loop.call_later(self.request.timeout, self.maybeTimeout, self.writing)
@@ -464,7 +499,7 @@ class Server(TCPServer, httputil.HTTPServerConnectionDelegate):
     def handle_stream(self, stream, address):
         conn = ConnectionHandler(self.requestFactory, stream, address)
         self.connections.add(conn)
-        assert(conn.request is None,"derp")
+        assert conn.request is None,"derp"
         return conn.read_next_message('start')
     def on_close(self, server):
         self.connections.remove(server)

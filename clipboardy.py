@@ -19,7 +19,11 @@ seen = set()
 def run(handler,check=None):
     proc = s.Popen([exe],stdout=s.PIPE)
     while True:
-        amt = int(proc.stdout.readline().decode('utf-8'))
+        num = proc.stdout.readline().decode('utf-8')
+        try: amt = int(num,0x10)
+        except ValueError:
+            print('num?',num)
+            return
         text = proc.stdout.read(amt)
         if check:
             res = check(text)
@@ -28,6 +32,6 @@ def run(handler,check=None):
         if text and not text in seen:
             seen.add(text)
             if type(text) == bytes:
-                text = text.decode('utf-8')
+                text = text.decode('utf-8',errors='replace')
             handler(text)
         time.sleep(0.2)
