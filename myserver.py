@@ -1,4 +1,5 @@
 from note import note
+import coro
 
 from tornado import httputil, gen, concurrent, iostream, util
 from tornado.concurrent import is_future
@@ -54,6 +55,16 @@ success = concurrent.Future()
 success.set_result(None)
 
 here = os.path.dirname(__file__)
+
+class Redirect(coro.Exit):
+    def __init__(self,handler,location,code,message):
+        if handler.status_sent:
+            raise RuntimeError("Can't redirect, you already started the response",code,message,location)
+        self.code = str(code)
+        self.message = message
+        self.location = location
+    def __str__(self):
+        return '<Redirect '+self.code+' '+self.location+'>'
 
 class ResponseHandler(object):
     timeout = 10
@@ -124,7 +135,9 @@ class ResponseHandler(object):
         self.code = code
         self.message = message
         self.status_sent = True
-        return self.stream.write(b'HTTP/1.1 '+utf8(denumber(code))+b' '+utf8(message)+b'\r\n')
+        return self.stream.write(b'HTTP/1.1 '+
+                utf8(denumber(code))+
+                b' '+utf8(message)+b'\r\n')
     def send_header(self,name,value=None):
         if value is not None:
             self.headers.add(name,decodeHeader(name,value))
@@ -205,8 +218,14 @@ class ResponseHandler(object):
             note('got response',derpid(self))
             if not self.finished_headers:
                 yield self.end_headers()
+        except Redirect as e:
+            yield self.send_status(e.code,e.message)
+            yield self.send_header('Location',e.location)
+            yield self.end_headers()
         finally:
             self.recordAccess()
+    def redirect(self,location,code=302,message='boink'):
+        raise Redirect(self,location,code,message)
     ip = None
     def recordAccess(self):
         print(json.dumps((self.ip or self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))

@@ -83,7 +83,10 @@ opener.addheaders = [
         ('Accept-Encoding', 'gzip,deflate')]
 urllib.request.install_opener(opener)
 
-class URLError(Exception): pass
+class URLError(Exception): 
+    def __str__(self):
+        print('req',dir(self.args[0]),file=sys.stderr)
+        print('exe',self.__cause__)
 
 @contextmanager
 def myopen(request):
@@ -111,7 +114,7 @@ def myopen(request):
             inp.headers = headers
             yield inp
     except urllib.error.URLError as e:
-        raise URLError(request,e)
+        raise URLError(request) from e
 
 def myretrieve(request,dest):
     with myopen(request) as inp:

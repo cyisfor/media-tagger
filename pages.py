@@ -399,8 +399,8 @@ def media(url,query,offset,info,related,basic):
         return makePage("Media",
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 d.table(makeLinks(info)),
-                (d.p("Related tags",d.hr(),doTags(url.path.rstrip('/'),related)) if related else ''),
-                (d.p("Remove tags",d.hr(),spaceBetween(removers)) if removers else ''),
+                (d.p("Related tags",d.hr(),d.div(doTags(url.path.rstrip('/'),related),id='related') if related else ''),
+                (d.p("Remove tags",d.hr(),d.div(spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
 
 def desktop(raw,path,params):
