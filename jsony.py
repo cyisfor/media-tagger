@@ -252,58 +252,46 @@ def showAllComics(params):
             if not medium: 
                 medium = 0x5c911
             checkModified(medium)
-            yield medium,title,getType(medium),()
+            yield {id=id,medium=medium,title=title,type=getType(medium)}
     if Session.head:
         for stuff in getInfos(): pass
         return
-    with Links:
-        if page > 0:
-            Links.prev = unparseQuery({'p':page-1})
-        if page + 1 < comic.numComics() / 0x20:
-            Links.next = unparseQuery({'p':page+1})
-        def formatLink(medium,i):
-            if comic.pages(comics[i][0]) == 0:
-                return '{:x}/'.format(comics[i][0])
-            return '{:x}/0/'.format(comics[i][0])
-        links = makeLinks(getInfos(),formatLink)
-        return makePage("{:x} Page Comics".format(page),
-                d.table(links),
-                d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
-                    (' ' if Links.prev and Links.next else ''),
-                    (d.a("Next",href=Links.next)if Links.next else '')))
+    return {total=comic.numComics(),
+            page=page,
+            comics=getInfos()}
+
 def showPages(path,params):
     com = int(path[0],0x10)
     page = getPage(params)
-    offset = page * 0x20
-    if offset and offset >= comic.pages(com):
-        raise Redirect('..')
     numPages = comic.pages(com)
-    def getMedia():
-        for which in range(offset,min(0x20+offset,numPages)):
-            medium = comic.findMedium(com,which)
-            checkModified(medium)
-            yield medium,which
+    offset = page * 0x20
+    if offset and offset < numPages:
+        def getMedia():
+            for which in range(offset,min(0x20+offset,numPages)):
+                medium = comic.findMedium(com,which)
+                checkModified(medium)
+                yield medium,which
+    else:
+        def getMedia(): 
+            return ()
+
     if Session.head:
         for stuff in getMedia(): pass
         return
     title,description,source = comic.findInfo(com,comicNoExist)
     if not description: description = 'ehunno' 
-    def getInfos():
-        for medium,which in getMedia():
-            yield medium,title + ' page {}'.format(which),getType(medium),()
     with Links:
         if page > 0:
-            Links.prev = unparseQuery({'p':page-1})
+            Links.prev = page - 1
         if page + 1 < numPages:
-            Links.next = unparseQuery({'p':page+1})
-        return makePage(title + " - Comics",
-                d.h1(title),
-                d.table(makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))) if numPages else '',
-                d.p(RawString(description)),
-                d.p(d.a('Source',href=source)) if source else '',
-                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
-                    d.a("Index",href=".."),
-                    (d.a(" Next",href=Links.next)if Links.next else '')))
+            Links.next = page + 1
+        return makePage({
+            comic=com,
+            title=title,
+            description=description,
+            source=source,
+            pages=numPages,
+            media=getMedia()})
 
 def showComicPage(path):
     com = int(path[0],0x10)
@@ -313,25 +301,16 @@ def showComicPage(path):
     if Session.head: return
     title,description,source = comic.findInfo(com,comicNoExist)
     typ,size,width,height = getStuff(medium)
-    name = title + '.' + typ.rsplit('/',1)[-1]
     with Links:
         if which > 0:
-            Links.prev = comicPageLink(which-1)()
+            Links.prev = which - 1
         if comic.pages(com) > which+1:
-            Links.next = comicPageLink(which+1)()
-        else:
-            Links.next = ".."
-        medium = comic.findMedium(com,which)
+            Links.next = which + 1
         doScale = User.rescaleImages and size >= maxSize
-        fid,link,thing = makeLink(medium,typ,name,
-                doScale,style='width: 100%')
+        link = makeLink(medium,typ,name,
+                doScale)
 
-        return makePage("{:x} page ".format(which)+title,
-                d.p(d.a(link,href=Links.next)),
-                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
-                    d.a("Index",href=".."),
-                    (d.a(" Next",href=Links.next)if Links.next else '')),
-                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None))
+        return makePage(link)
         
 def showComic(info,path,params):
     path = path[1:]
@@ -341,24 +320,12 @@ def showComic(info,path,params):
         return showPages(path,params)
     else:
         return showComicPage(path)
-        
-def oembed(info, path, params):
-    Session.type = 'application/json'
-    if Session.head: return
-    id,tags = info
-    base = makeBase()
-    xid, exists = filedb.check(id)
-    thumb = urljoin(base,thumbLink(id))
-    response = {
-            'type': 'photo',
-            'tags': tags,
-            'version': 1.0,
-            'url': thumb,
-            'width': 150,
-            'height': 150,
-            'thumbnail_url': thumb,
-            'thumbnail_width': 150,
-            'thumbnail_height': 150,
-            'provider_url': base,
-            }
-    return json.dumps(response)
+
+class Encoder(json.JSONEncoder):
+    def default(self,o):
+        if hasattr(o,'__next__') and not isinstance(o,(list,tuple,str,bytes)):
+            o = tuple(o)
+        elif hasattr(o,'posi'):
+            o = tags.full(o)
+            o = dict(yes=o.posi,no=o.nega)
+        return super().default(o)
