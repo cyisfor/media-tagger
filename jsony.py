@@ -256,9 +256,9 @@ def showAllComics(params):
     if Session.head:
         for stuff in getInfos(): pass
         return
-    return {total=comic.numComics(),
+    return dict(total=comic.numComics(),
             page=page,
-            comics=getInfos()}
+            comics=getInfos())
 
 def showPages(path,params):
     com = int(path[0],0x10)
@@ -285,13 +285,13 @@ def showPages(path,params):
             Links.prev = page - 1
         if page + 1 < numPages:
             Links.next = page + 1
-        return makePage({
+        return makePage(
             comic=com,
             title=title,
             description=description,
             source=source,
             pages=numPages,
-            media=getMedia()})
+            media=getMedia())
 
 def showComicPage(path):
     com = int(path[0],0x10)
