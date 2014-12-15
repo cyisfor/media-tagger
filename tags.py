@@ -86,6 +86,80 @@ def tag(thing,tags):
             db.c.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
             db.c.execute("SELECT connectManyToOne($1,$2)",(tags.posi,thing))
 
+
+class Tag:
+    ID,STR,PAIR,SPAIR = range(4)
+    mode = Tag.ID
+    spair = pair = s = i = None
+    def __init__(self,thing,category=None):
+        if category:
+            if isinstance(category,str):
+                assert(isinstance(thing,str))
+                self.mode = Tag.SPAIR
+                self.spair = (category,thing)
+            elif isinstance(category,int):
+                assert(isinstance(thing,int))
+                self.mode = Tag.PAIR
+                self.pair = (category, thing)
+        else:
+            if isinstance(thing,str):
+                self.mode = Tag.STR
+                self.s = thing
+            else:
+                assert(isinstance(thing,int))
+                self.mode = ID
+                self.i = thing
+    def pair2spair(self):
+        self.spair = tuple(row[0] for row in db.c.execute('SELECT name FROM tags WHERE id = $1 OR id = $2',self.pair))
+    def spair2pair(self):
+        self.pair = tuple(row[0] for row in db.c.execute('SELECT findTag($1),findTag($2)',self.spair))
+    def str2spair(self):
+        if ':' in self.s:
+            self.spair = self.split(':',1)
+        else:
+            self.spair = (None, self.s)
+    def switch(self,mode):
+        if mode == STR and not self.s:
+            if self.mode == INT:
+                self.s = db.c.execute('SELECT name FROM tags WHERE id = $1',(self.i,))[0][0]
+            else:
+                if self.mode == PAIR:
+                    self.pair2spare()
+                if self.spair[0]:
+                    self.s = self.spair[0]+':'+self.spair[1]
+                else:
+                    self.s = self.spair[1]
+        elif mode == INT and not self.i:
+            if self.mode == PAIR:
+                self.i = self.pair[1]
+            elif self.mode == SPAIR:
+                self.spair2pair()
+                if len(pair) == 1:
+                    pair = (None,pair[0])
+            elif self.mode == STR:
+                self.pair = (None, db.c.execute('SELECT id FROM tags WHERE name = $1',(self.s,))[0][0]
+        elif mode == PAIR and not self.pair:
+            if self.mode == INT:
+                raise RuntimeException("Can't find category for individual tag")
+            elif self.mode == STR:
+                self.str2spair()
+                self.spair2pair()
+            elif self.mode == SPAIR:
+                self.spair2pair()
+        elif mode == SPAIR and not self.spair:
+            if self.mode == INT:
+                raise RuntimeException("Can't find category for individual tag (spair)")
+            elif self.mode == STR:
+                self.str2spair()
+                self.spair = (None, db.c.execute('SELECT name FROM tags WHERE id = $1',(self.i,))[0][0])
+            elif self.mode == PAIR:
+                self.pair2spair()
+            elif self.mode == STR:
+                self.spair = (None, self.s)
+
+        self.mode = mode
+
+
 class Taglist:
     def __init__(self):
         self.posi = set()
