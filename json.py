@@ -40,7 +40,7 @@ def makeLinks(info):
         for id,name,type,tags in info:
             i = next(counter)
             tags = [str(tag) for tag in tags]
-            fid,oneexists = filedb.check(id,type)            
+            fid,oneexists = filedb.check(id,create=False)
             allexists = allexists and oneexists
             yield dict(id=id,exists=onexists,name=name,type=type,tags=tags)
     return {'allexists': allexists, 
@@ -55,47 +55,23 @@ def makeBase():
 class Links:
     next = None
     prev = None
-    style = "/style/art.css"
     id = None
 
 def standardHead(title,*contents):
-    # oembed sucks:
+    ret = {'title': title}
+    if Links.prev:
+        ret['prev'] = Links.prev
+    if Links.next:
+        ret['next'] = Links.next
     if Links.id:
-        url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
-    return d.head(d.title(title),
-            d.meta(charset='utf-8'),
-        d.link(rel="icon",type="image/png",href="/favicon.png"),
-        d.link(rel='stylesheet',type='text/css',href=Links.style),
-        d.link(rel='next',href=Links.next if Links.next else ''),
-        d.link(rel='prev',href=Links.prev if Links.prev else ''),
-        d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id,
-            # oembed sucks:
-            quote(url))) if Links.id else '',
-        *contents)
+        ret['id'] = Links.id
 
-def makePage(title,*content,**kw):
-    if kw.get('nouser') is None:
-        content = content + (
-            d.p(d.a("User Settings",href=("/art/~user"))),)
-    return d.xhtml(standardHead(title),d.body(
-#        d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
-        *content))
+def makePage(title,**kw):
+    ret = standardHead(title)
+    ret['content'] = kw
 
-def makeE(tag):
-    tag = d.Tag(tag)
-    def makeE(*a,**kw):
-        return d.Element(tag,*a,**kw)
-    return makeE
-audio = makeE('audio')
-video = makeE('video')
-source = makeE('source')
-embed = makeE('embed')
-
-def makeLink(id,type,name,doScale,width=None,height=None,style=None):
-    isImage = None
-    if doScale:
-        isImage = type.startswith('image')
-        fid,exists = filedb.checkResized(id)
+def makeLink(id,type,name,width=None,height=None,style=None):
+    fid,exists = filedb.checkResized(id,create=False)
         resized = '/resized/'+fid+'/donotsave.this'
         Session.refresh = not exists and isImage
     else:

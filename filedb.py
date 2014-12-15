@@ -7,10 +7,12 @@ oj = os.path.join
 base = os.path.expanduser("/extra/user/filedb")
 top = base
 
-def _check(id,category,contents=None,delay=0.1):
+def _check(id,category,create=True,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
     if os.path.exists(medium): return id,True
+    if not create:
+        return id, False
     target = oj(base,'temp',id)
     with open(target,'wb') as out:
         if contents:
