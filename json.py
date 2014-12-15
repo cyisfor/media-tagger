@@ -57,94 +57,46 @@ class Links:
     prev = None
     id = None
 
-def standardHead(title,*contents):
-    ret = {'title': title}
+def standardHead():
+    ret = {}
     if Links.prev:
         ret['prev'] = Links.prev
     if Links.next:
         ret['next'] = Links.next
     if Links.id:
         ret['id'] = Links.id
+    return ret
 
-def makePage(title,**kw):
-    ret = standardHead(title)
-    ret['content'] = kw
+def makePage(content=None,**kw):
+    ret = standardHead()
+    if content:
+        ret.update(content)
+    ret.update(kw)
+    return ret
 
-def makeLink(id,type,name,width=None,height=None,style=None):
-    fid,exists = filedb.checkResized(id,create=False)
-        resized = '/resized/'+fid+'/donotsave.this'
-        Session.refresh = not exists and isImage
+def makeLink(id,type,name,doScale,width=None,height=None):
+    if doScale:
+        if not type.startswith('image'):
+            doScale = False
+    if doScale: # still...
+        fid,exists = filedb.checkResized(id,create=False)
     else:
-        fid = '{:x}'.format(id)
-        resized = None
+        fid,exists = filedb.check(id,'media',create=False)
 
-    if not style:
-        if isImage is None:
-            isImage = type.startswith('image')
-        if not isImage:
-            if width:
-                style="width: "+str(width)+'px;'
-            else:
-                style = None
-            if height:
-                sty = ' height: '+str(height)+'px;'
-                style = style + sty if style else sty
-
-    thing = '/'.join(('/media',fid,type,name))
-
-    if type.startswith('text'):
-        return fid,d.pre(thing),thing
-    if type.startswith('image'):
-        if doScale:
-            height = width = None # already resized the pixels
-        if resized:
-            return fid,d.img(src=resized,alt='Still resizing...'),thing
-        else:
-            return fid,d.img(src=thing,style=style),thing
-    # can't scale videos, so just adjust their width/height in CSS
-    wrapper = None
-    if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
-        if type.endswith('webm') or type.endswith('ogg'):
-            if type[0]=='a':
-                wrapper = audio
-            else:
-                wrapper = video
-            return fid,wrapper(source(src=thing,type=type),
-                    d.object(
-                        embed(src=thing,style=style,type=type),
-                        width=width, height=height,
-                        data=thing,style=style,type=type),
-                        autoplay=True,loop=True),thing
-        else:
-            return fid,(d.object(
-                    embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
-                    d.param(name='src',value=thing),
-                        style=style,
-                        type=type,
-                        loop=True,
-                        autoplay=True, 
-                        width=width, 
-                        height=height),d.br(),"Download"),thing
-    if type == 'application/x-shockwave-flash':
-        return fid,(d.object(d.param(name='SRC',value=thing),
-                embed(' ',src=thing,style=style),
-                style=style),d.br(),'Download'),thing
-    raise RuntimeError("What is "+type)
-
-def mediaLink(id,type):
-    return '/media/{:x}/{}'.format(id,type)
+    ret = dict(id=id,exists=exists,type=type,name=name,resized=(doScale is True))
+    if width:
+        ret['width'] = width
+    if height:
+        ret['height'] = height
+    return ret
 
 def simple(info,path,params):
     if Session.head: return
-    id,type = info
-    return makePage("derp",d.a(d.img(src=mediaLink(id,type)),href=pageLink(id)))
+    return info
 
 def resized(info,path,params):
     id = int(path[1],0x10)
-    while True:
-        fid, exists = filedb.checkResized(id)
-        if exists: break
-    raise Redirect("/resized/"+fid+"/donotsave.this")
+    return dict(zip(('fid','exists'),filedb.checkResized(id)))
 
 def page(info,path,params):
     if Session.head:
@@ -152,7 +104,6 @@ def page(info,path,params):
     else:
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
 
-    doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize
 
     if Session.head:
@@ -161,113 +112,47 @@ def page(info,path,params):
             Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
         return
-    Links.id = id
-    Session.modified = modified
-    if name:
-        name = quote(name)
-        if not '.' in name:
-            name = name + '/untitled.jpg'
-    else:
-        name = 'untitled.jpg'
-    tags = [str(tag) if not isinstance(tag,str) else tag for tag in tags]
-    tags = [(degeneralize(tag),tag) for tag in tags]
-    boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
-    # even if not rescaling, sets img width unless ns in params
-    fid,link,thing = makeLink(id,type,name,doScale,width,height)
-    tail = []
-    def pageURL(id):
-        return '../{:x}'.format(id)
-    def updateComic(comic):
-        def comicURL(id):
-            return '/art/~comic/{:x}/'.format(id)
-        comic, title, prev, next = comic
-        tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
-    if comic:
-        updateComic(comic)
-    if tags:
-        tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
     with Links:
+        Links.id = id
+        Session.modified = modified
+        if name:
+            name = quote(name)
+            if not '.' in name:
+                name = name + '/untitled.jpg'
+        else:
+            name = 'untitled.jpg'
+        # assume tags are (category,name) or just name in general:
+        link = makeLink(id,type,name,doScale,width,height)
+        # comic, title, prev, next = comic
         if next:
-            Links.next = pageURL(next)+unparseQuery()
+            Links.next = next
         if prev:
-            Links.prev = pageURL(prev)+unparseQuery()
-        return makePage("Page info for "+fid,
-                comment("Tags: "+boorutags),
-                d.p(d.a(link,id='mediumu',href=thing)),
-                d.p(d.a('Info',href=place+"/~info/"+fid)),
-                tail)
-
-def stringize(key):
-    if hasattr(key,'isoformat'):
-        return key.isoformat()
-    elif isinstance(key,str):
-        return key
-    elif isinstance(key,bytes):
-        return key.decode('utf-8')
-    return str(key)
-
-def thumbLink(id):
-    return "/thumb/"+'{:x}'.format(id)
+            Links.prev = prev
+        link['tags'] = tags
+        return makePage(link)
 
 def info(info,path,params):
     Session.modified = info['sessmodified']
-    if Session.head: return
     del info['sessmodified']
-    import info as derp
-    id = info['id']
-    sources = info['sources']
-    if sources is None:
-        sources = ()
-    else:
-        sources = ((id,derp.source(id)) for id in sources)
-        sources = [pair for pair in sources if pair[1]]
-    keys = set(info.keys())
-    keys.discard('id')
-    keys.discard('sources')
-    keys = sorted(keys)
-    fid,exists = filedb.check(id)
-    Session.refresh = not exists
-    tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
-    info['tags'] = ', '.join(tags)
-
-    return makePage("Info about "+fid,
-            d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
-            d.table((d.tr(d.td(key),d.td(stringize(info[key]),id=key)) for key in keys),Class='info'),
-            d.hr(),
-            "Sources",
-            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
-
-def like(info):
-    return "Under construction!"
-
-def unparseQuery(query={}):
-    for n,v in Session.params.items():
-        query.setdefault(n,v)
-    result = []
-    for n,v in query.items():
-        if isinstance(v,list) or isinstance(v,tuple) or isinstance(v,set):
-            for vv in v:
-                result.append((n,vv))
-        elif isinstance(v,int):
-            result.append((n,'{:x}'.format(v)))
+    with Links:
+        sources = info.pop('sources')
+        if sources is None:
+            sources = ()
         else:
-            result.append((n,v))
-    if result:
-        return '?'+'&'.join(n+'='+v for n,v in result)
-    return ''
-
-def tagsURL(tags,negatags):
-    if not (tags or negatags): return place+'/'
-    res = place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
-    return res
-
-def stripGeneral(tags):
-    return [tag.replace('general:','') for tag in tags]
+            import info as derp
+            sources = ((id,derp.source(id)) for id in sources)
+            sources = [pair for pair in sources if pair[1]] # no empty URLs
+        info['sources'] = sources
+        Links.id = info.pop('id')
+        fid,exists = filedb.check(Links.id)
+        Session.refresh = not exists
+        if Session.head: return        
+    return makePage(info)
 
 def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
-    basic = tags.names(basic)
-    related=stripGeneral(related)
+    related = tags.nomenclature(related)
+    basic = tags.nomenclature(basic)
 
     removers = []
     for tag in basic.posi:

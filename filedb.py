@@ -26,14 +26,21 @@ def _check(id,category,create=True,contents=None,delay=0.1):
         time.sleep(delay)
     return id,exists
 
-def check(id):
-    return _check(id,'thumb',delay=0.01)
+def check(id,**kw):
+    kw.setdefault('category','thumb')
+    kw.setdefault('delay',0.01)
+    if kw['create'] and kw['category'] == 'thumb':
+        try:
+            del kw['contents']
+        except KeyError: pass
+    return _check(id,**kw)
 
-def checkResized(id):
-    return _check(id,'resized',"{:x}".format(800),delay=0.1)
+def checkResized(id,**kw):
+    kw.setdefault('delay',0.1)
+    return _check(id,'resized',contents="{:x}".format(800),delay=0.1,**kw)
 
-def checkOEmbed(id,maxWidth):
-    return _check(id,'oembed','{:x}'.format(maxWidth))
+def checkOEmbed(id,maxWidth,**kw):
+    return _check(id,'oembed',contents='{:x}'.format(maxWidth),**kw)
 
 def mediaPath(id=None):
     loc = os.path.join(base,'media')
