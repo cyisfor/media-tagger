@@ -151,125 +151,52 @@ def info(info,path,params):
 
 def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
-    related = tags.nomenclature(related)
-    basic = tags.nomenclature(basic)
-
-    removers = []
-    for tag in basic.posi:
-        removers.append(d.a(tag,href=tagsURL(basic.posi.difference(set([tag])),basic.nega)))
-    for tag in basic.nega:
-        removers.append(d.a('-'+tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
-
     with Links:
         info = list(info)
         if len(info)>=thumbnailPageSize:
-            query['o'] = offset + 1
-            Links.next = url.path+unparseQuery(query)
+            Links.next = offset + 1
         if offset > 0:
-            query['o'] = offset - 1
-            Links.prev = url.path+unparseQuery(query)
-        return makePage("Media "+str(basic),
-                d.p("You are ",d.a(User.ident,href=place+"/~user")),
-                d.table(makeLinks(info)),
-                (d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
-                (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
-                d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
+            Links.prev = offset - 1
+        if Session.head:
+            return
+        related = tags.full(related)
+        basic = tags.full(basic)
+
+        return makePage(
+                tags=basic,
+                links=makeLinks(info))
 
 def desktop(raw,path,params):
     import desktop
     if 'n' in params:
         n = int(params['n'][0],0x10)
     else:
-        n = 0x10
+        n = 1
     history = desktop.history(n)
     if not history:
-        return "No desktops yet!?"
-    if 'd' in params:
-        raise Redirect(pageLink(0,history[0]))
-    if Session.head:
-        Session.modified = c.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
-        return
-    if n == 0x10:
-        current = history[0]
-        history = history[1:]
-        name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
-        tags = [str(tag) for tag in tags]
-        type = stripPrefix(type)
-        middle = (
-            d.p("Having tags ",doTags(place,tags)),
-            d.p(d.a(d.img(src="/".join(("","media",'{:x}'.format(current),type,name))),
-                href=pageLink(current,0))),
-            d.hr())
-    else:
-        middle = ''
+        return dict(error="No desktops yet!?")
+    current = history[0]
+    history = history[1:]
+    id,name,modified,type,tags = c.execute("SELECT media.id,name,modified,type,(select array_agg(id),array_agg(name) from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+    Session.etag = 'desktop-'+str(id)+str(modified) 
+    # can't do Session.modified b/c old pictures might show up newly
     def makeDesktopLinks():
         allexists = True
         for id,name in c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
             fid,exists = filedb.check(id) 
             allexists = allexists and exists
-            yield d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
-                            href=pageLink(id)))
+            yield dict(id=id,name=name,exists=exists)
         Session.refresh = not allexists
-    def makeDesktopRows():
-        row = []
-        for td in makeDesktopLinks():
-            row.append(td)
-            if len(row) == 8:
-                yield d.tr(row)
-                row = []
-        if len(row):
-            yield d.tr(row)
-
-    Session.modified = c.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
-    return makePage("Current Desktop",
-            middle,
-            d.p("Past Desktops"),
-            d.div(
-                d.table(
-                    makeDesktopRows())))
+    if history:
+        links = tuple(makeDesktopLinks())
+    else:
+        links = ()
+    if Session.head: return
+    return makePage(current=current,history=links)
 
 def user(info,path,params):
     if Session.head: return
-    if 'submit' in params:
-        process.user(path,params)
-        raise Redirect(place+'/~user')
-    iattr = {
-            'type': 'checkbox',
-            'name': 'rescale'}
-    if User.rescaleImages:
-        iattr['checked'] = True
-    rescalebox = d.input(iattr)
-    if User.defaultTags:
-        def makeResult():
-            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
-            for name in result:
-                yield name[0],False
-            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.nega,))
-            for name in result:
-                yield name[0],True
-        result = makeResult()
-    else:
-        result = c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.tag WHERE uzertags.uzer = $1',(User.id,))
-        note('raw uzer tag result',result)
-        result = ((row[0],row[1] is True or row[1]=='t') for row in result)
-    tagnames = []
-    for name,nega in result:
-        if nega:
-            name = '-'+name
-        tagnames.append(name)
-    tagnames = ', '.join(tagnames)
-    note('tagnames',tagnames)
-    return makePage("User Settings",
-        d.form(
-        d.ul(
-            d.li("Rescale Media? ",rescalebox),
-            d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
-            d.li(d.input(type="submit",value="Submit"))),
-        action=place+'/~user/',
-        type='application/x-www-form-urlencoded',
-        method="post"),
-        d.p(d.a('Main Page',href=place)),
-        nouser=True)
+    return dict(useDefault=User.defaultTags,rescale=User.rescaleImages, implied=tags.full(User.impliedTags))
 
 def getPage(params):
     page = params.get('p')

@@ -148,6 +148,24 @@ def names(tags):
         tags = _namesOneSide(tags)
     return tags
 
+def _fullOneSide(tags):
+    tags = list(tags)
+    if not tags or type(tags[0])==tuple:
+        return set(tags)
+    result = set()
+    if type(tags[0]) == 'str':
+        field = 'name'
+    else:
+        field = 'id'
+    for row in db.c.execute('SELECT id,name FROM tags WHERE '+field+' = ANY($1)',(tags,)):
+        names.add(row)
+    return names
+
+def full(tags):
+    tags.posi = _fullOneSide(tags.posi)
+    tags.nega = _fullOneSide(tags.nega)
+    return tags
+
 def parse(s):
     tags = Taglist()
     for thing in s.split(','):
