@@ -3,6 +3,9 @@ $$
 DECLARE 
 _id bigint;
 BEGIN
+    if _name IS NULL THEN
+        RETURN NULL;
+    END IF;
     LOOP
         SELECT tags.id INTO _id FROM tags WHERE name = _name;
         IF FOUND THEN
