@@ -1,5 +1,6 @@
 import os,io
 from ansi import color,reset
+import sys
 
 white = color('white',bold=True)
 

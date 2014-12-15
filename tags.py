@@ -99,6 +99,17 @@ class Taglist:
         self.nega.difference_update(bro.posi)
     def __repr__(self):
         return repr(('taglist',self.posi,self.nega))
+    def __str__(self):        
+        friend = Taglist()
+        friend.posi = self.posi
+        friend.nega = self.nega
+        names(friend)
+        s = ', '.join(friend.posi)
+        if friend.nega:
+            if friend.posi:
+                s += ', '
+            s += ', '.join('-'+name for name in friend.nega)
+        return s
 
 def makeTag(name):
     try: 

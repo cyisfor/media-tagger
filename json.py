@@ -1,8 +1,7 @@
 import process
 from note import note
+import json
 
-import dirty.html as d
-from dirty import RawString
 from place import place
 from itertools import count
 import fixprint
@@ -27,9 +26,6 @@ import textwrap
 maxWidth = 800
 maxSize = 0x40000
 
-def wrappit(s):
-    return textwrap.fill(s,width=0x40)
-
 def quote(s):
     try:
         return derp(s).replace('/','%2f')
@@ -37,104 +33,19 @@ def quote(s):
         print(repr(s))
         raise
 
-def comment(s):
-    return RawString('<!-- '+s+' -->')
-def stripPrefix(type):
-    if type:
-        a = type.split('/',1)
-        if len(a)==2:
-            return a[1]
-        else:
-            return 'jpeg'
-
-def degeneralize(tag):
-    if tag[:len('general:')]=='general:':
-        return tag[len('general:'):]
-    return tag
-
-def spaceBetween(elements):
-    first = True
-    for e in elements:
-        if first:
-            first = False
-        else:
-            yield ' '
-        yield e
-
-def doTags(top,tags):
-    return spaceBetween([d.a(tag,href=top+'/'+quote(tag)+'/') for tag in tags])
-
-def pageLink(id,i=0):
-    return place+'/~page/'+'{:x}/'.format(id)
-
-# Cannot set modified from the set of media in this because:
-# If the 1st page has a newly added medium, the 3rd page will change,
-# but the media on the 3rd page will still have older modified times.
-# You'd need to request the first page AND the 3rd page, then just use the max modified from
-# the first page, for every query. Could just request offset 0 limit 1 I guess...
-# withtags.searchTags(tags,negatags,offset=0,limit=1,justModifiedField=True)
-# XXX: do this, but write story for now.
-# but then you add a tag to the 29th page medium, and page 30 changes but page 1 stays the same!
-
-def tail(s,delim):
-    i = s.rfind(delim)
-    if i == -1:
-        return s
-    return s[i+1:]
-
-assert tail("test.jpg",".")=='jpg'
-
-def fixType(id):
-    import derpmagic as magic
-    import filedb
-    info = magic.guess_type(filedb.mediumPath(id))
-    type = info[0]
-    if type == 'application/octet-stream':
-        raise RuntimeError("Please inspect {:x} could not determine type!".format(id))
-    c.execute("UPDATE media SET type = $1 WHERE id = $2",(type,id))
-    return type
-
-def fixName(id,type):
-    for uri, in c.execute("SELECT uri FROM urisources INNER JOIN media ON media.sources @> ARRAY[urisources.id] AND media.id = $1",(id,)):
-        name = tail(uri,'/').rstrip('.')
-        if name: break
-    else:
-        name = 'unknown'
-
-    if not '.' in name:
-        if type == 'application/octet-stream': 
-            type = fixType(id)
-        import derpmagic as magic
-        name = name + magic.guess_extension(type)
-
-    c.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
-    return name
-
-def makeLinks(info,linkfor=None):
-    if linkfor is None:
-        linkfor = pageLink
-    counter = count(0)
-    row = []
+def makeLinks(info):
     allexists = True
-    for id,name,type,tags in info:
-        i = next(counter)
-        if i%thumbnailRowSize==0:
-            if row:
-                yield d.tr(*row)
-            row = []
-        tags = [str(tag) for tag in tags]
-        if type == 'application/x-shockwave-flash':
-            src = '/flash.jpg'
-        else:
-            fid,oneexists = filedb.check(id)
+    def iter():
+        nonlocal allexists
+        for id,name,type,tags in info:
+            i = next(counter)
+            tags = [str(tag) for tag in tags]
+            fid,oneexists = filedb.check(id,type)            
             allexists = allexists and oneexists
-            src='/thumb/'+fid
-        link = linkfor(id,i)
-        if name is None:
-            name = fixName(id,type)
-        row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-    if row: yield d.tr(*row)
-    Session.refresh = not allexists
+            yield dict(id=id,exists=onexists,name=name,type=type,tags=tags)
+    return {'allexists': allexists, 
+            'rowsize': thumbnailRowSize, 
+            'links': iter()}
 
 def makeBase():
     # drop bass

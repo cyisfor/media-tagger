@@ -131,7 +131,6 @@ class ResponseHandler(object):
                 self.length = value
     status_sent = False
     def send_status(self,code,message):
-        print('status',code,message)
         self.code = code
         self.message = message
         self.status_sent = True
