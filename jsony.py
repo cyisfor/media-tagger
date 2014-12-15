@@ -252,7 +252,7 @@ def showAllComics(params):
             if not medium: 
                 medium = 0x5c911
             checkModified(medium)
-            yield {id=id,medium=medium,title=title,type=getType(medium)}
+            yield dict(id=id,medium=medium,title=title,type=getType(medium))
     if Session.head:
         for stuff in getInfos(): pass
         return

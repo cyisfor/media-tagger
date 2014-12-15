@@ -14,8 +14,7 @@ from setupurllib import isPypy
 
 from session import Session
 
-import pages
-from pages import media
+import pages,jsony
 import withtags
 import tags as tagsModule
 from tags import Taglist
@@ -51,13 +50,17 @@ def parsePath(pathquery):
     parsed = urlparse(pathquery)
     params = parse_qs(parsed.query)
     path = parsed.path
-    if not path.endswith('/'): 
+    if path.endswith('.json'):
+        json = True
+    elif not path.endswith('/'): 
         # we want a trailing / or can't tell whether to go . or ..
         raise Redirect(path + '/')
+    else:
+        json = False
     path = path.split('/')[:-1] # last is a blank for the trailing /
     path = path[2:] # blank, art at the front
     path = [urllib.parse.unquote(thing) for thing in path] # some sites make ~ -> %7E -_-
-    return path,parsed,params
+    return json,path,parsed,params
 
 class Handler(BaseHTTPRequestHandler):
     def version_string(self):
@@ -144,7 +147,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.headers.get('Connection','') == 'close':
             print("WARN connection won't close!")
-        path,parsed,params = parsePath(self.path)
+        json,path,parsed,params = parsePath(self.path)
         mode = path[0][1:]
         ctype, pdict = cgi.parse_header(self.headers['content-type'])
         length = int(self.headers.get('Content-Length'))
@@ -173,12 +176,12 @@ class Handler(BaseHTTPRequestHandler):
         return self.do_GET()
     def do_GET(self):
         Session.handler = self
-        path,pathurl,params = parsePath(self.path)
+        json,path,pathurl,params = parsePath(self.path)
         Session.params = params
         # Session.query = ...
         if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
             mode = path[0][1:]
-            page = dispatch(mode,path,params)
+            page = dispatch(json,mode,path,params)
         else:
             implied = self.headers.get("X-Implied-Tags")                
             if implied:
@@ -188,6 +191,12 @@ class Handler(BaseHTTPRequestHandler):
             tagfilter.filter(tags)
             tags.update(User.tags())
             basic = Taglist()
+            # basic = visible tags to the user, i.e. not implied or user tags
+
+            if json:
+                disp = jsony
+            else:
+                disp = pages
 
             for thing in path:
                 if thing:
@@ -212,13 +221,19 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     o = 0
                 ident,name,type,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
-                with pages.Links:
-                    params['o'] = o + 1
-                    pages.Links.next = pages.unparseQuery(params)
+                with disp.Links:
+                    if json:
+                        disp.Links.next = o + 1
+                    else:
+                        params['o'] = o + 1
+                        disp.Links.next = disp.unparseQuery(params)
                     if o > 0:
-                        params['o'] = o - 1
-                        pages.Links.prev = pages.unparseQuery(params)
-                    page = pages.page((ident,None,None,name,type,0,0,0,0,tags),path,params)
+                        if json:
+                            disp.Links.prev = o - 1
+                        else:
+                            params['o'] = o - 1
+                            disp.Links.prev = disp.unparseQuery(params) 
+                    page = disp.page((ident,None,None,name,type,0,0,0,0,tags),path,params)
             else:
                 if o:
                     o = int(o[0],0x10)
@@ -226,15 +241,21 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     offset = o = 0
                     
-                page = media(pathurl,params,o,
+                page = disp.media(pathurl,params,o,
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic)
-        page = str(page).encode('utf-8')
+        if json:
+            page = jsony.encode(page).encode('utf-8')
+        else:
+            page = str(page).encode('utf-8')
         self.send_response(200,"OK")
-        self.send_header('Content-Type',Session.type if Session.type else 'text/html; charset=utf-8')
+        self.send_header('Content-Type',Session.type if Session.type else 'application/json' if json else 'text/html; charset=utf-8')
         if Session.modified:
             self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
-        self.send_header('Content-Length',len(page))
+        if not Session.head:
+            self.send_header('Content-Length',len(page))
+        else:
+            self.send_header('Content-Length',0)
         if Session.refresh:
             if Session.refresh is True:
                 Session.refresh = 5
