@@ -29,7 +29,6 @@ import urllib.parse
 
 note.monitor(myserver)
 note.monitor(__name__)
-note = note.note
 
 def parsePath(pathquery):
     parsed = urllib.parse.urlparse(pathquery)
@@ -152,8 +151,9 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 yield self.send_status(r.code,"go")
                 yield self.send_header('Location',r.where)
     def head(self):
-        Session.head = True
-        return self.get()
+        with Session:
+            Session.head = True
+            return self.get()
     def options(self):
         self.send_response(200,"OK")
         self.send_header('Content-Length',0)
@@ -244,13 +244,16 @@ class Handler(FormCollector,myserver.ResponseHandler):
         self.send_header('Content-Type',Session.type if Session.type else 'application/json; charset=utf-8' if json else 'text/html; charset=utf-8')
         if Session.modified:
             self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
-        self.set_length(len(page))
+        if Session.head:
+            self.set_length(0)
+        else:
+           self.set_length(len(page))
         if Session.refresh:
             if Session.refresh is True:
                 Session.refresh = 5
             self.send_header('Refresh',str(Session.refresh))
         self.end_headers()
-        if Session.head is False:
+        if not Session.head:
             self.write(page)
 
 #myserver.Server(Handler).listen(8934)

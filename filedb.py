@@ -29,7 +29,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
 def check(id,**kw):
     kw.setdefault('category','thumb')
     kw.setdefault('delay',0.01)
-    if kw['create'] and kw['category'] == 'thumb':
+    if kw.get('create') and kw.get('category') == 'thumb':
         try:
             del kw['contents']
         except KeyError: pass

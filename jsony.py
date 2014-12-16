@@ -1,5 +1,5 @@
 import process
-from note import note
+import note
 import json
 
 from place import place
@@ -37,12 +37,11 @@ def makeLinks(info):
     allexists = True
     def iter():
         nonlocal allexists
-        for id,name,type,tags in info:
-            i = next(counter)
-            tags = [str(tag) for tag in tags]
+        for id,name,type,tagz in info:
+            tagz = [str(tag) for tag in tagz]
             fid,oneexists = filedb.check(id,create=False)
             allexists = allexists and oneexists
-            yield dict(id=id,exists=onexists,name=name,type=type,tags=tags)
+            yield dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz))
     return {'allexists': allexists, 
             'rowsize': thumbnailRowSize, 
             'links': iter()}
@@ -151,6 +150,7 @@ def info(info,path,params):
 
 def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
+    import sys,os
     with Links:
         info = list(info)
         if len(info)>=thumbnailPageSize:
@@ -323,9 +323,15 @@ def showComic(info,path,params):
 
 class Encoder(json.JSONEncoder):
     def default(self,o):
-        if hasattr(o,'__next__') and not isinstance(o,(list,tuple,str,bytes)):
-            o = tuple(o)
-        elif hasattr(o,'posi'):
-            o = tags.full(o)
-            o = dict(yes=o.posi,no=o.nega)
+        note('checking',o)
+        try:
+            iterable = iter(o)
+        except TypeError:
+            if hasattr(o,'posi'):
+                o = tags.full(o)
+                return dict(yea=o.posi,nay=o.nega)
+        else:
+            return tuple(o)
         return super().default(o)
+
+encode = Encoder().encode

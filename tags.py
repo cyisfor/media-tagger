@@ -5,6 +5,8 @@ try:
     pgi.install_as_gi()
 except ImportError: pass
 
+import note
+
 import db
 import filedb
 import collections
@@ -136,6 +138,9 @@ def _namesOneSide(tags):
     if not tags or type(tags[0])==str:
         return set(tags)
     names = set()
+    note.yellow(tags)
+    if isinstance(tags[0],tuple):
+        tags = (tags[0] for tag in tags)
     for row in db.c.execute('SELECT name FROM tags WHERE id = ANY($1)',(tags,)):
         names.add(str(row[0]))
     return names
@@ -153,17 +158,20 @@ def _fullOneSide(tags):
     if not tags or type(tags[0])==tuple:
         return set(tags)
     result = set()
-    if type(tags[0]) == 'str':
+    if isinstance(tags[0],str):
         field = 'name'
     else:
         field = 'id'
     for row in db.c.execute('SELECT id,name FROM tags WHERE '+field+' = ANY($1)',(tags,)):
-        names.add(row)
-    return names
+        result.add(tuple(row))
+    return result
 
 def full(tags):
-    tags.posi = _fullOneSide(tags.posi)
-    tags.nega = _fullOneSide(tags.nega)
+    if isinstance(tags,Taglist):
+        tags.posi = _fullOneSide(tags.posi)
+        tags.nega = _fullOneSide(tags.nega)
+    else:
+        tags = _fullOneSide(tags)
     return tags
 
 def parse(s):
