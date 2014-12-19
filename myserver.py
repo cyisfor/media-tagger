@@ -85,7 +85,7 @@ class ResponseHandler(object):
         else:
             assert self.version == 'HTTP/1.1'
         self.headers = HTTPHeaders()
-        self.headers.add("Server", "MYOB/1.0")
+        self.headers.add("Server", "Apache") # MYOB/1.0
         self.pending = [] # delay body writes until headers sent
     def date_time_string(self,timestamp=None):
         """Return the current date and time formatted for a message header."""
@@ -223,7 +223,7 @@ class ResponseHandler(object):
             yield self.end_headers()
         finally:
             self.recordAccess()
-    def redirect(self,location,code=302,message='boink'):
+    def redirect(self,locationcode=302,message='boink'):
         raise Redirect(self,location,code,message)
     ip = None
     def recordAccess(self):

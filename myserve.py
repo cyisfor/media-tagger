@@ -36,6 +36,8 @@ def parsePath(pathquery):
     path = parsed.path
     if path.endswith('.json'):
         json = True
+        if not path.endswith('/.json'):
+            path = path[:-len('.json')]+'/'
     elif not path.endswith('/'): 
         # we want a trailing / or can't tell whether to go . or ..
         raise Redirect(path + '/')

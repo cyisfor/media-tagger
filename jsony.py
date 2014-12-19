@@ -20,6 +20,7 @@ import filedb
 import json
 from urllib.parse import quote as derp, urljoin
 import time
+import datetime
 
 import textwrap
 
@@ -58,11 +59,11 @@ class Links:
 
 def standardHead():
     ret = {}
-    if Links.prev:
+    if Links.prev is not None:
         ret['prev'] = Links.prev
-    if Links.next:
+    if Links.next is not None:
         ret['next'] = Links.next
-    if Links.id:
+    if Links.id is not None:
         ret['id'] = Links.id
     return ret
 
@@ -80,7 +81,7 @@ def makeLink(id,type,name,doScale,width=None,height=None):
     if doScale: # still...
         fid,exists = filedb.checkResized(id,create=False)
     else:
-        fid,exists = filedb.check(id,'media',create=False)
+        fid,exists = filedb.check(id,category='media',create=False)
 
     ret = dict(id=id,exists=exists,type=type,name=name,resized=(doScale is True))
     if width:
@@ -103,7 +104,7 @@ def page(info,path,params):
     else:
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
 
-    doScale = doScale and User.rescaleImages and size >= maxSize
+    doScale = User.rescaleImages and size >= maxSize
 
     if Session.head:
         if doScale: 
@@ -177,7 +178,7 @@ def desktop(raw,path,params):
         return dict(error="No desktops yet!?")
     current = history[0]
     history = history[1:]
-    id,name,modified,type,tags = c.execute("SELECT media.id,name,modified,type,(select array_agg(id),array_agg(name) from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+    id,name,modified,type,tags,tagnames = c.execute("SELECT media.id,name,modified,type,array(select id from tags where tags.id = ANY(neighbors)),array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
     Session.etag = 'desktop-'+str(id)+str(modified) 
     # can't do Session.modified b/c old pictures might show up newly
     def makeDesktopLinks():
@@ -187,12 +188,11 @@ def desktop(raw,path,params):
             allexists = allexists and exists
             yield dict(id=id,name=name,exists=exists)
         Session.refresh = not allexists
+    info = dict(current=current,name=name,modified=modified,tags=zip(tags,tagnames),type=type)
     if history:
-        links = tuple(makeDesktopLinks())
-    else:
-        links = ()
+        info['history'] = tuple(makeDesktopLinks())
     if Session.head: return
-    return makePage(current=current,history=links)
+    return makePage(info)
 
 def user(info,path,params):
     if Session.head: return
@@ -330,6 +330,8 @@ class Encoder(json.JSONEncoder):
             if hasattr(o,'posi'):
                 o = tags.full(o)
                 return dict(yea=o.posi,nay=o.nega)
+            elif isinstance(o,datetime.datetime):
+                return o.isoformat()
         else:
             return tuple(o)
         return super().default(o)

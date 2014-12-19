@@ -85,8 +85,7 @@ urllib.request.install_opener(opener)
 
 class URLError(Exception): 
     def __str__(self):
-        print('req',dir(self.args[0]),file=sys.stderr)
-        print('exe',self.__cause__)
+        return str(self.__cause__) + ': ' + str(self.args[0])
 
 @contextmanager
 def myopen(request):
@@ -113,8 +112,16 @@ def myopen(request):
                 inp = StringIO(data)
             inp.headers = headers
             yield inp
+    except urllib.error.HTTPError as e:
+        if e.code == 503:
+            print('head',e.headers)
+        raise
     except urllib.error.URLError as e:
-        raise URLError(request) from e
+        if e.code == 503:
+            print(request.headers)
+        else:
+            print('code',e.code)
+        raise URLError(request.full_url) from e
 
 def myretrieve(request,dest):
     with myopen(request) as inp:

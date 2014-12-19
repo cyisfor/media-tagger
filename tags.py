@@ -138,9 +138,9 @@ def _namesOneSide(tags):
     if not tags or type(tags[0])==str:
         return set(tags)
     names = set()
-    note.yellow(tags)
     if isinstance(tags[0],tuple):
-        tags = (tags[0] for tag in tags)
+        tags = tuple(tag[0] for tag in tags)
+    note.yellow(tags)
     for row in db.c.execute('SELECT name FROM tags WHERE id = ANY($1)',(tags,)):
         names.add(str(row[0]))
     return names

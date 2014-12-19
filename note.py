@@ -89,6 +89,7 @@ if 'debug' in os.environ:
             modules.add(module)
 else:
     class NoteModule:
+        def __call__(self,*a,**kw): pass
         def __getattr__(self,n):
             return lambda *a, **kw: None
 sys.modules[__name__] = NoteModule()
