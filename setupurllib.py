@@ -11,11 +11,16 @@ Request = urllib.request.Request
 import pickle
 import shutil
 import glob
+import re
+
+import http.client
 
 isPypy = hasattr(pickle.Pickler,'dispatch')
 
 proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
 handlers = [proxy]
+
+space = re.compile('[ \t]+')
 
 if not 'skipcookies' in os.environ:
     if isPypy:
@@ -67,6 +72,22 @@ if not 'skipcookies' in os.environ:
     for ff_cookies in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/cookies.sqlite")):
         get_cookies(jar,ff_cookies)
 
+    def get_text_cookies(cj, text):
+        if not os.path.exists(text): return
+        with open(text) as inp:
+            for line in inp:
+                host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
+                c = http.cookiejar.Cookie(0, name, value,
+                    None, False,
+                    host, host.startswith('.'), host.startswith('.'),
+                    path, False,
+                    isSecure=='TRUE',
+                    int(expiry), expiry=="",
+                    None, None, {})
+                cj.set_cookie(c)
+
+    get_text_cookies(jar, "/extra/user/tmp/cookies.txt")
+
     with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
         pickler = MyPickler(out)
         pickler.dump(jar)
@@ -76,6 +97,17 @@ if not 'skipcookies' in os.environ:
         try: out.close()
         except OSError: pass
     handlers.append(urllib.request.HTTPCookieProcessor(jar))
+
+
+class HeaderWatcher(urllib.request.HTTPHandler):
+    class Client(http.client.HTTPConnection):
+        def request(self,method,selector,data,headers):
+            print('sending headers',headers)
+            super().request(method,selector,data,headers)
+    def http_open(self, req):
+        return self.do_open(self.Client, req)
+
+handlers.append(HeaderWatcher())
 
 opener = urllib.request.build_opener(*handlers)
 opener.addheaders = [
@@ -115,12 +147,9 @@ def myopen(request):
     except urllib.error.HTTPError as e:
         if e.code == 503:
             print('head',e.headers)
+            print(e.read())
         raise
     except urllib.error.URLError as e:
-        if e.code == 503:
-            print(request.headers)
-        else:
-            print('code',e.code)
         raise URLError(request.full_url) from e
 
 def myretrieve(request,dest):

@@ -16,22 +16,15 @@ if not os.path.exists(exe):
 
 seen = set()
 
+buf = b''
+def collect(channel,condition,proc):
+    global buf
+    status, piece, amt = channel.read_chars()
+    if status != GLib.IOStatus.NORMAL: return GLib.SOURCE_REMOVE
+    buf += piece
+
 def run(handler,check=None):
     proc = s.Popen([exe],stdout=s.PIPE)
-    while True:
-        num = proc.stdout.readline().decode('utf-8')
-        try: amt = int(num,0x10)
-        except ValueError:
-            print('num?',num)
-            return
-        text = proc.stdout.read(amt)
-        if check:
-            res = check(text)
-            if res is not True:
-                text = res
-        if text and not text in seen:
-            seen.add(text)
-            if type(text) == bytes:
-                text = text.decode('utf-8',errors='replace')
-            handler(text)
-        time.sleep(0.2)
+    channel = GLib.unix_new(proc.stdout.fileno())
+    channel.set_flags(GLib.IOFlags.NONBLOCK)
+    GLib.io_add_watch(channel,GLib.PRIORITY_DEFAULT, GLib.IO_IN, collect, proc)
