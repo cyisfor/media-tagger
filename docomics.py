@@ -205,5 +205,6 @@ def main():
     gobutton.connect('toggled',checkInitialized)
 
     window.show_all()
-    clipboardy.run(gotMedium,notGetting)
+    clipboardy.start(gotMedium,notGetting)
+    Gtk.main()
 if __name__ == '__main__': main()
