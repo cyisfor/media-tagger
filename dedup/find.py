@@ -24,7 +24,11 @@ class Finder:
         self.next(None)
         self.starting = False
     def next(self,then):
-        self.source, self.dest, self.hash = next(self.dupes)
+        try: self.source, self.dest, self.hash = next(self.dupes)
+        except StopIteration:
+            print('all done!')
+            Gtk.main_quit()
+            return
         if not (
                 db.c.execute('SELECT id FROM media WHERE id = $1',(self.dest,))
                 and
