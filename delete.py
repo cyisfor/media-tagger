@@ -11,7 +11,12 @@ db.setup('''CREATE TABLE blacklist(
         medium bigint REFERENCES media(id),
         hash character varying(28) UNIQUE,
         inferior BOOLEAN DEFAULT FALSE,
-        UNIQUE(medium,hash))''')
+        UNIQUE(medium,hash))''',
+        '''CREATE TABLE tobedeleted (
+        good bigint REFERENCES media(id),
+        bad bigint REFERENCES media(id) NOT NULL,
+        reason text,
+        inferior boolean)''')
 
 def start(s):
     sys.stdout.write(s+'...')
@@ -21,29 +26,38 @@ def done(s=None):
     if s is None: s = 'done.'
     print(s)
 
-def realdelete(thing):
-    start("tediously clearing neighbors")
-    db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(thing,))
-    done()
-    db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(thing,))
-    db.c.execute("DELETE FROM things WHERE id = $1",(thing,))
-    for category in ('image','thumb','resized'):
-        doomed=os.path.join(filedb.top,category,'{:x}'.format(thing))
-        if os.path.exists(doomed):
-            os.unlink(doomed)
+
+def realdelete(good,bad,reason,inferior):
+    with db.transaction():
+        # the old LEFT OUTER JOIN trick to skip duplicate rows
+        if good:
+            # XXX: this is bad and I feel bad...
+            db.c.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
+        else:
+            db.c.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
+        start("tediously clearing neighbors")
+        db.c.execute("UPDATE bads SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
+        done()
+        db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
+        db.c.execute('DELETE FROM tobedeleted WHERE bad = $1',(bad,))
+        db.c.execute("DELETE FROM bads WHERE id = $1",(bad,))
+        for category in ('image','thumb','resized'):
+            doomed=os.path.join(filedb.top,category,'{:x}'.format(bad))
+            # if we crash here, transaction will abort and the image will be un-deleted
+            # but will get deleted next time so that the files are cleaned up
+            if os.path.exists(doomed):
+                os.unlink(doomed)
 
 def dupe(good, bad, inferior=True):
-    with db.transaction():
-        # the old LEFT OUTER JOIN trick to skip dupes
-        db.c.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
-        realdelete(bad)
+    db.c.execute('INSERT INTO tobedeleted (good,bad,inferior) VALUES ($1,$2,$3)',(good, bad, inferior))
 
-def delete(thing,reason=None):
+def delete(thing, reason=None):
     print("deleting {:x}".format(thing),reason)
-    with db.transaction():
-        # the old LEFT OUTER JOIN trick to skip dupes
-        db.c.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,thing))
-        realdelete(thing)
+    db.c.execute('INSERT INTO tobedeleted (bad,reason) VALUES ($1,$2)',(thing,reason))
+
+def commit():
+    for good, bad, reason, inferior in db.c.execute('SELECT good,bad,reason,inferior FROM tobedeleted'):
+        realdelete(good,bad,reason,inferior)
 
 def findId(uri):
     uri = uri.rstrip("\n/")
@@ -51,13 +65,11 @@ def findId(uri):
     return int(uri,0x10)
 
 if __name__ == '__main__':
-    print(sys.argv)
     if len(sys.argv)==3:
         delete(findId(sys.argv[1]),sys.argv[2])
     elif os.environ.get('stdin'):
         reason = sys.stdin.readline()
         for line in sys.stdin:
-            print('got',line)
             delete(findId(line),reason)
     else:
         reason = os.environ['reason']
@@ -65,4 +77,6 @@ if __name__ == '__main__':
             try:
                 delete(findId(piece),reason)
             except ValueError: pass
-        clipboardy.run(gotPiece)
+        try: clipboardy.run(gotPiece)
+        except KeyboardInterrupt: pass
+    commit()

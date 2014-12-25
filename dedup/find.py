@@ -5,13 +5,43 @@ except ImportError: pass
 
 import filedb
 import db
-import merge
+import merge,delete
 
 with open('../sql/find-dupes.sql') as inp:
     findStmt = inp.read()
 
 import gi
 from gi.repository import Gtk
+
+def tracking(f):
+    import traceback
+    try: raise RuntimeError
+    except RuntimeError:
+        here = ''.join(traceback.format_stack())
+    def wrapper(*a,**kw):
+        try:
+            return f(*a,**kw)
+        except:
+            print('called from:')
+            print(here)
+            print('-'*20)
+            raise
+    return wrapper
+
+
+def once(f):
+    def wrapper(*a,**kw):
+        try:
+            return f(*a,**kw)
+        except:
+            import traceback
+            traceback.print_exc()
+            return GLib.SOURCE_REMOVE
+    return wrapper
+
+def idle_add(f,*a,**kw):
+    GLib.idle_add(once(tracking(f)),*a,**kw)
+
 
 class Finder:
     def reload(self):
@@ -34,7 +64,7 @@ class Finder:
                 and
                 db.c.execute('SELECT id FROM media WHERE id = $1',(self.source,))):
             print('oops')
-            GLib.idle_add(self.next,then)
+            idle_add(self.next,then)
             return
         print('next',self.hash)
         if self.source < self.dest:
@@ -140,7 +170,7 @@ def updateboo(name):
         if updaters == 0:
             busylabel.set_text('')
             busy = False
-    GLib.idle_add(doit)
+    idle_add(doit)
 
 def refillimages():
     updateboo('dest')
@@ -200,7 +230,7 @@ def addButton(label,shortcut,ambusy=True):
                 global busy
                 busy = True
                 busylabel.set_text('busy')
-                GLib.idle_add(f,e)
+                idle_add(f,e)
         else:
             getbusy = f
         btn.connect('clicked',getbusy)
@@ -229,3 +259,5 @@ win.connect('destroy',Gtk.main_quit)
 win.show_all()
 
 Gtk.main()
+
+delete.commit()

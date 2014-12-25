@@ -15,5 +15,5 @@ with hashes as (select * from (
         as derp1
     ) 
     as derp2 where phash != 0 and flags = 0)
-    select a.id as a, b.id as b, a.derphash as hash from hashes a, hashes b where a.id > b.id and a.phash = b.phash order by a.id desc;
+    select a.id as a, b.id as b, a.derphash as hash from hashes a, hashes b where a.id > b.id and a.phash = b.phash order by a.id desc, b.id desc;
 
