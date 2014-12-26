@@ -10,7 +10,7 @@ import re
 
 geturl = re.compile('a *href="(https?://[^"]+)"')
 
-for id,description in db.c.execute("SELECT id,description FROM comics WHERE description LIKE '<%a%href%http://%>' AND source IS NULL"):
+for id,description in db.execute("SELECT id,description FROM comics WHERE description LIKE '<%a%href%http://%>' AND source IS NULL"):
     m = geturl.search(description)
     if not m:
         print('skipping',description)
@@ -27,5 +27,5 @@ for id,description in db.c.execute("SELECT id,description FROM comics WHERE desc
     with db.transaction():
         source = create.sourceId(uri)
     print('snornagling',uri,title)
-    db.c.execute('UPDATE comics SET description = $1, source = $2 WHERE id = $3',(title,source,id))
+    db.execute('UPDATE comics SET description = $1, source = $2 WHERE id = $3',(title,source,id))
 

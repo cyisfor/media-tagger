@@ -19,9 +19,9 @@ def checkIt(link):
         return urllib.parse.urljoin(link,href)
     return False
 
-for comic,title in db.c.execute('SELECT id,title FROM comics WHERE source IS NULL'):
+for comic,title in db.execute('SELECT id,title FROM comics WHERE source IS NULL'):
     print(title)
-    for link, in db.c.execute("SELECT uri FROM urisources WHERE ARRAY[id] <@ ANY(SELECT sources FROM media WHERE id IN (SELECT medium FROM comicpage WHERE comic = $1))",(comic,)):
+    for link, in db.execute("SELECT uri FROM urisources WHERE ARRAY[id] <@ ANY(SELECT sources FROM media WHERE id IN (SELECT medium FROM comicpage WHERE comic = $1))",(comic,)):
         print('whee',link)
         if 'post/show' in link:
             pool = checkIt(link)
