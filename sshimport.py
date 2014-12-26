@@ -18,7 +18,7 @@ def main():
         tags = [(Tag(*tag.split(':')) if ':' in tag else tag) for tag in tags]
         sourceURI = os.environ.get('source')
         hash = create.mediaHash(temp)
-        idnum =  db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
+        idnum =  db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
         if idnum:
             print("Existing medium found. Updating...")
         create.internet(copyMe(temp.name),None,tags,sourceURI,())

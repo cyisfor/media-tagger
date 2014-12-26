@@ -24,14 +24,14 @@ def user(path,params,data):
     self = derp.currentUser()
     with db.transaction():
         # XXX: tasteless
-        db.c.execute("DELETE FROM uzertags WHERE uzer = $1",(self.id,))
+        db.execute("DELETE FROM uzertags WHERE uzer = $1",(self.id,))
 
         if newtags and newtags[0] and len(newtags[0]) > 0:
             tags = tagsModule.parse(newtags[0])
             if tags.posi:
-                db.c.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::bigint[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,FALSE',(tags.posi,self.id))
+                db.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::bigint[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,FALSE',(tags.posi,self.id))
             if tags.nega:
-                db.c.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::bigint[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,TRUE',(tags.nega,self.id))
-        db.c.execute('UPDATE uzers SET defaultTags = FALSE WHERE id = $1',(self.id,))
+                db.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::bigint[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,TRUE',(tags.nega,self.id))
+        db.execute('UPDATE uzers SET defaultTags = FALSE WHERE id = $1',(self.id,))
     derp.set(news.items())
     return ""

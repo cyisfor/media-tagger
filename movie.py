@@ -111,7 +111,7 @@ def ffmpegInfo(thing,data):
 
 
 def isMovie(thing,data,getInfo=ffmpegInfo):
-    id = db.c.execute("SELECT id FROM videos WHERE id = $1",(thing,))
+    id = db.execute("SELECT id FROM videos WHERE id = $1",(thing,))
 
     info = getInfo(thing,data)
 
@@ -127,7 +127,7 @@ def isMovie(thing,data,getInfo=ffmpegInfo):
             if i > 0:
                 stmt += ', '
             stmt += key + ' = $'+str(i+1)
-        db.c.execute(stmt,values)
+        db.execute(stmt,values)
     else:
         keys += ('id',)
         values += (thing,)
@@ -142,6 +142,6 @@ def isMovie(thing,data,getInfo=ffmpegInfo):
                 stmt += ', '
             stmt += '$'+str(i+1)
         stmt += ') RETURNING id'
-        id = db.c.execute(stmt,values)[0][0]
+        id = db.execute(stmt,values)[0][0]
     return id
 

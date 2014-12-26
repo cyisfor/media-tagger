@@ -16,12 +16,12 @@ for path in os.listdir(os.path.join(filedb.base,'media')):
     path = os.path.join(filedb.base,'media',base)
     try:
         id = int(base,0x10)
-        if db.c.execute("SELECT id FROM things WHERE id = $1",(id,)):
+        if db.execute("SELECT id FROM things WHERE id = $1",(id,)):
             continue
     except ValueError: continue
     with open(path,'rb') as inp:
         hash = create.mediaHash(inp)
-    oldid = db.c.execute("SELECT id FROM media WHERE hash = $1",(hash,))
+    oldid = db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
     if oldid:
         oldid = oldid[0][0]
         # we got this, OK to delete.
@@ -31,7 +31,7 @@ for path in os.listdir(os.path.join(filedb.base,'media')):
         continue
     # now we're sure path is a lost medium!
     with db.transaction():
-        db.c.execute("INSERT INTO things (id) VALUES ($1)",(id,))
+        db.execute("INSERT INTO things (id) VALUES ($1)",(id,))
         # TODO: recover lost media not just lost images
         try: image = Image.open(path)
         except:
@@ -45,7 +45,7 @@ for path in os.listdir(os.path.join(filedb.base,'media')):
         with open(path,'rb') as inp:
             shutil.copyfileobj(inp,md5)
         md5 = md5.hexdigest()
-        db.c.execute("INSERT INTO media (id,name,hash,created,size,type,md5) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+        db.execute("INSERT INTO media (id,name,hash,created,size,type,md5) VALUES ($1,$2,$3,$4,$5,$6,$7)",
                 (id,"unknown."+image.format.lower(),hash,created,size,type,md5))
         width,height = image.size
         try:
@@ -54,6 +54,6 @@ for path in os.listdir(os.path.join(filedb.base,'media')):
         except EOFError:
             animated = False
         image = None
-        db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
+        db.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,animated,width,height))
         withtags.connect(id,recovered)
     print("We saved a file!",file=sys.stderr)

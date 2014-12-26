@@ -69,12 +69,12 @@ def encache(query,args,docache=True):
             name.update(str(arg).encode('utf-8'))
         name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
         if docache == False:
-            return db.c.execute(query,args)
+            return db.execute(query,args)
         try: 
             with db.saved():
-                db.c.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)
-                db.c.execute('SELECT resultCache.updateQuery($1)',(name,))
+                db.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)
+                db.execute('SELECT resultCache.updateQuery($1)',(name,))
         except db.ProgrammingError as e: 
             if not 'already exists' in e.info['message'].decode('utf-8'): raise
         db.retransaction()
-        return db.c.execute('SELECT * FROM resultCache."q'+name+'"')
+        return db.execute('SELECT * FROM resultCache."q'+name+'"')

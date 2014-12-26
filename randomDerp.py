@@ -18,11 +18,11 @@ class VersionHolder:
 v.setup()
 
 def tagsfor(idents):
-    print("\n".join(i[0] for i in db.c.execute('''EXPLAIN SELECT things.id,array(SELECT tags.name FROM tags INNER JOIN (SELECT unnest(neighbors)) AS neigh ON neigh.unnest = tags.id)
+    print("\n".join(i[0] for i in db.execute('''EXPLAIN SELECT things.id,array(SELECT tags.name FROM tags INNER JOIN (SELECT unnest(neighbors)) AS neigh ON neigh.unnest = tags.id)
     FROM things WHERE things.id = ANY($1)''',(idents,))))
     raise SystemExit
     print('ident',idents)
-    tags = [row for row in db.c.execute('SELECT things.id,array_agg(name) FROM tags INNER JOIN things ON ARRAY[tags.id] <@ things.neighbors WHERE ARRAY[things.id] <@ $1 GROUP BY things.id',(idents,))]
+    tags = [row for row in db.execute('SELECT things.id,array_agg(name) FROM tags INNER JOIN things ON ARRAY[tags.id] <@ things.neighbors WHERE ARRAY[things.id] <@ $1 GROUP BY things.id',(idents,))]
     print('tags',len(tags))
     return tags
 
@@ -38,18 +38,18 @@ def get(category=0,limit=0x30,where=None):
         'negativeClause': '',
         'ordering': 'ORDER BY random() LIMIT $2'}
     print(stmt)
-    rows = db.c.execute(stmt,(category,limit))
+    rows = db.execute(stmt,(category,limit))
     #print('\n'.join(r[0] for r in rows))
     #raise SystemExit
     if rows:
         idents = [row[0] for row in rows]
-        db.c.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM randomSeen LEFT OUTER JOIN (SELECT unnest($2::bigint[])) AS boop ON randomSeen.media = boop.unnest WHERE randomSeen.id IS NULL',(category,idents))
+        db.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM randomSeen LEFT OUTER JOIN (SELECT unnest($2::bigint[])) AS boop ON randomSeen.media = boop.unnest WHERE randomSeen.id IS NULL',(category,idents))
     else:
         # out of media, better throw some back into the pot
         with db:
-            db.c.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen)',(category,))
-            db.c.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen) WHERE category = $1',(category,))
-            db.c.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen)")
+            db.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen)',(category,))
+            db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen) WHERE category = $1',(category,))
+            db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen)")
         return get(category,limit,where)
     return rows
 
