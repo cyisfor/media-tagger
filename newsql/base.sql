@@ -162,8 +162,25 @@ CREATE TABLE artist (
 
 CREATE TABLE verses (
     id SERIAL PRIMARY KEY,
+    ident TEXT UNIQUE,
     concept TEXT,
-    source INTEGER REFERENCES urisources(id)
+    source INTEGER REFERENCES urisources(id),
+);
+
+CREATE TABLE acts (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE,
+    description TEXT,
+    sexiness INTEGER DEFAULT 0 -- uh...
+);
+
+-- things that aren't people
+-- items, unnamed people, plants, etc
+CREATE TABLE things (
+    id SERIAL PRIMARY KEY,
+    ident TEXT UNIQUE,
+    description TEXT
+);
 
 -- don't worry too much about recording which user created what record
 -- can make a log for that, parse the log to undo the user's destructive urges etc
@@ -221,8 +238,19 @@ CREATE TABLE r.describes (
 
 CREATE TABLE r.contains (
     medium integer REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    person INTEGER REFERENCES people(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    UNIQUE(medium,person)
+    thing INTEGER REFERENCES things(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE(medium,thing)
+);
+
+CREATE TABLE r.performsin (
+    act INTEGER REFERENCES acts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    medium integer REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE(medium,act)
+);
+
+CREATE TABLE r.references (
+    medium integer REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    verse integer REFERENCES verses(id) ON DELETE CASCADE ON UPDATE CASCADE,
 );
 
 -- now some indexes... for any time we have one, and have to look up many, i.e. all concepts tagging 
@@ -230,11 +258,51 @@ CREATE TABLE r.contains (
 
 CREATE INDEX r.conceptsformedium ON r.describes(medium);
 CREATE INDEX r.artistsformedium ON r.drew (medium);
-CREATE INDEX r.peopleformedium ON r.contains (medium);
+CREATE INDEX r.peopleformedium ON r.portrays (medium);
+CREATE INDEX r.actsformedium ON r.performsin(medium);
+CREATE INDEX r.thingsformedium ON r.contains(medium);
+CREATE INDEX r.versesformedium ON r.references(medium);
 
 CREATE INDEX r.mediaforconcept ON r.describes(tag);
 CREATE INDEX r.mediaforartist ON r.drew(artist);
-CREATE INDEX r.mediaforpeople ON r.contains(person);
+CREATE INDEX r.mediaforpeople ON r.portrays(person);
+CREATE INDEX r.mediaforacts ON r.performsin(act);
+CREATE INDEX r.mediaforthings ON r.contains(thing);
+CREATE INDEX r.mediaforverse ON r.references(verse);
+
+-- and now... we go insane
+
+CREATE TYPE derp1 AS (id INTEGER, name TEXT);
+CREATE TYPE derp2 AS (id INTEGER, name TEXT, sexiness INTEGER);
+
+SELECT 
+array(SELECT ROW(tags.id,tags.name)::derp1
+    FROM tags
+        INNER JOIN r.describes ON tags.id = r.describes.tag
+    WHERE r.describes.medium = media.id),
+array(SELECT ROW(artists.id,people.name)::derp1
+    FROM artists 
+        INNER JOIN people ON people.id = artists.id 
+        INNER JOIN r.draws ON r.draws.artist = artists.id 
+    WHERE r.draws.medium = media.id),
+array(SELECT ROW(people.id,people.name)::derp1
+    FROM people
+        INNER JOIN r.portrays ON people.id = r.portrays.person
+    WHERE r.portrays.medium = media.id),
+array(SELECT ROW(acts.id,acts.name,acts.sexiness)::derp2
+    FROM acts
+        INNER JOIN r.performsin ON acts.id = r.performsin.act
+    WHERE r.performsin.medium = media.id),
+array(SELECT ROW(things.id,things.ident)::derp1
+    FROM things
+        INNER JOIN r.contains ON things.id = r.contains.thing
+    WHERE r.contains.medium = media.id),
+array(SELECT ROW(verses.id,verses.name)::derp1
+    FROM verses
+        INNER JOIN r.references ON verses.id = r.references.verse
+    WHERE r.references.medium = media.id)
+FROM media WHERE media.id = $1;
+
 
 SET search_path = resultcache, r, pg_catalog;
 
