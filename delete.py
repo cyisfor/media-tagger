@@ -35,23 +35,23 @@ def dbdelete(good,bad,reason,inferior):
     # the old LEFT OUTER JOIN trick to skip duplicate rows
     if good:
         # XXX: this is bad and I feel bad...
-        db.c.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
+        db.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
     else:
-        db.c.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
+        db.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
     start("tediously clearing neighbors")
-    db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
+    db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
     done()
-    db.c.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
-    db.c.execute('DELETE FROM tobedeleted WHERE bad = $1',(bad,))
-    db.c.execute("DELETE FROM things WHERE id = $1",(bad,))
+    db.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
+    db.execute('DELETE FROM tobedeleted WHERE bad = $1',(bad,))
+    db.execute("DELETE FROM things WHERE id = $1",(bad,))
 
 
 
 def dupe(good, bad, inferior=True):
-    db.c.execute('INSERT INTO tobedeleted (good,bad,inferior) VALUES ($1,$2,$3)',(good, bad, inferior))
+    db.execute('INSERT INTO tobedeleted (good,bad,inferior) VALUES ($1,$2,$3)',(good, bad, inferior))
 
 def delete(thing, reason=None):
-    db.c.execute('INSERT INTO tobedeleted (bad,reason) VALUES ($1,$2)',(thing,reason))
+    db.execute('INSERT INTO tobedeleted (bad,reason) VALUES ($1,$2)',(thing,reason))
 
 
 
@@ -62,7 +62,7 @@ def commit():
         with db.transaction():
             bads = []
             done = True
-            for good, bad, reason, inferior in db.c.execute('SELECT good,bad,reason,inferior FROM tobedeleted'):
+            for good, bad, reason, inferior in db.execute('SELECT good,bad,reason,inferior FROM tobedeleted'):
                 bads.append(bad)
                 dbdelete(good,bad,reason,inferior)
                 if next(counter) % 4 == 0:
