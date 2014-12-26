@@ -24,7 +24,7 @@ finders = []
 skip = os.environ.get('skip')
 
 def parse(primarySource):
-    if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
+    if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
         print('skipping',primarySource)
         return
     print('parsing',repr(primarySource))
@@ -56,7 +56,7 @@ def parse(primarySource):
                     return Tag(*(tag.split(':')))
                 return Tag('general',tag)
             tags = [generalize(tag) for tag in handlers.get('tags',[])]
-            if skip and db.c.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
+            if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
                 print('skipping',primarySource)
                 return
             sources = [primarySource]
@@ -140,6 +140,6 @@ def registerFinder(matcher,handler,name=None):
     finders.append((name,matcher,handler))
 
 def alreadyHere(uri):
-    result = db.c.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
+    result = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
     if len(result)==0: return False
     return True

@@ -38,14 +38,14 @@ def sourceId(source):
     if isinstance(source,int): return source
     if source == '': return None
     if source[0] == '/': return None
-    id = db.c.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
+    id = db.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
     if id:
         return id[0][0]
     else:
         with db.saved():
-            id = db.c.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")
+            id = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")
             id = id[0][0]
-            db.c.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2)",(id,source))
+            db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2)",(id,source))
         return id
 
 findMD5 = re.compile("[0-9a-fA-F]{32}")
@@ -69,7 +69,7 @@ def openImage(data):
         raise
 
 def createImageDBEntry(id,image):
-    db.c.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,)+image)
+    db.execute("INSERT INTO images (id,animated,width,height) VALUES ($1,$2,$3,$4)",(id,)+image)
 
 def retryCreateImage(id):
     source = filedb.mediaPath(id)
@@ -80,7 +80,7 @@ def retryCreateImage(id):
 
 def getanId(sources,uniqueSource,download,name):
     if uniqueSource:
-        result = db.c.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
+        result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
         if result:
             yield result[0][0],False
     md5 = None
@@ -89,7 +89,7 @@ def getanId(sources,uniqueSource,download,name):
         m = findMD5.search(source)
         if m:
             md5 = m.group(0)
-            result = db.c.execute("SELECT id FROM media WHERE md5 = $1",
+            result = db.execute("SELECT id FROM media WHERE md5 = $1",
                         (md5,))
             if result:
                 yield result[0][0],False
@@ -98,18 +98,18 @@ def getanId(sources,uniqueSource,download,name):
         created = yield download(data)
         print('got created', created)
         digest = mediaHash(data)
-        result = db.c.execute("SELECT id FROM media WHERE hash = $1",(digest,))
+        result = db.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
             print("Oops, we already had this one, from another source!")
             yield result[0][0],False
             return
-        result = db.c.execute("SELECT medium FROM dupes WHERE hash = $1",(digest,))
+        result = db.execute("SELECT medium FROM dupes WHERE hash = $1",(digest,))
         if result:
             id = result[0][0]
             print("Dupe of {:x}".format(id))
             yield id, False
             return
-        result = db.c.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
+        result = db.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted
             raise NoGood("blacklisted",digest)
@@ -120,7 +120,7 @@ def getanId(sources,uniqueSource,download,name):
             shutil.copyfileobj(data,md5)
             md5 = md5.hexdigest()
         with db.saved():
-            id = db.c.execute("INSERT INTO things DEFAULT VALUES RETURNING id")
+            id = db.execute("INSERT INTO things DEFAULT VALUES RETURNING id")
             id = id[0][0]
             image = None
             data.seek(0,0)
@@ -146,7 +146,7 @@ def getanId(sources,uniqueSource,download,name):
                 name += '.' + magic.guess_extension(type)
             print("New {} with id {:x} ({})".format(type,id,name))
             sources = set([sourceId(source) for source in sources])
-            db.c.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
+            db.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
                 id,name,digest,created,
                 os.fstat(data.fileno()).st_size,type,md5,sources))
             if image: createImageDBEntry(id,image)
@@ -166,7 +166,7 @@ def update(id,sources,tags):
     donetags = []
     print('upd8',id,sources)
     with db.transaction():
-        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id))
+        db.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id))
     tagsModule.tag(id,tags)
 
 def internet_yield(download,media,tags,primarySource,otherSources,name=None):

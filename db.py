@@ -9,47 +9,50 @@ from threading import local
 ProgrammingError = pg.SQLError
 
 db = local()
-c = None
 
-def retransaction(rollback=False): return pg.retransaction(c,rollback)
-def transaction(): return pg.transaction(c)
-def saved(): return pg.saved(c)
+def execute(*a,**kw):
+    if not hasattr(db,'c'):
+        reopen()
+    db.c.execute(*a,**kw)
+
+def retransaction(rollback=False): return pg.retransaction(db.c,rollback)
+def transaction(): return pg.transaction(db.c)
+def saved(): return pg.saved(db.c)
 
 tempctr = count(1)
 
 @contextmanager
-def temporaryTable(c,columns,notSoTemp=False):
+def temporaryTable(columns,notSoTemp=False):
     name = "temptable{}".format(tempctr.__next__())
     if notSoTemp:
         prefix = "CREATE"
     else:
         prefix = "CREATE TEMPORARY"
     try:
-        c.execute(prefix+" TABLE "+name+" ("+columns+")")
+        execute(prefix+" TABLE "+name+" ("+columns+")")
         yield name
     finally:
-        c.execute("DROP TABLE "+name)
+        execute("DROP TABLE "+name)
 
 def reopen():
-    global c
     try:
         with open("passwd") as inp:
             password = inp.read()
     except IOError:
         password = None
-    c = pg.Connection(dbname='pics',port=5433,password=password)
+    db.c = pg.Connection(dbname='pics',port=5433,password=password)
     #c.verbose = True
-    c.out = open('/tmp/db.log','at')
+    #db.c.out = open('/tmp/db.log','at')
     password = None
 reopen()
 
 def setup(*stmts):
-    #c.execute("COMMIT")
+    #execute("COMMIT")
     for stmt in stmts:
         try:
-            c.execute(stmt)
+            execute(stmt)
         except ProgrammingError as e:
-            if c.verbose:
+            if db.c.verbose:
                 sys.stdout.write(stmt)
                 print('')
                 sys.stdout.write(e.info['message'].decode('utf-8'))

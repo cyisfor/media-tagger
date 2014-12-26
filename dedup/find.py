@@ -7,8 +7,12 @@ import filedb
 import db
 
 import queue, threading
+import merge
 
-mergequeue = queue.Queue()
+#merge.merge(0x26cf5,0x26bbe,True) # corrupt image
+#import delete
+#delete.commit()
+merger = threading.Condition()
 
 with open('../sql/find-dupes.sql') as inp:
     findStmt = inp.read()
@@ -73,7 +77,7 @@ class Finder:
         if self.source < self.dest:
             self.swap()
         else:
-            print('now checking2',self.dest,self.source,then)
+            print('now checking2',hex(self.dest),hex(self.source),then)
         if self.starting:
             if then:
                 then()
@@ -88,7 +92,9 @@ class Finder:
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
-        mergequeue.put((self.dest,self.source,inferior))
+        merge.merge(self.dest,self.source,inferior)
+        with merger:
+            merger.notify_all()
         self.next(then)
     def swap(self,then=None):
         temp = self.dest
@@ -259,18 +265,20 @@ def answer(e):
 
 win.connect('destroy',Gtk.main_quit)
 
+
 def regularlyCommit():
     import merge,delete
+    db.reopen() # wait... this destroys all prepareds?
     while True:
-        (dest,source,inferior) = mergequeue.get()
-        print('got',dest,source,inferior)
-        merge.merge(dest,source,inferior)
-        if not mergequeue.empty(): continue
         delete.commit()
+        with merger:
+            merger.wait()
 
-threading.Thread(target=regularlyCommit)
+t = threading.Thread(target=regularlyCommit)
+t.setDaemon(True)
+t.start()
 win.show_all()
-
-
-
-Gtk.main()
+try: 
+    Gtk.main()
+finally:
+    mergequeue.join()
