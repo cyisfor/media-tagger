@@ -10,7 +10,7 @@ version = versions.Versioner('media')
 
 @version(1337)
 def addColumn():
-    db.c.execute('ALTER TABLE media ADD COLUMN pHash uuid')
+    db.execute('ALTER TABLE media ADD COLUMN pHash uuid')
 
 version.setup()
 
@@ -63,7 +63,7 @@ def status(s):
 
 if __name__ == '__main__':
     start = time.time()
-    total = db.c.execute('SELECT count(id) FROM media WHERE pHash IS NULL')[0][0]
+    total = db.execute('SELECT count(id) FROM media WHERE pHash IS NULL')[0][0]
     achieved = None
     timespent = 0
     if os.path.exists('last'):
@@ -78,7 +78,7 @@ if __name__ == '__main__':
     achieved = achieved or 1
     elapsed = 0
     current = 0
-    for id, in db.c.execute('SELECT id FROM media WHERE pHash IS NULL ORDER BY id'):
+    for id, in db.execute('SELECT id FROM media WHERE pHash IS NULL ORDER BY id'):
         hid = '{:x}'.format(id)
         status(hid+' '+timeify((total - current) * (timespent + elapsed) / achieved)+' left')
         pHash = create(hid)
@@ -91,4 +91,4 @@ if __name__ == '__main__':
         os.rename('last.temp','last')
         if (pHash == 'ERROR'):
             pHash = '0'*31+'2'
-        db.c.execute('UPDATE media SET pHash = $1 WHERE id = $2',('0'*(32-len(pHash))+pHash,id))
+        db.execute('UPDATE media SET pHash = $1 WHERE id = $2',('0'*(32-len(pHash))+pHash,id))

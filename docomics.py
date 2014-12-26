@@ -52,23 +52,23 @@ def createComic(com,created):
 
         source = sourceEntry.get_text()
         if source:
-            s = db.c.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
+            s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
             if s:
                 source = s[0][0]
             else:
-                s = db.c.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
+                s = db.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
                 source = s[0][0]
             assert(source)
         else:
             source = None
 
         if source is not None:
-           db.c.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3)',(
+           db.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3)',(
                title,
                desc,
                source))
         else:
-           db.c.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
+           db.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
                title,
                desc))
         win.destroy()
@@ -83,7 +83,7 @@ def sourceFinder(inp,out):
     while True:
         source = inp.get()
         while True:
-            res = db.c.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
             if res:
                 out.put(res[0][0])
                 break
@@ -140,12 +140,12 @@ def gotMedium(medium,pageSet=None):
             return
         def setPage():
             global getting
-            db.c.execute('SELECT setComicPage($1,$2,$3)',(medium,com,pag))
+            db.execute('SELECT setComicPage($1,$2,$3)',(medium,com,pag))
             page.set_text('{:x}'.format(pag+1))
             getting = False
             if pageSet: pageSet()
         with db.transaction():
-            if db.c.execute('SELECT count(id) FROM comics WHERE id = $1',(com,))[0][0] == 0:
+            if db.execute('SELECT count(id) FROM comics WHERE id = $1',(com,))[0][0] == 0:
                 createComic(com,setPage)
             else:
                 setPage()
@@ -176,11 +176,11 @@ def checkInitialized(e=None):
     if com: 
         com = int(com,0x10)
     else:
-        com = db.c.execute('SELECT MAX(id) + 1 FROM comics')[0][0]
+        com = db.execute('SELECT MAX(id) + 1 FROM comics')[0][0]
         comic.set_text('{:x}'.format(com))
     pag = page.get_text()
     if pag == '':
-        pag = db.c.execute('SELECT MAX(which) + 1 FROM comicPage WHERE comic = $1',(com,))
+        pag = db.execute('SELECT MAX(which) + 1 FROM comicPage WHERE comic = $1',(com,))
         if pag:
             pag = pag[0][0]
             if not pag:

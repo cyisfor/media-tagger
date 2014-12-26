@@ -13,7 +13,7 @@ from itertools import count
 
 #urllib.request.urlretrieve(base,'derp.html')
 
-#db.c.execute('DROP FUNCTION setComicPage(INT,INT,INT)')
+#db.execute('DROP FUNCTION setComicPage(INT,INT,INT)')
 db.setup('''
 CREATE OR REPLACE FUNCTION setComicPage(_medium INT, _comic INT, _which INT) RETURNS VOID AS
 $$
@@ -88,8 +88,8 @@ def getPool(base):
                 return input('Description: ').strip()
 
             com = comic.findComicByTitle(title,getinfo)
-            source = db.c.execute("SELECT findURISource($1)",(base,))[0][0]
-            db.c.execute("UPDATE comics SET source = $1 WHERE id = $2",(source,com))
+            source = db.execute("SELECT findURISource($1)",(base,))[0][0]
+            db.execute("UPDATE comics SET source = $1 WHERE id = $2",(source,com))
             db.retransaction()
             print('updooted',com,source)
 
@@ -100,7 +100,7 @@ def getPool(base):
             if (not a) or (a.name != 'a') or (not a.has_attr('href')): continue
             url = urllib.parse.urljoin(base,a['href'])
             url = parse.normalize(url)
-            medium = db.c.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
+            medium = db.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
             if medium:
                 medium = medium[0][0]
             else:
@@ -110,7 +110,7 @@ def getPool(base):
                 db.retransaction()                
             which = next(whicher)
             for tries in range(2):
-                try: db.c.execute('SELECT setComicPage($1,$2,$3)',(medium,com,which))
+                try: db.execute('SELECT setComicPage($1,$2,$3)',(medium,com,which))
                 except db.ProgrammingError as original:
                     db.retransaction(rollback=True)
                     import create

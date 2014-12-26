@@ -52,7 +52,7 @@ def idle_add(f,*a,**kw):
 
 class Finder:
     def reload(self):
-        self.dupes = iter(db.c.execute(findStmt));
+        self.dupes = iter(db.execute(findStmt));
     a = b = -1
     starting = True
     def __init__(self):
@@ -67,9 +67,9 @@ class Finder:
             Gtk.main_quit()
             return
         if not (
-                db.c.execute('SELECT id FROM media WHERE id = $1',(self.dest,))
+                db.execute('SELECT id FROM media WHERE id = $1',(self.dest,))
                 and
-                db.c.execute('SELECT id FROM media WHERE id = $1',(self.source,))):
+                db.execute('SELECT id FROM media WHERE id = $1',(self.source,))):
             print('oops')
             idle_add(self.next,then)
             return
@@ -86,7 +86,7 @@ class Finder:
             then()
     def nodupe(self,then=None):
         print('nadupe',self.dest,self.source)
-        db.c.execute('UPDATE media SET phash = $1 WHERE id = $2 OR id = $3',(
+        db.execute('UPDATE media SET phash = $1 WHERE id = $2 OR id = $3',(
             '0'*15+'3'+'0'*(16-len(self.hash))+self.hash,
             self.dest, self.source))
         self.next(then)
