@@ -1,17 +1,15 @@
 
-import threading
+import threading, queue
 
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
 #import delete
 #delete.commit()
-merger = threading.Condition()
+mergequeue = queue.Queue()
 
 def regularlyCommit():
-    import merge,delete
     while True:
-        delete.commit()
-        with merger:
-            merger.wait()
+        dest,source,inferior = mergequeue.get()
+        merge.merge(self.dest,self.source,inferior)
 
 t = threading.Thread(target=regularlyCommit)
 t.setDaemon(True)
@@ -105,9 +103,7 @@ class Finder:
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
-        merge.merge(self.dest,self.source,inferior)
-        with merger:
-            merger.notify_all()
+        mergequeue.put(self.dest,self.source,inferior)
         self.next(then)
     def swap(self,then=None):
         temp = self.dest
