@@ -97,8 +97,8 @@ def manage(user,serv):
 
     def have_media(media,*a):
         filedb.checkResized(media)
-        if len(db.c.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
-            db.c.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
+        if len(db.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
+            db.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
                 (User.id,media))
             db.retransaction();
             message = 'Uploaded '+name+' to your queue for tagging.'
@@ -153,7 +153,7 @@ def manage(user,serv):
                 # this closes the crab
         return Uploader()
     else:
-        result = db.c.execute("SELECT id FROM media WHERE id = $1",(media,))
+        result = db.execute("SELECT id FROM media WHERE id = $1",(media,))
         if not result:
             raise Error("No media by that ID")
         create.update(media,sources,tags)
@@ -163,8 +163,8 @@ def manage(user,serv):
 def page(info,path,params):
     def contents():
         first = True
-        for media, in db.c.execute('SELECT media FROM uploads WHERE uzer = $1 and checked = FALSE',(User.id,)):
-            name,type,tags,sources = db.c.execute('''SELECT
+        for media, in db.execute('SELECT media FROM uploads WHERE uzer = $1 and checked = FALSE',(User.id,)):
+            name,type,tags,sources = db.execute('''SELECT
             name,type,
             array(select name from tags where id = ANY(things.neighbors) ORDER BY name),
             array(select uri from urisources where id = ANY(media.sources) ORDER BY uri)
@@ -212,7 +212,7 @@ def addInfoToMedia(form,media=None):
     sources = sources[0].split('\n')    
 
     with db.transaction():
-        db.c.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest($2::bigint[]) EXCEPT SELECT unnest($3::bigint[])) WHERE id = $1',
+        db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest($2::bigint[]) EXCEPT SELECT unnest($3::bigint[])) WHERE id = $1',
                 (media,dertags.posi,dertags.nega))
         derp = []
         for source in sources:
@@ -221,8 +221,8 @@ def addInfoToMedia(form,media=None):
                 operation = 'EXCEPT'
                 source = source[1:]
             derp.append(create.sourceId(source))
-        db.c.execute("UPDATE media SET sources = array(SELECT unnest(sources) "+operation+" SELECT unnest($1::bigint[])) WHERE id = $2",(derp,media))
-        db.c.execute("UPDATE uploads SET checked = TRUE WHERE uzer = $1 AND media = $2",(User.id,media))
+        db.execute("UPDATE media SET sources = array(SELECT unnest(sources) "+operation+" SELECT unnest($1::bigint[])) WHERE id = $2",(derp,media))
+        db.execute("UPDATE uploads SET checked = TRUE WHERE uzer = $1 AND media = $2",(User.id,media))
 
 def post(path,header,data):
     boundary = header['boundary']

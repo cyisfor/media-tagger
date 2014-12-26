@@ -45,21 +45,21 @@ class User:
         if self.defaultTags:
             return dtags
         result = tags.Taglist()
-        for id,nega in db.c.execute("SELECT tag,nega FROM uzertags WHERE uzer = $1",(self.id,)):
+        for id,nega in db.execute("SELECT tag,nega FROM uzertags WHERE uzer = $1",(self.id,)):
             if nega:
                 result.nega.add(id)
             else:
                 result.posi.add(id)
         return result
     def visit(self,media):
-        db.c.execute('SELECT uzerVisitsInsert($1,$2)',self.id,media)
+        db.execute('SELECT uzerVisitsInsert($1,$2)',self.id,media)
     def __str__(self):
         return self.ident
     def __repr__(self):
         return '<user '+self.ident+'>'
     def __init__(self,ident):
         for go in range(2):
-            result = db.c.execute("SELECT id,rescaleImages,defaultTags FROM uzers WHERE ident = $1",(ident,))
+            result = db.execute("SELECT id,rescaleImages,defaultTags FROM uzers WHERE ident = $1",(ident,))
             if result and len(result[0]) == 3:
                 result = result[0]
                 self.ident = ident
@@ -67,7 +67,7 @@ class User:
                 self.rescaleImages = result[1]
                 self.defaultTags = result[2]
                 return
-            db.c.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
+            db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
         raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")
 
 being = User
@@ -79,7 +79,7 @@ def set(news):
     names = tuple("{} = ${}".format(name,i+1) for i,name in enumerate(names))
     stmt = "UPDATE uzers SET "+", ".join(names) + " WHERE id = ${}".format(len(names)+1)
     with db.transaction():
-        db.c.execute(stmt,values+(User.id,))
+        db.execute(stmt,values+(User.id,))
 
 class UserError(Exception): 
     def __init__(self,message,*args):

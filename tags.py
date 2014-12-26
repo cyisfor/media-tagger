@@ -19,10 +19,10 @@ db.setup(*db.source('sql/connect.sql',False))
 
 def disconnect(thing1,thing2):
     if thing1 and thing2:
-        db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing1,thing2))
-        db.c.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing2,thing1))
+        db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing1,thing2))
+        db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing2,thing1))
 
-db.c.execute("SET work_mem TO 100000")
+db.execute("SET work_mem TO 100000")
 
 def tag(thing,tags):
     if not isinstance(tags,Taglist):
@@ -40,10 +40,10 @@ def tag(thing,tags):
         if tags.nega:
             if isinstance(list(tags.nega)[0],str):
                 # XXX: should we cascade tag deletion somehow...? delete artist -> all artist tags ew no
-                tags.nega = db.c.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(tags.nega,))
+                tags.nega = db.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(tags.nega,))
                 tags.nega = [row[0] for row in tags.nega]
             elif hasattr(list(tags.nega)[0],'category'):
-                tags.nega = [db.c.execute('SELECT id FROM tags WHERE name = $1 AND category = $2',(tag.name,tag.category))[0][0] for tag in tags.nega]
+                tags.nega = [db.execute('SELECT id FROM tags WHERE name = $1 AND category = $2',(tag.name,tag.category))[0][0] for tag in tags.nega]
 
             if implied: 
                 tags.update(implied)
@@ -55,38 +55,38 @@ def tag(thing,tags):
                 categories = collections.defaultdict(list)
                 tags.posi = list(tags.posi)
                 # note: do NOT set tags.posi since we still need them as string names
-                ntags = tuple(set(row[0] for row in db.c.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,))))
+                ntags = tuple(set(row[0] for row in db.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,))))
                 for i in range(len(tags.posi)):
                     if ':' in tags.posi[i]:
                         category,name = tags.posi[i].split(':')
-                        category = db.c.execute("SELECT findTag($1)",(category,))[0][0]
-                        name = db.c.execute("SELECT findTag($1)",(name,))[0][0]
+                        category = db.execute("SELECT findTag($1)",(category,))[0][0]
+                        name = db.execute("SELECT findTag($1)",(name,))[0][0]
                         wholetag = ntags[i]
                         categories[category].append(wholetag)
                         # NOT connect(category,wholetag)
                         # XXX: ...until we can fix the search to be breadth first...?
-                        db.c.execute("SELECT connectOne($1,$2)",(name,wholetag))
-                        db.c.execute("SELECT connectOne($1,$2)",(wholetag,name))
+                        db.execute("SELECT connectOne($1,$2)",(name,wholetag))
+                        db.execute("SELECT connectOne($1,$2)",(wholetag,name))
                 for category,ctags in categories.items():
-                    db.c.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
+                    db.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
                 tags.posi = ntags
             elif hasattr(list(tags.posi)[0],'category'):
                 categories = collections.defaultdict(list)
                 out = []
                 for tag in tags.posi:
-                    category = db.c.execute("SELECT findTag($1)",(tag.category,))[0][0]
-                    name = db.c.execute('SELECT findTag($1)',(tag.name,))[0][0]
-                    whole = db.c.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
+                    category = db.execute("SELECT findTag($1)",(tag.category,))[0][0]
+                    name = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
+                    whole = db.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
                     categories[category].append(whole)
-                    db.c.execute("SELECT connectOne($1,$2)",(name,whole))
-                    db.c.execute("SELECT connectOne($1,$2)",(whole,name))
+                    db.execute("SELECT connectOne($1,$2)",(name,whole))
+                    db.execute("SELECT connectOne($1,$2)",(whole,name))
                     out.append(whole)
                 for category,stags in categories.items():
-                    db.c.execute('SELECT connectManyToOne($1,$2)',(stags,category))
+                    db.execute('SELECT connectManyToOne($1,$2)',(stags,category))
                 tags.posi = out
             if implied: tags.update(implied)
-            db.c.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
-            db.c.execute("SELECT connectManyToOne($1,$2)",(tags.posi,thing))
+            db.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
+            db.execute("SELECT connectManyToOne($1,$2)",(tags.posi,thing))
 
 class Taglist:
     def __init__(self):
@@ -116,20 +116,20 @@ class Taglist:
 def makeTag(name):
     try: 
         name = int(name)
-        result = db.c.execute("SELECT id FROM tags WHERE id = $1",(name,))
+        result = db.execute("SELECT id FROM tags WHERE id = $1",(name,))
         if not result:
             raise RuntimeError("No tag by the id "+str(name))
         return result[0][0]
     except ValueError: pass
 
     for attempt in range(3):
-        result = db.c.execute("SELECT id FROM tags WHERE name = $1",(name,))
+        result = db.execute("SELECT id FROM tags WHERE name = $1",(name,))
         if result: break
-        result = db.c.execute("WITH thing AS (INSERT INTO things DEFAULT VALUES RETURNING id) INSERT INTO tags (id,name) SELECT thing.id,$1 FROM thing RETURNING id",(name,))
+        result = db.execute("WITH thing AS (INSERT INTO things DEFAULT VALUES RETURNING id) INSERT INTO tags (id,name) SELECT thing.id,$1 FROM thing RETURNING id",(name,))
     return result[0][0]
 
 def getTag(name):
-    result = db.c.execute("SELECT id FROM tags WHERE name = $1",(name,))
+    result = db.execute("SELECT id FROM tags WHERE name = $1",(name,))
     if result: return result[0][0]
     return None
 
@@ -141,7 +141,7 @@ def _namesOneSide(tags):
     if isinstance(tags[0],tuple):
         tags = tuple(tag[0] for tag in tags)
     note.yellow(tags)
-    for row in db.c.execute('SELECT name FROM tags WHERE id = ANY($1)',(tags,)):
+    for row in db.execute('SELECT name FROM tags WHERE id = ANY($1)',(tags,)):
         names.add(str(row[0]))
     return names
 def names(tags):
@@ -162,7 +162,7 @@ def _fullOneSide(tags):
         field = 'name'
     else:
         field = 'id'
-    for row in db.c.execute('SELECT id,name FROM tags WHERE '+field+' = ANY($1)',(tags,)):
+    for row in db.execute('SELECT id,name FROM tags WHERE '+field+' = ANY($1)',(tags,)):
         result.add(tuple(row))
     return result
 
