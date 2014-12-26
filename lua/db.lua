@@ -1,6 +1,6 @@
 local pq = require('psql')
 
-local db = pq.connect "port=5433 dbname=pics"
+local db = pq.connect "port=5433 dbname=pics2"
 
 local prepareds = {}
 

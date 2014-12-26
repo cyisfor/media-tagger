@@ -2,14 +2,21 @@
 import threading, queue
 
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
-#import delete
-#delete.commit()
 mergequeue = queue.Queue()
 
+Done = object()
+
 def regularlyCommit():
+    import merge
     while True:
-        dest,source,inferior = mergequeue.get()
-        merge.merge(self.dest,self.source,inferior)
+        try:
+            message = mergequeue.get()
+            if message is Done: break
+            dest,source,inferior = message
+            merge.merge(dest,source,inferior)
+        except Exception as e:
+            import sys
+            sys.print_exc()
 
 t = threading.Thread(target=regularlyCommit)
 t.setDaemon(True)
@@ -49,6 +56,7 @@ def tracking(f):
 
 def once(f):
     def wrapper(*a,**kw):
+        print('uh')
         try:
             return f(*a,**kw)
         except:
@@ -58,8 +66,8 @@ def once(f):
     return wrapper
 
 def idle_add(f,*a,**kw):
-    GLib.idle_add(once(tracking(f)),*a,**kw)
-
+    # have to slow this down b/c pgi has a bug that infinite loops w/out calling callback
+    GLib.timeout_add(100,once(tracking(f)),*a,**kw)
 
 class Finder:
     def reload(self):
@@ -103,7 +111,7 @@ class Finder:
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
-        mergequeue.put(self.dest,self.source,inferior)
+        mergequeue.put((self.dest,self.source,inferior))
         self.next(then)
     def swap(self,then=None):
         temp = self.dest
@@ -275,3 +283,6 @@ def answer(e):
 win.connect('destroy',Gtk.main_quit)
 win.show_all()
 Gtk.main()
+print('Waiting for merges to finish')
+mergequeue.put(Done)
+mergequeue.join()

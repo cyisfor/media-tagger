@@ -47,12 +47,11 @@ def dbdelete(good,bad,reason,inferior):
 def filedelete(bad):
     for category in ('image','thumb','resized'):
         place=os.path.join(filedb.top,category)
-        for bad in bads:
-            doomed = os.path.join(place,'{:x}'.format(bad))
-            # if we crash here, transaction will abort and the images will be un-deleted
-            # but will get deleted next time so that the files are cleaned up
-            if os.path.exists(doomed):
-                os.unlink(doomed)
+        doomed = os.path.join(place,'{:x}'.format(bad))
+        # if we crash here, transaction will abort and the images will be un-deleted
+        # but will get deleted next time so that the files are cleaned up
+        if os.path.exists(doomed):
+            os.unlink(doomed)
 
 def dupe(good, bad, inferior=True):
     with db.transaction():
