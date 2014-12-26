@@ -5,7 +5,10 @@ except ImportError: pass
 
 import filedb
 import db
-import merge,delete
+
+import queue, threading
+
+mergequeue = queue.Queue()
 
 with open('../sql/find-dupes.sql') as inp:
     findStmt = inp.read()
@@ -257,7 +260,13 @@ def answer(e):
 win.connect('destroy',Gtk.main_quit)
 
 def regularlyCommit():
+    import merge,delete
     while True:
+        (dest,source,inferior) = mergequeue.get()
+        print('got',dest,source,inferior)
+        merge.merge(dest,source,inferior)
+        if not mergequeue.empty(): continue
+        delete.commit()
 
 threading.Thread(target=regularlyCommit)
 win.show_all()
