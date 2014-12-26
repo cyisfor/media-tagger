@@ -85,7 +85,7 @@ class Finder:
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
-        merge.merge(self.dest,self.source,inferior)
+        mergequeue.put((self.dest,self.source,inferior))
         self.next(then)
     def swap(self,then=None):
         temp = self.dest
@@ -256,8 +256,12 @@ def answer(e):
 
 win.connect('destroy',Gtk.main_quit)
 
+def regularlyCommit():
+    while True:
+
+threading.Thread(target=regularlyCommit)
 win.show_all()
 
-Gtk.main()
 
-delete.commit()
+
+Gtk.main()
