@@ -68,6 +68,9 @@ CREATE TABLE media (
     phash uuid
 );
 
+CREATE INDEX bytype ON media USING btree (type);
+CREATE INDEX byoldest ON media USING btree (created);
+
 CREATE TABLE sources (
     id SERIAL PRIMARY KEY,
     checked timestamp with time zone DEFAULT clock_timestamp() UNIQUE
@@ -251,6 +254,7 @@ CREATE TABLE r.performsin (
 CREATE TABLE r.references (
     medium integer REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
     verse integer REFERENCES verses(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE(medium,verse)
 );
 
 -- now some indexes... for any time we have one, and have to look up many, i.e. all concepts tagging 
@@ -283,8 +287,8 @@ array(SELECT ROW(tags.id,tags.name)::derp1
 array(SELECT ROW(artists.id,people.name)::derp1
     FROM artists 
         INNER JOIN people ON people.id = artists.id 
-        INNER JOIN r.draws ON r.draws.artist = artists.id 
-    WHERE r.draws.medium = media.id),
+        INNER JOIN r.drew ON r.drew.artist = artists.id 
+    WHERE r.drew.medium = media.id),
 array(SELECT ROW(people.id,people.name)::derp1
     FROM people
         INNER JOIN r.portrays ON people.id = r.portrays.person
@@ -303,21 +307,32 @@ array(SELECT ROW(verses.id,verses.name)::derp1
     WHERE r.references.medium = media.id)
 FROM media WHERE media.id = $1;
 
+"/~media/artist:freedomthai/character:apple bloom/species:horse/act:vaginal penetration/-act:rape/feral/"
+->
 
-SET search_path = resultcache, r, pg_catalog;
+SELECT id FROM media WHERE
+   id IN (
+-- artist:
+    SELECT medium FROM r.drew WHERE 
+    artist = (SELECT artists.id FROM artists INNER JOIN people ON people.id = artists.id WHERE
+        people.name = 'freedomthai')
+    INTERSECT
+-- character:
+    SELECT medium from r.portrays WHERE
+    person = (SELECT people.id FROM people WHERE people.name = 'apple bloom')
+    INTERSECT
+-- species (no special relation known):
+    SELECT medium FROM r.describes WHERE
+    tag = (SELECT tag.id FROM tags WHERE tag.name = 'species:horse')
+-- act:
+    SELECT medium FROM r.performsin WHERE
+    act = (SELECT acts.id FROM acts WHERE acts.name = 'vaginal penetration')
+    EXCEPT
+-- act:
+    SELECT medium FROM r.performsin WHERE
+    act = (SELECT acts.id FROM acts WHERE acts.name = 'rape')
+    INTERSECT
+-- general:
+    SELECT medium FROM r.describes WHERE
+    tag = (SELECT tags.id FROM tags WHERE tags.name = 'feral'));
 
-CREATE TABLE resultcache.queries (
-    id SERIAL PRIMARY KEY,
-    digest text UNIQUE,
-    created timestamp with time zone DEFAULT clock_timestamp()
-);
-
-CREATE INDEX bytype ON media USING btree (type);
-CREATE INDEX bysources ON sources(media);
-CREATE INDEX byoldest ON media USING btree (created);
-
-CREATE INDEX tagsearch ON tagtags(red);
-
-CREATE TRIGGER expiretrigger AFTER INSERT OR DELETE OR UPDATE ON media FOR EACH STATEMENT EXECUTE PROCEDURE resultcache.expirequeriestrigger();
-
-CREATE TRIGGER tagexpiretrigger AFTER INSERT OR DELETE OR UPDATE ON tags FOR EACH STATEMENT EXECUTE PROCEDURE resultcache.expirequeriestrigger();
