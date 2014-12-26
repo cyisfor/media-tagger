@@ -1,24 +1,37 @@
-try: 
-    import pgi
-    pgi.install_as_gi()
-except ImportError: pass
 
-import filedb
-import db
-
-import queue, threading
-import merge
+import threading
 
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
 #import delete
 #delete.commit()
 merger = threading.Condition()
 
-with open('../sql/find-dupes.sql') as inp:
-    findStmt = inp.read()
+def regularlyCommit():
+    import merge,delete
+    while True:
+        delete.commit()
+        with merger:
+            merger.wait()
+
+t = threading.Thread(target=regularlyCommit)
+t.setDaemon(True)
+t.start()
+
+try: 
+    import pgi
+    pgi.install_as_gi()
+except ImportError: pass
 
 import gi
-from gi.repository import Gtk
+from gi.repository import Gtk,GLib
+
+import filedb
+import db
+
+import merge
+
+with open('../sql/find-dupes.sql') as inp:
+    findStmt = inp.read()
 
 def tracking(f):
     import traceback
@@ -264,21 +277,5 @@ def answer(e):
     finder.nodupe(then=refillimages)
 
 win.connect('destroy',Gtk.main_quit)
-
-
-def regularlyCommit():
-    import merge,delete
-    db.reopen() # wait... this destroys all prepareds?
-    while True:
-        delete.commit()
-        with merger:
-            merger.wait()
-
-t = threading.Thread(target=regularlyCommit)
-t.setDaemon(True)
-t.start()
 win.show_all()
-try: 
-    Gtk.main()
-finally:
-    mergequeue.join()
+Gtk.main()

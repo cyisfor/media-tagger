@@ -1,6 +1,5 @@
 import db
 import filedb
-import clipboardy
 
 from itertools import count
 import sys,os
@@ -39,7 +38,12 @@ def dbdelete(good,bad,reason,inferior):
     else:
         db.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
     start("tediously clearing neighbors")
-    db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
+    # it's way less lag if we break this hella up
+    for id, in db.execute('SELECT id FROM things WHERE neighbors @> ARRAY[$1::bigint]',(bad,)):
+        db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $1',(id,))
+        sys.stdout.write('.')
+        sys.stdout.flush()
+    #db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
     done()
     db.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
     db.execute('DELETE FROM tobedeleted WHERE bad = $1',(bad,))
@@ -92,6 +96,7 @@ if __name__ == '__main__':
         for line in sys.stdin:
             delete(findId(line),reason)
     else:
+        import clipboardy
         reason = os.environ['reason']
         def gotPiece(piece):
             try:

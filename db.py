@@ -13,7 +13,7 @@ db = local()
 def execute(*a,**kw):
     if not hasattr(db,'c'):
         reopen()
-    db.c.execute(*a,**kw)
+    return db.c.execute(*a,**kw)
 
 def retransaction(rollback=False): return pg.retransaction(db.c,rollback)
 def transaction(): return pg.transaction(db.c)

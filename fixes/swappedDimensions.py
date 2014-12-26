@@ -2,7 +2,7 @@ import create,filedb
 import db
 
 def getit(offset):
-    return db.c.execute("SELECT media.id,width,height FROM images INNER JOIN media ON images.id = media.id ORDER BY media.added DESC OFFSET $1 LIMIT 1",(offset,))[0]
+    return db.execute("SELECT media.id,width,height FROM images INNER JOIN media ON images.id = media.id ORDER BY media.added DESC OFFSET $1 LIMIT 1",(offset,))[0]
 
 Fuzzy = []
 
@@ -36,5 +36,5 @@ while toolow + 1 < toohigh:
 
 image,wid,hei = getit(toolow)
 
-db.c.execute('UPDATE images SET width = height, height = width WHERE id >= $1',(image,))
+db.execute('UPDATE images SET width = height, height = width WHERE id >= $1',(image,))
 print('Fixed ',toolow,'images')
