@@ -6,7 +6,6 @@ if __name__ == '__main__':
 from favorites.parseBase import *
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
-from db import c
 import db
 import clipboardy
 
@@ -46,7 +45,8 @@ class Catchup(threading.Thread):
             megafail(uri)
         except URLError as e:
             if e.getcode() == 503:
-                delay(uri,100)            
+                print('site is bogged down! delaying a while')
+                delay(uri,'1 minute')
         except:
             print("fail",uri)
             fail(uri)

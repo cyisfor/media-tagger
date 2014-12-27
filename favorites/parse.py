@@ -1,4 +1,18 @@
 #!/usr/bin/env python3
+
+if len(sys.argv)>1:
+    mode = 0
+elif 'stdin' in os.environ:
+    mode = 1
+else:
+    mode = 2
+
+if mode == 2:
+    try: 
+        import pgi
+        pgi.install_as_gi()
+    except ImportError: pass
+
 import syspath
 import fixprint
 import catchup
@@ -11,10 +25,10 @@ if __name__ == '__main__':
     import sys
     import settitle
     settitle.set('parse')
-    if len(sys.argv)>1:
+    if mode == 1:
         enqueue(sys.argv[1])
         catchup.poke()
-    elif 'stdin' in os.environ:
+    elif mode == 2:
         for line in sys.stdin:
             enqueue(line.strip())
         catchup.poke()
