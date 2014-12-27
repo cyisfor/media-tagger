@@ -14,7 +14,7 @@ from user import User,dtags as defaultTags
 from session import Session
 import tags
 import context
-from db import c
+import db
 from redirect import Redirect
 import filedb
 
@@ -91,11 +91,11 @@ def fixType(id):
     type = info[0]
     if type == 'application/octet-stream':
         raise RuntimeError("Please inspect {:x} could not determine type!".format(id))
-    c.execute("UPDATE media SET type = $1 WHERE id = $2",(type,id))
+    db.execute("UPDATE media SET type = $1 WHERE id = $2",(type,id))
     return type
 
 def fixName(id,type):
-    for uri, in c.execute("SELECT uri FROM urisources INNER JOIN media ON media.sources @> ARRAY[urisources.id] AND media.id = $1",(id,)):
+    for uri, in db.execute("SELECT uri FROM urisources INNER JOIN media ON media.sources @> ARRAY[urisources.id] AND media.id = $1",(id,)):
         name = tail(uri,'/').rstrip('.')
         if name: break
     else:
@@ -107,7 +107,7 @@ def fixName(id,type):
         import derpmagic as magic
         name = name + magic.guess_extension(type)
 
-    c.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
+    db.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
     return name
 
 def makeLinks(info,linkfor=None):
@@ -415,12 +415,12 @@ def desktop(raw,path,params):
     if 'd' in params:
         raise Redirect(pageLink(0,history[0]))
     if Session.head:
-        Session.modified = c.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
+        Session.modified = db.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
         return
     if n == 0x10:
         current = history[0]
         history = history[1:]
-        name,type,tags = c.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+        name,type,tags = db.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
         tags = [str(tag) for tag in tags]
         type = stripPrefix(type)
         middle = (
@@ -432,7 +432,7 @@ def desktop(raw,path,params):
         middle = ''
     def makeDesktopLinks():
         allexists = True
-        for id,name in c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
+        for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
             fid,exists = filedb.check(id) 
             allexists = allexists and exists
             yield d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
@@ -448,7 +448,7 @@ def desktop(raw,path,params):
         if len(row):
             yield d.tr(row)
 
-    Session.modified = c.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
+    Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
     return makePage("Current Desktop",
             middle,
             d.p("Past Desktops"),
@@ -469,15 +469,15 @@ def user(info,path,params):
     rescalebox = d.input(iattr)
     if User.defaultTags:
         def makeResult():
-            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
+            result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
             for name in result:
                 yield name[0],False
-            result = c.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.nega,))
+            result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.nega,))
             for name in result:
                 yield name[0],True
         result = makeResult()
     else:
-        result = c.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.tag WHERE uzertags.uzer = $1',(User.id,))
+        result = db.execute('SELECT tags.name,uzertags.nega FROM tags INNER JOIN uzertags ON tags.id = uzertags.tag WHERE uzertags.uzer = $1',(User.id,))
         note('raw uzer tag result',result)
         result = ((row[0],row[1] is True or row[1]=='t') for row in result)
     tagnames = []
@@ -507,10 +507,10 @@ def getPage(params):
         return int(page[0])
 
 def getType(medium):
-    return c.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
+    return db.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
 
 def getStuff(medium):
-    return c.execute('''SELECT 
+    return db.execute('''SELECT 
     type,
     size,
     COALESCE(images.width,videos.width),
@@ -534,7 +534,7 @@ def comicNoExist():
     raise RuntimeError("Comic no exist")
 
 def checkModified(medium):
-    modified = c.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(medium,))[0][0]
+    modified = db.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(medium,))[0][0]
     if modified:
         if Session.modified:
             Session.modified = max(modified,Session.modified)

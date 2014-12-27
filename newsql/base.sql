@@ -158,7 +158,7 @@ CREATE TABLE uzers (
     defaulttags boolean DEFAULT false
 );
 
-CREATE TABLE artist (
+CREATE TABLE artists (
     id INTEGER REFERENCES people(id) ON DELETE CASCADE ON UPDATE CASCADE,
     -- ...?
 );

@@ -1,4 +1,4 @@
-from db import c,setup,saved
+from db import setup,saved
 import db
 from redirect import Redirect
 
@@ -46,28 +46,28 @@ def withC(f):
     return wrapper
 
 def findComicByTitle(title,getinfo):
-    rows = c.execute("SELECT id FROM comics WHERE title = $1",(title,));
+    rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
     if len(rows) == 0:
         description = getinfo();
-        return c.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+        return db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
                 (title,
                 description))[0][0]
     return rows[0][0]
 
 def findInfo(id,getinfo):
-    rows = c.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source) FROM comics WHERE id = $1",(id,))
+    rows = db.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source) FROM comics WHERE id = $1",(id,))
     if len(rows) == 0:
         title,description,source = getinfo() # some GUI thing
-        c.execute("INSERT INTO comics (id,title,description VALUES ($1,$2,$3) RETURNING id",(id,title,description))
+        db.execute("INSERT INTO comics (id,title,description VALUES ($1,$2,$3) RETURNING id",(id,title,description))
         return title, description,source
     return rows[0]
 
 def findMediumDerp(comic,which,medium=None):
-    rows = c.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))
+    rows = db.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))
     if len(rows)==0:
         if medium:
-            c.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
-            c.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
+            db.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
+            db.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
         return medium
     return rows[0][0]
 
@@ -91,19 +91,19 @@ def findMedium(comic,which,medium=None):
                 raise Redirect("../0/")
             print("Time to reorder!")
             with db.transaction():
-                c.execute("CREATE TEMPORARY TABLE orderincomix AS SELECT id,(row_number() OVER (partition by comic order by which))-1 AS which FROM comicpage")
-                c.execute("UPDATE comicpage SET which = orderincomix.which FROM orderincomix WHERE orderincomix.id = comicpage.id")
-                c.execute("DROP TABLE orderincomix")
+                db.execute("CREATE TEMPORARY TABLE orderincomix AS SELECT id,(row_number() OVER (partition by comic order by which))-1 AS which FROM comicpage")
+                db.execute("UPDATE comicpage SET which = orderincomix.which FROM orderincomix WHERE orderincomix.id = comicpage.id")
+                db.execute("DROP TABLE orderincomix")
     raise Error("I give up. The comic {:x} is messed up on page {:x}!".format(com,which))
 
 def numComics():
-    rows = c.execute("SELECT COUNT(id) FROM comics")
+    rows = db.execute("SELECT COUNT(id) FROM comics")
     return rows[0][0]
 
 def pages(comic):
-    rows = c.execute("SELECT COUNT(id) FROM comicPage WHERE comic = $1",(comic,))
+    rows = db.execute("SELECT COUNT(id) FROM comicPage WHERE comic = $1",(comic,))
     return rows[0][0]
 
 def list(page):
-    return c.execute("SELECT id,title FROM comics ORDER BY added DESC, id OFFSET $1 LIMIT $2",(page*0x20,0x20))
+    return db.execute("SELECT id,title FROM comics ORDER BY added DESC, id OFFSET $1 LIMIT $2",(page*0x20,0x20))
 
