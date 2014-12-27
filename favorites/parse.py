@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import sys
+import os
 
 if len(sys.argv)>1:
     mode = 0
@@ -12,23 +14,22 @@ if mode == 2:
         import pgi
         pgi.install_as_gi()
     except ImportError: pass
+print('pgi do')
 
 import syspath
 import fixprint
 import catchup
 from dbqueue import enqueue
 
-import os
 
 if __name__ == '__main__':
     import select
-    import sys
     import settitle
     settitle.set('parse')
-    if mode == 1:
+    if mode == 0:
         enqueue(sys.argv[1])
         catchup.poke()
-    elif mode == 2:
+    elif mode == 1:
         for line in sys.stdin:
             enqueue(line.strip())
         catchup.poke()

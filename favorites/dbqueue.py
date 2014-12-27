@@ -28,12 +28,12 @@ def enqueue(uri):
     try: h = host(uri)
     except ValueError: return
 
-    db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,$2 WHERE NOT EXISTS (SELECT id FROM parseQueue WHERE uri = $2)",(host,uri))
+    db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,$2 WHERE NOT EXISTS (SELECT id FROM parseQueue WHERE uri = $2)",(h,uri))
 
 def top():
     r = db.execute('''SELECT uri FROM parseQueue WHERE NOT done AND tries < 5 AND
     (host IS NULL OR EXISTS 
-        (select id FROM hosts WHERE resume > clock_timestamp() AND id = parseQueue.id))
+        (select id FROM hosts WHERE resume IS NULL OR resume > clock_timestamp() AND id = parseQueue.id))
     ORDER BY added DESC LIMIT 1''')
     if r: return r[0][0]
     return None
