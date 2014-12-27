@@ -142,16 +142,21 @@ class Handler(FormCollector,myserver.ResponseHandler):
         return super().received_header(name,value)
     @gen.coroutine
     def do(self):
-        if self.uploader:
-            yield self.send_status(301,"enjoy")
-            media = yield self.uploader.result
-            yield self.send_header('Location','/art/~page/{:x}'.format(media))
-            return
-        with self.user, Session:
-            try: yield super().do() or myserver.success
-            except Redirect as r:
-                yield self.send_status(r.code,"go")
-                yield self.send_header('Location',r.where)
+        try:
+            if self.uploader:
+                yield self.send_status(301,"enjoy")
+                media = yield self.uploader.result
+                yield self.send_header('Location','/art/~page/{:x}'.format(media))
+                return
+            with self.user, Session:
+                try: yield super().do() or myserver.success
+                except Redirect as r:
+                    yield self.send_status(r.code,"go")
+                    yield self.send_header('Location',r.where)
+        except UserError as e:
+            print(e)
+            yield self.send_status(500, "Ow")
+            yield self.write(("Something blew up: "+str(e)).encode('utf-8'))
     def head(self):
         with Session:
             Session.head = True

@@ -1,4 +1,4 @@
-from db import c
+import db
 import resultCache
 from itertools import count
 from tags import Taglist,stmts
@@ -19,7 +19,7 @@ def nonumbers(f):
             if isinstance(tag,'str'):
                 yield tag
             else:
-                c.execute("DELETE FROM tags WHERE id = $1",(id,))
+                db.execute("DELETE FROM tags WHERE id = $1",(id,))
     def wrapper(*k,**a):
         return filter(f(*k,**a))
     return wrapper
@@ -93,7 +93,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
                 if isinstance(tag,str):
                     yield tag
                 else:
-                    c.execute("DELETE FROM tags WHERE id = $1",(id,))
+                    db.execute("DELETE FROM tags WHERE id = $1",(id,))
             else:
                 yield row
     if explain:

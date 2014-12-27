@@ -4,19 +4,24 @@ import threading, queue
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
 mergequeue = queue.Queue()
 
-Done = object()
-
 def regularlyCommit():
     import merge
     while True:
+        message = None
         try:
             message = mergequeue.get()
-            if message is Done: break
+            if message == 'done': 
+                print('done')
+                break
             dest,source,inferior = message
             merge.merge(dest,source,inferior)
+            print('left',mergequeue.qsize())
         except Exception as e:
             import sys
             sys.print_exc()
+        finally:
+            if message:
+                mergequeue.task_done()
 
 t = threading.Thread(target=regularlyCommit)
 t.setDaemon(True)
@@ -284,5 +289,5 @@ win.connect('destroy',Gtk.main_quit)
 win.show_all()
 Gtk.main()
 print('Waiting for merges to finish')
-mergequeue.put(Done)
+mergequeue.put('done')
 mergequeue.join()

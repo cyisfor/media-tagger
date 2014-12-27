@@ -13,7 +13,7 @@ from user import User,dtags as defaultTags
 from session import Session
 import tags
 import context
-from db import c
+import db
 from redirect import Redirect
 import filedb
 
@@ -178,12 +178,12 @@ def desktop(raw,path,params):
         return dict(error="No desktops yet!?")
     current = history[0]
     history = history[1:]
-    id,name,modified,type,tags,tagnames = c.execute("SELECT media.id,name,modified,type,array(select id from tags where tags.id = ANY(neighbors)),array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+    id,name,modified,type,tags,tagnames = db.execute("SELECT media.id,name,modified,type,array(select id from tags where tags.id = ANY(neighbors)),array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
     Session.etag = 'desktop-'+str(id)+str(modified) 
     # can't do Session.modified b/c old pictures might show up newly
     def makeDesktopLinks():
         allexists = True
-        for id,name in c.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
+        for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
             fid,exists = filedb.check(id) 
             allexists = allexists and exists
             yield dict(id=id,name=name,exists=exists)
@@ -206,10 +206,10 @@ def getPage(params):
         return int(page[0])
 
 def getType(medium):
-    return c.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
+    return db.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
 
 def getStuff(medium):
-    return c.execute('''SELECT 
+    return db.execute('''SELECT 
     type,
     size,
     COALESCE(images.width,videos.width),
@@ -233,7 +233,7 @@ def comicNoExist():
     raise RuntimeError("Comic no exist")
 
 def checkModified(medium):
-    modified = c.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(medium,))[0][0]
+    modified = db.execute('SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE id = $1',(medium,))[0][0]
     if modified:
         if Session.modified:
             Session.modified = max(modified,Session.modified)
