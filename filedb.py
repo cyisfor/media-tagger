@@ -37,7 +37,7 @@ def check(id,**kw):
 
 def checkResized(id,**kw):
     kw.setdefault('delay',0.1)
-    return _check(id,'resized',contents="{:x}".format(800),delay=0.1,**kw)
+    return _check(id,'resized',contents="{:x}".format(800),**kw)
 
 def checkOEmbed(id,maxWidth,**kw):
     return _check(id,'oembed',contents='{:x}'.format(maxWidth),**kw)

@@ -21,10 +21,11 @@ def host(uri):
     if r:
         host = r[0][0]
     else:
-        host = db.execute('INSERT INTO hosts (host) VALUES ($1) RETURNING id',(host,))
+        host = db.execute('INSERT INTO hosts (host) VALUES ($1) RETURNING id',(host,))[0][0]
     return host
 
 def enqueue(uri):
+    if len(uri) > 2712: return
     try: h = host(uri)
     except ValueError: return
 

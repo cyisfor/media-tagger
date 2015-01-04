@@ -43,6 +43,8 @@ import merge
 with open('../sql/find-dupes.sql') as inp:
     findStmt = inp.read()
 
+loop = GLib.MainLoop()
+
 def tracking(f):
     import traceback
     try: raise RuntimeError
@@ -285,9 +287,9 @@ def answer(e):
 def answer(e):
     finder.nodupe(then=refillimages)
 
-win.connect('destroy',Gtk.main_quit)
+win.connect('destroy',loop.quit)
 win.show_all()
-Gtk.main()
+loop.run()
 print('Waiting for merges to finish')
 mergequeue.put('done')
 mergequeue.join()

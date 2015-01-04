@@ -35,8 +35,7 @@ def parse(primarySource):
             if 'normalize' in handlers:
                 primarySource = handlers['normalize'](primarySource)
             with tempfile.NamedTemporaryFile() as temp:
-                while True:
-                    headers = myretrieve(urllib.request.Request(primarySource),temp)
+                headers = myretrieve(urllib.request.Request(primarySource),temp)
                 temp.seek(0,0)
                 inp = temp
                 

@@ -193,10 +193,11 @@ if __name__ == '__main__':
     if len(sys.argv)==3:
         tag(int(sys.argv[1],0x10),parse(sys.argv[2:]))
     else:
-        import clipboardy
+        import gtkclipboardy as clipboardy
         from gi.repository import Gtk,Gdk,GObject,GLib
+        loop = GLib.MainLoop()
         window = Gtk.Window()
-        window.connect('destroy',Gtk.main_quit)
+        window.connect('destroy',lambda e: loop.quit())
         box = Gtk.VBox()
         window.add(box)
         tagentry = Gtk.Entry()
@@ -213,4 +214,4 @@ if __name__ == '__main__':
         window.show_all()
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        Gtk.main()
+        loop.run()
