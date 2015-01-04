@@ -81,7 +81,7 @@ def status(s):
 
 if __name__ == '__main__':
     start = time.time()
-    total = db.execute('SELECT count(id) FROM media WHERE pHash IS NULL')[0][0]
+    total = db.execute('SELECT count(id) FROM media WHERE NOT pHashFail AND pHash IS NULL')[0][0]
     achieved = None
     timespent = 0
     if os.path.exists('last'):
@@ -96,9 +96,12 @@ if __name__ == '__main__':
     achieved = achieved or 1
     elapsed = 0
     current = 0
-    for id, in db.execute('SELECT id FROM media WHERE pHash IS NULL ORDER BY id'):
+    for id, in db.execute('SELECT id FROM media WHERE NOT pHashFail AND pHash IS NULL ORDER BY id'):
         hid = '{:x}'.format(id)
         status(hid+' '+timeify((total - current) * (timespent + elapsed) / achieved)+' left')
+        if not os.path.exists(filedb.imagePath(id)):
+            print('uhhh',hid)
+            raise SystemExit
         pHash = create(hid)
         elapsed = time.time() - start
         current = next(counter)
@@ -108,6 +111,8 @@ if __name__ == '__main__':
         os.unlink('last')
         os.rename('last.temp','last')
         if (pHash == 'ERROR'):
+            print('err')
             db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
         else:
+            print(pHash)
             db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))

@@ -15,7 +15,7 @@ _aadd timestamptz;
 _badd timestamptz;
 BEGIN
     _aadd := COALESCE(added,modified,created,now()) FROM media WHERE id = _a;
-    _badd := COALESCE(added,modified,created,now()) FROM media WHERE id = _b;
+    _badd := COALESCE(added,modified,created,now()) FROM media WHERE id < _b AND added IS NOT NULL LIMIT 1;
     UPDATE media SET added = NULL WHERE id = _b;
     UPDATE media SET added = GREATEST(_aadd,_badd) WHERE id = _a;
 END

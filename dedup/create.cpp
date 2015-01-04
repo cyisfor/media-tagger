@@ -18,11 +18,12 @@ int main(void) {
             assert(chdir(line) == 0);
             indir = true;
         } else {
-            ulong64 hash;
-            if(ph_dct_imagehash(line,hash) < 0) 
+            ulong64 hash = 23;
+            if(ph_dct_imagehash(line,hash) < 0)  {
                 fputs("ERROR\n",stdout);
-            else
+            } else {
                 fprintf(stdout,"%llx\n",hash);
+	    }
             fflush(stdout);
         }
     }

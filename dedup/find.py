@@ -21,8 +21,8 @@ def regularlyCommit():
             merge.merge(dest,source,inferior)
             print('left',mergequeue.qsize())
         except Exception as e:
-            import sys
-            sys.print_exc()
+            import traceback
+            traceback.print_exc()
         finally:
             if message:
                 mergequeue.task_done()
@@ -115,13 +115,18 @@ class Finder:
             if then:
                 then()
         else:
-            assert(then)
-            then()
+            if then:
+                then()
     def nodupe(self,then=None):
         print('nadupe',self.dest,self.source)
-        db.execute('UPDATE media SET phash = $1 WHERE id = $2 OR id = $3',(
-            '0'*15+'3'+'0'*(16-len(self.hash))+self.hash,
-            self.dest, self.source))
+        if self.dest > self.source:
+            a = self.source
+            b = self.dest
+        else:
+            a = self.dest
+            b = self.source
+        print('boing',a,b)
+        db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
@@ -162,8 +167,7 @@ class Image:
                 self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
                 break
             except GLib.GError:
-                finder.next(None)
-            
+                finder.next(None)            
         self.image = Gtk.Image.new_from_animation(self.pixbuf)
         self.label = Gtk.Label(label='{:x}'.format(self.id))
         labelbox.pack_start(self.label,True,True,0)
