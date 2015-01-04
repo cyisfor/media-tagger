@@ -17,16 +17,17 @@ def addColumn():
         'ALTER TABLE media RENAME COLUMN pHash TO derpHash',
         'ALTER TABLE media ADD COLUMN pHashFail BOOLEAN DEFAULT FALSE',
         'ALTER TABLE media ADD COLUMN pHash int8',
-        ''''UPDATE media SET 
-    phash = ('x' || substring(uuid_send(derpHash) from 10))::bit(64)::int8, 
-    pHashFail = (('x' || substring(uuid_send(derpHash) from 10))::bit(64)::int8 = 2)''',
+        '''UPDATE media SET 
+    phash = ('x' || encode(substring(uuid_send(derpHash) from 10),'hex'))::bit(64)::int8, 
+        pHashFail = (('x' || encode(substring(uuid_send(derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 2)''',
         '''CREATE TABLE nadupes (
-    sis bigint primary key references media(id),
-    bro bigint primary key references media(id),
+        id serial primary key,
+    sis bigint references media(id),
+    bro bigint references media(id),
     UNIQUE(sis,bro)
 );''',
-        '''INSERT INTO nadupes SELECT a.id,b.id FROM media as a, media as b
-             WHERE a.id > b.id AND a.phash = b.phash AND (('x' || substring(uuid_send(derpHash) from 1 for 8))::bit(64)::int8 = 3)''')
+        '''INSERT INTO nadupes (sis,bro) SELECT a.id,b.id FROM media as a, media as b 
+             WHERE a.id > b.id AND a.phash = b.phash AND (('x' || encode(substring(uuid_send(a.derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 3) AND (('x' || encode(substring(uuid_send(b.derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 3)''')
 #        'ALTER TABLE media DROP COLUMN derpHash'
 
 version.setup()
@@ -109,4 +110,4 @@ if __name__ == '__main__':
         if (pHash == 'ERROR'):
             db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
         else:
-            db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',(pHash,id))
+            db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))

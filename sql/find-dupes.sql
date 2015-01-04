@@ -1,18 +1,5 @@
-with hashes as (select * from (
-    select id,
-        derphash,
-        ('x' || derphash)::bit(64)::int8 as phash, 
-        flags
-    from (
-        select id,
-        encode(substring(uuid_send(phash) from 10),'hex') as derphash,
-        ('x' || encode(substring(uuid_send(pHash) from 1 for 8),'hex'))::bit(64)::int8 as flags 
-            from media
-            where phash != '00000000-0000-0000-0000-000000000002'
-            and phash != '00000000-0000-0000-0000-000000000001'
-            and phash != '00000000-0000-0000-0000-000000000000'
-        )
-        as derp1
-    ) 
-    as derp2 where phash != 0 and flags = 0)
-    select a.id as a, b.id as b, a.derphash as hash from hashes a, hashes b where a.id > b.id and a.phash = b.phash order by a.id desc, b.id desc;
+SELECT a,b,hash FROM (select a.id as a, b.id as b,a.pHash as hash FROM media a, media b
+WHERE a.id != b.id AND NOT a.pHashFail AND a.pHash = b.pHash) AS hashey
+left outer join nadupes ON nadupes.bro = a and nadupes.sis = b
+left outer join nadupes nd2 on nd2.sis = a and nd2.bro = b
+WHERE nadupes.id IS NULL AND nd2.id IS NULL

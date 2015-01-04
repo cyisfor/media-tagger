@@ -156,8 +156,14 @@ images = {}
 class Image:
     def __init__(self,name):
         self.name = name
-        self.id = getattr(finder,name)
-        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
+        while True:
+            try:
+                self.id = getattr(finder,name)
+                self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
+                break
+            except GLib.GError:
+                finder.next(None)
+            
         self.image = Gtk.Image.new_from_animation(self.pixbuf)
         self.label = Gtk.Label(label='{:x}'.format(self.id))
         labelbox.pack_start(self.label,True,True,0)
