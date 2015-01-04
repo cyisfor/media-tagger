@@ -5,7 +5,7 @@ def setup():
     db.setup("""CREATE TABLE desktops (
 id bigint PRIMARY KEY REFERENCES images(id),
 selected timestamptz DEFAULT clock_timestamp() NOT NULL)""",
-    "CREATE UNIQUE INDEX orderDesktops ON desktops (added DESC)");
+    "CREATE UNIQUE INDEX orderDesktops ON desktops (selected DESC)");
 
 def history(n=0x10):
     return [row[0] for row in db.execute("SELECT id FROM desktops ORDER BY selected DESC LIMIT $1",(n,))]

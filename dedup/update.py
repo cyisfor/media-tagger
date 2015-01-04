@@ -11,6 +11,23 @@ version = versions.Versioner('media')
 @version(1337)
 def addColumn():
     db.execute('ALTER TABLE media ADD COLUMN pHash uuid')
+@version(1338)
+def addColumn():
+    db.setup(
+        'ALTER TABLE media RENAME COLUMN pHash TO derpHash',
+        'ALTER TABLE media ADD COLUMN pHashFail BOOLEAN DEFAULT FALSE',
+        'ALTER TABLE media ADD COLUMN pHash int8',
+        ''''UPDATE media SET 
+    phash = ('x' || substring(uuid_send(derpHash) from 10))::bit(64)::int8, 
+    pHashFail = (('x' || substring(uuid_send(derpHash) from 10))::bit(64)::int8 = 2)''',
+        '''CREATE TABLE nadupes (
+    sis bigint primary key references media(id),
+    bro bigint primary key references media(id),
+    UNIQUE(sis,bro)
+);''',
+        '''INSERT INTO nadupes SELECT a.id,b.id FROM media as a, media as b
+             WHERE a.id > b.id AND a.phash = b.phash AND (('x' || substring(uuid_send(derpHash) from 1 for 8))::bit(64)::int8 = 3)''')
+#        'ALTER TABLE media DROP COLUMN derpHash'
 
 version.setup()
 
@@ -90,5 +107,6 @@ if __name__ == '__main__':
         os.unlink('last')
         os.rename('last.temp','last')
         if (pHash == 'ERROR'):
-            pHash = '0'*31+'2'
-        db.execute('UPDATE media SET pHash = $1 WHERE id = $2',('0'*(32-len(pHash))+pHash,id))
+            db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
+        else:
+            db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',(pHash,id))

@@ -1,3 +1,7 @@
+try: 
+    import pgi
+    pgi.install_as_gi()
+except ImportError: pass
 
 import threading, queue
 
@@ -26,11 +30,6 @@ def regularlyCommit():
 t = threading.Thread(target=regularlyCommit)
 t.setDaemon(True)
 t.start()
-
-try: 
-    import pgi
-    pgi.install_as_gi()
-except ImportError: pass
 
 import gi
 from gi.repository import Gtk,GLib
@@ -76,11 +75,18 @@ def idle_add(f,*a,**kw):
     # have to slow this down b/c pgi has a bug that infinite loops w/out calling callback
     GLib.timeout_add(100,once(tracking(f)),*a,**kw)
 
+maxoff = int(db.execute("SELECT max(id) FROM media")[0][0] / 10000)
+
+print('pages',maxoff)
+print(findStmt)
 class Finder:
     def reload(self):
-        self.dupes = iter(db.execute(findStmt));
+        print('go')
+        self.dupes = iter(db.execute(findStmt))
+        print('go2')
     a = b = -1
     starting = True
+    done = False
     def __init__(self):
         self.reload()
         print('starting finder')
@@ -89,8 +95,9 @@ class Finder:
     def next(self,then):
         try: self.source, self.dest, self.hash = next(self.dupes)
         except StopIteration:
+            self.done = True
             print('all done!')
-            Gtk.main_quit()
+            loop.quit()
             return
         if not (
                 db.execute('SELECT id FROM media WHERE id = $1',(self.dest,))
@@ -128,6 +135,8 @@ class Finder:
         if then: then()
 
 finder = Finder()
+if finder.done:
+    raise SystemExit
 
 import gi
 from gi.repository import Gtk,Gdk,GdkPixbuf,GLib
@@ -287,7 +296,7 @@ def answer(e):
 def answer(e):
     finder.nodupe(then=refillimages)
 
-win.connect('destroy',loop.quit)
+win.connect('destroy',lambda e: loop.quit())
 win.show_all()
 loop.run()
 print('Waiting for merges to finish')
