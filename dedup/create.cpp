@@ -19,6 +19,11 @@ int main(void) {
             indir = true;
         } else {
             ulong64 hash = 23;
+	    struct stat buf;
+	    if(stat(line,&buf) != 0) {
+	      fprintf(stderr,"whyyyy %s\n",line);
+	      exit(23);
+	    }
             if(ph_dct_imagehash(line,hash) < 0)  {
                 fputs("ERROR\n",stdout);
             } else {

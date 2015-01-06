@@ -1,2 +1,9 @@
+CPPFLAGS=-g
+
+all: create tomvtreehack
+
 create: create.o
-	g++ -o $@ $^ -lpHash
+	g++ -g -o $@ $^ -lpHash
+
+tomvtreehack: tomvtreehack.cpp
+	g++ -g -I . -o $@ $^ -lpHash ./libmvptree.a

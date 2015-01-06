@@ -99,7 +99,7 @@ if __name__ == '__main__':
     for id, in db.execute('SELECT id FROM media WHERE NOT pHashFail AND pHash IS NULL ORDER BY id'):
         hid = '{:x}'.format(id)
         status(hid+' '+timeify((total - current) * (timespent + elapsed) / achieved)+' left')
-        if not os.path.exists(filedb.imagePath(id)):
+        if not os.path.exists(filedb.mediaPath(id)):
             print('uhhh',hid)
             raise SystemExit
         pHash = create(hid)
@@ -114,5 +114,8 @@ if __name__ == '__main__':
             print('err')
             db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
         else:
-            print(pHash)
+            if int(pHash,0x10) == 0:
+                print('uhhhhhhh',hid)
+                print(filedb.mediaPath(id))
+                print(os.path.exists(filedb.mediaPath(id)))
             db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
