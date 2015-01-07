@@ -90,32 +90,34 @@ if __name__ == '__main__':
             timespent = float(inp.readline())
     elif os.path.exists('last.temp'):
         with open('last.temp') as inp:
-            achieved = count(int(inp.readline()))
+            achieved = int(inp.readline())
             timespent = float(inp.readline())
     counter = count(0)
-    achieved = achieved or 1
+    achieved = 0
     elapsed = 0
     current = 0
-    for id, in db.execute('SELECT id FROM media WHERE NOT pHashFail AND pHash IS NULL ORDER BY id'):
-        hid = '{:x}'.format(id)
-        status(hid+' '+timeify((total - current) * (timespent + elapsed) / achieved)+' left')
-        if not os.path.exists(filedb.mediaPath(id)):
-            print('uhhh',hid)
-            raise SystemExit
-        pHash = create(hid)
-        elapsed = time.time() - start
-        current = next(counter)
-        with open('last.temp','w') as out:
-            out.write('{}\n'.format(achieved + current))
-            out.write('{}\n'.format(timespent + elapsed))
-        os.unlink('last')
-        os.rename('last.temp','last')
-        if (pHash == 'ERROR'):
-            print('err')
-            db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
-        else:
-            if int(pHash,0x10) == 0:
-                print('uhhhhhhh',hid)
-                print(filedb.mediaPath(id))
-                print(os.path.exists(filedb.mediaPath(id)))
-            db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
+    with db.transaction():
+        for id, in db.execute('SELECT id FROM media WHERE NOT pHashFail AND pHash IS NULL ORDER BY id'):
+            hid = '{:x}'.format(id)
+            status(hid+' '+timeify((total - current) * (timespent + elapsed) / (achieved if achieved else 1))+' left')
+            if not os.path.exists(filedb.mediaPath(id)):
+                print('uhhh',hid)
+                raise SystemExit
+            current = next(counter)
+            if (current+1)%10==0:
+                db.retransaction()
+                with open('last.temp','w') as out:
+                    out.write('{}\n'.format(achieved))
+                    out.write('{}\n'.format(timespent + elapsed))
+                try: os.unlink('last')
+                except OSError: pass
+                os.rename('last.temp','last')
+                print('retransaction')
+            pHash = create(hid)
+            elapsed = time.time() - start
+            if (pHash == 'ERROR'):
+                print('err')
+                db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
+            else:
+                db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
+            achieved = achieved + 1

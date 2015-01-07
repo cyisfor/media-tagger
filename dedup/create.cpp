@@ -1,3 +1,4 @@
+#define cimg_use_png
 #include <pHash.h>
 #include <assert.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@ int main(void) {
 	      exit(23);
 	    }
             if(ph_dct_imagehash(line,hash) < 0)  {
-                fputs("ERROR\n",stdout);
+                fprintf(stdout, "ERROR\n",stdout);
             } else {
                 fprintf(stdout,"%llx\n",hash);
 	    }

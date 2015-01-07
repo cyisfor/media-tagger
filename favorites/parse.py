@@ -38,7 +38,7 @@ if __name__ == '__main__':
         from itertools import count
         import clipboardy
         def gotPiece(piece):
-            print("uhh")
+            print("uhh",piece)
             if 'http' in piece:
                 print("Trying {}".format(piece.strip()))
                 sys.stdout.flush()
