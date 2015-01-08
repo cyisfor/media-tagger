@@ -2,6 +2,7 @@ import db
 import tags
 import filedb
 import movie
+import note
 
 from futurestuff import drain
 
@@ -162,11 +163,12 @@ def getanId(sources,uniqueSource,download,name):
 
 tagsModule = tags
 
-def update(id,sources,tags):
+def update(id,sources,tags,name):
     donetags = []
     print('upd8',id,sources)
     with db.transaction():
-        db.execute("UPDATE media SET sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id))
+        db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id,name))
+        
     tagsModule.tag(id,tags)
 
 def internet_yield(download,media,tags,primarySource,otherSources,name=None):
@@ -200,7 +202,8 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         if not wasCreated:
              print("Old medium with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
-    update(id,sources,tags)
+    note("update")
+    update(id,sources,tags,name)
     yield id,wasCreated
 
 def internet_future(ioloop,*a,**kw):

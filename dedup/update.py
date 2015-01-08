@@ -93,7 +93,6 @@ if __name__ == '__main__':
             achieved = int(inp.readline())
             timespent = float(inp.readline())
     counter = count(0)
-    achieved = 0
     elapsed = 0
     current = 0
     with db.transaction():

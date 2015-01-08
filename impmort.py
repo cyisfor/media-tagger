@@ -65,9 +65,11 @@ for path in sys.stdin:
     if ' - ' in name:
         tags,rest = name.split(' - ',1)
         if not '-' in tags:
-            #print('found official tags header',tags)
+            print('found official tags header',tags)
+            print(rest)
             officialTags = True
             discovered = set(tag.strip() for tag in tags.split(','))
+            name = rest
     discovered = discovered.union(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
     #print(implied.union(discovered))
@@ -97,8 +99,9 @@ for path in sys.stdin:
                 print("Hasho",idnum)
             if idnum:
                 print("Adding saource",idnum,source)
-                db.execute("UPDATE media SET sources=array(SELECT unnest(sources) UNION SELECT $2) WHERE id = $1",(idnum,source))
-            print("importing",path,discovered)
-            create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,())
+                create.update(idnum,(source,),implied.union(discovered),name)
+            else:
+                print("importing",path,discovered)
+                create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
     except create.NoGood: 
         db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))

@@ -39,8 +39,7 @@ import db
 
 import merge
 
-with open('../sql/find-dupes.sql') as inp:
-    findStmt = inp.read()
+findStmt = 'SELECT sis,bro FROM possibleDupes WHERE dist < 10 EXCEPT SELECT sis,bro FROM nadupes LIMIT 1000'
 
 loop = GLib.MainLoop()
 
@@ -93,12 +92,16 @@ class Finder:
         self.next(None)
         self.starting = False
     def next(self,then):
-        try: self.source, self.dest, self.hash = next(self.dupes)
+        try: self.source, self.dest = next(self.dupes)
         except StopIteration:
-            self.done = True
-            print('all done!')
-            loop.quit()
-            return
+            self.dupes = iter(db.execute(findStmt))
+            try:
+                self.source, self.dest = next(self.dupes)
+            except StopIteration:
+                self.done = True
+                print('all done!')
+                loop.quit()
+                return
         if not (
                 db.execute('SELECT id FROM media WHERE id = $1',(self.dest,))
                 and
@@ -106,7 +109,6 @@ class Finder:
             print('oops')
             idle_add(self.next,then)
             return
-        print('next',self.hash)
         if self.source < self.dest:
             self.swap()
         else:
@@ -173,7 +175,10 @@ class Image:
         labelbox.pack_start(self.label,True,True,0)
         imagebox.pack_start(self.image,True,True,0)
     def update(self):
-        self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(getattr(finder,self.name)))
+        try: self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(getattr(finder,self.name)))
+        except Exception as e:
+            print('dop',e)
+            raise
         self.refresh()
     def refresh(self):
         self.image.set_from_animation(self.pixbuf)
