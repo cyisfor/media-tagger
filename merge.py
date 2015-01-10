@@ -8,20 +8,6 @@ import sys,os
 # note using LEAST leaves the old one in order
 # using MOST moves the old one to where the new one was.
 
-db.setup("""CREATE OR REPLACE FUNCTION mergeAdded(_a bigint, _b bigint) RETURNS VOID AS
-$$
-DECLARE
-_aadd timestamptz;
-_badd timestamptz;
-BEGIN
-    _aadd := COALESCE(added,modified,created,now()) FROM media WHERE id = _a;
-    _badd := COALESCE(added,modified,created,now()) FROM media WHERE id < _b AND added IS NOT NULL LIMIT 1;
-    UPDATE media SET added = NULL WHERE id = _b;
-    UPDATE media SET added = GREATEST(_aadd,_badd) WHERE id = _a;
-END
-$$ language 'plpgsql'""")
-
-
 def merge(dest,source,inferior=True):
     "source is destroyed, its info sent to dest"
     with db.transaction():

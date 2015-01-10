@@ -14,15 +14,25 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-drop table tempsources;
+CREATE OR REPLACE FUNCTION mergeAdded(_a bigint, _b bigint) RETURNS VOID AS
+$$
+DECLARE
+_aadd timestamptz;
+_badd timestamptz;
+BEGIN
+    _aadd := COALESCE(added,modified,created) FROM media WHERE
+    	  id <= _a AND added IS NOT NULL LIMIT 1;
+    _badd := COALESCE(added,modified,created) FROM media WHERE
+    	  id <= _b AND added IS NOT NULL LIMIT 1;
+    IF _aadd IS NULL AND _badd IS NULL THEN
+      _aadd = clock_timestamp();
+    ELSIF _aadd IS NULL THEN
+       _aadd := _badd;
+    ELSE
+       _aadd := GREATEST(_aadd,_badd);
+    END IF;
+    UPDATE media SET added = NULL WHERE id = _b;
+    UPDATE media SET added = _aadd WHERE id = _a;
+END
+$$ language 'plpgsql';
 
-CREATE TEMPORARY TABLE tempsources (
-    id INTEGER PRIMARY KEY,
-    uri TEXT
-);
-
-INSERT INTO tempsources (id,uri) SELECT id,regexp_replace(uri,'\?.*','') FROM urisources WHERE uri LIKE '%deviantart.com/art/%-%?%';
-
-select * from tempsources;
-
-SELECT mergeSources(MIN(a.id),b.id,b.uri) FROM tempsources AS a, tempsources AS b WHERE a.uri = b.uri group by b.id, b.uri;

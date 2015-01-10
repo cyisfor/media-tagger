@@ -132,7 +132,7 @@ def makeLinks(info,linkfor=None):
         link = linkfor(id,i)
         if name is None:
             name = fixName(id,type)
-        row.append(d.td(d.a(d.img(src=src,alt="...",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
+        row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
     if row: yield d.tr(*row)
     Session.refresh = not allexists
 
@@ -211,9 +211,9 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
         if doScale:
             height = width = None # already resized the pixels
         if resized:
-            return fid,d.img(src=resized,alt='Still resizing...'),thing
+            return fid,d.img(class_='wid',src=resized,alt='Still resizing...'),thing
         else:
-            return fid,d.img(src=thing,style=style),thing
+            return fid,d.img(class_='wid',src=thing,style=style),thing
     # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
@@ -250,7 +250,7 @@ def mediaLink(id,type):
 def simple(info,path,params):
     if Session.head: return
     id,type = info
-    return makePage("derp",d.a(d.img(src=mediaLink(id,type)),href=pageLink(id)))
+    return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id)))
 
 def resized(info,path,params):
     id = int(path[1],0x10)
@@ -425,7 +425,7 @@ def desktop(raw,path,params):
         type = stripPrefix(type)
         middle = (
             d.p("Having tags ",doTags(place,tags)),
-            d.p(d.a(d.img(src="/".join(("","media",'{:x}'.format(current),type,name))),
+            d.p(d.a(d.img(class_='wid',src="/".join(("","media",'{:x}'.format(current),type,name))),
                 href=pageLink(current,0))),
             d.hr())
     else:

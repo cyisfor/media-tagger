@@ -89,6 +89,7 @@ def info(path,params):
     COALESCE(images.height,videos.height) AS height,
     size,
     hash,
+    to_hex(phash) AS "perceptual hash",
     created,
     added,
     EXTRACT (epoch FROM modified) AS sessmodified,

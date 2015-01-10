@@ -39,7 +39,7 @@ import db
 
 import merge
 
-findStmt = 'SELECT sis,bro FROM possibleDupes WHERE dist < 10 EXCEPT SELECT sis,bro FROM nadupes LIMIT 1000'
+findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < 10 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
 
 loop = GLib.MainLoop()
 
