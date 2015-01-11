@@ -231,7 +231,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         else:
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
-                    page = disp.page((ident,None,None,name,type,0,0,0,0,tags),path,params)
+                    page = disp.page((ident,None,None,name,type,0,0,0,0,tags,None),path,params)
             else:
                 if o:
                     o = int(o[0],0x10)
