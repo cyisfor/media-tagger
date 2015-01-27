@@ -8,18 +8,20 @@ UNIQUE(sis,bro));
 BEGIN;
 CREATE TABLE dupeCheckPosition (
 id int PRIMARY KEY,
-bottom BIGINT REFERENCES media(id) ON DELETE RESTRICT
+bottom BIGINT -- REFERENCES media(id) ON DELETE RESTRICT meh!
 );
-CREATE RULE dupeCheckNotEmpty AS
-ON DELETE TO media DO ALSO
-   UPDATE dupeCheckPosition SET bottom = (SELECT min(media.id) FROM media where media.id > bottom);
-INSERT INTO dupeCheckPosition (id,bottom) SELECT 0,MIN(id) FROM media;
-COMMIT;
+-- CREATE RULE dupeCheckNotEmpty AS
+-- ON DELETE TO media DO ALSO
+--    UPDATE dupeCheckPosition SET bottom = (SELECT min(media.id) FROM media where media.id > bottom);
+-- INSERT INTO dupeCheckPosition (id,bottom) SELECT 0,MIN(id) FROM media;
+-- COMMIT;
+-- meh!
 
 CREATE TABLE dupesNeedRecheck(
 id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE);
 
-UPDATE dupeCheckPosition SET bottom = COALESCE(GREATEST((SELECT MAX(sis) FROM possibleDupes),(SELECT MAX(bro) FROM possibleDupes),bottom),bottom);
+--UPDATE dupeCheckPosition SET bottom = COALESCE(GREATEST((SELECT MAX(sis) FROM possibleDupes),(SELECT MAX(bro) FROM possibleDupes),bottom),bottom);
+-- mehhh
 
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
@@ -31,8 +33,10 @@ BEGIN
     FOR _test IN SELECT media.id,phash FROM media
     LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
     WHERE phash IS NOT NULL AND possibleDupes.id IS NULL
-    AND media.id > coalesce((SELECT bottom FROM dupeCheckPosition),0) LIMIT 1000
+    AND media.id > coalesce((SELECT bottom FROM dupeCheckPosition),0)
+    ORDER BY media.id LIMIT 1000
     LOOP
+    		    	 _count := _count + 1;
             FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash) AS dist FROM media 
             LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
             WHERE nadupes.id IS NULL
@@ -42,7 +46,6 @@ BEGIN
 	        raise notice 'dupe % % %',_test.id,_result.id,_result.dist;
                 BEGIN
 			INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
-		    	 _count := _count + 1;
 		EXCEPTION
 		        WHEN unique_violation THEN
 			        RAISE NOTICE 'already checked %',_test.id;

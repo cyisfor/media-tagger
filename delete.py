@@ -59,6 +59,7 @@ def dupe(good, bad, inferior=True):
         filedelete(bad)
 
 def delete(thing, reason=None):
+    print('deleting',thing,reason)
     with db.transaction():
         dbdelete(None, thing, reason, False)
         filedelete(thing)
@@ -79,6 +80,7 @@ if __name__ == '__main__':
         import clipboardy
         reason = os.environ['reason']
         def gotPiece(piece):
+            print('derp',piece)
             try:
                 delete(findId(piece),reason)
             except ValueError: pass

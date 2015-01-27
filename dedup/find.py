@@ -70,8 +70,11 @@ def once(f):
             return GLib.SOURCE_REMOVE
     return wrapper
 
+idlers = set()
+
 def idle_add(f,*a,**kw):
     # have to slow this down b/c pgi has a bug that infinite loops w/out calling callback
+    idlers.add(f)
     GLib.timeout_add(100,once(tracking(f)),*a,**kw)
 
 maxoff = int(db.execute("SELECT max(id) FROM media")[0][0] / 10000)
@@ -227,9 +230,12 @@ def updateboo(name):
         if updaters == 0:
             busylabel.set_text('')
             busy = False
-    idle_add(doit)
+    #idle_add(doit)
+    doit()
 
 def refillimages():
+    scroller.set_value(0)
+    hscroll.set_value(0)
     updateboo('dest')
     updateboo('source')
 
@@ -311,7 +317,11 @@ def answer(e):
 def answer(e):
     finder.nodupe(then=refillimages)
 
-win.connect('destroy',lambda e: loop.quit())
+def cleanup(e):
+    win.hide()
+    idle_add(lambda e: loop.quit())
+    
+win.connect('destroy',cleanup)
 win.show_all()
 loop.run()
 print('Waiting for merges to finish')

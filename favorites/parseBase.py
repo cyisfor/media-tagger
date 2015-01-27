@@ -24,6 +24,7 @@ finders = []
 skip = os.environ.get('skip')
 
 def parse(primarySource):
+    primarySource = primarySource.strip()
     if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
         print('skipping',primarySource)
         return
@@ -61,15 +62,18 @@ def parse(primarySource):
                 return
             sources = [primarySource]
             name = None
-            for thing in handlers['extract'](doc):
-                if isinstance(thing,Tag):
-                    tags.append(thing)
-                elif isinstance(thing,Media):
-                    medias.append(thing)
-                elif isinstance(thing,Source):
-                    sources.append(thing)
-                elif isinstance(thing,Name):
-                    name = thing
+            try:
+                for thing in handlers['extract'](doc):
+                    if isinstance(thing,Tag):
+                        tags.append(thing)
+                    elif isinstance(thing,Media):
+                        medias.append(thing)
+                    elif isinstance(thing,Source):
+                        sources.append(thing)
+                    elif isinstance(thing,Name):
+                        name = thing
+            except AttributeError as e:
+                raise ParseError("Bad attribute") from e
             if not medias:
                 print(name,primarySource,"No media. Failing...")
                 continue

@@ -300,9 +300,9 @@ def page(info,path,params):
     if tags:
         tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
     with Links:
-        if next:
+        if next and not Links.next:
             Links.next = pageURL(next)+unparseQuery()
-        if prev:
+        if prev and not Links.prev:
             Links.prev = pageURL(prev)+unparseQuery()
         return makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),

@@ -40,4 +40,6 @@ if __name__ == '__main__':
     except OSError: pass
     # Can't use filedb.mediaPath why...?
     shutil.copy2(os.path.join(filedb.top,"media",'{:x}'.format(id)),desktop)
+    os.environ.setdefault('DISPLAY',':0.0')
+    os.environ.setdefault('XAUTHORITY','/extra/user/.Xauthority')
     os.execlp("xfdesktop","xfdesktop","--reload")

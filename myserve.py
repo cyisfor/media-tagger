@@ -3,6 +3,7 @@ start =time.time()
 import setupurllib
 print('db imported in',time.time()-start)
 
+import info
 import myserver
 import note
 
@@ -231,7 +232,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         else:
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
-                    page = disp.page((ident,None,None,name,type,0,0,0,0,tags,None),path,params)
+                    page = disp.page(info.pageInfo(ident),path,params)
             else:
                 if o:
                     o = int(o[0],0x10)

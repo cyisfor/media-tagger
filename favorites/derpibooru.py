@@ -46,4 +46,4 @@ noquery = re.compile('^[^?]*')
 
 def normalize(url):
     url = urllib.parse.urlparse(url)
-    return urllib.parse.urlunparse(('http','derpibooru.org',url.path,None,None,None))
+    return urllib.parse.urlunparse(('https','derpibooru.org',url.path,None,None,None))

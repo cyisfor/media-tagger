@@ -43,7 +43,7 @@ class Catchup(threading.Thread):
         except ParseError:
             print('megafail')
             megafail(uri)
-        except URLError as e:
+        except urllib.error.URLError as e:
             if e.getcode() == 503:
                 print('site is bogged down! delaying a while')
                 delay(uri,'1 minute')

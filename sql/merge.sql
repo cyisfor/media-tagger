@@ -22,12 +22,12 @@ _badd timestamptz;
 BEGIN
     _aadd := COALESCE(added,modified,created) FROM media WHERE id = _a;
     IF _aadd IS NULL THEN
-       _aadd := added + random() / 10000 FROM media WHERE
+       _aadd := added + ('1 second'::interval * random() / 10000) FROM media WHERE
     	  id < _a AND added IS NOT NULL LIMIT 1;
    END IF;
     _badd := COALESCE(added,modified,created) FROM media WHERE id = _b;
     IF _badd IS NULL THEN
-      _badd := added + random() / 10000 FROM media WHERE
+      _badd := added + ('1 second'::interval * random() / 10000) FROM media WHERE
         id < _b AND added IS NOT NULL LIMIT 1;
     END IF;
     IF _aadd IS NULL AND _badd IS NULL THEN
