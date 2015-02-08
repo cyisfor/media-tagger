@@ -9,6 +9,8 @@ def mystrip(s,chars):
             s = s[i+1:]
     return s
 
+# can't use json because it discards all tag categories...
+
 def extract(doc):
     gotImage = False
     for li in doc.findAll('li'):
@@ -25,6 +27,8 @@ def extract(doc):
                             foundTag = True
                             yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
                 if not foundTag:
+                    if not anchors:
+                        continue
                     a = anchors[0]
                     yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
                 break

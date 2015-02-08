@@ -3,10 +3,11 @@ import setupurllib
 import db
 import fixprint
 
+import json
 from bs4 import BeautifulSoup
 import urllib.parse
 import urllib.request
-from setupurllib import myretrieve
+from setupurllib import myretrieve,myopen
 import tempfile
 import shutil
 
@@ -35,16 +36,19 @@ def parse(primarySource):
         if matcher(url):
             if 'normalize' in handlers:
                 primarySource = handlers['normalize'](primarySource)
-            with tempfile.NamedTemporaryFile() as temp:
-                headers = myretrieve(urllib.request.Request(primarySource),temp)
-                temp.seek(0,0)
-                inp = temp
-                
-                if not headers.get('Content-Type').startswith('text/html'):
-                    raise RuntimeError(primarySource,"not html")
+            if 'json' in handlers:
+                derp = handlers['jsonuri'](primarySource)
+            else:
+                derp = primarySource
+            with myopen(derp) as inp:
+                headers = inp.headers
+                if 'json' in handlers:
+                    if not headers.get('Content-Type').startswith('application/json'):
+                        raise RuntimeError(primarySource,'not json')
+                else:
+                    if not headers.get('Content-Type').startswith('text/html'):
+                        raise RuntimeError(primarySource,"not html")                                                    
                 doc = inp.read()
-                doc = BeautifulSoup(doc)
-                setattr(doc,'url',primarySource)
             medias = []
             def generalize(tag):
                 if isinstance(tag,Tag): return tag
@@ -63,7 +67,13 @@ def parse(primarySource):
             sources = [primarySource]
             name = None
             try:
-                for thing in handlers['extract'](doc):
+                if 'json' in handlers:
+                    results = handlers['json'](primarySource,headers,json.decode(doc))
+                else:
+                    doc = BeautifulSoup(doc)
+                    setattr(doc,'url',primarySource)
+                    results = handlers['extract'](doc)
+                for thing in results:
                     if isinstance(thing,Tag):
                         tags.append(thing)
                     elif isinstance(thing,Media):

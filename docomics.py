@@ -10,7 +10,7 @@ import filedb
 import favorites.parsers
 import favorites.parseBase as parse
 
-import clipboardy
+import gtkclipboardy as clipboardy
 from gi.repository import Gtk,Gdk,GObject,GLib
 
 comic = None

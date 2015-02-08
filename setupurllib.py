@@ -153,6 +153,14 @@ def myopen(request):
     except urllib.error.URLError as e:
         raise URLError(request.full_url) from e
 
+    # if isinstance(dest,str):
+    #     try: stat = os.stat(dest)
+    #     except OSError: pass
+    #     else:
+    #         if not isinstance(request,Request):
+    #             request = Request(request)
+    #         request.add_header('If-Modified-Since',email.utils.formatdate(stat.st_mtime))
+    
 def myretrieve(request,dest):
     with myopen(request) as inp:
         shutil.copyfileobj(inp,dest)

@@ -116,12 +116,8 @@ class Finder:
             self.swap()
         else:
             print('now checking2',hex(self.dest),hex(self.source),then)
-        if self.starting:
-            if then:
-                then()
-        else:
-            if then:
-                then()
+        if then:
+            then()
     def nodupe(self,then=None):
         print('nadupe',self.dest,self.source)
         if self.dest > self.source:
@@ -171,7 +167,8 @@ class Image:
                 self.id = getattr(finder,name)
                 self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
                 break
-            except GLib.GError:
+            except GLib.GError as e:
+                print('error loading',self.id,e)
                 finder.next(None)            
         self.image = Gtk.Image.new_from_animation(self.pixbuf)
         self.label = Gtk.Label(label='{:x}'.format(self.id))
