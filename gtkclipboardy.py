@@ -20,20 +20,20 @@ def make(handler,check):
             handler(text)
         GLib.timeout_add(200,checkClip)
     
-    def checkClip():
+    def checkClip(nun):
         assert(clipboard)
         clipboard.request_text(gotClip,None)
         return False
     
-    def start():
+    def start(nun):
         nonlocal clipboard
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         clipboard.set_text('',0)
         GLib.timeout_add(200,checkClip)
     
     def run():
-        GLib.idle_add(start)
+        GLib.timeout_add(200,start)
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        GLib.MainLoop().run()
+        Gtk.main()
     return start,run

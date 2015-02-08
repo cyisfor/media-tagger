@@ -79,38 +79,49 @@ def createComic(com,created):
 
     win.show_all()
 
-def sourceFinder(inp,out):
-    while True:
-        source = inp.get()
+class SourceFinder(Thread):
+    def __init__(self):
+        super().__init__()
+        self.inp = queue.Queue()
+        self.out = queue.Queue()
+    def check(self,source):
+        self.inp.put(source)
+        e = self.out.get()
+        if isinstance(e,Exception):
+            raise RuntimeError "Thread boom" from e
+        return e
+    def run(self):
         while True:
-            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
-            if res:
-                out.put(res[0][0])
-                break
-            else:
-                try: parse.parse(source)
-                except Exception as e:
-                    out.put(e)
+            source = self.inp.get()
+            while True:
+                res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+                if res:
+                    self.out.put(res[0][0])
                     break
-
-def findBySource(source,foundSource,fail):
-    if res:
-        print('found source ',source,res)
-        foundSource(res[0][0])
-    else:
-        try: parse.parse(source)
-        except Exception as e:
-            dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,e)
-            def andle(dialog,response):
-                dialog.destroy()
-                if response == Gtk.ResponseType.OK:
-                    findBySource(source,foundSource,fail)
                 else:
-                    fail()
-            dl.connect('response',andle)
-            dl.show_all()
-        else:
-            GLib.timeout_add(1000,findBySource,source,foundSource,fail)
+                    try: parse.parse(source)
+                    except Exception as e:
+                        self.out.put(e)
+                        break
+
+sourceFinder = SourceFinder()
+sourceFinder.start()
+                
+def findBySource(source,foundSource,fail):
+    try:
+        res = sourceFinder.check(source)
+        print('found source ',source,res)
+        foundSource(res)
+    except Exception as e:
+        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,e)
+        def andle(dialog,response):
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                findBySource(source,foundSource,fail)
+            else:
+                fail()
+        dl.connect('response',andle)
+        dl.show_all()
 
 getting = False
 
@@ -205,6 +216,6 @@ def main():
     gobutton.connect('toggled',checkInitialized)
 
     window.show_all()
-    clipboardy.start(gotMedium,notGetting)
-    Gtk.main()
+    start,run = clipboardy.make(gotMedium,notGetting)
+    run()
 if __name__ == '__main__': main()
