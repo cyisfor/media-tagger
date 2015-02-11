@@ -9,15 +9,17 @@ def make(handler,check):
     seen = set()
     clipboard = None
     def gotClip(clipboard, text, nun=None):
-        if check:
-            res = check(text)
-            if res is not True:
-                text = res
-        if text and not text in seen:
-            seen.add(text)
-            if type(text)==bytes:
-                text = text.decode('utf-8')
-            handler(text)
+        if text:
+            print(clipboard,text,nun)
+            if check:
+                res = check(text)
+                if isinstance(res,(str,bytes,bytearray,memoryview)):
+                    text = res
+            if not text in seen:
+                seen.add(text)
+                if type(text)==bytes:
+                    text = text.decode('utf-8')
+                handler(text)
         GLib.timeout_add(200,checkClip)
     
     def checkClip(nun):
@@ -37,3 +39,7 @@ def make(handler,check):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         Gtk.main()
     return start,run
+
+def run(handler,check):
+    start,run = make(handler,check)
+    run()

@@ -10,8 +10,13 @@ import filedb
 import favorites.parsers
 import favorites.parseBase as parse
 
+import urllib.parse
+
 import gtkclipboardy as clipboardy
 from gi.repository import Gtk,Gdk,GObject,GLib
+
+from threading import Thread
+from queue import Queue
 
 comic = None
 page = None
@@ -82,13 +87,13 @@ def createComic(com,created):
 class SourceFinder(Thread):
     def __init__(self):
         super().__init__()
-        self.inp = queue.Queue()
-        self.out = queue.Queue()
+        self.inp = Queue()
+        self.out = Queue()
     def check(self,source):
         self.inp.put(source)
         e = self.out.get()
         if isinstance(e,Exception):
-            raise RuntimeError "Thread boom" from e
+            raise RuntimeError("Thread boom") from e
         return e
     def run(self):
         while True:
@@ -113,7 +118,7 @@ def findBySource(source,foundSource,fail):
         print('found source ',source,res)
         foundSource(res)
     except Exception as e:
-        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,e)
+        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,str(e))
         def andle(dialog,response):
             dialog.destroy()
             if response == Gtk.ResponseType.OK:
@@ -130,6 +135,15 @@ def notGetting(text):
 
 def cleanSource(url):
     return url.split('?',1)[0]
+
+def mine(url):
+    url = urllib.parse.urlparse(url)
+    if url.scheme == 'http':
+        if not url.netloc in {'[::1]','127.0.0.1','[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]','cy.h','cy.meshwith.me'}:
+            raise ValueError('not cjdns derp')
+    else:
+        raise ValueError('not checking https derp')
+    return int(url.path.rstrip('/').rsplit('/',1)[-1],0x10)
 
 def gotMedium(medium,pageSet=None):
     global getting
@@ -164,7 +178,7 @@ def gotMedium(medium,pageSet=None):
     if isinstance(medium,int):
         haveMedium(medium)
     else:
-        try: return haveMedium(int(medium.rstrip('/').rsplit('/',1)[-1],0x10))
+        try: return haveMedium(mine(medium))
         except ValueError as e: pass
         try: 
             medium = parse.normalize(medium)
@@ -178,7 +192,7 @@ def gotMedium(medium,pageSet=None):
             if res: 
                 haveMedium(res)
             else:
-                try: haveMedium(int(medium.rstrip('/').rsplit('/',1)[-1],0x10))
+                try: haveMedium(mine(medium))
                 except ValueError: return
         findBySource(cleanSource(medium),foundSource,fail)
 

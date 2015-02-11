@@ -18,9 +18,10 @@ stmts = db.source('sql/withtags.sql')
 db.setup(*db.source('sql/connect.sql',False))
 
 def disconnect(thing1,thing2):
-    if thing1 and thing2:
-        db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing1,thing2))
-        db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $2",(thing2,thing1))
+    stmt = "UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE ARRAY[id] <@ $2::bigint[]"
+    if thing1 and thing2:        
+        db.execute(stmt,(thing1,thing2))
+        db.execute(stmt,(thing2,thing1))
 
 db.execute("SET work_mem TO 100000")
 
@@ -195,9 +196,8 @@ if __name__ == '__main__':
     else:
         import gtkclipboardy as clipboardy
         from gi.repository import Gtk,Gdk,GObject,GLib
-        loop = GLib.MainLoop()
         window = Gtk.Window()
-        window.connect('destroy',lambda e: loop.quit())
+        window.connect('destroy',Gtk.main_quit)
         box = Gtk.VBox()
         window.add(box)
         tagentry = Gtk.Entry()
@@ -205,13 +205,15 @@ if __name__ == '__main__':
         box.pack_start(tagentry,True,True,0)
         box.pack_start(gobutton,True,False,0)
         def gotPiece(piece):
-            if not gobutton.get_active(): return
+            if not piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]'):
+                return
             try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
             except ValueError: return
             tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
+            print('got',num,tags)
             tag(num,parse(','.join(tags)))
-        clipboardy.monitor(gotPiece)
         window.show_all()
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        loop.run()
+        clipboardy.run(gotPiece, lambda b: gobutton.get_active())
+
