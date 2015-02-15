@@ -45,6 +45,6 @@ def main():
     #note b will be DESTROYED and a should be the good one.
     a = delete.findId(sys.argv[1])
     b = delete.findId(sys.argv[2])
-    merge(a,b)
+    merge(a,b,'identical' in os.environ)
 
 if __name__ == '__main__': main()

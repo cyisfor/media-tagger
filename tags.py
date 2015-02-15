@@ -7,7 +7,7 @@ except ImportError: pass
 
 import note
 
-import db
+import db, resultCache
 import filedb
 import collections
 import sys,os
@@ -17,11 +17,12 @@ stmts = {}
 stmts = db.source('sql/withtags.sql')
 db.setup(*db.source('sql/connect.sql',False))
 
-def disconnect(thing1,thing2):
-    stmt = "UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE ARRAY[id] <@ $2::bigint[]"
-    if thing1 and thing2:        
-        db.execute(stmt,(thing1,thing2))
-        db.execute(stmt,(thing2,thing1))
+def disconnect(thing,nega):
+    if thing and nega:
+        db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE ARRAY[id] <@ $2::bigint[]",(thing,nega))
+        db.execute(
+            "UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE id = $2",(nega,thing))
+
 
 db.execute("SET work_mem TO 100000")
 
@@ -49,7 +50,6 @@ def tag(thing,tags):
             if implied: 
                 tags.update(implied)
                 implied = None
-            disconnect(tags.nega,thing)
             disconnect(thing,tags.nega)
         if tags.posi:
             if isinstance(list(tags.posi)[0],str):
@@ -193,6 +193,7 @@ def parse(s):
 if __name__ == '__main__':
     if len(sys.argv)==3:
         tag(int(sys.argv[1],0x10),parse(sys.argv[2:]))
+        resultCache.clear()
     else:
         import gtkclipboardy as clipboardy
         from gi.repository import Gtk,Gdk,GObject,GLib
@@ -212,6 +213,7 @@ if __name__ == '__main__':
             tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
             print('got',num,tags)
             tag(num,parse(','.join(tags)))
+            resultCache.clear()
         window.show_all()
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)

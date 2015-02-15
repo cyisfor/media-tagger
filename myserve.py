@@ -114,6 +114,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
     ip = None
     uploading_put = False
     uploader = None
+    started = myserver.ResponseHandler.date_time_string(myserver.ResponseHandler,time.time())
     def recordAccess(self, *a, **kw):
         if not self.ip in IGNORED:
             return super().recordAccess(*a, **kw)
@@ -177,13 +178,28 @@ class Handler(FormCollector,myserver.ResponseHandler):
     @gen.coroutine
     def get(self):
         Session.handler = self
+
+        # meh
+        # if self.path == '/art/~style':
+        #     self.send_status(200,"Rainbow Dash")
+        #     self.send_header('Content-Type',"text/css")
+        #     self.send_header('Last-Modified',self.started)
+        #     if Session.head:
+        #         self.set_length(0)                    
+        #     else:
+        #         self.set_length(len(pages.style))
+        #         self.write(pages.style)
+        #     return            
+        
         json,path,pathurl,params = parsePath(self.path)
         Session.params = params
+
         # Session.query = ...
         if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
             mode = path[0][1:]
             page = dispatch(json,mode,path,params)
         else:
+            Session.params = params
             implied = self.headers.get("X-Implied-Tags")                
             if implied:
                 tags = tagsModule.parse(implied)

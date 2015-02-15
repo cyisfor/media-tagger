@@ -6,6 +6,10 @@ from itertools import count
 import subprocess as s
 import sys,time,os
 
+oj = os.path.join
+
+here = os.path.dirname(sys.argv[0])
+
 version = versions.Versioner('media')
 
 @version(1337)
@@ -61,7 +65,7 @@ def timeify(seconds):
 def create(hid):
     global gen
     if gen is None:
-        gen = s.Popen(['./create'],stdin=s.PIPE,stdout=s.PIPE)
+        gen = s.Popen([oj(here,'create')],stdin=s.PIPE,stdout=s.PIPE)
         assert(gen)
         gen.stdin.write((filedb.mediaPath()+'\n').encode());
     gen.stdin.write((hid+'\n').encode())

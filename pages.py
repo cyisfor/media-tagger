@@ -1,6 +1,8 @@
 import process
 from note import note
 
+from schlorp import schlorp
+
 import dirty.html as d
 from dirty import RawString
 from place import place
@@ -21,6 +23,7 @@ import filedb
 import json
 from urllib.parse import quote as derp, urljoin
 import time
+import os
 
 import textwrap
 
@@ -144,8 +147,10 @@ def makeBase():
 class Links:
     next = None
     prev = None
-    style = "/style/art.css"
     id = None
+
+# meh
+# style = schlorp(os.path.join(filedb.base,"style.css"),text=False)
 
 def standardHead(title,*contents):
     # oembed sucks:
@@ -154,7 +159,7 @@ def standardHead(title,*contents):
     return d.head(d.title(title),
             d.meta(charset='utf-8'),
         d.link(rel="icon",type="image/png",href="/favicon.png"),
-        d.link(rel='stylesheet',type='text/css',href=Links.style),
+        d.link(rel='stylesheet',type='text/css',href="/style/art.css"),
         d.link(rel='next',href=Links.next if Links.next else ''),
         d.link(rel='prev',href=Links.prev if Links.prev else ''),
         d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id,

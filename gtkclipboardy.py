@@ -10,7 +10,6 @@ def make(handler,check):
     clipboard = None
     def gotClip(clipboard, text, nun=None):
         if text:
-            print(clipboard,text,nun)
             if check:
                 res = check(text)
                 if isinstance(res,(str,bytes,bytearray,memoryview)):

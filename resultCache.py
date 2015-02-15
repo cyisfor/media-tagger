@@ -78,3 +78,6 @@ def encache(query,args,docache=True):
             if not 'already exists' in e.info['message'].decode('utf-8'): raise
         db.retransaction()
         return db.execute('SELECT * FROM resultCache."q'+name+'"')
+
+def clear():
+    db.execute('SELECT resultCache.expireQueries()');

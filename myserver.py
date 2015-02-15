@@ -147,6 +147,8 @@ class ResponseHandler(object):
     needDate = True
     @gen.coroutine
     def actually_send_header(self,name):
+        if name == 'Transfer-Encoding':
+            raise RuntimeError("derp")
         if self.status_sent is not True:
             if self.code:
                 yield self.send_status(self.code,self.message)
