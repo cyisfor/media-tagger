@@ -54,6 +54,7 @@ int main(void) {
             writeString(1,strerror(errno));
             uint16_t nono = htons(errno);
             write(1,&nono,2);
+	    memory_popContext(); // NOW will you free the memory???
             continue;
         }
 
