@@ -86,14 +86,14 @@ def status(s):
 if __name__ == '__main__':
     start = time.time()
     total = db.execute('SELECT count(id) FROM media WHERE NOT pHashFail AND pHash IS NULL')[0][0]
-    achieved = None
+    achieved = 0
     timespent = 0
     if os.path.exists('last'):
         with open('last') as inp:
             achieved = int(inp.readline())
             timespent = float(inp.readline())
-    elif os.path.exists('last.temp'):
-        with open('last.temp') as inp:
+    elif os.path.exists(oj(here,'last.temp')):
+        with open(oj(here,'last.temp')) as inp:
             achieved = int(inp.readline())
             timespent = float(inp.readline())
     counter = count(0)

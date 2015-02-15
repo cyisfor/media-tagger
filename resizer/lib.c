@@ -16,24 +16,24 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 
 struct context_s {
-  ExceptionInfo exception;
+  ExceptionInfo* exception;
   ImageInfo* image_info;
   struct stat stat;
 };
 
-#define CatchExceptionAndReset(exn) { CatchException(exn); GetExceptionInfo(exn); }
+#define CatchExceptionAndReset(exn) { CatchException(exn); ClearMagickException(exn); }
 
 Image* MyResize(Image* image, int width, context* ctx) {
   Image* thumb = NULL;
 
-  if(image->columns < width)
+  if(image->magick_columns < width)
     return image;
 
   // ResizeImage clones?
-  thumb = ResizeImage(image, width, image->rows*width/image->columns,
+  thumb = ResizeImage(image, width, image->magick_rows*width/image->magick_columns,
 		      BoxFilter,
-		      &ctx->exception);
-  CatchExceptionAndReset(&ctx->exception);
+		      ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
   DestroyImage(image);
   return thumb;
 }
@@ -45,7 +45,7 @@ Image* MyResize(Image* image, int width, context* ctx) {
 
 Image* MakeThumbnail(Image* image, context* ctx) {
   Image* thumb = NULL;
-  if (image->columns <= SIDE && image->rows < SIDE) {
+  if (image->magick_columns <= SIDE && image->magick_rows < SIDE) {
     if(ctx->stat.st_size < 10000) {
       return NULL;
     }
@@ -53,10 +53,10 @@ Image* MakeThumbnail(Image* image, context* ctx) {
 
   image = FirstImage(image);
 
-  if (image->columns != image->rows) {
+  if (image->magick_columns != image->magick_rows) {
     RectangleInfo rect;
     memset(&rect,0,sizeof(rect));
-    rect.width = rect.height = min(image->columns,image->rows);
+    rect.width = rect.height = min(image->magick_columns,image->magick_rows);
     /*	if (rect.width < SIDE && image->columns > SIDE)
 	rect.width = SIDE;
 	if (rect.height < SIDE && image->rows > SIDE)
@@ -65,10 +65,10 @@ Image* MakeThumbnail(Image* image, context* ctx) {
     // RollImage clones?
     assert(image);
     thumb = RollImage(image,
-		      image->columns-(image->columns-rect.width)/2,
-		      image->rows-(image->rows-rect.height)/2,
-		      &ctx->exception);
-    CatchExceptionAndReset(&ctx->exception);
+		      image->magick_columns-(image->magick_columns-rect.width)/2,
+		      image->magick_rows-(image->magick_rows-rect.height)/2,
+		      ctx->exception);
+    CatchExceptionAndReset(ctx->exception);
     if(thumb) {
         assert(thumb);
         DestroyImage(image);
@@ -76,8 +76,8 @@ Image* MakeThumbnail(Image* image, context* ctx) {
     }
 
     // CropImage clones
-    thumb = CropImage(image,&rect,&ctx->exception);
-    CatchExceptionAndReset(&ctx->exception);
+    thumb = CropImage(image,&rect,ctx->exception);
+    CatchExceptionAndReset(ctx->exception);
     DestroyImage(image);
     image = thumb;
 
@@ -117,8 +117,8 @@ Image* ReadImageCtx(const char* source, uint32_t slen, context* ctx) {
   ctx->image_info->verbose = MagickFalse;
   stat(ctx->image_info->filename,&ctx->stat);
 
-  Image* ret = ReadImage(ctx->image_info,&ctx->exception);
-  CatchExceptionAndReset(&ctx->exception);
+  Image* ret = ReadImage(ctx->image_info,ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
   return ret;
 }
 
@@ -144,7 +144,7 @@ static int TooSimilar(ColorPacket* aa, ColorPacket* bb) {
   }*/
 
 static unsigned long getQuality(context* ctx, Image* image, unsigned long quality) {
-  const char* value = GetImageProperty(image,"JPEG-Quality",&ctx->exception);
+  const char* value = GetImageProperty(image,"JPEG-Quality",ctx->exception);
   if (value != NULL && *value) {
     sscanf(value,"%lu",&quality);
   }
@@ -154,9 +154,9 @@ static unsigned long getQuality(context* ctx, Image* image, unsigned long qualit
 
 static void Reduce(Image* image, context* ctx) {
 
-//  ColorPacket* hist = GetImageHistogram(image,&nc,&ctx->exception);
-  size_t nc = GetNumberColors(image,NULL,&ctx->exception);
-  CatchExceptionAndReset(&ctx->exception);
+//  ColorPacket* hist = GetImageHistogram(image,&nc,ctx->exception);
+  size_t nc = GetNumberColors(image,NULL,ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
 
   if(nc<=0x10) return;
   /*
@@ -214,10 +214,10 @@ static void Reduce(Image* image, context* ctx) {
   qi.dither_method = NoDitherMethod;
   qi.tree_depth = 2;
 
-  QuantizeImage(&qi,image,&ctx->exception);
-  CatchExceptionAndReset(&ctx->exception);
-  CompressImageColormap(image,&ctx->exception);
-  CatchExceptionAndReset(&ctx->exception);
+  QuantizeImage(&qi,image,ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
+  CompressImageColormap(image,ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
   // this is only if mallocked? DestroyQuantizeInfo(&qi);
 }
 
@@ -278,12 +278,12 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   ctx->image_info->quality = image->quality; // not sure which of these is the one you set
   record(INFO,"%lu",ctx->image_info->quality);
 
-  if(!WriteImage(ctx->image_info,image,&ctx->exception)) {
-  CatchExceptionAndReset(&ctx->exception);
+  if(!WriteImage(ctx->image_info,image,ctx->exception)) {
+    CatchExceptionAndReset(ctx->exception);
     record(WARN,"Could not write the image!");
     exit(1);
   }
-  CatchExceptionAndReset(&ctx->exception);
+  CatchExceptionAndReset(ctx->exception);
 
   DoneWithImage(image,ctx);
   fchmod(tempfd,0644);
@@ -302,7 +302,7 @@ void context_finish(context** ctx) {
 
 context* make_context(void) {
   context* ctx = (context*)malloc(sizeof(struct context_s));
-  GetExceptionInfo(&ctx->exception);
+  ctx->exception = AcquireExceptionInfo();
   //ctx->image_info = CloneImageInfo((ImageInfo *) NULL);
   // this is keeping some unwanted information, so everything scales down by the first thing scaled down's quality (i.e. 9 for jpeg images)
   ctx->image_info = NULL;
