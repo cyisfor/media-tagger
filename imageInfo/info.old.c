@@ -39,10 +39,9 @@ int main(void) {
     // or maybe libxml sucks
     //MagickToMime("PNG");
 
-    ExceptionInfo exception;
+    ExceptionInfo* exception = AcquireExceptionInfo();
     ImageInfo* info = CloneImageInfo(NULL);
     //SetLogEventMask("All");
-    GetExceptionInfo(&exception);
 
     for(;;) {
 #if memoryok
@@ -53,12 +52,12 @@ int main(void) {
         if(path[amt-1] == '\n')
             path[amt-1] = '\0';
         strcpy(info->filename,path);
-        Image* image = ReadImage(info,&exception);
+        Image* image = ReadImage(info,exception);
 
         if(image == NULL) {
             write(1,"E",1);
-            writeString(1,exception.reason);
-            writeString(1,exception.description);
+            writeString(1,exception->reason);
+            writeString(1,exception->description);
             writeString(1,strerror(errno));
             uint16_t nono = htons(errno);
             write(1,&nono,2);

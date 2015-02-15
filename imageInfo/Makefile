@@ -1,9 +1,15 @@
+sub:
+	PKG_CONFIG_PATH=/opt/ImageMagick/lib/pkgconfig $(MAKE) all
+
 all: testImageInfo imageInfo
 
-imageInfo: info.old.c record.o
-	gcc -g -o $@ $^ `pkg-config --cflags --libs ImageMagick`
-testImageInfo: info.c memory.c record.o
+imageInfo: info.o memory.o record.o
 	gcc -g -o $@ $^ `pkg-config --cflags --libs ImageMagick`
 
-record.o: record.c
-	gcc -g -c -o $@ $^
+%.o: %.c
+	gcc `pkg-config --cflags ImageMagick` -g -c -o $@ $^
+
+
+.PHONY: sub all
+
+derp:

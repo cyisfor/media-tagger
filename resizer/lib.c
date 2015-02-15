@@ -295,7 +295,7 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
 void context_finish(context** ctx) {
   // DestroyImageInfo((*ctx)->image_info);
   // see below
-  DestroyExceptionInfo(&(*ctx)->exception);
+  DestroyExceptionInfo((*ctx)->exception);
   free(*ctx);
   *ctx = NULL;
 }
