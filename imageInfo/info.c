@@ -25,11 +25,8 @@ int main(void) {
     char* path = NULL;
     size_t space = 0;
 
-    memory_pushContext();
-
-    SetMagickMemoryMethods(memory_alloc, memory_realloc, memory_free);
-
     MagickCoreGenesis(NULL,MagickFalse);
+    // above is crappy coding so can't use custom memory methods
 
     // This allocates some static memory BECAUSE IMAGEMAGICK SUCKS
     // or maybe libxml sucks
@@ -38,6 +35,8 @@ int main(void) {
     ExceptionInfo* exception = AcquireExceptionInfo();
     ImageInfo* info = CloneImageInfo(NULL);
     //SetLogEventMask("All");
+
+    SetMagickMemoryMethods(memory_alloc, memory_realloc, memory_free);
 
     for(;;) {
         memory_pushContext();

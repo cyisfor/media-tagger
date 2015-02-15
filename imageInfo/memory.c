@@ -7,63 +7,64 @@
 typedef void* pointer;
 
 typedef struct context_s {
-  size_t size;
-  void* data;
+    void** first;
+    struct context_s* below;
+    size_t num;
 } context;
 
-struct {
-  ssize_t num;
-  context* stack;
-} contexts = { 0, NULL };
+context* contexts = NULL;
 
-/* the idea is blocks of memory as length-data-data-data-etc
- * ignore when data is freed, but when context is popped, all length-data things are freed
- * allows small allocations in one large block.
- * also allows parent application to do the freeing, even if module fails to call free.
+/* the idea is first a standard linked list stack of contexts
+ * in each context there's a void** first. It contains a number that is a void** to second (or NULL)
+ * when freeing, a context can pass down this repeated dereference like ->next but cheaper
+ * and so make sure no memory goes missing, never to be freed.
+
+ * Note: trying to make a block of data and realloc it as more is malloc'd to it fails
+ * because previous data malloc'd will become invalid when the entire block is realloc'd
  */
 
-// make n round up to multiples of 1024
-#define EVENOUT(n) ((n)/0x400+1)*0x400
-
 void memory_pushContext(void) {
-  ++contexts.num;
-  contexts.stack = realloc(contexts.stack,EVENOUT(sizeof(context) * contexts.num));
-  context* new = contexts.stack + contexts.num - 1;
-  new->size = 0;
-  new->data = NULL;
+    context* new = malloc(sizeof(context));
+    new->first = NULL;
+    new->below = contexts;
+    new->num = 0;
+    contexts = new;
+}
+
+void freeChain(pointer* top, size_t num) { 
+    while(top) {
+        pointer* lower = (pointer*) *(top); // ->next
+        record(INFO,"free %d %p>%p\n",num--,top,lower);
+        free(top);
+        top = lower;
+    }
 }
 
 void memory_popContext(void) {
-  if(contexts.num == 0) return;
-  record(INFO,"num %d\n",contexts.num);
-
-  context* old = contexts.stack + contexts.num - 1;
-  free(old->data);
-  --contexts.num;
-  contexts.stack = realloc(contexts.stack,EVENOUT(sizeof(context) * contexts.num));
+    if(contexts == NULL) return;
+    record(INFO,"num %d\n",contexts->num);
+    freeChain(contexts->first,contexts->num);
+    context* throwaway = contexts;
+    contexts = contexts->below;
+    free(throwaway);
 }
 
-void memory_finish(void) {
-  int i;
-  for(i=0;i<contexts.num;++i) {
-    context* old = contexts.stack + i;
-    free(old->data);
-  }
-  free(contexts.stack);
-  contexts.stack = NULL;
-  contexts.num = 0;
+void memory_finish(void) {    
+    while(contexts != NULL) {
+        memory_popContext();
+    }
 }
 
 void* memory_alloc(size_t size) {
-  if(contexts->num == 0) {
-    memory_pushContext();
-  }
-  context* ctx = contexts.stack + contexts.num;
-  ctx->data = realloc(ctx->data,ctx->size + size);
-  void* block = ctx->data + ctx->size;
-  record(INFO,"alloc %p>%d %d",block,ctx->size,size);
-  ctx->size += size;
-  return block;
+    assert(contexts); // XXX: could just push a context if it's null...
+    ++contexts->num;
+    void* buf = malloc(size + sizeof(pointer));
+    pointer* top = (pointer*) buf;
+    pointer* second = contexts->first;
+    *top = (pointer) second;
+    contexts->first = buf;
+    record(INFO,"alloc %p>%p %d\n",second,top,size);
+    return buf + sizeof(pointer);
 }
 
 void memory_free(void* buf) {
@@ -72,16 +73,12 @@ void memory_free(void* buf) {
 }
 
 void* memory_realloc(void* mem, size_t size) {
-  ....dammit
-    need to get the existing size of this memory
-    embed context into it?
-    this is just rewriting malloc
     pointer buf = mem - sizeof(pointer);
     pointer below = *((pointer*)buf); // just for debugging
     buf = realloc(buf,size + sizeof(pointer));
     pointer newbelow = *((pointer*)buf);
     assert(below == newbelow);
-    record(INFO,"realloc %p %d",buf,size);
+    record(INFO,"realloc %p %d\n",buf,size);
     // it's rainin miracles up here!
     return buf + sizeof(pointer);
 }
