@@ -27,6 +27,8 @@ int main(void) {
     char* path = NULL;
     size_t space = 0;
 
+    
+
 #if memoryok
     memory_pushContext();
 
@@ -47,7 +49,13 @@ int main(void) {
 #if memoryok
         memory_pushContext();
 #endif
+	/* because ImageMagick cannot be memory managed without restarting the
+	   WHOLE process... */
+	if(clock() > 300 * CLOCKS_PER_SEC)
+	  break; // exit if alive for 10min or more
+	alarm(30); // only stay alive and idle for 30s before dying	
         ssize_t amt = getline(&path,&space,stdin);
+	alarm(0); // try not to die in the middle of getting info		
         if(amt <= 0) break;
         if(path[amt-1] == '\n')
             path[amt-1] = '\0';

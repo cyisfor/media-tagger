@@ -30,6 +30,8 @@ void onalarm(int signal) {
     // randomly kill a worker, to keep them fresh 
     // b/c memory leaks in ImageMagick
     static int ctr = 0;
+    // note this could kill a worker in the middle of thumbnail generation
+    // but this will also kill a worker stuck in the middle of thumbnail generation
     kill(workers[ctr],SIGTERM);
     ctr = (ctr + 1)%NUM;
     alarm(WORKER_LIFETIME/NUM); 

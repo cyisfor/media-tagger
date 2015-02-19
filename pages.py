@@ -123,7 +123,7 @@ def makeLinks(info,linkfor=None):
         i = next(counter)
         if i%thumbnailRowSize==0:
             if row:
-                yield d.tr(*row)
+                yield row
             row = []
         tags = [str(tag) for tag in tags]
         if type == 'application/x-shockwave-flash':
@@ -135,8 +135,9 @@ def makeLinks(info,linkfor=None):
         link = linkfor(id,i)
         if name is None:
             name = fixName(id,type)
-        row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-    if row: yield d.tr(*row)
+        #row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
+        row.append((d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
+    if row: yield tuple(row)+(d.br(),)
     Session.refresh = not allexists
 
 def makeBase():
@@ -403,7 +404,8 @@ def media(url,query,offset,info,related,basic):
             Links.prev = url.path+unparseQuery(query)
         return makePage("Media "+str(basic),
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
-                d.table(makeLinks(info)),
+                #d.table(makeLinks(info)),
+                        makeLinks(info),
                 (d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
                 (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))

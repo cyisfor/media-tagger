@@ -2,6 +2,7 @@
 #include "record.h"
 #include <assert.h>
 
+#include <talloc.h>
 #include <stdio.h>
 
 struct context_s {
@@ -12,17 +13,19 @@ struct context_s {
  */
 
 void memory_pushContext(void) {
+  record(INFO,"push context");
   struct context_s* new = talloc(contexts,struct context_s);
   new->lower = contexts;
   contexts = new;
 }
 
 void memory_popContext(void) {
+  record(INFO,"pop context");
   if(contexts == NULL) {
     record(ERROR, "no contexts?");
     return;
   }
-  struct context_s* lower = contexts->next;
+  struct context_s* lower = contexts->lower;
   talloc_free(contexts);
   contexts = lower;
 }
@@ -34,6 +37,7 @@ void memory_finish(void) {
 }
 
 void* memory_alloc(size_t size) {
+  record(INFO,"alloc %d",size);
   return talloc_size(contexts,size);
 }
 
@@ -43,5 +47,6 @@ void memory_free(void* buf) {
 }
 
 void* memory_realloc(void* mem, size_t size) {
+  record(INFO,"realloc %p %d",mem,size);
   return talloc_realloc_size(contexts, mem, size);
 }

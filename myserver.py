@@ -394,7 +394,14 @@ class ConnectionHandler(HTTP1Connection):
             print("garbage from address",self.address)
             self.stream.close()
             raise iostream.StreamClosedError
-        start_line = httputil.parse_request_start_line(start_line.decode('utf-8'))
+        try:
+            start_line = httputil.parse_request_start_line(start_line.decode('utf-8').rstrip())
+        except httputil.HTTPInputError as e:            
+            note('BAD REQUEST LINE',start_line)
+            raise iostream.StreamClosedError
+        except Exception as e:
+            note('derp???',e)
+            raise RuntimeException('uh') from e
         note('setting request',derpid(self),start_line)
         self.request = self.requestFactory(self, self.stream, start_line)
         headers = yield maybeTimeout(self.stream, self.header_timeout, self.read_headers())

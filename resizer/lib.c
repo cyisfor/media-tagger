@@ -26,11 +26,11 @@ struct context_s {
 Image* MyResize(Image* image, int width, context* ctx) {
   Image* thumb = NULL;
 
-  if(image->magick_columns < width)
+  if(image->columns < width)
     return image;
 
   // ResizeImage clones?
-  thumb = ResizeImage(image, width, image->magick_rows*width/image->magick_columns,
+  thumb = ResizeImage(image, width, image->rows*width/image->columns,
 		      BoxFilter,
 		      ctx->exception);
   CatchExceptionAndReset(ctx->exception);
@@ -53,6 +53,13 @@ Image* MakeThumbnail(Image* image, context* ctx) {
 
   image = FirstImage(image);
 
+  
+  // grumble grumble fuck you ImageMagick
+  
+  image->page.x = image->page.y = 0;
+  image->page.width = image->magick_columns;
+  image->page.height = image->magick_rows;
+
   if (image->magick_columns != image->magick_rows) {
     RectangleInfo rect;
     memset(&rect,0,sizeof(rect));
@@ -60,8 +67,8 @@ Image* MakeThumbnail(Image* image, context* ctx) {
     /*	if (rect.width < SIDE && image->columns > SIDE)
 	rect.width = SIDE;
 	if (rect.height < SIDE && image->rows > SIDE)
-	rect.height = SIDE; */
-
+	rect.height = SIDE; */  
+    
     // RollImage clones?
     assert(image);
     thumb = RollImage(image,

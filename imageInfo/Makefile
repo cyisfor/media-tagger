@@ -3,11 +3,11 @@ sub:
 
 all: testImageInfo imageInfo
 
-imageInfo: info.o memory.o record.o
+imageInfo: info.old.o record.o
 	gcc -g -o $@ $^ `pkg-config --cflags --libs ImageMagick`
 
 %.o: %.c
-	gcc `pkg-config --cflags ImageMagick` -g -c -o $@ $^
+	gcc `pkg-config --cflags ImageMagick talloc` -g -c -o $@ $^
 
 
 .PHONY: sub all
