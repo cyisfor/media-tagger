@@ -6,6 +6,8 @@ from place import place
 from itertools import count
 import fixprint
 
+from tornado import gen
+
 from dimensions import thumbnailPageSize,thumbnailRowSize
 
 import comic
@@ -34,6 +36,7 @@ def quote(s):
         print(repr(s))
         raise
 
+# XXX: put this somewhere
 def wrapFuture(f,wrapper):
     ff = gen.Future()
     f.add_done_callback(lambda f: ff.set_result(wrapper(f)))

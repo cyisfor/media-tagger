@@ -5,6 +5,7 @@ from pages import d,RawString,Links
 
 from replacer import replacerFile
 
+from tornado import gen
 import http.client as codes
 
 import shutil,datetime

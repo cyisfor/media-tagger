@@ -249,7 +249,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         else:
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
-                    page = disp.page(info.pageInfo(ident),path,params)
+                    page = yield gen.maybe_future(disp.page(info.pageInfo(ident),path,params))
             else:
                 if o:
                     o = int(o[0],0x10)
@@ -257,9 +257,9 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 else:
                     offset = o = 0
                     
-                page = disp.media(pathurl,params,o,
+                page = yield gen.maybe_future(disp.media(pathurl,params,o,
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
-                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic)
+                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
         if json:
             page = jsony.encode(page)
         else:

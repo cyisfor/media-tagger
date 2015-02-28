@@ -7,6 +7,9 @@ import dirty.html as d
 from dirty import RawString
 from place import place
 from itertools import count
+
+from tornado import gen
+
 import fixprint
 
 from dimensions import thumbnailPageSize,thumbnailRowSize
@@ -214,14 +217,14 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     thing = '/'.join(('/media',fid,type,name))
 
     if type.startswith('text'):
-        return fid,d.pre(thing),thing
+        raise Return((fid,d.pre(thing),thing))
     if type.startswith('image'):
         if doScale:
             height = width = None # already resized the pixels
         if resized:
-            return fid,d.img(class_='wid',src=resized,alt='Still resizing...'),thing
+            raise Return((fid,d.img(class_='wid',src=resized,alt='Still resizing...'),thing))
         else:
-            return fid,d.img(class_='wid',src=thing,style=style),thing
+            raise Return((fid,d.img(class_='wid',src=thing,style=style),thing))
     # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
@@ -230,14 +233,14 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                 wrapper = audio
             else:
                 wrapper = video
-            return fid,wrapper(source(src=thing,type=type),
+            raise Return((fid,wrapper(source(src=thing,type=type),
                     d.object(
                         embed(src=thing,style=style,type=type),
                         width=width, height=height,
                         data=thing,style=style,type=type),
-                        autoplay=True,loop=True),thing
+                        autoplay=True,loop=True),thing))
         else:
-            return fid,(d.object(
+            raise Return((fid,(d.object(
                     embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
                     d.param(name='src',value=thing),
                         style=style,
@@ -245,11 +248,11 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                         loop=True,
                         autoplay=True, 
                         width=width, 
-                        height=height),d.br(),"Download"),thing
+                        height=height),d.br(),"Download"),thing))
     if type == 'application/x-shockwave-flash':
-        return fid,(d.object(d.param(name='SRC',value=thing),
+        raise Return((fid,(d.object(d.param(name='SRC',value=thing),
                 embed(' ',src=thing,style=style),
-                style=style),d.br(),'Download'),thing
+                style=style),d.br(),'Download'),thing))
     raise RuntimeError("What is "+type)
 
 def mediaLink(id,type):
@@ -314,11 +317,11 @@ def page(info,path,params):
             Links.next = pageURL(next)+unparseQuery()
         if prev and not Links.prev:
             Links.prev = pageURL(prev)+unparseQuery()
-        return makePage("Page info for "+fid,
+        raise Return((makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                 d.p(d.a(link,id='mediumu',href=thing)),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
-                tail)
+                tail)))
 
 def stringize(key):
     if hasattr(key,'isoformat'):
@@ -354,12 +357,12 @@ def info(info,path,params):
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
     info['tags'] = ', '.join(tags)
 
-    return makePage("Info about "+fid,
+    raise Return((makePage("Info about "+fid,
             d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
             d.table((d.tr(d.td(key),d.td(stringize(info[key]),id=key)) for key in keys),Class='info'),
             d.hr(),
             "Sources",
-            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
+            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))))
 
 def like(info):
     return "Under construction!"
@@ -424,7 +427,7 @@ def desktop(raw,path,params):
         n = 0x10
     history = desktop.history(n)
     if not history:
-        return "No desktops yet!?"
+        raise Return("No desktops yet!?")
     if 'd' in params:
         raise Redirect(pageLink(0,history[0]))
     if Session.head:
@@ -465,12 +468,12 @@ def desktop(raw,path,params):
             yield d.tr(row)
 
     Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
-    return makePage("Current Desktop",
+    raise Return(makePage("Current Desktop",
             middle,
             d.p("Past Desktops"),
             d.div(
                 d.table(
-                    makeDesktopRows())))
+                    makeDesktopRows()))))
 
 def user(info,path,params):
     if Session.head: return
