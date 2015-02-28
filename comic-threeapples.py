@@ -35,21 +35,21 @@ class Image:
         if self.id == 0x5c599:
             return MID(43)
         elif self.id == 0x69c15:
-            return -7
+            return BEG(4)
         elif self.id == 0x69c16:
-            return -6
+            return END(3)
         elif self.id == 0x69c2f:
-            return -9
+            return BEG(1)
         elif self.id == 0x69c2d:
             return END(1) # at end plz
         elif self.id == 0x69bfa:
-            return -4
+            return END(4)
         elif self.id == 0x69b85:
-            return -3
+            return END(5)
         elif self.id == 0x650ab:
-            return -1
+            return BEG(3)
         elif self.id == 0x650ac:
-            return -2
+            return BEG(2)
         for source in self.sources:
             match = pagepattern.search(source.uri)
             if match:
@@ -72,17 +72,16 @@ for id, in db.execute("SELECT media.id FROM media INNER JOIN things ON media.id 
         print('derp',hex(id))
         image = Image(id)
         image.derpkey()
-        assert(hasattr(image,'key'))
-        images.append(Image(id))
+        images.append(image)
 
 images.sort(key=lambda image: image.key)
 
-images.insert(37,Image(0x69c00))
+images.insert(0x34,Image(0x69c00))
 
 c = comic.findComicByTitle('Three Apples',lambda: "A Great Three-Part Comedy-Adventure Serial MLP Fancomic With a Combination of Black Comedy, Absurd Humor and Some Third Thing That Everybody Likes")
 for which,image in enumerate(images):
     comic.findMedium(c,which,image.id)
     db.execute('SELECT setComicPage($1,$2,$3)',(image.id,c,which))
-    print('image',which,hex(image.id),image.key)
+    print('image',which,hex(image.id))
 
 

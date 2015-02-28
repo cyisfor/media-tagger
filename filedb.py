@@ -7,6 +7,7 @@ oj = os.path.join
 base = os.path.expanduser("/extra/user/filedb")
 top = base
 
+@gen.coroutine
 def _check(id,category,create=True,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
@@ -23,7 +24,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
         if os.path.exists(medium): 
             exists = True
             break
-        time.sleep(delay)
+        yield gen.sleep(delay)        
     return id,exists
 
 def check(id,**kw):

@@ -205,7 +205,6 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 tags = tagsModule.parse(implied)
             else:
                 tags = tagsModule.parse("-special:rl")
-            tagfilter.filter(tags)
             tags.update(User.tags())
             basic = Taglist()
 
@@ -225,6 +224,8 @@ class Handler(FormCollector,myserver.ResponseHandler):
                     if tag:
                         tags.posi.add(tag)
                         basic.posi.add(tag)
+                        tags.nega.discard(tag)
+            tagfilter.filter(tags)
             o = params.get('o')
             if json:
                 disp = jsony

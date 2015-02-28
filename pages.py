@@ -113,6 +113,7 @@ def fixName(id,type):
     db.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
     return name
 
+@gen.coroutine
 def makeLinks(info,linkfor=None):
     if linkfor is None:
         linkfor = pageLink
@@ -129,7 +130,7 @@ def makeLinks(info,linkfor=None):
         if type == 'application/x-shockwave-flash':
             src = '/flash.jpg'
         else:
-            fid,oneexists = filedb.check(id)
+            fid,oneexists = yield filedb.check(id)
             allexists = allexists and oneexists
             src='/thumb/'+fid
         link = linkfor(id,i)
@@ -186,11 +187,12 @@ video = makeE('video')
 source = makeE('source')
 embed = makeE('embed')
 
+@gen.coroutine
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     isImage = None
     if doScale:
         isImage = type.startswith('image')
-        fid,exists = filedb.checkResized(id)
+        fid,exists = yield filedb.checkResized(id)
         resized = '/resized/'+fid+'/donotsave.this'
         Session.refresh = not exists and isImage
     else:
@@ -258,13 +260,15 @@ def simple(info,path,params):
     id,type = info
     return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id)))
 
+@gen.coroutine
 def resized(info,path,params):
     id = int(path[1],0x10)
     while True:
-        fid, exists = filedb.checkResized(id)
+        fid, exists = yield filedb.checkResized(id)
         if exists: break
     raise Redirect("/resized/"+fid+"/donotsave.this")
 
+@gen.coroutine
 def page(info,path,params):
     if Session.head:
         id,modified,size = info
@@ -276,7 +280,7 @@ def page(info,path,params):
 
     if Session.head:
         if doScale: 
-            fid, exists = filedb.checkResized(id)
+            fid, exists = yield filedb.checkResized(id)
             Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
         return
@@ -328,6 +332,7 @@ def stringize(key):
 def thumbLink(id):
     return "/thumb/"+'{:x}'.format(id)
 
+@gen.coroutine
 def info(info,path,params):
     Session.modified = info['sessmodified']
     if Session.head: return
@@ -344,7 +349,7 @@ def info(info,path,params):
     keys.discard('id')
     keys.discard('sources')
     keys = sorted(keys)
-    fid,exists = filedb.check(id)
+    fid,exists = yield filedb.check(id)
     Session.refresh = not exists
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
     info['tags'] = ', '.join(tags)
@@ -410,6 +415,7 @@ def media(url,query,offset,info,related,basic):
                 (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
 
+@gen.coroutine
 def desktop(raw,path,params):
     import desktop
     if 'n' in params:
@@ -437,17 +443,20 @@ def desktop(raw,path,params):
             d.hr())
     else:
         middle = ''
+    @gen.coroutine
     def makeDesktopLinks():
+        links = []
         allexists = True
         for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
-            fid,exists = filedb.check(id) 
+            fid,exists = yield filedb.check(id) 
             allexists = allexists and exists
-            yield d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
-                            href=pageLink(id)))
+            links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
+                            href=pageLink(id))))
         Session.refresh = not allexists
+    links = yield makeDesktopLinks()
     def makeDesktopRows():
         row = []
-        for td in makeDesktopLinks():
+        for td in links:
             row.append(td)
             if len(row) == 8:
                 yield d.tr(row)
@@ -649,13 +658,14 @@ def showComic(info,path,params):
         return showPages(path,params)
     else:
         return showComicPage(path)
-        
+
+@gen.coroutine
 def oembed(info, path, params):
     Session.type = 'application/json'
     if Session.head: return
     id,tags = info
     base = makeBase()
-    xid, exists = filedb.check(id)
+    xid, exists = yield filedb.check(id)
     thumb = urljoin(base,thumbLink(id))
     response = {
             'type': 'photo',

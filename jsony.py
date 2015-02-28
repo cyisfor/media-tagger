@@ -34,18 +34,28 @@ def quote(s):
         print(repr(s))
         raise
 
+def wrapFuture(f,wrapper):
+    ff = gen.Future()
+    f.add_done_callback(lambda f: ff.set_result(wrapper(f)))
+    return ff
+        
+    
 def makeLinks(info):
     allexists = True
+    links = []
+    @gen.coroutine
     def iter():
         nonlocal allexists
         for id,name,type,tagz in info:
             tagz = [str(tag) for tag in tagz]
-            fid,oneexists = filedb.check(id,create=False)
+            fid,oneexists = yield filedb.check(id,create=False)
             allexists = allexists and oneexists
-            yield dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz))
-    return {'allexists': allexists, 
+            links.append(dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz)))
+    def done(f):
+        return {'allexists': allexists, 
             'rowsize': thumbnailRowSize, 
-            'links': iter()}
+            'links': links}
+    return wrapFuture(iter(),done)
 
 def makeBase():
     # drop bass
@@ -163,9 +173,11 @@ def media(url,query,offset,info,related,basic):
         related = tags.full(related)
         basic = tags.full(basic)
 
-        return makePage(
+        def done(f):
+            return makePage(
                 tags=basic,
-                links=makeLinks(info))
+                links=f.result())
+        return wrapFuture(makeLinks(info),done)
 
 def desktop(raw,path,params):
     import desktop

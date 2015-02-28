@@ -19,6 +19,7 @@ db.setup(*db.source('sql/connect.sql',False))
 
 def disconnect(thing,nega):
     if thing and nega:
+        print('removing',thing,nega)
         db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE ARRAY[id] <@ $2::bigint[]",(thing,nega))
         db.execute(
             "UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE id = $2",(nega,thing))
@@ -50,6 +51,7 @@ def tag(thing,tags):
             if implied: 
                 tags.update(implied)
                 implied = None
+            print('taggo',tags.nega)
             disconnect(thing,tags.nega)
         if tags.posi:
             if isinstance(list(tags.posi)[0],str):
