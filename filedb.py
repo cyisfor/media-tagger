@@ -13,7 +13,7 @@ top = base
 def _check(id,category,create=True,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
-    if os.path.exists(medium): raise gen.Return(id,True)
+    if os.path.exists(medium): raise gen.Return((id,True))
     if not create:
         raise gen.Return(id, False)
     target = oj(base,'temp',id)

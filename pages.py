@@ -299,7 +299,7 @@ def page(info,path,params):
     tags = [(degeneralize(tag),tag) for tag in tags]
     boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
     # even if not rescaling, sets img width unless ns in params
-    fid,link,thing = makeLink(id,type,name,doScale,width,height)
+    fid,link,thing = yield makeLink(id,type,name,doScale,width,height)
     tail = []
     def pageURL(id):
         return '../{:x}'.format(id)
@@ -317,11 +317,12 @@ def page(info,path,params):
             Links.next = pageURL(next)+unparseQuery()
         if prev and not Links.prev:
             Links.prev = pageURL(prev)+unparseQuery()
-        raise Return((makePage("Page info for "+fid,
+        page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                 d.p(d.a(link,id='mediumu',href=thing)),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
-                tail)))
+                tail)
+        raise Return(page)
 
 def stringize(key):
     if hasattr(key,'isoformat'):
@@ -357,12 +358,14 @@ def info(info,path,params):
     tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
     info['tags'] = ', '.join(tags)
 
-    raise Return((makePage("Info about "+fid,
+    page = makePage("Info about "+fid,
             d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
             d.table((d.tr(d.td(key),d.td(stringize(info[key]),id=key)) for key in keys),Class='info'),
             d.hr(),
             "Sources",
-            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))))
+            d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
+    raise Return(page)
+    
 
 def like(info):
     return "Under construction!"
@@ -391,6 +394,7 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
 
+@gen.coroutine
 def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
@@ -410,13 +414,15 @@ def media(url,query,offset,info,related,basic):
         if offset > 0:
             query['o'] = offset - 1
             Links.prev = url.path+unparseQuery(query)
-        return makePage("Media "+str(basic),
+        links = yield makeLinks(info)
+        page = makePage("Media "+str(basic),
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 #d.table(makeLinks(info)),
-                        makeLinks(info),
+                        links,
                 (d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
                 (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
+        raise Return(page)
 
 @gen.coroutine
 def desktop(raw,path,params):
@@ -468,12 +474,14 @@ def desktop(raw,path,params):
             yield d.tr(row)
 
     Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
-    raise Return(makePage("Current Desktop",
+    page = makePage("Current Desktop",
             middle,
             d.p("Past Desktops"),
             d.div(
                 d.table(
-                    makeDesktopRows()))))
+                    makeDesktopRows())))
+    raise Return(page)
+
 
 def user(info,path,params):
     if Session.head: return
@@ -560,6 +568,7 @@ def checkModified(medium):
         else:
             Session.modified = modified
 
+@gen.coroutine
 def showAllComics(params):
     page = getPage(params)
     comics = comic.list(page)
@@ -585,12 +594,15 @@ def showAllComics(params):
             if comic.pages(comics[i][0]) == 0:
                 return '{:x}/'.format(comics[i][0])
             return '{:x}/0/'.format(comics[i][0])
-        links = makeLinks(getInfos(),formatLink)
-        return makePage("{:x} Page Comics".format(page),
+        links = yield makeLinks(getInfos(),formatLink)
+        page = makePage("{:x} Page Comics".format(page),
                 d.table(links),
                 d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
                     (' ' if Links.prev and Links.next else ''),
                     (d.a("Next",href=Links.next)if Links.next else '')))
+        raise Return(page)
+            
+@gen.coroutine
 def showPages(path,params):
     com = int(path[0],0x10)
     page = getPage(params)
@@ -616,15 +628,19 @@ def showPages(path,params):
             Links.prev = unparseQuery({'p':page-1})
         if page + 1 < numPages:
             Links.next = unparseQuery({'p':page+1})
-        return makePage(title + " - Comics",
+        links = yield makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
+        page = makePage(title + " - Comics",
                 d.h1(title),
-                d.table(makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))) if numPages else '',
+                d.table(links) if numPages else '',
                 d.p(RawString(description)),
                 d.p(d.a('Source',href=source)) if source else '',
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')))
+        raise Return(page)
+            
 
+@gen.coroutine
 def showComicPage(path):
     com = int(path[0],0x10)
     which = int(path[1],0x10)
@@ -643,15 +659,17 @@ def showComicPage(path):
             Links.next = ".."
         medium = comic.findMedium(com,which)
         doScale = User.rescaleImages and size >= maxSize
-        fid,link,thing = makeLink(medium,typ,name,
+        fid,link,thing = yield makeLink(medium,typ,name,
                 doScale,style='width: 100%')
 
-        return makePage("{:x} page ".format(which)+title,
+        page = makePage("{:x} page ".format(which)+title,
                 d.p(d.a(link,href=Links.next)),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
                 d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None))
+        raise Return(page)
+
         
 def showComic(info,path,params):
     path = path[1:]
@@ -682,4 +700,4 @@ def oembed(info, path, params):
             'thumbnail_height': 150,
             'provider_url': base,
             }
-    return json.dumps(response)
+    raise Return(json.dumps(response))

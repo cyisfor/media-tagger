@@ -1,6 +1,8 @@
 from note import note
 import coro
 
+from derp import printStack
+
 from tornado import httputil, gen, concurrent, iostream, util
 from tornado.concurrent import is_future
 from tornado.ioloop import TimeoutError
@@ -459,6 +461,7 @@ class ConnectionHandler(HTTP1Connection):
         if oldWriting.running():
             note('warning, response writer timed out',derpid(oldWriting.timeout))
             oldWriting.set_exception(TimeoutError)
+    @printStack
     def doneWriting(self,future):
         note('done writing',derpid(self))
         if self.writing:
