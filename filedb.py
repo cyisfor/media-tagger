@@ -1,3 +1,4 @@
+from mytornado import sleep
 from tornado import gen
 
 import tempfile
@@ -26,7 +27,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
         if os.path.exists(medium): 
             exists = True
             break
-        yield gen.sleep(delay)        
+        yield sleep(delay)        
     raise gen.Return((id,exists))
 
 def check(id,**kw):

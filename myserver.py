@@ -1,4 +1,4 @@
-from note import note
+import note
 import coro
 
 from derp import printStack
@@ -215,16 +215,21 @@ class ResponseHandler(object):
         self.written += len(chunk)
         return self.stream.write(chunk)
     @gen.coroutine
+    @printStack
     def respond(self):
+        note('respond?')
         try:
             response = yield self.do()
-            note('got response',derpid(self))
+            note.blue('got response',response)
             if not self.finished_headers:
                 yield self.end_headers()
         except Redirect as e:
+            note.yellow('REDIRECT',e.location)
             yield self.send_status(e.code,e.message)
             yield self.send_header('Location',e.location)
             yield self.end_headers()
+        except Exception as e:
+            note.alarm('derp',str(e))
         finally:
             self.recordAccess()
     def redirect(self,locationcode=302,message='boink'):
@@ -485,8 +490,7 @@ class ConnectionHandler(HTTP1Connection):
             self.done_writing.set_result(42)
         return self.startWriting()
     def on_connection_close(self,how):
-        sys.stderr.write(json.dumps(('connection lost',self.address,how))+'\n')
-        sys.stderr.flush()
+        note.alarm(json.dumps(('connection lost',self.address,how))+'\n')
         if how == 'reading':
             if self.reader and self.reader.running():
                 future = self.reader

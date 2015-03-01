@@ -1,3 +1,5 @@
+from derp import printStack
+
 import time
 start =time.time()
 import setupurllib
@@ -176,6 +178,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
     @gen.coroutine
+    @printStack
     def get(self):
         Session.handler = self
 
@@ -197,7 +200,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         # Session.query = ...
         if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
             mode = path[0][1:]
-            page = dispatch(json,mode,path,params)
+            page = yield gen.maybe_future(dispatch(json,mode,path,params))
         else:
             Session.params = params
             implied = self.headers.get("X-Implied-Tags")                
@@ -257,9 +260,10 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 else:
                     offset = o = 0
                     
-                page = yield gen.maybe_future(disp.media(pathurl,params,o,
+                f = gen.maybe_future(disp.media(pathurl,params,o,
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
+                page = yield f
         if json:
             page = jsony.encode(page)
         else:

@@ -9,6 +9,7 @@ from place import place
 from itertools import count
 
 from tornado import gen
+from tornado.gen import Return
 
 import fixprint
 
@@ -122,12 +123,13 @@ def makeLinks(info,linkfor=None):
         linkfor = pageLink
     counter = count(0)
     row = []
+    rows = []        
     allexists = True
     for id,name,type,tags in info:
         i = next(counter)
         if i%thumbnailRowSize==0:
             if row:
-                yield row
+                rows.append(row)
             row = []
         tags = [str(tag) for tag in tags]
         if type == 'application/x-shockwave-flash':
@@ -141,8 +143,9 @@ def makeLinks(info,linkfor=None):
             name = fixName(id,type)
         #row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
         row.append((d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
-    if row: yield tuple(row)+(d.br(),)
+    if row: rows.append((tuple(row)+(d.br(),)))
     Session.refresh = not allexists
+    raise Return(rows)
 
 def makeBase():
     # drop bass
@@ -273,6 +276,8 @@ def resized(info,path,params):
 
 @gen.coroutine
 def page(info,path,params):
+    note("head boo")
+
     if Session.head:
         id,modified,size = info
     else:
