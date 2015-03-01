@@ -1,3 +1,4 @@
+from tornado.gen import Return
 import traceback
 from contextlib import wraps
 try:
@@ -12,12 +13,20 @@ else:
     tblex = Python3TracebackLexer()
     terminalFormat = Terminal256Formatter()
 
+def derp(): yield
+generator = type(derp())
+del derp
+
 def printStack(f):
     @wraps(f)
     def wrapper(*a,**kw):
         try:
             res = f(*a,**kw)
-            return res
+            if isinstance(res,generator):
+                for rr in res:
+                    yield rr
+            else:
+                raise Return(res)
         except Exception as e:
             s = traceback.format_exc()
             if pygments:

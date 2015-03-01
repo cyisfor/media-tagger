@@ -229,7 +229,7 @@ class ResponseHandler(object):
             yield self.send_header('Location',e.location)
             yield self.end_headers()
         except Exception as e:
-            note.alarm('derp',str(e))
+            note.alarm('derp',type(e))
         finally:
             self.recordAccess()
     def redirect(self,locationcode=302,message='boink'):
@@ -398,7 +398,7 @@ class ConnectionHandler(HTTP1Connection):
             note('done with',self.address,derpid(self))
             raise
         except iostream.UnsatisfiableReadError:
-            print("garbage from address",self.address)
+            note.alarm("garbage from address",self.address)
             self.stream.close()
             raise iostream.StreamClosedError
         try:
@@ -421,6 +421,8 @@ class ConnectionHandler(HTTP1Connection):
         del self.request
         assert self.request is None, "boop"
         if self.old_client:
+            yield self.writing
+            note.alarm('close because old client')
             self.stream.close()
         else:
             self.read_next_message('next')
@@ -527,8 +529,10 @@ class Server(TCPServer, httputil.HTTPServerConnectionDelegate):
             self.derp = self.io_loop.call_later(0.1,notify)
     @gen.coroutine
     def close_all_connections(self):
+        note('closing all connections')
         while self.connections:
             conn = next(iter(self.connections))
+            note.yellow('close',conn)
             yield conn.close()
     def handle_stream(self, stream, address):
         conn = ConnectionHandler(self.requestFactory, stream, address)
