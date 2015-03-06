@@ -1,7 +1,3 @@
-#if memoryok
-#include "memory.h"
-#endif
-
 #include "MagickCore/MagickCore.h"
 
 #include <arpa/inet.h> // htons
@@ -10,6 +6,8 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <fcntl.h>
 
 static void writeString(int fd, const char* s) {
     uint8_t len;
@@ -40,15 +38,15 @@ static const char* maybeOverrideType(const char* path, bool* cont) {
   if(inp < 0) {
     writeerr("Could not open",path);
     *cont = true;
-    return 0x1;
+    return NULL;
   }
 
-  char head[0x400] = '';
+  char head[0x400] = "";
   ssize_t amt = read(inp,head,sizeof(head));
   if(amt < 0) {
     writeerr("Could not read",path);
     *cont = true;
-    return 0x1;
+    return NULL;
   }
   close(inp);
 
@@ -59,8 +57,8 @@ static const char* maybeOverrideType(const char* path, bool* cont) {
     const char* espace = head;
     while(*espace && isspace(*espace)) ++espace;
     if(*espace) {
-      if(0==strncmp(espace,"<?xml ",sizeof("<?xml "))) {
-        if(strstr(xmlhead+sizeof("<?xml "),"<svg")) {
+      if(0==strncmp(espace,"<?xml",sizeof("<?xml")-1)) {
+        if(strstr(espace+sizeof("<?xml"),"<svg")) {
           return "image/svg+xml";
         }
       }
@@ -76,14 +74,6 @@ int main(void) {
     char* path = NULL;
     size_t space = 0;
 
-    
-
-#if memoryok
-    memory_pushContext();
-
-    SetMagickMemoryMethods(memory_alloc, memory_realloc, memory_free);
-#endif
-
     MagickCoreGenesis(NULL,MagickFalse);
 
     // This allocates some static memory BECAUSE IMAGEMAGICK SUCKS
@@ -95,9 +85,6 @@ int main(void) {
     //SetLogEventMask("All");
 
     for(;;) {
-#if memoryok
-        memory_pushContext();
-#endif
 	/* because ImageMagick cannot be memory managed without restarting the
 	   WHOLE process... */
 	if(clock() > 300 * CLOCKS_PER_SEC)
@@ -109,27 +96,19 @@ int main(void) {
         if(path[amt-1] == '\n')
             path[amt-1] = '\0';
 
-        ssize_t amt = getline(&path,&space,stdin);
-        if(amt <= 0) break;
-        if(path[amt-1] == '\n')
-            path[amt-1] = '\0';
-
         bool cont = false;
         const char* overrideType = maybeOverrideType(path,&cont);
         if(cont)
           continue;
+
+        // note we still have to read the image, to get frames/dimensions
         
         strcpy(info->filename,path);
         Image* image = ReadImage(info,exception);
 
         if(image == NULL) {
-            write(1,"E",1);
-            writeString(1,exception->reason);
-            writeString(1,exception->description);
-            writeString(1,strerror(errno));
-            uint16_t nono = htons(errno);
-            write(1,&nono,2);
-            continue;
+          writeerr(exception->reason,exception->description);
+          continue;
         }
 
         uint8_t frames = GetImageListLength(image);
@@ -147,9 +126,6 @@ int main(void) {
         write(1,&height,2);
 
         DestroyImage(image);
-#if memoryok
-        memory_popContext(); // NOW will you free the memory???
-#endif
     }
     return 0;
 }

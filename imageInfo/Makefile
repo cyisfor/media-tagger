@@ -3,7 +3,7 @@ sub:
 
 all: testImageInfo imageInfo
 
-imageInfo: info.old.o record.o
+imageInfo: info.o record.o
 	gcc -g -o $@ $^ `pkg-config --cflags --libs ImageMagick`
 
 %.o: %.c
