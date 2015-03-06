@@ -7,6 +7,8 @@ with db.transaction():
     media.type = $1 AND media.name LIKE $2''',('image/png','%.svg')):
         print(hex(image),name)
         source = filedb.mediaPath(image)
+        print(source)
         info,type = create.openImage(source)
+        print('?',type)
         if type == 'image/png': continue
         print(type)

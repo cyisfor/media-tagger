@@ -21,6 +21,16 @@ static void writeString(int fd, const char* s) {
     }
 }
 
+static void writeerr(const char* message, const char* description) {
+  write(1,"E",1);
+  writeString(1,message);
+  writeString(1,description);
+  writeString(1,strerror(errno));
+  uint16_t nono = htons(errno);
+  write(1,&nono,2);
+}
+
+
 int main(void) {
     char* path = NULL;
     size_t space = 0;
@@ -44,7 +54,40 @@ int main(void) {
         if(amt <= 0) break;
         if(path[amt-1] == '\n')
             path[amt-1] = '\0';
+        /* we have to cheat here, because ImageMagick "helpfully" converts our svgs
+into temporary PNG files before assessing the MIME type. 
+        */
+        int inp = open(path,O_RDONLY);
+        if(inp < 0) {
+          writeerr("Could not open",path);
+          memory_popContext();
+          continue;
+        }
+
+        char head[0x400] = '';
+        ssize_t amt = read(inp,head,sizeof(head));
+        if(amt < 0) {
+          writeerr("Could not read",path);
+        }
+        close(inp);
+
+        const char* overrideType = NULL;
+        
+        {
+          // SVG
+          const char* espace = head;
+          while(*espace && isspace(*espace)) ++espace;
+          if(*espace) {
+            if(0==strncmp(espace,"<?xml ",sizeof("<?xml "))) {
+              if(strstr(xmlhead+sizeof("<?xml "),"<svg")) {
+                overrideType = "image/svg+xml";
+              }
+            }
+          }
+        }
+                           
         strcpy(info->filename,path);
+
         Image* image = ReadImage(info,exception);
 
         if(image == NULL) {
@@ -64,7 +107,11 @@ int main(void) {
         uint16_t height = htons(image->rows);
 
         write(1,"I",1);
-        writeString(1,MagickToMime(image->magick));
+        if(overrideType) {
+          writeString(1,overrideType);
+        } else {
+          writeString(1,MagickToMime(image->magick));
+        }
         write(1,&frames,1);
         write(1,&width,2);
         write(1,&height,2);
