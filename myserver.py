@@ -155,7 +155,6 @@ class ResponseHandler(object):
             if self.code:
                 yield self.send_status(self.code,self.message)
             else:
-                print("need to send status first!")
                 raise RuntimeError('please send status')
         yield send_header(self.stream, name, self.headers[name])
         if name == 'Date':
@@ -222,6 +221,8 @@ class ResponseHandler(object):
             response = yield self.do()
             note.blue('got response',response)
             if not self.finished_headers:
+                if not (self.status_sent or self.code):
+                    note.alarm('oh no we went boom!',self.request)
                 yield self.end_headers()
         except Redirect as e:
             note.yellow('REDIRECT',e.location)
@@ -422,7 +423,7 @@ class ConnectionHandler(HTTP1Connection):
         assert self.request is None, "boop"
         if self.old_client:
             yield self.writing
-            note.alarm('close because old client')
+            note('close because old client')
             self.stream.close()
         else:
             self.read_next_message('next')

@@ -203,7 +203,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
             page = yield gen.maybe_future(dispatch(json,mode,path,params))
         else:
             Session.params = params
-            implied = self.headers.get("X-Implied-Tags")                
+            implied = self.headers.get("X-Implied-Tags")
             if implied:
                 tags = tagsModule.parse(implied)
             else:
@@ -272,7 +272,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         self.send_status(200,"Okie Dokie Loki")
         self.send_header('Content-Type',Session.type if Session.type else 'application/json; charset=utf-8' if json else 'text/html; charset=utf-8')
         if Session.modified:
-            self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))
+            self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))        
         if Session.head:
             self.set_length(0)
         else:
