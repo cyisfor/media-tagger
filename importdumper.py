@@ -1,14 +1,18 @@
 import filedb
 
+from tornado import ioloop, gen
 from tornado.process import Subprocess as s
+
+from functools import wraps
 import os
 
-importPath = os.path.join(filedb.base,"dumphere")
+importPath = os.path.join(filedb.base,"dump")
 if not os.path.exists(importPath):
     os.mkdir(importPath)
 
 ino = None
 def getino():
+    global ino
     if ino is not None: return ino
     ino = s(['inotifywait',"-q","-m","-c","-e","moved_to",importPath],stdout=s.STREAM);
 
@@ -24,10 +28,12 @@ def forked(f):
             try: f(*a,**kw)
             except Exception as e:
                 print(e)
-            os.exit(0)
-        opid, status = os.waitpid(pid)
+            print("all done")
+            os._exit(0)
+        opid, status = os.waitpid(pid,0)
         assert opid == pid
         assert status == 0
+    return wrapper
 
 @forked
 def take(name):
@@ -39,7 +45,7 @@ def take(name):
     from gi.repository import Gtk,Gdk,GObject,GLib
 
     window = Gtk.Window()
-    window.connect('destroy',Gtk.main_quit)
+    window.connect('destroy',lambda *a: print("uhhhh") or Gtk.main_quit())
     box = Gtk.VBox()
     window.add(box)
     tagentry = Gtk.Entry()
@@ -48,29 +54,47 @@ def take(name):
     box.pack_start(tagentry,True,True,0)
     box.pack_start(sourceentry,True,True,0)
 
-    def maybeSubmit(e):
-        print('event',e)
-    window.connect('keyup',maybeSubmit)
+    def maybeSubmit(*a):
+        print('event',a)
+    window.connect('key_release_event',maybeSubmit)
 
     window.show_all()
     Gtk.main()    
 
 def catchup():
-    for name in os.walk(importPath):
+    for name in os.listdir(importPath):
         take(name)
 
 @gen.coroutine
 def watch():
+    files = {}
+        
     while True:
         line = yield getino().stdout
         line = line[:-1] # \n
-        path = line.split(',',2)
-        if len(line) != 3: continue
-        name = line[2]
-        take(name)
+        line = line.split('"')
+        derp = []
+        inquote = False
+        for bit in line:
+            if inquote:
+                derp.append(bit)
+                inquote = False
+            else:
+                for thing in bit.split(','):
+                    derp.append(thing)
+                inquote = True
+        print(derp)
+        if len(derp) != 3: continue
+        top,event,name = derp
+        print('name',event,name)
+        #take(name)
         
         
-    
-    def main():
+
+def main():
     catchup()
-    
+    watch()
+    ioloop.IOLoop.instance().start()
+
+if __name__ == '__main__':
+    main()
