@@ -38,29 +38,16 @@ def mysplit(s,cs):
 
 boring = set(["the","for","this","and","not","how","are","files","xcf","not","my","in"])
 
-cod = codecs.lookup('utf-8')
-
-try:
-    db.execute("CREATE TABLE badfiles (path TEXT PRIMARY KEY)")
-except: pass
-
-skipping = False
-recheck = os.environ.get('recheck')
-for path in sys.stdin:
-    path = os.path.abspath(path.strip())
-    if skipping: 
-        if path == '/home/user/art/laptop/frozen elsa disney movie poster black.jpg':
-            skipping = False
-        continue    
-    #bpath,length = cod.encode(path,'surrogateescape')
-    #if length!=len(path):
-    #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
+def discover(path):
+    discovered = set()
+    
     for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
         relpath = os.path.relpath(path,start)
         if not '..' in relpath: break
-    else: continue
+    else: raise ImportError("Can't import path "+path)
+    
     name = os.path.basename(relpath)
-    discovered = set()
+
     officialTags = False
     if ' - ' in name:
         tags,rest = name.split(' - ',1)
@@ -70,38 +57,64 @@ for path in sys.stdin:
             officialTags = True
             discovered = set(tag.strip() for tag in tags.split(','))
             name = rest
+            
     discovered = discovered.union(mysplit(relpath[:relpath.rfind('.')].lower(),'/ .-_*"\'?()[]{},'))
     discovered = set([comp for comp in discovered if len(comp)>2 and comp not in boring])
-    #print(implied.union(discovered))
-    path = path.encode('utf-8')
-    bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
-    if bad[0][0] != 0: continue
-    idnum = None
-    source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
+
+    return discovered,name
+
+def main():
+
+    cod = codecs.lookup('utf-8')
+
     try:
-        with db.transaction():
-            if source:
-                if not recheck: #(officialTags or recheck):
-                    #print("Not rechecking existing file")
-                    continue
-                source = source[0][0]
-                idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
+        db.execute("CREATE TABLE badfiles (path TEXT PRIMARY KEY)")
+    except: pass
+    
+    skipping = False
+    recheck = os.environ.get('recheck')
+    for path in sys.stdin:
+        path = os.path.abspath(path.strip())
+        if skipping: 
+            if path == 'path at which to restart changes':
+                skipping = False
+            continue    
+        #bpath,length = cod.encode(path,'surrogateescape')
+        #if length!=len(path):
+        #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
+        #print(implied.union(discovered))
+        path = path.encode('utf-8')
+        bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
+        if bad[0][0] != 0: continue
+        idnum = None
+        source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
+        try:
+            with db.transaction():
+                if source:
+                    if not recheck: #(officialTags or recheck):
+                        #print("Not rechecking existing file")
+                        continue
+                    source = source[0][0]
+                    idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
+                    if idnum:
+                        idnum,hash = idnum[0]
+                else:
+                    source = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
+                    db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
+                if not idnum:
+                    with open(path,'rb') as inp:
+                        hash = create.mediaHash(inp)
+                    idnum = db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
+                    if idnum: idnum = idnum[0][0]
+                    print("Hasho",idnum)
+                try: discovered,name = discover(path)
+                except ImportError: continue
                 if idnum:
-                    idnum,hash = idnum[0]
-            else:
-                source = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
-                db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
-            if not idnum:
-                with open(path,'rb') as inp:
-                    hash = create.mediaHash(inp)
-                idnum = db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
-                if idnum: idnum = idnum[0][0]
-                print("Hasho",idnum)
-            if idnum:
-                print("Adding saource",idnum,source)
-                create.update(idnum,(source,),implied.union(discovered),name)
-            else:
-                print("importing",path,discovered)
-                create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
-    except create.NoGood: 
-        db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
+                    print("Adding saource",idnum,source)
+                    create.update(idnum,(source,),implied.union(discovered),name)
+                else:
+                    print("importing",path,discovered)
+                    create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
+        except create.NoGood: 
+            db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
+    
