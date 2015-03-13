@@ -40,13 +40,16 @@ boring = set(["the","for","this","and","not","how","are","files","xcf","not","my
 
 def discover(path):
     discovered = set()
+
+    if path[0] == '/':
+        for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
+            relpath = os.path.relpath(path,start)
+            if not '..' in relpath: break
+        else: raise ImportError("Can't import path "+path)
+        name = os.path.basename(relpath)
+    else:
+        relpath = name = path
     
-    for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
-        relpath = os.path.relpath(path,start)
-        if not '..' in relpath: break
-    else: raise ImportError("Can't import path "+path)
-    
-    name = os.path.basename(relpath)
 
     officialTags = False
     if ' - ' in name:

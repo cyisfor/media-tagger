@@ -1,4 +1,5 @@
 import filedb
+import impmort
 
 from tornado import ioloop, gen
 from tornado.process import Subprocess as s
@@ -14,7 +15,7 @@ ino = None
 def getino():
     global ino
     if ino is not None: return ino
-    ino = s(['inotifywait',"-q","-m","-c","-e","moved_to",importPath],stdout=s.STREAM);
+    ino = s(['inotifywait',"-q","-m","-c",importPath],stdout=s.STREAM);
 
     return ino
 
@@ -25,10 +26,7 @@ def forked(f):
         print('call',f,a,kw)
         pid = os.fork()
         if pid == 0:
-            try: f(*a,**kw)
-            except Exception as e:
-                print(e)
-            print("all done")
+            f(*a,**kw)
             os._exit(0)
         opid, status = os.waitpid(pid,0)
         assert opid == pid
@@ -44,6 +42,8 @@ def take(name):
 
     from gi.repository import Gtk,Gdk,GObject,GLib
 
+    discovered, name = impmort.discover(name)    
+
     window = Gtk.Window()
     window.connect('destroy',lambda *a: print("uhhhh") or Gtk.main_quit())
     box = Gtk.VBox()
@@ -54,6 +54,8 @@ def take(name):
     box.pack_start(tagentry,True,True,0)
     box.pack_start(sourceentry,True,True,0)
 
+    tagentry.set_text(', '.join(discovered.union(impmort.implied)))
+    
     def maybeSubmit(*a):
         print('event',a)
     window.connect('key_release_event',maybeSubmit)
@@ -67,12 +69,12 @@ def catchup():
 
 @gen.coroutine
 def watch():
-    files = {}
+    attribs = set()
         
     while True:
-        line = yield getino().stdout
+        line = yield getino().stdout.read_until(b'\n')
         line = line[:-1] # \n
-        line = line.split('"')
+        line = line.split(b'"')
         derp = []
         inquote = False
         for bit in line:
@@ -80,19 +82,31 @@ def watch():
                 derp.append(bit)
                 inquote = False
             else:
-                for thing in bit.split(','):
+                bit = bit.strip(b',')
+                for thing in bit.split(b','):
                     derp.append(thing)
                 inquote = True
-        print(derp)
         if len(derp) != 3: continue
         top,event,name = derp
+        name = name.decode('utf-8')
+        event = set(event.decode().split(','))
+        if 'ATTRIB' in event:
+            attribs.add(name)
+        elif 'CLOSE_WRITE' in event:
+            if name in attribs:
+                print('OK we can take this one',name)
+                attribs.discard(name)
+                take(name)
+        elif 'MOVED_TO' in event:
+            print('OK moved to is ok too',name)
+            take(name)
         print('name',event,name)
         #take(name)
         
         
 
 def main():
-    catchup()
+    #catchup()
     watch()
     ioloop.IOLoop.instance().start()
 

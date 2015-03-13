@@ -5,7 +5,7 @@ CREATE TABLE possibleDupes (
     dist float4 NOT NULL,
 UNIQUE(sis,bro));
 
-BEGIN;
+--BEGIN;
 CREATE TABLE dupeCheckPosition (
 id int PRIMARY KEY,
 bottom BIGINT -- REFERENCES media(id) ON DELETE RESTRICT meh!
@@ -37,6 +37,7 @@ BEGIN
     ORDER BY media.id LIMIT 1000
     LOOP
     		    	 _count := _count + 1;
+                         --raise NOTICE 'testing %', to_hex(_test.id);
             FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash) AS dist FROM media 
             LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
             WHERE nadupes.id IS NULL
@@ -48,7 +49,7 @@ BEGIN
 			INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
 		EXCEPTION
 		        WHEN unique_violation THEN
-			        RAISE NOTICE 'already checked %',_test.id;
+			        RAISE NOTICE 'already checked (thisisbad) %',_test.id;
 		END;
             END LOOP;
     	UPDATE dupeCheckPosition SET bottom = GREATEST(bottom,_test.id);
@@ -72,7 +73,7 @@ BEGIN
 		END;
         END LOOP;
 	DELETE FROM dupesNeedRecheck WHERE id = _test.id;
-	RAISE NOTICE 'finished with %',_test.id;
+	RAISE NOTICE 'finished rechecking %',_test.id;
     END LOOP;
     RETURN _count;
 END
