@@ -11,6 +11,6 @@ with db.transaction():
         info,type = create.openImage(source)
         if type == 'image/png': continue
         print(type)
-        db.execute("UPDATE media SET type = $1 WHERE id = $2",(image,type))
+        db.execute("UPDATE media SET type = $2 WHERE id = $1",(image,type))
         db.execute('COMMIT')
         db.execute('BEGIN')

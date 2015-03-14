@@ -1,5 +1,7 @@
 import coro
 
+from mytornado import sleep
+
 from tornado import ioloop,gen
 from tornado.process import Subprocess
 
@@ -27,11 +29,14 @@ def start(handler,check=None):
     buf = b''
     proc = Subprocess([exe],stdout=Subprocess.STREAM)
     while True:
-        print('getting line')
-        length = yield proc.stdout.read_until(b'\n')
-        line = yield proc.stdout.read_bytes(int(length,0x10))
-        if check is None or check(line):
-            handler(line.decode('utf-8'))
+        try:
+            length = yield proc.stdout.read_until(b'\n')
+            line = yield proc.stdout.read_bytes(int(length,0x10))
+            if check is None or check(line):
+                handler(line.decode('utf-8'))
+        except Exception as e:
+            print("ERROR",e)
+            yield sleep(1)
 
 def run(handler, check=None):
     start(handler,check)
