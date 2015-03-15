@@ -42,11 +42,14 @@ def tokens(inp):
             buf += c
 
 REDO,IGNORE = range(2)
-            
+
+# syntax name { ... } name { ... } yields name,statement pairs
+
 def parse(inp):
     inQuote = False
     inComment = False
     gettingName = True
+    eatingSpace = True
     parens = []
     quotes = []
     name = ''
@@ -57,10 +60,14 @@ def parse(inp):
         value.clear()
         return s
     def check(token,lit):
-        nonlocal inQuote,inComment,gettingName,name,value
-        if token is ESCAPE:
-            value.append(lit)
-            
+        nonlocal inQuote,inComment,gettingName,eatingSpace,name
+
+        if eatingSpace:
+            if token is not SPACE:
+                eatingSpace = False
+                return REDO
+            return IGNORE
+
         if gettingName:
             if token is OPAREN or token is SPACE:
                 if token is OPAREN:
@@ -69,12 +76,6 @@ def parse(inp):
                 gettingName = False
                 name = commitValue()
             return
-        
-        if eatingSpace:
-            if token is not SPACE:
-                eatingSpace = False
-                return REDO
-            return IGNORE
         
         if inComment:
             if token is NL:
@@ -103,22 +104,32 @@ def parse(inp):
         
         if parens:
             if token is OPAREN:
-                parens.push(info[0])
-                buf += info[0]
+                parens.push(lit)
             elif token is CPAREN:
                 op = parens.pop()
-                assert op == info[0]
+                assert op == lit
+                if not parens:
+                    # yay finished
+                    yield name,commitValue()
+                    name = ''
+                    gettingName = True
             elif token is QUOTE:
-                quotes.push(info[0])
-            else:
-                buf += token
-                if token is COMMENT:
-                    inComment = True
-                elif token is DOLLA:
-                    seekDolla = True
-                
-            continue
+                quotes.push(lit)
+            elif token is COMMENT:
+                inComment = True
+            elif token is DOLLA:
+                seekDolla = True                
+            return
+    for token,lit in tokens(inp):
+        action = check(token,lit)
+        while action is REDO:
+            action = check(token,lit)
+        if action is not IGNORE:
+            value.append(lit)
 
-        if token is OPAREN:
-            parenLevel += 1
-        elif token is 
+if __name__ == '__main__':
+    import sys
+    for name,value in parse(sys.stdin):
+        print(name)
+        print('-'*60)
+        print(value)
