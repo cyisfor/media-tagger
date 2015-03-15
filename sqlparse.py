@@ -99,8 +99,10 @@ def parse(inp):
                 else:
                     quotes.append(v)
                 seekDolla = False
-            elif token is SPACE:
+            elif token is not STUFF:
+                # $1 is valid, despite $1___derp$ being a dollar quote...
                 seekDolla = False
+                return REDO
             return
         
         if quotes:
@@ -115,7 +117,6 @@ def parse(inp):
             return
         
         if parens:
-            print('beep')
             if token is OPAREN:
                 parens.append(lit)
             elif token is CPAREN:
@@ -139,7 +140,6 @@ def parse(inp):
             
     name = None
     for token,lit in tokens(inp):
-        print('toke',parens,lit)
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
@@ -148,10 +148,8 @@ def parse(inp):
             if name is None:
                 name = commitValue()
                 gettingName = False
-                print('name is',name)
             else:
                 yield name,commitValue().rstrip()
-                print('valllu')
                 name = None
                 gettingName = True
         elif action is not IGNORE:

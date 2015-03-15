@@ -5,6 +5,13 @@ except ImportError: pass
 
 from gi.repository import GLib, Gtk, Gdk
 
+def derp(f):
+    def wrapper(*a,**kw):
+        print('derp',f)
+        return f(*a,**kw)
+    return derp
+        
+
 def make(handler,check):
     seen = set()
     clipboard = None
@@ -33,7 +40,8 @@ def make(handler,check):
         GLib.timeout_add(200,checkClip)
     
     def run():
-        GLib.timeout_add(200,start)
+        print('start?',start)
+        GLib.timeout_add(200,derp(start))
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         Gtk.main()
@@ -41,4 +49,6 @@ def make(handler,check):
 
 def run(handler,check):
     start,run = make(handler,check)
+    print('start?')
     run()
+    return start
