@@ -1,4 +1,4 @@
-QUOTE,OPAREN,CPAREN,ESCAPE,SPACE = range(5)
+QUOTE,OPAREN,CPAREN,ESCAPE,SPACE,STUFF = range(6)
 NL = '\n'
 COMMENT = '--'
 DOLLA = '$'
@@ -42,7 +42,7 @@ def tokens(inp):
             
         if gotit:
             if buf:
-                yield buf,buf
+                yield STUFF,buf
                 buf = ''
             yield gotit
 
@@ -69,9 +69,18 @@ def parse(inp):
         tee.write(lit)
         nonlocal inComment,eatingSpace,seekDolla
 
+        if inComment:
+            if token is NL:
+                inComment = False
+            if eatingSpace: return IGNORE
+            return
+
         if eatingSpace:
-            if token not in {SPACE,NL}:
+            if token is COMMENT:
+                inComment = True
+            elif token not in {SPACE,NL}:
                 eatingSpace = False
+                inComment = False
                 return REDO
             return IGNORE
 
@@ -82,17 +91,15 @@ def parse(inp):
                 return COMMIT                
             return
         
-        if inComment:
-            if token is NL:
-                inComment = False
-            return
-        
         if seekDolla:
             if token is DOLLA:
-                if quotes and quotes[-1] == buf:
+                v = commitValue()
+                if quotes and quotes[-1] == v:
                     quotes.pop()
                 else:
-                    quotes.append(commitValue())
+                    quotes.append(v)
+                seekDolla = False
+            elif token is SPACE:
                 seekDolla = False
             return
         
@@ -108,6 +115,7 @@ def parse(inp):
             return
         
         if parens:
+            print('beep')
             if token is OPAREN:
                 parens.append(lit)
             elif token is CPAREN:
@@ -131,6 +139,7 @@ def parse(inp):
             
     name = None
     for token,lit in tokens(inp):
+        print('toke',parens,lit)
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
@@ -139,8 +148,10 @@ def parse(inp):
             if name is None:
                 name = commitValue()
                 gettingName = False
+                print('name is',name)
             else:
                 yield name,commitValue().rstrip()
+                print('valllu')
                 name = None
                 gettingName = True
         elif action is not IGNORE:

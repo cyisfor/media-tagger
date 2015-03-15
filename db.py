@@ -43,7 +43,7 @@ def reopen():
     except IOError:
         password = None
     db.c = pg.Connection(dbname='pics',port=5433,password=password)
-    #c.verbose = True
+    #db.c.verbose = True
     #db.c.out = open('/tmp/db.log','at')
     password = None
 reopen()
@@ -71,15 +71,18 @@ def source(path,namedStatements=True):
         value = []
         inQuote = False
 
+        # this should roughly parse postgresql dumps
         for line in inp:
             if line.lstrip().startswith('--'): continue
             line = line.rstrip()
             if not line: continue
             if '$$' in line: 
                 inQuote = not inQuote
-            if not inQuote and line[-1]==';':
+            ended = not inQuote and line[-1]==';'
+            if ended:
                 line = line[:-1]
-                value.append(line)
+            value.append(line)
+            if ended:
                 stmts.append("\n".join(value))
                 value.clear()
     return stmts
