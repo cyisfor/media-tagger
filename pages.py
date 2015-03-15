@@ -59,6 +59,12 @@ def degeneralize(tag):
         return tag[len('general:'):]
     return tag
 
+def tuplize(f):
+    def wrapper(*a,**kw):
+        return tuple(f(*a,**kw))
+    return wrapper
+
+@tuplize
 def spaceBetween(elements):
     first = True
     for e in elements:
@@ -423,7 +429,7 @@ def media(url,query,offset,info,related,basic):
         page = makePage("Media "+str(basic),
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 #d.table(makeLinks(info)),
-                        links,
+                        links if links else '',
                 (d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
                 (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
@@ -601,7 +607,7 @@ def showAllComics(params):
             return '{:x}/0/'.format(comics[i][0])
         links = yield makeLinks(getInfos(),formatLink)
         page = makePage("{:x} Page Comics".format(page),
-                d.table(links),
+                d.table(links) if links else '',
                 d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
                     (' ' if Links.prev and Links.next else ''),
                     (d.a("Next",href=Links.next)if Links.next else '')))
@@ -636,7 +642,7 @@ def showPages(path,params):
         links = yield makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
         page = makePage(title + " - Comics",
                 d.h1(title),
-                d.table(links) if numPages else '',
+                d.table(links) if numPages and links else '',
                 d.p(RawString(description)),
                 d.p(d.a('Source',href=source)) if source else '',
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),

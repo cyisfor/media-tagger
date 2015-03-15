@@ -1,4 +1,5 @@
 from derp import printStack
+#import checkdirty
 
 import time
 start =time.time()
@@ -267,6 +268,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         if json:
             page = jsony.encode(page)
         else:
+            #checkdirty.circular(page)
             page = str(page)
         page = page.encode('utf-8') + b'\n'
         self.send_status(200,"Okie Dokie Loki")

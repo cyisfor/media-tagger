@@ -45,5 +45,9 @@ def extract(doc):
 noquery = re.compile('^[^?]*')
 
 def normalize(url):
-    url = urllib.parse.urlparse(url)
-    return urllib.parse.urlunparse(('https','derpibooru.org',url.path,None,None,None))
+    path = urllib.parse.urlparse(url).path
+    if path.startswith('/images/'):
+        path = path[len('/images'):]
+    url = urllib.parse.urlunparse(('https','derpibooru.org',path,None,None,None))
+    raise SystemExit('okay',url)
+    return url
