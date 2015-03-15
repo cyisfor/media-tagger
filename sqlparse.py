@@ -4,6 +4,12 @@ COMMENT = '--'
 DOLLA = '$'
 SEMICOLON = ';'
 
+parenfor = {
+    '}': '{',
+    ')': '(',
+    ']': '[',
+    }
+
 def tokens(inp):
     buf = ''
     while True:
@@ -13,11 +19,11 @@ def tokens(inp):
             yield SPACE,c
         if c == '\\':
             yield ESCAPE,inp.read(1)
-        elif c in {'{','(','[','<'}:
+        elif c in {'{','(','['}:
             if buf:
                 yield buf,buf
             yield OPAREN,c
-        elif c in {'}',')',']','>'}:
+        elif c in {'}',')',']'}:
             if buf:
                 yield buf,buf
             yield CPAREN,c
@@ -41,26 +47,28 @@ def tokens(inp):
         else:
             buf += c
 
-REDO,IGNORE = range(2)
+REDO,IGNORE,COMMIT = range(3)
 
 # syntax name { ... } name { ... } yields name,statement pairs
 
 def parse(inp):
-    inQuote = False
     inComment = False
     gettingName = True
     eatingSpace = True
+    seekDolla = False
     parens = []
     quotes = []
-    name = ''
     value = []
     def commitValue():
         nonlocal value
+        print('yay commit',value)
         s = ''.join(value)
         value.clear()
         return s
+    tee = open('sofar.log','wt')
     def check(token,lit):
-        nonlocal inQuote,inComment,gettingName,eatingSpace,name
+        tee.write(lit)
+        nonlocal inComment,eatingSpace,seekDolla
 
         if eatingSpace:
             if token is not SPACE:
@@ -71,10 +79,9 @@ def parse(inp):
         if gettingName:
             if token is OPAREN or token is SPACE:
                 if token is OPAREN:
-                    parens.push(lit)
+                    parens.append(lit)
                     eatingSpace = True
-                gettingName = False
-                name = commitValue()
+                return COMMIT                
             return
         
         if inComment:
@@ -87,7 +94,7 @@ def parse(inp):
                 if quotes and quotes[-1] == buf:
                     quotes.pop()
                 else:
-                    quotes.push(commitValue())
+                    quotes.append(commitValue())
                 seekDolla = False
             return
         
@@ -96,7 +103,7 @@ def parse(inp):
                 if quotes and quotes[-1] == lit:
                     quotes.pop()
                 else:
-                    quotes.push(info[0])
+                    quotes.append(lit)
             elif token is DOLLA:
                 seekDolla = True
             # ignore braces inside quotes, even mismatched ones
@@ -104,27 +111,35 @@ def parse(inp):
         
         if parens:
             if token is OPAREN:
-                parens.push(lit)
+                parens.append(lit)
             elif token is CPAREN:
                 op = parens.pop()
-                assert op == lit
+                assert op == parenfor[lit], "{} != {}".format(op,lit)
                 if not parens:
                     # yay finished
-                    yield name,commitValue()
-                    name = ''
-                    gettingName = True
+                    return COMMIT
             elif token is QUOTE:
-                quotes.push(lit)
+                quotes.append(lit)
             elif token is COMMENT:
                 inComment = True
             elif token is DOLLA:
                 seekDolla = True                
             return
+    name = None
     for token,lit in tokens(inp):
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
+        if action is COMMIT:
+            if name is None:
+                name = commitValue()
+                gettingName = False
+            else:
+                yield name,commitValue()
+                name = None
+                gettingName = True
         if action is not IGNORE:
+            print('append',lit)
             value.append(lit)
 
 if __name__ == '__main__':
