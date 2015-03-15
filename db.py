@@ -1,3 +1,5 @@
+import sqlparse
+
 import sys,os
 sys.path.insert(0,os.path.expanduser("/extra/user/code/postgresql-python"))
 import postgresql as pg
@@ -62,36 +64,22 @@ place = os.path.dirname(__file__)
 
 # either returns {name=statement...} or [statement...] depending on file format...
 def source(path,namedStatements=True):
-    if namedStatements:
-        stmts = {}
-    else:
-        stmts = []
-    mode = 0
-    value = []
-    inQuote = False
     with open(os.path.join(place,path)) as inp:
+        if namedStatements:
+            return dict(sqlparse.parse(inp))
+        stmts = []
+        value = []
+        inQuote = False
+
         for line in inp:
             if line.lstrip().startswith('--'): continue
             line = line.rstrip()
             if not line: continue
             if '$$' in line: 
                 inQuote = not inQuote
-            if namedStatements and mode is 0:
-                name = line
-                mode = 1
-            else:
-                if not inQuote and line[-1]==';':
-                    mode = 0
-                    line = line[:-1]
-                else:
-                    mode = 1
+            if not inQuote and line[-1]==';':
+                line = line[:-1]
                 value.append(line)
-                if mode is 0:
-                    value = "\n".join(value)
-                    if namedStatements:
-                        stmts[name] = value
-                    else:
-                        stmts.append(value)
-                    value = []
-                    name = None
+                stmts.append("\n".join(value))
+                value.clear()
     return stmts

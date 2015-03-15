@@ -15,37 +15,37 @@ def tokens(inp):
     while True:
         c = inp.read(1)
         if not c: break
+        gotit = None
         if c in {' ','\t'}:
-            yield SPACE,c
-        if c == '\\':
-            yield ESCAPE,inp.read(1)
+            gotit = SPACE,c
+        elif c == '\\':
+            gotit = ESCAPE,inp.read(1)
         elif c in {'{','(','['}:
-            if buf:
-                yield buf,buf
-            yield OPAREN,c
+            gotit = OPAREN,c
         elif c in {'}',')',']'}:
-            if buf:
-                yield buf,buf
-            yield CPAREN,c
+            gotit = CPAREN,c
         elif c in {'"',"'"}:
-            yield QUOTE,c
+            gotit = QUOTE,c
         elif c == "$":
-            yield DOLLA,DOLLA
+            gotit = DOLLA,DOLLA
         elif c == '-':
             nc = inp.read(1)
             if not nc: break
             if nc == '-':
-                if buf:
-                    yield buf,buf
-                yield COMMENT,COMMENT
+                gotit = COMMENT,COMMENT
             else:
                 buf += c + nc
         elif c == '\n':
-            if buf:
-                yield buf,buf
-            yield NL,NL
+            gotit = NL,NL
         else:
             buf += c
+            
+        if gotit:
+            if buf:
+                yield buf,buf
+                buf = ''
+            yield gotit
+
 
 REDO,IGNORE,COMMIT = range(3)
 
@@ -61,7 +61,6 @@ def parse(inp):
     value = []
     def commitValue():
         nonlocal value
-        print('yay commit',value)
         s = ''.join(value)
         value.clear()
         return s
@@ -71,7 +70,7 @@ def parse(inp):
         nonlocal inComment,eatingSpace,seekDolla
 
         if eatingSpace:
-            if token is not SPACE:
+            if token not in {SPACE,NL}:
                 eatingSpace = False
                 return REDO
             return IGNORE
@@ -80,7 +79,6 @@ def parse(inp):
             if token is OPAREN or token is SPACE:
                 if token is OPAREN:
                     parens.append(lit)
-                    eatingSpace = True
                 return COMMIT                
             return
         
@@ -125,21 +123,27 @@ def parse(inp):
             elif token is DOLLA:
                 seekDolla = True                
             return
+
+        if token is OPAREN:
+            parens.append(lit)
+            eatingSpace = True
+            return IGNORE
+            
     name = None
     for token,lit in tokens(inp):
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
         if action is COMMIT:
+            eatingSpace = True
             if name is None:
                 name = commitValue()
                 gettingName = False
             else:
-                yield name,commitValue()
+                yield name,commitValue().rstrip()
                 name = None
                 gettingName = True
-        if action is not IGNORE:
-            print('append',lit)
+        elif action is not IGNORE:
             value.append(lit)
 
 if __name__ == '__main__':
