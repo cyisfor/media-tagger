@@ -62,7 +62,7 @@ def parse(inp):
     def commitValue():
         nonlocal value
         s = ''.join(value)
-        value.clear()
+        value[:] = ()
         return s
     tee = open('sofar.log','wt')
     def check(token,lit):

@@ -9,7 +9,7 @@ def derp(f):
     def wrapper(*a,**kw):
         print('derp',f)
         return f(*a,**kw)
-    return derp
+    return wrapper
         
 
 def make(handler,check):
@@ -40,7 +40,6 @@ def make(handler,check):
         GLib.timeout_add(200,checkClip)
     
     def run():
-        print('start?',start)
         GLib.timeout_add(200,derp(start))
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -49,6 +48,5 @@ def make(handler,check):
 
 def run(handler,check):
     start,run = make(handler,check)
-    print('start?')
     run()
-    return start
+    return start,run

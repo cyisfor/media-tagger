@@ -84,5 +84,5 @@ def source(path,namedStatements=True):
             value.append(line)
             if ended:
                 stmts.append("\n".join(value))
-                value.clear()
+                value[:] = ()
     return stmts

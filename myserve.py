@@ -110,7 +110,14 @@ class FormCollector:
         return super().received_header(name,value)
 
 IGNORED = {
-        'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c'
+    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c'
+}
+
+BOTS = {
+    'fce3:14aa:64d0:f72a:cb3f:6c04:3943:ffb6',
+    'fcd9:8810:bb91:fd19:ddae:5c59:6df5:949e',
+    'fc46:a72b:9577:4fdf:236d:3665:ee6a:3dcd',
+    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c'
 }
 
 class Handler(FormCollector,myserver.ResponseHandler):
@@ -166,11 +173,12 @@ class Handler(FormCollector,myserver.ResponseHandler):
         with Session:
             Session.head = True
             return self.get()
+    @gen.coroutine
     def options(self):
-        self.send_response(200,"OK")
-        self.send_header('Content-Length',0)
-        self.send_header('Access-Control-Allow-Origin',"*")
-        self.send_header('Access-Control-Allow-Methods',"GET,POST,PUT")
+        yield self.send_response(200,"OK")
+        yield self.send_header('Content-Length',0)
+        yield self.send_header('Access-Control-Allow-Origin',"*")
+        yield self.send_header('Access-Control-Allow-Methods',"GET,POST,PUT")
         self.send_header('Access-Control-Allow-Headers',self.headers['access-control-request-headers'])
     def post(self):
         json,path,parsed,params = parsePath(self.path)
@@ -179,9 +187,36 @@ class Handler(FormCollector,myserver.ResponseHandler):
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
     @gen.coroutine
+    def botdorp(self):
+        import random
+        yield self.send_status(200,"HAHAHA")
+        yield self.send_header('Content-Type', 'text/html; charset=utf-8')
+        def dorp1():
+            for i in range(random.randint(100,200)):
+                yield chr(random.randrange(0,10000))
+        def dorp():
+            return ''.join(dorp1())                
+        yield self.write('<!DOCTYPE html><html><head><title>'+dorp()+'''</title></head>
+<body><p>''')
+        for link in range(random.randint(100,200)):
+            if random.randrange(0,2)==0:
+                yield self.write("</p><p>")
+            if random.randrange(0,10)==0:
+                yield self.write("<hr/>")
+            if random.randrange(0,6):
+                yield self.write('\n')
+            yield self.write('<a href="/art/'+dorp()+'/secrets.html">'+dorp()+'</a>\n')
+        yield self.write('</p></body></html>')
+                                 
+    @gen.coroutine
     @printStack
     def get(self):
         Session.handler = self
+
+        if self.ip in BOTS:
+            yield self.botdorp()
+
+
 
         # meh
         # if self.path == '/art/~style':

@@ -7,6 +7,13 @@ import os
 
 explain = False
 
+for n,v in stmts.items():
+    print(n)
+    print('-'*60)
+    print(v)
+    print('-'*60)
+raise SystemExit
+
 class scalartuple(tuple):
     def __add__(self,other):
         if not isinstance(other,tuple):
