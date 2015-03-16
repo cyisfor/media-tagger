@@ -49,5 +49,5 @@ def normalize(url):
     if path.startswith('/images/'):
         path = path[len('/images'):]
     url = urllib.parse.urlunparse(('https','derpibooru.org',path,None,None,None))
-    raise SystemExit('okay',url)
+    #raise SystemExit('okay',url)
     return url

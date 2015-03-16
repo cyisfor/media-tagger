@@ -4,56 +4,7 @@ import db
 
 import hashlib,base64
 
-db.setup("CREATE SCHEMA IF NOT EXISTS resultCache",
-
-'''CREATE TABLE resultCache.queries(
-        id SERIAL PRIMARY KEY,
-        digest TEXT UNIQUE,
-        created timestamptz DEFAULT clock_timestamp())''',
-
-'''CREATE OR REPLACE FUNCTION resultCache.updateQuery(_digest text) RETURNS void AS
-$$
-BEGIN
-    LOOP
-        UPDATE resultCache.queries SET created = clock_timestamp() WHERE digest = _digest;
-        IF found THEN
-            RETURN;
-        END IF;
-        BEGIN
-            INSERT INTO resultCache.queries (digest) VALUES (_digest);
-        EXCEPTION
-            WHEN unique_violation THEN
-                -- do nothing
-        END;
-    END LOOP;
-END;
-$$ language 'plpgsql'
-''',
-'''CREATE OR REPLACE FUNCTION resultCache.expireQueries() RETURNS void AS
-$$
-DECLARE
-_digest text;
-BEGIN
-    FOR _digest IN DELETE FROM resultCache.queries RETURNING digest LOOP
-        BEGIN
-            EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
-        EXCEPTION
-            WHEN undefined_table THEN
-                -- do nothing
-        END;
-    END LOOP;
-END;
-$$ language 'plpgsql'
-''',
-'''CREATE OR REPLACE FUNCTION resultCache.expireQueriesTrigger() RETURNS trigger AS
-$$
-BEGIN
-    PERFORM resultCache.expireQueries();
-    RETURN OLD;
-END;
-$$ language 'plpgsql' ''',
-'''CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
-    EXECUTE PROCEDURE resultCache.expireQueriesTrigger()''')
+db.setup(*db.source("sql/resultCache.sql"))
 
 def encache(query,args,docache=True):
     #db.c.verbose = True
