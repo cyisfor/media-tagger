@@ -31,4 +31,7 @@ def encache(query,args,docache=True):
         return db.execute('SELECT * FROM resultCache."q'+name+'"')
 
 def clear():
-    db.execute('SELECT resultCache.expireQueries()');
+    while True:
+        result = db.execute('SELECT resultCache.expireQueries()')[0][0];
+        print('cleared',result,'results')
+        if result < 1000: break

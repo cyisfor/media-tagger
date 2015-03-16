@@ -148,7 +148,7 @@ def makeLinks(info,linkfor=None):
         if name is None:
             name = fixName(id,type)
         #row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-        row.append((d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
+        row.append((d.a(d.img(src=src,title=' '+name+' '),href=link),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
     if row: rows.append((tuple(row)+(d.br(),)))
     Session.refresh = not allexists
     raise Return(rows)
@@ -470,7 +470,7 @@ def desktop(raw,path,params):
         for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
             fid,exists = yield filedb.check(id) 
             allexists = allexists and exists
-            links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid,alt=name),
+            links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid),
                             href=pageLink(id))))
         Session.refresh = not allexists
     links = yield makeDesktopLinks()
