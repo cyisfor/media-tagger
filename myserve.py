@@ -1,3 +1,4 @@
+import botkilla
 from derp import printStack
 #import checkdirty
 
@@ -117,7 +118,7 @@ BOTS = {
     'fce3:14aa:64d0:f72a:cb3f:6c04:3943:ffb6',
     'fcd9:8810:bb91:fd19:ddae:5c59:6df5:949e',
     'fc46:a72b:9577:4fdf:236d:3665:ee6a:3dcd',
-#    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c' heh
+#    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c' # heh
 }
 
 class Handler(FormCollector,myserver.ResponseHandler):
@@ -186,14 +187,13 @@ class Handler(FormCollector,myserver.ResponseHandler):
         self.form.update(params)
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
-        if self.method.lower() == 'head':
-            return self.send_blob(head)
-        return self.send_blob(headwbody)
-    lastBot = None
     def respond(self):        
         if self.ip in BOTS:
+            head,headwbody = botkilla.select(self.date_time_string(),self.ip)
             print('botdbouu',self.ip,self.path)
-            return self.botdorp()
+            if self.method.lower() == 'head':
+                return self.send_blob(head)
+            return self.send_blob(headwbody)
         return super().respond()
     @gen.coroutine
     @printStack
