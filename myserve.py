@@ -117,7 +117,7 @@ BOTS = {
     'fce3:14aa:64d0:f72a:cb3f:6c04:3943:ffb6',
     'fcd9:8810:bb91:fd19:ddae:5c59:6df5:949e',
     'fc46:a72b:9577:4fdf:236d:3665:ee6a:3dcd',
-    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c'
+#    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c' heh
 }
 
 class Handler(FormCollector,myserver.ResponseHandler):
@@ -186,43 +186,13 @@ class Handler(FormCollector,myserver.ResponseHandler):
         self.form.update(params)
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
-    def botdorp(self):
-        import random
-        yield self.send_status(200,"HAHAHA")
-        yield self.send_header('Content-Type', 'text/html; charset=utf-8')
-        def dorp1():
-            for i in range(random.randint(100,200)):
-                # should be printable, biased towards low, but above 32
-                yield chr(int(random.random()**3*10000+32))
-        def dorp():
-            return ''.join(dorp1())
-        def generateBody():
-            yield '<!DOCTYPE html><html><head><title>'+dorp()+'''</title></head>
-<body><p>'''
-            for link in range(random.randint(100,200)):
-                if random.randrange(0,2)==0:
-                    yield "</p><p>"
-                if random.randrange(0,10)==0:
-                    yield "<hr/>"
-                if random.randrange(0,6):
-                    yield '\n'
-                yield '<a href="/art/'+dorp()+'/secrets.html">'+dorp()+'</a>\n'
-            yield '</p></body></html>'
-        def generate():
-            body = ', '.join(generateBody())
-            return b'\r\n'.join((
-                b'HTTP/1.1 200 OK',
-                b'Content-Type: text/html; charset=utf-8',
-                b'Date: '+self.date_time_string().encode(),
-                b'Server: Apache',
-                b'Content-Length: '+str(len(body)).encode())) + b'\r\n\r\n' + body.encode('utf-8')                
-        if self.lastBot is None or time.time() - self.lastBot < 100:
-            self.botmessages = [generate() for i in range(10)]
-            self.lastBot = time.time()
-        return self.send_blob(random.sample(self.botmessages,1)[0])
+        if self.method.lower() == 'head':
+            return self.send_blob(head)
+        return self.send_blob(headwbody)
     lastBot = None
     def respond(self):        
         if self.ip in BOTS:
+            print('botdbouu',self.ip,self.path)
             return self.botdorp()
         return super().respond()
     @gen.coroutine
