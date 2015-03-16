@@ -149,7 +149,7 @@ def parse(inp):
                 name = commitValue()
                 gettingName = False
             else:
-                yield name,commitValue().rstrip()
+                yield name,commitValue().rstrip().rstrip(';')
                 name = None
                 gettingName = True
         elif action is not IGNORE:

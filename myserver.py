@@ -132,6 +132,10 @@ class ResponseHandler(object):
                 assert self.code not in {204},"No length for these codes"
                 self.length = value
     status_sent = False
+    def send_blob(self,blob):
+        if self.status_sent:
+            raise RuntimeError("This is only for blobbls")
+        return self.stream.write(blob)
     def send_status(self,code,message):
         self.code = code
         self.message = message
