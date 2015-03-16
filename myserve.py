@@ -189,8 +189,8 @@ class Handler(FormCollector,myserver.ResponseHandler):
         raise Redirect(process(mode,parsed,self.form,None))
     def respond(self):        
         if self.ip in BOTS:
-            head,headwbody = botkilla.select(self.date_time_string(),self.ip)
-            print('botdbouu',self.ip,self.path)
+            name,head,headwbody = botkilla.select(self.date_time_string(),self.ip)
+            print('botdbouu',name,self.ip,self.path)
             if self.method.lower() == 'head':
                 return self.send_blob(head)
             return self.send_blob(headwbody)

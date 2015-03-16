@@ -1,9 +1,12 @@
 from replacer import replacerFile
+import filedb
 
 import gzip
 
 import random,time
 from array import array
+import os
+oj = os.path.join
 
 def dorp(a):
     # should be printable, biased towards low, but above 32
@@ -30,23 +33,24 @@ def billionLaughs(prefix):
 
 a = array('u')
 dorp(a)
-billionLaughs = billionLaughs(a.tostring())
+billionLaughs = billionLaughs(a.tostring()).encode('utf-8')
 del a
 
 def zipbomb(prefix):
     try:
-        with open('bomb.gz.bad','rb') as inp:
+        with open(oj(filedb.top,'bomb.gz.bad'),'rb') as inp:
             return inp.read()
-    except FileNotFoundError: pass
-    stuff = bytes([0])*100000000
+    except IOError: pass
+    stuff = bytes([0])*1000000
     with replacerFile('bomb.gz.bad') as out:
         g = gzip.GzipFile(mode='w',fileobj=out)
-        g.write(prefix.encode('utf-8'))
+        g.write(prefix)
         for i in range(1000):
             print('stripe',i)
             g.write(stuff)
-    # should end up 100 gigabytes
-zipbomb = zipbomb(billionLaughs)
+        g.close()
+    # should end up 0.1mb -> 1 gigabyte
+#zipbomb = zipbomb(billionLaughs) meh, doesn't bother the bot.
 
 def generateBody(a):
     # arrayifying this shaves off a whole 3ms :p
@@ -68,12 +72,11 @@ def generateBody(a):
         a.extend('</a>\n')
     a.extend('</p></body></html>')
 
-def thingy(head,body):
-    return (head + b'0\r\n\r\n',
+def thingy(name,head,body):
+    return (name,head + b'0\r\n\r\n',
             head + str(len(body)).encode() + b'\r\n\r\n' + \
             body)
 
-    
 def zbgen(date):
     body = zipbomb
     head = b'\r\n'.join((
@@ -84,9 +87,9 @@ def zbgen(date):
         b'Server: Apache',
         b'Content-Length: '
     ))
-    return thingy(head,body)    
+    return thingy('zipbomb',head,body)    
     
-def generate(date):
+def dorpgen(date):
     a = array('u')
     generateBody(a)
     body = a.tounicode().encode('utf-8')    
@@ -97,15 +100,27 @@ def generate(date):
         b'Server: Apache',
         b'Content-Length: '
     ))
-    thingy(head,body)
+    return thingy('dorp',head,body)
+
+def genbillionLaughs(date):
+    return thingy('billion laughs',
+        b'\r\n'.join((
+        b'HTTP/1.1 200 OK',
+        b'Content-Type: text/html; charset=utf-8',
+        b'Date: '+date.encode(),
+        b'Server: Apache',
+        b'Content-Length: '
+    )),billionLaughs)
     
 class BotHelper:
     lastBot = None
     messages = None
     def select(self,date,ip):
         if self.lastBot is None or time.time() - self.lastBot < 100:
-            self.messages = [generate(date) for i in range(0x20)]
-            self.messages.append(zbgen(date))
+            self.messages = [dorpgen(date) for i in range(0x20)]
+            # self.messages = []
+            # self.messages.append(genbillionLaughs(date))
+            # self.messages.append(zbgen(date))
             self.lastBot = time.time()
         return random.sample(self.messages,1)[0]
 
@@ -114,7 +129,7 @@ def stresstest():
         
     start = time.time()
     for i in range(0x20):
-        generate('sometime')
+        dorpgen('sometime')
     end = time.time()
     print('generated in',end-start)
     # this will take up 1% of the computer's brain time:
