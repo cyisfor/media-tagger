@@ -1,5 +1,8 @@
 import botkilla
+from mytornado import sleep
 import filedb # sigh...
+
+import fix.tornado # SIGH...
 
 from derp import printStack
 #import checkdirty
@@ -201,15 +204,17 @@ class Handler(FormCollector,myserver.ResponseHandler):
             if self.method.lower() == 'head':
                 return self.send_blob(head)
             @gen.coroutine
-            def delaySender(name,ip):
+            def delaySender(name,ip,headwbody):
+                i = 0
                 while True:
-                    piece,headwbody = headwbody[:0x4000],headwbody[0x4000:]
-                    if piece:
-                        print('sending a bit',ip)
-                        yield self.send_blob(piece)
-                    if not headwbody: break
+                    piece = headwbody.get(i*0x4000,(i+1)*0x4000)
+                    if not piece: break
+                    print('sending a bit',name,ip)
+                    yield self.send_blob(piece)
+                    if len(piece) < 0x4000: break
                     yield sleep(1)
-            return delaySender(name,self.ip)
+                print('done',name,ip)
+            return delaySender(name,self.ip,headwbody)
         return super().respond()
     @gen.coroutine
     @printStack

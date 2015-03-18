@@ -7,6 +7,6 @@ def sleep(secs,ioloop=None):
     if ioloop is None:
         ioloop = IOLoop.current()
     f = Future()
-    ioloop.add_timeout(secs,lambda: f.set_result(None))
+    ioloop.call_later(secs,(lambda: f.set_result(None)))
     return f
     
