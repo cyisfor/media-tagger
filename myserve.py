@@ -1,4 +1,6 @@
 import botkilla
+import filedb # sigh...
+
 from derp import printStack
 #import checkdirty
 
@@ -31,6 +33,9 @@ from tags import Taglist
 from tornado import gen, ioloop
 
 import urllib.parse
+
+import os
+oj = os.path.join
 
 note.monitor(myserver)
 note.monitor(__name__)
@@ -187,13 +192,24 @@ class Handler(FormCollector,myserver.ResponseHandler):
         self.form.update(params)
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
+    botlog = open(oj(filedb.top,'bot.log'),'at')
     def respond(self):        
         if self.ip in BOTS:
             name,head,headwbody = botkilla.select(self.date_time_string(),self.ip)
-            print('botdbouu',name,self.ip,self.path)
+            print(name,self.ip,self.path,file=self.botlog)
+            self.botlog.flush()
             if self.method.lower() == 'head':
                 return self.send_blob(head)
-            return self.send_blob(headwbody)
+            @gen.coroutine
+            def delaySender(name,ip):
+                while True:
+                    piece,headwbody = headwbody[:0x4000],headwbody[0x4000:]
+                    if piece:
+                        print('sending a bit',ip)
+                        yield self.send_blob(piece)
+                    if not headwbody: break
+                    yield sleep(1)
+            return delaySender(name,self.ip)
         return super().respond()
     @gen.coroutine
     @printStack
