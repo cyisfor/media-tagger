@@ -35,6 +35,7 @@ from tags import Taglist
 
 from tornado import gen, ioloop
 
+from itertools import count
 import urllib.parse
 
 import os
@@ -205,15 +206,14 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 return self.send_blob(head)
             @gen.coroutine
             def delaySender(name,ip,headwbody):
-                i = 0
-                while True:
+                for i in count(0):
                     piece = headwbody.get(i*0x4000,(i+1)*0x4000)
                     if not piece: break
-                    print('sending a bit',name,ip)
+                    print(name,ip,'sending a bit',len(piece))
                     yield self.send_blob(piece)
                     if len(piece) < 0x4000: break
                     yield sleep(1)
-                print('done',name,ip)
+                print(name,ip,'done')
             return delaySender(name,self.ip,headwbody)
         return super().respond()
     @gen.coroutine
