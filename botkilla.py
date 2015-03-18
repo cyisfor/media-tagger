@@ -14,6 +14,7 @@ class HeadWithBody:
         self.b = memoryview(b)
         self.len = len(b)
     def lose(self):
+        return #derp
         self.dead = True
         self.b = None
     def get(self,s,e):
@@ -25,13 +26,14 @@ def joinheaders(headers):
     return ('\r\n'.join(n+': '+v for n,v in headers)).encode('utf-8')
 
 class Maker:
+    type = 'text/html'
     headers = (
-        ('Content-Type','text/html; charset=utf-8'),
         ('Server','Apache'),
     )
     
     def __init__(self):
         headers = list(self.headers)
+        headers.append(('Content-Type',self.type+'; charset=utf-8'))
         random.shuffle(headers)
         splitit = int(len(headers) / 2)
         self.prehead = b'HTTP/1.1 200 OK' + joinheaders(
@@ -48,6 +50,7 @@ class Maker:
 class BillionLaughs(Maker):
     name = "billion laughs"
     prefix = ''.join(random.sample('lolzaoeuwhatatweest',4)).encode('utf-8')
+    type = 'application/xhtml+xml'
 
     def body(self):
         return '''<?xml version="1.0" encoding="utf-8"?>

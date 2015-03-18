@@ -49,17 +49,18 @@ if 'debug' in os.environ:
         s = (decode(s) for s in s)
         s = ' '.join(s)
         hasret = '\n' in s
-        
-        o.write('== '+str(time.time())+' ')
-        writec(white)
-        o.write(os.path.relpath(f.f_code.co_filename,here))
-        writec(reset)
-        o.write(':'+str(f.f_lineno))
-        if hasret:
-            o.write('\n'+'-'*60+'\n')
-        else:
-            o.write('\n')
 
+        if 0:
+            o.write('== '+str(time.time())+' ')
+            writec(white)
+            o.write(os.path.relpath(f.f_code.co_filename,here))
+            writec(reset)
+            o.write(':'+str(f.f_lineno))
+            if hasret:
+                o.write('\n'+'-'*60+'\n')
+            else:
+                o.write('\n')
+    
         writec(color)
         o.write(s)
         writec(reset)

@@ -205,16 +205,23 @@ class Handler(FormCollector,myserver.ResponseHandler):
             if self.method.lower() == 'head':
                 return self.send_blob(head)
             @gen.coroutine
-            def delaySender(name,ip,headwbody):
-                for i in count(0):
-                    piece = headwbody.get(i*0x4000,(i+1)*0x4000)
+            def delaySender(id,name,ip,headwbody):
+                block = 0x10
+                blocksize = 1 << block
+                pieces = int(len(headwbody.b) >> block + 1)
+                for i in range(pieces):
+                    piece = headwbody.get(i << block,(i+1) << block)
+                    if not headwbody.b:
+                        note.red(id,name,ip,'LAOST')
+                        break
                     if not piece: break
-                    print(name,ip,'sending a bit',len(piece))
+                    note.red(id,name,ip,'sending a bit',len(piece),'{}/{}'.format(i,pieces))
                     yield self.send_blob(piece)
-                    if len(piece) < 0x4000: break
-                    yield sleep(1)
-                print(name,ip,'done')
-            return delaySender(name,self.ip,headwbody)
+                    if len(piece) < blocksize: break
+                    yield sleep(0.1)
+                note.red(id,name,ip,'done')
+            self.timeout = None
+            return delaySender('{:x}'.format(id(headwbody)),name,self.ip,headwbody)
         return super().respond()
     @gen.coroutine
     @printStack
