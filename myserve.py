@@ -198,7 +198,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         raise Redirect(process(mode,parsed,self.form,None))
     botlog = open(oj(filedb.top,'bot.log'),'at')
     def respond(self):        
-        if self.ip in BOTS:
+        if self.ip in BOTS or self.path == '/art/bots/':
             name,head,headwbody = botkilla.select(self.date_time_string(),self.ip)
             print(name,self.ip,self.path,file=self.botlog)
             self.botlog.flush()
@@ -208,13 +208,16 @@ class Handler(FormCollector,myserver.ResponseHandler):
             def delaySender(id,name,ip,headwbody):
                 block = 0x10
                 blocksize = 1 << block
-                pieces = int(len(headwbody.b) >> block + 1)
-                for i in range(pieces):
+                pieces = int((headwbody.len >> block) + 1)
+                assert pieces > 0, headwbody.len
+                for i in range(pieces+1):
                     piece = headwbody.get(i << block,(i+1) << block)
                     if not headwbody.b:
                         note.red(id,name,ip,'LAOST')
                         break
-                    if not piece: break
+                    if not piece:
+                        note.cyan('too faaaaaar')
+                        break
                     note.red(id,name,ip,'sending a bit',len(piece),'{}/{}'.format(i,pieces))
                     yield self.send_blob(piece)
                     if len(piece) < blocksize: break
