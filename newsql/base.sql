@@ -221,7 +221,7 @@ CREATE TABLE r.drew (
     artist INTEGER REFERENCES artists(id) ON DELETE CASCADE ON UPDATE CASCADE,
     medium INTEGER REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
     when timestamptz,
-    UNIQUE(artist,uzer)
+    UNIQUE(artist,medium)
 );
 
 -- this would be better as a log...
@@ -245,7 +245,17 @@ CREATE TABLE r.contains (
     UNIQUE(medium,thing)
 );
 
-CREATE TABLE r.performsin (
+CREATE TABLE species(
+    id SERIAL PRIMARY KEY,
+    ident TEXT UNIQUE,
+    description TEXT);
+
+CREATE TABLE r.species(
+   species integer REFERENCES species(id)  ON DELETE CASCADE ON UPDATE CASCADE,
+   medium integer REFERENCES media(id)  ON DELETE CASCADE ON UPDATE CASCADE,
+   UNIQUE(species,medium));
+
+CREATE TABLE r.performedin (
     act INTEGER REFERENCES acts(id) ON DELETE CASCADE ON UPDATE CASCADE,
     medium integer REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
     UNIQUE(medium,act)
@@ -257,20 +267,26 @@ CREATE TABLE r.references (
     UNIQUE(medium,verse)
 );
 
+-- last categorized in, so we don't throw stuff back in general 'tags' all the time
+CREATE TABLE r.categorized (
+    name TEXT,
+    category regclass, -- table name
+    changed timestamptz DEFAULT now());
+
 -- now some indexes... for any time we have one, and have to look up many, i.e. all concepts tagging 
 -- an image, or all artists drawing an image, or all people in an image, or all images a person is in... or all images tagged by a concept... we have to just do all possible combos don't we
 
 CREATE INDEX r.conceptsformedium ON r.describes(medium);
 CREATE INDEX r.artistsformedium ON r.drew (medium);
 CREATE INDEX r.peopleformedium ON r.portrays (medium);
-CREATE INDEX r.actsformedium ON r.performsin(medium);
+CREATE INDEX r.actsformedium ON r.performedin(medium);
 CREATE INDEX r.thingsformedium ON r.contains(medium);
 CREATE INDEX r.versesformedium ON r.references(medium);
 
 CREATE INDEX r.mediaforconcept ON r.describes(tag);
 CREATE INDEX r.mediaforartist ON r.drew(artist);
 CREATE INDEX r.mediaforpeople ON r.portrays(person);
-CREATE INDEX r.mediaforacts ON r.performsin(act);
+CREATE INDEX r.mediaforacts ON r.performedin(act);
 CREATE INDEX r.mediaforthings ON r.contains(thing);
 CREATE INDEX r.mediaforverse ON r.references(verse);
 
@@ -295,8 +311,8 @@ array(SELECT ROW(people.id,people.name)::derp1
     WHERE r.portrays.medium = media.id),
 array(SELECT ROW(acts.id,acts.name,acts.sexiness)::derp2
     FROM acts
-        INNER JOIN r.performsin ON acts.id = r.performsin.act
-    WHERE r.performsin.medium = media.id),
+        INNER JOIN r.performedin ON acts.id = r.performedin.act
+    WHERE r.performedin.medium = media.id),
 array(SELECT ROW(things.id,things.ident)::derp1
     FROM things
         INNER JOIN r.contains ON things.id = r.contains.thing
@@ -321,18 +337,90 @@ SELECT id FROM media WHERE
     SELECT medium from r.portrays WHERE
     person = (SELECT people.id FROM people WHERE people.name = 'apple bloom')
     INTERSECT
--- species (no special relation known):
+-- derp (no special relation known):
     SELECT medium FROM r.describes WHERE
-    tag = (SELECT tag.id FROM tags WHERE tag.name = 'species:horse')
+    tag = (SELECT tag.id FROM tags WHERE tag.name = 'derp:herp')
+-- species 
+    SELECT medium FROM r.species WHERE
+    species = (SELECT id FROM species WHERE name = 'horse')
 -- act:
-    SELECT medium FROM r.performsin WHERE
+    SELECT medium FROM r.performedin WHERE
     act = (SELECT acts.id FROM acts WHERE acts.name = 'vaginal penetration')
     EXCEPT
 -- act:
-    SELECT medium FROM r.performsin WHERE
+    SELECT medium FROM r.performedin WHERE
     act = (SELECT acts.id FROM acts WHERE acts.name = 'rape')
     INTERSECT
 -- general:
     SELECT medium FROM r.describes WHERE
     tag = (SELECT tags.id FROM tags WHERE tags.name = 'feral'));
 
+inserting "artist:freedomthai, apple bloom, derp:herp, species:horse, horse, act:vaginal penetration, feral, nonexistenttag, artist:notreallyherp"
+->
+
+-- first check unqualified categories
+
+SELECT category FROM categorized WHERE name = 'apple bloom';
+-> "people"
+
+SELECT category FROM categorized WHERE name = 'horse';
+-> "species"
+-> merge horse/species:horse
+
+SELECT category FROM categorized WHERE name = 'feral';
+-> no results
+
+SELECT category FROM categorized WHERE name = 'nonexistenttag';
+-> nada
+
+-- then, get the numbers for the things
+
+SELECT id FROM people WHERE name  = 'freedomthai';
+-> 1234
+
+SELECT id FROM artists WHERE id = 1234;
+-> 1234
+
+SELECT id FROM people WHERE name = 'apple bloom';
+-> 1235
+
+SELECT id FROM tags WHERE name  = 'derp:herp';
+-> 1234
+
+SELECT id FROM species WHERE name = 'horse';
+-> 1234
+
+SELECT id FROM act WHERE name = 'vaginal penetration';
+-> 1234
+
+SELECT id FROM tags WHERE name = 'feral';
+-> 1235
+
+SELECT id FROM tags WHERE name = 'nonexistenttag';
+-> nada
+
+INSERT INTO tags (name) VALUES ('nonexistenttag');
+-> 1236
+
+SELECT id FROM people WHERE name = 'notreallyherp';
+-> nada
+
+INSERT INTO people (name) VALUES ('notreallyherp');
+-> 1236
+INSERT INTO artists (id) VALUES (1235);
+
+INSERT INTO medium (...) RETURNING id;
+-> 1234
+
+-- now we have
+(artist, 1234),(people, 1235),(tags,1234),(species,1234),(act,1234),(tags,1235),(artist,1236)
+-- for medium 1234
+
+template := 'INSERT INTO r.%1$s (%2$s,%3$s) SELECT $1,$2 EXCEPT SELECT %2$s,%3$s FROM r.%1$s WHERE %2$s = $1 AND %3$s = $2';
+
+EXECUTE format(template,'drew','artist','medium') USING 1234, 1234;
+EXECUTE format(template,'portrays','person','medium') USING 1235, 1234;
+EXECUTE format(template,'describes','tag','medium') USING 1234, 1234;
+EXECUTE format(template,'performedin','act','medium') USING 1234, 1234;
+EXECUTE format(template,'describes','tag','medium') USING 1235, 1234;
+EXECUTE format(template,'drew','artist','medium') USING 1236, 1234;
