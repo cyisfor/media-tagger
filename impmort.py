@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
-import create,withtags
+import create
+import withtags
+raise SystemExit
 import filedb
 import db
 import fixstdin
