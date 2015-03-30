@@ -2,7 +2,6 @@
 
 import create
 import withtags
-raise SystemExit
 import filedb
 import db
 import fixstdin
@@ -43,15 +42,16 @@ boring = set(["the","for","this","and","not","how","are","files","xcf","not","my
 def discover(path):
     discovered = set()
 
-    if path[0] == '/':
+    if path[0] == b'/':
         for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
             relpath = os.path.relpath(path,start)
             if not '..' in relpath: break
         else: raise ImportError("Can't import path "+path)
         name = os.path.basename(relpath)
+        relpath = relpath.decode('utf-8')
+        name = name.decode('utf-8')
     else:
-        relpath = name = path
-    
+        relpath = name = path.decode('utf-8')                
 
     officialTags = False
     if ' - ' in name:
@@ -123,3 +123,4 @@ def main():
         except create.NoGood: 
             db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
     
+if __name__ == '__main__': main()
