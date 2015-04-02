@@ -3,29 +3,49 @@ import threading
 import sys
 main = threading.current_thread()
 
-print(getattr(girepo,'__spec__'))
-raise SystemExit
+def check():
+    if threading.current_thread() != main:
+        raise RuntimeError('not main thread')
 
-class watcher:
-    def __init__(self,what):
-        self.what = what
-    def __getattr__(self,n):
-        print('uhh',n)
-        if threading.current_thread() != main:
-            raise RuntimeError('not main thread',self.what,n)
-        return watcher(getattr(self.what,n))
+class derpwatcher: pass
+    
+def maybewatcher(o):
+    if isinstance(o,derpwatcher):
+        return o
+    return watcher(o)
+
+
+def watcher(what):
+    class accessor(derpwatcher):
+        def __getattribute__(self,n):
+            check()
+            try: return maybewatcher(getattr(what,n))
+            except AttributeError as e:
+                print(e)
+                print(what,n)
+        def __call__(self,*a,**kw):
+            check()
+            return maybewatcher(what(*a,**kw))
+        def __get__(self):
+            return self
+    return accessor()
 
 import inspect
-import __builtin__
-savimp = __builtin__.__import__
+import builtins
+savimp = builtins.__import__
 
-def newimp(name, *x):
-  return watcher(savimp(name, *x))
+def newimp(name, *x, **kw):
+    try: mod = savimp(name, *x, **kw)
+    except TypeError as e:
+        raise e
+    if name[:3] == 'gi.' or name[:4] == 'pgi.':
+        print('imp',name)
+        return watcher(mod)
+    else:
+        return mod
 
-__builtin__.__import__ = newimp
+builtins.__import__ = newimp
     
-sys.modules['gi.repository'] = watcher(girepo)
-
 # import sys
 # out = open('trace.log','wt')
 # def hi(frame,type,eh):

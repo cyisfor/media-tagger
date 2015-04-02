@@ -57,6 +57,7 @@ class Catchup(threading.Thread):
                 time.sleep(1)
         return True
     def run(self):
+        return
         db.reopen()
         with self.condition:
             self.done = False
