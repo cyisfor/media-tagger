@@ -21,18 +21,6 @@ import fixprint
 import catchup
 from dbqueue import enqueue
 
-import threading
-
-class derp(threading.Thread):
-    def run(self):
-        import time
-        import db
-        db.reopen()
-        for i in range(1000):
-            time.sleep(i/1000)
-            print('i',i)
-#derp().start()
-
 if __name__ == '__main__':
     import select
     import settitle
