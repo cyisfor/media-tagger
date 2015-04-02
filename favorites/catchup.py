@@ -7,7 +7,6 @@ from favorites.parseBase import *
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
 import db
-import clipboardy
 
 import threading
 import time

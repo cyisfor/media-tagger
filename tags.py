@@ -1,10 +1,5 @@
 #!/usr/bin/python3
 
-try:
-    import pgi
-    pgi.install_as_gi()
-except ImportError: pass
-
 import note
 
 import db, resultCache
@@ -26,7 +21,7 @@ def derp():
 
 def disconnect(thing,nega):
     if thing and nega:
-        print('removing',thing,nega)
+        note('removing',thing,nega)
         db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE ARRAY[id] <@ $2::bigint[]",(thing,nega))
         db.execute(
             "UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE id = $2",(nega,thing))
@@ -58,7 +53,6 @@ def tag(thing,tags):
             if implied: 
                 tags.update(implied)
                 implied = None
-            print('taggo',tags.nega)
             disconnect(thing,tags.nega)
         if tags.posi:
             if isinstance(list(tags.posi)[0],str):
@@ -204,6 +198,11 @@ if __name__ == '__main__':
         tag(int(sys.argv[1],0x10),parse(sys.argv[2:]))
         resultCache.clear()
     else:
+        try:
+            import pgi
+            pgi.install_as_gi()
+        except ImportError: pass
+
         import gtkclipboardy as clipboardy
         from gi.repository import Gtk,Gdk,GObject,GLib
         window = Gtk.Window()
@@ -220,7 +219,6 @@ if __name__ == '__main__':
             try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
             except ValueError: return
             tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
-            print('got',num,tags)
             tag(num,parse(','.join(tags)))
             resultCache.clear()
         window.show_all()
