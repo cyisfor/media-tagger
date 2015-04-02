@@ -21,6 +21,17 @@ import fixprint
 import catchup
 from dbqueue import enqueue
 
+import threading
+
+class derp(threading.Thread):
+    def run(self):
+        import time
+        import db
+        db.reopen()
+        for i in range(1000):
+            time.sleep(i/1000)
+            print('i',i)
+#derp().start()
 
 if __name__ == '__main__':
     import select
@@ -28,11 +39,11 @@ if __name__ == '__main__':
     settitle.set('parse')
     if mode == 0:
         enqueue(sys.argv[1])
-        catchup.poke()
+#        catchup.poke()
     elif mode == 1:
         for line in sys.stdin:
             enqueue(line.strip())
-        catchup.poke()
+#        catchup.poke()
     else:
         import fcntl,os,time
         from itertools import count
@@ -41,8 +52,8 @@ if __name__ == '__main__':
             print("Trying {}".format(piece.strip()))
             sys.stdout.flush()
             enqueue(piece.strip())
-            catchup.poke()
+            #catchup.poke()
             print("poked")
         print('Ready to parse')
         clipboardy.run(gotPiece,lambda piece: b'http' == piece[:4])
-    catchup.finish()
+#    catchup.finish()

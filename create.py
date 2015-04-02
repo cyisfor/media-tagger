@@ -95,8 +95,10 @@ def getanId(sources,uniqueSource,download,name):
             if result:
                 yield result[0][0],False
 
+    note("downloading to get an id")
     with filedb.mediaBecomer() as data:
         created = yield download(data)
+        note('cerated',created)
         digest = mediaHash(data)
         result = db.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
@@ -177,11 +179,13 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             name = name[1]
         else:
             name = name[0]
+    note('name is',name)
     if media and primarySource and '://' in media and '://' in primarySource:
         sources = set([primarySource,media] + [source for source in otherSources])
     else:
         sources = (primarySource,)+otherSources
     sources = [source for source in sources if source]
+    note.red('derp')
     with db.transaction():
         if media:
             mediaId = sourceId(media)
@@ -197,6 +201,7 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
                 result = ret.value
                 break
         id,wasCreated = result
+        note('got id',id,wasCreated)
         if not wasCreated:
              note("Old medium with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])

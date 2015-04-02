@@ -2,6 +2,7 @@ import create
 import setupurllib
 import db
 import fixprint
+import note
 
 import json
 from bs4 import BeautifulSoup

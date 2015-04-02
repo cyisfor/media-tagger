@@ -3,6 +3,8 @@ if __name__ == '__main__':
     import sys,os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import watchgtk
+
 from favorites.parseBase import *
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host

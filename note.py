@@ -50,7 +50,7 @@ if 'debug' in os.environ:
         s = ' '.join(s)
         hasret = '\n' in s
 
-        if 0:
+        if not 'simple' in os.environ:
             o.write('== '+str(time.time())+' ')
             writec(white)
             o.write(os.path.relpath(f.f_code.co_filename,here))
