@@ -3,22 +3,20 @@ if __name__ == '__main__':
     import sys,os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import watchgtk
-
 from favorites.parseBase import *
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
 import db
 
-import threading
+from multiprocessing import Process, Condition
 import time
 import fixprint
 
-class Catchup(threading.Thread):
+class Catchup(Process):
     done = False
     def __init__(self):
         super().__init__()
-        self.condition = threading.Condition()
+        self.condition = Condition()
     def squeak(self,*a):
         uri = top()
         if uri is None:
@@ -57,7 +55,6 @@ class Catchup(threading.Thread):
                 time.sleep(1)
         return True
     def run(self):
-        return
         db.reopen()
         with self.condition:
             self.done = False
@@ -66,29 +63,32 @@ class Catchup(threading.Thread):
                 while self.squeak() is True: pass
                 with self.condition:
                     if self.done: break
+                    print('waiting for pokes')
                     self.condition.wait()
+                    print('squeak!')
         except SystemExit: pass
         except KeyboardInterrupt: pass
     def poke(self):
         with self.condition:
-            self.condition.notifyAll()
+            self.condition.notify_all()
     def finish(self):
         self.done = True
         while True:
             self.poke()
             self.join(1)
-            if not self.isAlive(): break
+            if not self.is_alive(): break
             self.done = True
 
 
 
 
 instance = Catchup()
-instance.start()
-
-poke = instance.poke
-
-finish = instance.finish
 
 if __name__ == '__main__':
-    finish()
+    instance.squeak()
+else:
+    instance.start()
+
+    poke = instance.poke
+
+    finish = instance.finish

@@ -7,7 +7,7 @@ from gi.repository import GLib, Gtk, Gdk
 
 def derp(f):
     def wrapper(*a,**kw):
-        print('derp',f)
+        #print('derp',f)
         return f(*a,**kw)
     return wrapper
 
@@ -17,7 +17,6 @@ def make(handler,check):
     seen = set()
     clipboard = None
     def gotClip(clipboard, text, nun=None):
-        print('ummm',threading.current_thread())
 
         if text:
             if check:
