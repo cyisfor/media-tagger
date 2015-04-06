@@ -135,6 +135,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
     uploading_put = False
     uploader = None
     started = myserver.ResponseHandler.date_time_string(myserver.ResponseHandler,time.time())
+    log = open(oj(filedb.top,"access.log"),"at")
     def recordAccess(self, *a, **kw):
         if not self.ip in IGNORED:
             return super().recordAccess(*a, **kw)

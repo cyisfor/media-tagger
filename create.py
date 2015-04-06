@@ -84,6 +84,7 @@ def getanId(sources,uniqueSource,download,name):
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
         if result:
             yield result[0][0],False
+            return
     md5 = None
     for source in sources:
         if isinstance(source,int): continue
@@ -94,6 +95,7 @@ def getanId(sources,uniqueSource,download,name):
                         (md5,))
             if result:
                 yield result[0][0],False
+                return
 
     note("downloading to get an id")
     with filedb.mediaBecomer() as data:
@@ -161,6 +163,7 @@ def getanId(sources,uniqueSource,download,name):
             savedData.become(id)
             filedb.check(id) # don't bother waiting for this if it stalls
             yield id,True
+            return
 
 tagsModule = tags
 

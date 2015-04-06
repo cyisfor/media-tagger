@@ -15,6 +15,8 @@ import re
 
 import http.client
 
+oj = os.path.join
+
 isPypy = hasattr(pickle.Pickler,'dispatch')
 
 proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
@@ -44,7 +46,32 @@ if not 'skipcookies' in os.environ:
     import sqlite3
     import http.cookiejar
 
-    def get_cookies(cj, ff_cookies):
+    cookiefile = oj(top,"temp","cookies.pickle")
+    try:
+        with open(cookiefile,'rb') as inp:
+            jar = pickle.load(inp)
+        if isPypy:
+            jar._cookies_lock = _thread.RLock()
+    except (IOError,AttributeError):
+        jar = http.cookiejar.CookieJar()
+        
+    def fileProcessor(f):
+        def wrapper(path):
+            if not os.path.exists(path): return
+            for c in f(path):
+                jar.set_cookie(c)
+        return wrapper
+
+    def lineProcessor(f):
+        @fileProcessor
+        def wrapper(path):
+            with open(path,encoding='utf-8') as inp:
+                for line in inp:
+                    yield f(line)
+        return wrapper
+
+    @fileProcessor
+    def get_cookies(ff_cookies):
         print('getting',ff_cookies)
         with closing(sqlite3.connect(ff_cookies)) as con:
             cur = con.cursor()
@@ -57,38 +84,39 @@ if not 'skipcookies' in os.environ:
                     item[2],
                     item[3], item[3]=="",
                     None, None, {})
-                cj.set_cookie(c)
+                jar.set_cookie(c)        
+    @lineProcessor
+    def get_text_cookies(line):
+        host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
+        return http.cookiejar.Cookie(
+            0, name, value,
+            None, False,
+            host, host.startswith('.'), host.startswith('.'),
+            path, False,
+            isSecure=='TRUE',
+            int(expiry), expiry=="",
+            None, None, {})
+    @lineProcessor
+    def get_json_cookies(line):
+        c = json.loads(line)
+        host = c['host']
+        return http.cookiejar.Cookie(
+            0, c['name'], c['value'],
+            None, False,
+            host, host.starts_with('.'), host.startswith('.'),
+            c['path'],not not c['path'],
+            c['isSecure'], c['expires'],not not c['expires'],
+            None, None, {})
+    
+    get_cookies(jar,oj(top,"cookies.sqlite"))
+    for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
+        get_cookies(oj(ff,'cookies.sqlite')))
+        get_json_cookies(oj(ff,'cookies.jsons')))
 
-    cookiefile = os.path.join(top,"temp","cookies.pickle")
-    try:
-        with open(cookiefile,'rb') as inp:
-            jar = pickle.load(inp)
-        if isPypy:
-            jar._cookies_lock = _thread.RLock()
-    except (IOError,AttributeError):
-        jar = http.cookiejar.CookieJar()
+    get_text_cookies("/extra/user/tmp/cookies.txt")    
+    get_json_cookies("/extra/user/tmp/cookies.jsons")
 
-    get_cookies(jar,os.path.join(top,"cookies.sqlite"))
-    for ff_cookies in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/cookies.sqlite")):
-        get_cookies(jar,ff_cookies)
-
-    def get_text_cookies(cj, text):
-        if not os.path.exists(text): return
-        with open(text) as inp:
-            for line in inp:
-                host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-                c = http.cookiejar.Cookie(0, name, value,
-                    None, False,
-                    host, host.startswith('.'), host.startswith('.'),
-                    path, False,
-                    isSecure=='TRUE',
-                    int(expiry), expiry=="",
-                    None, None, {})
-                cj.set_cookie(c)
-
-    get_text_cookies(jar, "/extra/user/tmp/cookies.txt")
-
-    with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
+    with tempfile.NamedTemporaryFile(dir=oj(top,"temp")) as out:
         pickler = MyPickler(out)
         pickler.dump(jar)
         if os.path.exists(cookiefile):
