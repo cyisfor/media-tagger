@@ -24,36 +24,38 @@ handlers = [proxy]
 
 space = re.compile('[ \t]+')
 
-if not 'skipcookies' in os.environ:
+if isPypy:
+    import copyreg
+    import _thread
+    import struct
+    class DerpLock: pass
+    class MyPickler(pickle.Pickler):
+        def save_global(self,obj,name=None,pack=struct.pack):
+            if isinstance(obj,_thread.RLock):
+                obj = DerpLock()
+            if obj is _thread.RLock:
+                obj = DerpLock
+            super().save_global(obj,name,pack)
+        pickle.Pickler.dispatch[type] = save_global
+    copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
+else:
+    MyPickler = pickle.Pickler
+
+import http.cookiejar
+
+cookiefile = oj(top,"temp","cookies.pickle")
+try:
+    with open(cookiefile,'rb') as inp:
+        jar = pickle.load(inp)
     if isPypy:
-        print('ispypy')
-        import copyreg
-        import _thread
-        import struct
-        class DerpLock: pass
-        class MyPickler(pickle.Pickler):
-            def save_global(self,obj,name=None,pack=struct.pack):
-                if isinstance(obj,_thread.RLock):
-                    obj = DerpLock()
-                if obj is _thread.RLock:
-                    obj = DerpLock
-                super().save_global(obj,name,pack)
-            pickle.Pickler.dispatch[type] = save_global
-        copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
-    else:
-        MyPickler = pickle.Pickler
+        jar._cookies_lock = _thread.RLock()
+except (IOError,AttributeError):
+    jar = http.cookiejar.CookieJar()
+handlers.append(urllib.request.HTTPCookieProcessor(jar))
 
+if not 'skipcookies' in os.environ:
+    # this can take a while...
     import sqlite3
-    import http.cookiejar
-
-    cookiefile = oj(top,"temp","cookies.pickle")
-    try:
-        with open(cookiefile,'rb') as inp:
-            jar = pickle.load(inp)
-        if isPypy:
-            jar._cookies_lock = _thread.RLock()
-    except (IOError,AttributeError):
-        jar = http.cookiejar.CookieJar()
         
     def fileProcessor(f):
         def wrapper(path):
@@ -109,9 +111,11 @@ if not 'skipcookies' in os.environ:
             None, None, {})
     
     get_cookies(jar,oj(top,"cookies.sqlite"))
-    for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
-        get_cookies(oj(ff,'cookies.sqlite')))
-        get_json_cookies(oj(ff,'cookies.jsons')))
+    
+    #for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
+    ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
+    get_cookies(oj(ff,'cookies.sqlite')))
+    get_json_cookies(oj(ff,'cookies.jsons')))
 
     get_text_cookies("/extra/user/tmp/cookies.txt")    
     get_json_cookies("/extra/user/tmp/cookies.jsons")
@@ -124,7 +128,6 @@ if not 'skipcookies' in os.environ:
         os.rename(out.name,cookiefile)
         try: out.close()
         except OSError: pass
-    handlers.append(urllib.request.HTTPCookieProcessor(jar))
 
 
 class HeaderWatcher(urllib.request.HTTPHandler):
