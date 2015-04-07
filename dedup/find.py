@@ -39,7 +39,7 @@ import db
 
 import merge
 
-findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < 200 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
+findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < 1100 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
 
 loop = GLib.MainLoop()
 
@@ -127,7 +127,9 @@ class Finder:
             a = self.dest
             b = self.source
         print('boing',a,b)
-        db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
+        try: db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
+        except db.SQLError as e:
+            print(e)
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)
