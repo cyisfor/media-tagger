@@ -283,31 +283,46 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 disp = jsony
             else:
                 disp = pages
-            if 'q' in params:
-                if o:
-                    o = int(o[0],0x10)
-                else:
-                    o = 0
-                try:
-                    ident,name,ctype,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
-                except StopIteration:
-                    page = 'derp'
-                    Session.type = 'text/plain'
-                else:
-                    with disp.Links:
+            def prevnext(f):
+                with disp.Links:
+                    if json:
+                        disp.Links.next = o + 1
+                    else:
+                        params['o'] = o + 1
+                        disp.Links.next = disp.unparseQuery(params)
+                    if o > 0:
                         if json:
-                            disp.Links.next = o + 1
+                            disp.Links.prev = o - 1
                         else:
-                            params['o'] = o + 1
-                            disp.Links.next = disp.unparseQuery(params)
-                        if o > 0:
-                            if json:
-                                disp.Links.prev = o - 1
-                            else:
-                                params['o'] = o - 1
-                                disp.Links.prev = disp.unparseQuery(params)
-                        page = yield gen.maybe_future(disp.page(
-                            info.pageInfo(ident),path,params))
+                            params['o'] = o - 1
+                            disp.Links.prev = disp.unparseQuery(params)
+                    return f()
+            
+            def getPage():
+                if 'q' in params:
+                    if o:
+                        o = int(o[0],0x10)
+                    else:
+                        o = 0
+                    try:
+                        ident,name,ctype,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
+                    except StopIteration:
+                        if json:
+                            return []
+                        else:
+                            @prevnext
+                            def page():
+                                return pages.makePage('No Results Found')
+                            print('pagehax',page)
+                            raise SystemExit
+                            return page
+                    else:
+                        @prevnext
+                        def page():
+                            page = yield gen.maybe_future(disp.page(
+                                info.pageInfo(ident),path,params))
+                            return page
+                        return page
             else:
                 if o:
                     o = int(o[0],0x10)
@@ -320,10 +335,12 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
                 page = yield f
         if json:
+            Session.type = 'application/json'
             page = jsony.encode(page)
         else:
             #checkdirty.circular(page)
             page = str(page)
+            note.blue('bage',page)
         page = page.encode('utf-8') + b'\n'
         self.send_status(200,"Okie Dokie Loki")
         self.send_header('Content-Type',Session.type if Session.type else 'application/json; charset=utf-8' if json else 'text/html; charset=utf-8')
