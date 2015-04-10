@@ -5,7 +5,7 @@ import sys
 white = color('white',bold=True)
 
 def decode(o):
-    if isinstance(o,Exception):
+    if hasattr(o,'value'):
         return repr(o.value)
     return str(o)
 

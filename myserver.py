@@ -235,7 +235,9 @@ class ResponseHandler(object):
             yield self.send_header('Location',e.location)
             yield self.end_headers()
         except Exception as e:
-            note.alarm('derp',type(e))
+            import traceback
+            traceback.print_exc()
+            note.alarm('derp',e)
         finally:
             self.recordAccess()
     def redirect(self,locationcode=302,message='boink'):
@@ -249,7 +251,7 @@ class ResponseHandler(object):
             self.path,
             self.written,
             self.agent,
-            self,referrer,            
+            self.referrer,            
             time.time())),file=self.log)
     def received_headers(self): pass
     agent = None

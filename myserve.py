@@ -288,20 +288,26 @@ class Handler(FormCollector,myserver.ResponseHandler):
                     o = int(o[0],0x10)
                 else:
                     o = 0
-                ident,name,type,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
-                with disp.Links:
-                    if json:
-                        disp.Links.next = o + 1
-                    else:
-                        params['o'] = o + 1
-                        disp.Links.next = disp.unparseQuery(params)
-                    if o > 0:
+                try:
+                    ident,name,ctype,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
+                except StopIteration:
+                    page = 'derp'
+                    Session.type = 'text/plain'
+                else:
+                    with disp.Links:
                         if json:
-                            disp.Links.prev = o - 1
+                            disp.Links.next = o + 1
                         else:
-                            params['o'] = o - 1
-                            disp.Links.prev = disp.unparseQuery(params)
-                    page = yield gen.maybe_future(disp.page(info.pageInfo(ident),path,params))
+                            params['o'] = o + 1
+                            disp.Links.next = disp.unparseQuery(params)
+                        if o > 0:
+                            if json:
+                                disp.Links.prev = o - 1
+                            else:
+                                params['o'] = o - 1
+                                disp.Links.prev = disp.unparseQuery(params)
+                        page = yield gen.maybe_future(disp.page(
+                            info.pageInfo(ident),path,params))
             else:
                 if o:
                     o = int(o[0],0x10)
