@@ -279,6 +279,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         tags.nega.discard(tag)
             tagfilter.filter(tags)
             o = params.get('o')
+            if o:
+                o = int(o[0],0x10)
+            else:
+                o = 0
+
             if json:
                 disp = jsony
             else:
@@ -297,50 +302,45 @@ class Handler(FormCollector,myserver.ResponseHandler):
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
                     return f()
-            
+                
             def getPage():
                 if 'q' in params:
-                    if o:
-                        o = int(o[0],0x10)
-                    else:
-                        o = 0
                     try:
-                        ident,name,ctype,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
-                    except StopIteration:
+                        ident,name,ctype,ignoretags = next(withtags.searchForTags(tags,offset=o,limit=1))
+                    except StopIteration:                        
                         if json:
                             return []
                         else:
                             @prevnext
                             def page():
-                                return pages.makePage('No Results Found')
-                            print('pagehax',page)
-                            raise SystemExit
+                                disp.Links.next = None
+                                return gen.maybe_future(
+                                    pages.makePage('No Results Found',
+                                                   pages.d.p('No Results Found')))
                             return page
                     else:
                         @prevnext
                         def page():
-                            page = yield gen.maybe_future(disp.page(
+                            return gen.maybe_future(disp.page(
                                 info.pageInfo(ident),path,params))
                             return page
                         return page
-            else:
-                if o:
-                    o = int(o[0],0x10)
-                    offset = thumbnailPageSize*o
                 else:
-                    offset = o = 0
-                    
-                f = gen.maybe_future(disp.media(pathurl,params,o,
-                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
-                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
-                page = yield f
+                    if o:
+                        offset = thumbnailPageSize*o
+                    else:
+                        offset = 0
+                        
+                    return gen.maybe_future(disp.media(pathurl,params,o,
+                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
+                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
+            page = yield getPage()
         if json:
             Session.type = 'application/json'
             page = jsony.encode(page)
         else:
             #checkdirty.circular(page)
             page = str(page)
-            note.blue('bage',page)
         page = page.encode('utf-8') + b'\n'
         self.send_status(200,"Okie Dokie Loki")
         self.send_header('Content-Type',Session.type if Session.type else 'application/json; charset=utf-8' if json else 'text/html; charset=utf-8')
