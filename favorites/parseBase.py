@@ -2,6 +2,7 @@ import create
 import setupurllib
 import db
 import fixprint
+import note
 
 import json
 from bs4 import BeautifulSoup
@@ -27,9 +28,9 @@ skip = os.environ.get('skip')
 def parse(primarySource):
     primarySource = primarySource.strip()
     if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
-        print('skipping',primarySource)
+        note('skipping',primarySource)
         return
-    print('parsing',repr(primarySource))
+    note('parsing',repr(primarySource))
     url = urllib.parse.urlparse(primarySource)
     doc = None
     for name,matcher,handlers in finders:
@@ -62,7 +63,7 @@ def parse(primarySource):
                 return Tag('general',tag)
             tags = [generalize(tag) for tag in handlers.get('tags',[])]
             if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
-                print('skipping',primarySource)
+                note('skipping',primarySource)
                 return
             sources = [primarySource]
             name = None
@@ -85,14 +86,14 @@ def parse(primarySource):
             except AttributeError as e:
                 raise ParseError("Bad attribute") from e
             if not medias:
-                print(name,primarySource,"No media. Failing...")
+                note.red(name,primarySource,"No media. Failing...")
                 continue
             if True:
-                print("tags",[str(tag) for tag in tags])
-                print("name",repr(name))
-                print("Media",len(medias))
-                print("PSource",primarySource)
-                print("Sources",sources)
+                note("tags",[str(tag) for tag in tags])
+                note("name",repr(name))
+                note("Media",len(medias))
+                note("PSource",primarySource)
+                note("Sources",sources)
             for media in medias:
                 derpSources = sources + [media.url]
                 media.url = urllib.parse.urljoin(primarySource,media.url)

@@ -21,7 +21,6 @@ import fixprint
 import catchup
 from dbqueue import enqueue
 
-
 if __name__ == '__main__':
     import select
     import settitle
@@ -36,14 +35,13 @@ if __name__ == '__main__':
     else:
         import fcntl,os,time
         from itertools import count
-        import clipboardy
+        import gtkclipboardy as clipboardy
         def gotPiece(piece):
-            if 'http' in piece:
-                print("Trying {}".format(piece.strip()))
-                sys.stdout.flush()
-                enqueue(piece.strip())
-                catchup.poke()
-                print("poked")
+            print("Trying {}".format(piece.strip()))
+            sys.stdout.flush()
+            enqueue(piece.strip())
+            catchup.poke()
+            print("poked")
         print('Ready to parse')
-        clipboardy.run(gotPiece)
+        clipboardy.run(gotPiece,lambda piece: b'http' == piece[:4])
     catchup.finish()

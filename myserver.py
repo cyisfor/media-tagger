@@ -75,6 +75,7 @@ class ResponseHandler(object):
     finished_headers = False
     length_sent = False
     code = message = path = None
+    log = sys.stdout
     def __init__(self, conn, stream, start_line):
         self.conn = conn
         self.stream = stream
@@ -234,17 +235,29 @@ class ResponseHandler(object):
             yield self.send_header('Location',e.location)
             yield self.end_headers()
         except Exception as e:
-            note.alarm('derp',type(e))
+            import traceback
+            traceback.print_exc()
+            note.alarm('derp',e)
         finally:
             self.recordAccess()
     def redirect(self,locationcode=302,message='boink'):
         raise Redirect(self,location,code,message)
     ip = None
     def recordAccess(self):
-        print(json.dumps((self.ip or self.conn.address[0],self.method,self.code,self.path,self.written,time.time())))
+        print(json.dumps((
+            self.ip or self.conn.address[0],
+            self.method,
+            self.code,
+            self.path,
+            self.written,
+            self.agent,
+            self.referrer,            
+            time.time())),file=self.log)
     def received_headers(self): pass
+    agent = None
+    referrer = None
     def received_header(self,name,value):
-        "received a header just now, can setup, or raise an error if this is not a good header"
+        "received a header just now, can setup, or raise an error if this is not a good header"        
         if name == 'Content-Length':
             note('setting length')
             self.length = int(value)
@@ -252,6 +265,10 @@ class ResponseHandler(object):
             if 'chunked' in value:
                 assert False, 'uhhh'
                 self.chunked = True
+        elif name == 'User-Agent':
+            self.agent = value
+        elif name == 'Referer' or name == 'Referrer':
+            self.referrer = value
     def OK(self):
         "Check headers/IP if this request's body is OK to push."
         return True

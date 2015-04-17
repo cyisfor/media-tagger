@@ -84,6 +84,7 @@ def getanId(sources,uniqueSource,download,name):
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
         if result:
             yield result[0][0],False
+            return
     md5 = None
     for source in sources:
         if isinstance(source,int): continue
@@ -94,10 +95,12 @@ def getanId(sources,uniqueSource,download,name):
                         (md5,))
             if result:
                 yield result[0][0],False
+                return
 
+    note("downloading to get an id")
     with filedb.mediaBecomer() as data:
         created = yield download(data)
-        print('got created', created)
+        note('cerated',created)
         digest = mediaHash(data)
         result = db.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
@@ -133,10 +136,10 @@ def getanId(sources,uniqueSource,download,name):
 #                    raise
             image,type = openImage(data)
             if not image:
-                print('we hafe to guess')
+                note('we hafe to guess')
                 type, encoding = magic.guess_type(data.name)[:2]
                 if type is None or type == 'binary':
-                    print("What is {}?".format(data.name))
+                    note("What is {}?".format(data.name))
                     os.chdir(filedb.top+'/temp')
                     subprocess.call(['bash'])
                     type = input("Type:")
@@ -145,7 +148,7 @@ def getanId(sources,uniqueSource,download,name):
             if not isGood(type): raise NoGood(uniqueSource if uniqueSource else name,type)
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
-            print("New {} with id {:x} ({})".format(type,id,name))
+            note("New {} with id {:x} ({})".format(type,id,name))
             sources = set([sourceId(source) for source in sources])
             db.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
                 id,name,digest,created,
@@ -160,12 +163,12 @@ def getanId(sources,uniqueSource,download,name):
             savedData.become(id)
             filedb.check(id) # don't bother waiting for this if it stalls
             yield id,True
+            return
 
 tagsModule = tags
 
 def update(id,sources,tags,name):
     donetags = []
-    print('upd8',id,sources)
     with db.transaction():
         db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id,name))
         
@@ -179,11 +182,13 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             name = name[1]
         else:
             name = name[0]
+    note('name is',name)
     if media and primarySource and '://' in media and '://' in primarySource:
         sources = set([primarySource,media] + [source for source in otherSources])
     else:
         sources = (primarySource,)+otherSources
     sources = [source for source in sources if source]
+    note.red('derp')
     with db.transaction():
         if media:
             mediaId = sourceId(media)
@@ -199,8 +204,9 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
                 result = ret.value
                 break
         id,wasCreated = result
+        note('got id',id,wasCreated)
         if not wasCreated:
-             print("Old medium with id {:x}".format(id))
+             note("Old medium with id {:x}".format(id))
         sources = set([sourceId(source) for source in sources])
     note("update")
     update(id,sources,tags,name)
@@ -226,7 +232,7 @@ def internet(*a,**kw):
             if result.running():
                 raise RuntimeError("Download can't complete right away, but this is the sync version!")
             result = result.result()
-            print('future produced',result)
+            note('future produced',result)
     return result
 
 def copyMe(source):

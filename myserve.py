@@ -135,6 +135,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
     uploading_put = False
     uploader = None
     started = myserver.ResponseHandler.date_time_string(myserver.ResponseHandler,time.time())
+    log = open(oj(filedb.top,"access.log"),"at")
     def recordAccess(self, *a, **kw):
         if not self.ip in IGNORED:
             return super().recordAccess(*a, **kw)
@@ -278,16 +279,16 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         tags.nega.discard(tag)
             tagfilter.filter(tags)
             o = params.get('o')
+            if o:
+                o = int(o[0],0x10)
+            else:
+                o = 0
+
             if json:
                 disp = jsony
             else:
                 disp = pages
-            if 'q' in params:
-                if o:
-                    o = int(o[0],0x10)
-                else:
-                    o = 0
-                ident,name,type,tags = next(withtags.searchForTags(tags,offset=o,limit=1))
+            def prevnext(f):
                 with disp.Links:
                     if json:
                         disp.Links.next = o + 1
@@ -300,19 +301,42 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         else:
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
-                    page = yield gen.maybe_future(disp.page(info.pageInfo(ident),path,params))
-            else:
-                if o:
-                    o = int(o[0],0x10)
-                    offset = thumbnailPageSize*o
+                    return f()
+                
+            def getPage():
+                if 'q' in params:
+                    try:
+                        ident,name,ctype,ignoretags = next(withtags.searchForTags(tags,offset=o,limit=1))
+                    except StopIteration:                        
+                        if json:
+                            return []
+                        else:
+                            @prevnext
+                            def page():
+                                disp.Links.next = None
+                                return gen.maybe_future(
+                                    pages.makePage('No Results Found',
+                                                   pages.d.p('No Results Found')))
+                            return page
+                    else:
+                        @prevnext
+                        def page():
+                            return gen.maybe_future(disp.page(
+                                info.pageInfo(ident),path,params))
+                            return page
+                        return page
                 else:
-                    offset = o = 0
-                    
-                f = gen.maybe_future(disp.media(pathurl,params,o,
-                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
-                        withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
-                page = yield f
+                    if o:
+                        offset = thumbnailPageSize*o
+                    else:
+                        offset = 0
+                        
+                    return gen.maybe_future(disp.media(pathurl,params,o,
+                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
+                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
+            page = yield getPage()
         if json:
+            Session.type = 'application/json'
             page = jsony.encode(page)
         else:
             #checkdirty.circular(page)

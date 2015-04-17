@@ -7,22 +7,21 @@ from favorites.parseBase import *
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
 import db
-import clipboardy
 
-import threading
+from multiprocessing import Process, Condition, Value
 import time
 import fixprint
 
-class Catchup(threading.Thread):
-    done = False
+class Catchup(Process):
     def __init__(self):
         super().__init__()
-        self.condition = threading.Condition()
+        self.condition = Condition()
+        self.done = Value(False)
     def squeak(self,*a):
         uri = top()
         if uri is None:
             print('none dobu')
-            if self.done: raise SystemExit
+            if self.done.value: raise SystemExit
             return
         ah = alreadyHere(uri)
         if ah:
@@ -57,36 +56,39 @@ class Catchup(threading.Thread):
         return True
     def run(self):
         db.reopen()
-        with self.condition:
-            self.done = False
         try:
+            import signal
+            signal.signal(signal.SIGUSR1, lambda sig: None)
             while True:
                 while self.squeak() is True: pass
                 with self.condition:
-                    if self.done: break
+                    if self.done.value: break
+                    print('waiting for pokes')
                     self.condition.wait()
+                    print('squeak!')
         except SystemExit: pass
         except KeyboardInterrupt: pass
     def poke(self):
         with self.condition:
-            self.condition.notifyAll()
+            self.condition.notify_all()
     def finish(self):
-        self.done = True
+        self.done.value = True
         while True:
             self.poke()
             self.join(1)
-            if not self.isAlive(): break
-            self.done = True
+            if not self.is_alive(): break
+            self.done.value = True
 
 
 
 
 instance = Catchup()
-instance.start()
-
-poke = instance.poke
-
-finish = instance.finish
 
 if __name__ == '__main__':
-    finish()
+    instance.squeak()
+else:
+    instance.start()
+
+    poke = instance.poke
+
+    finish = instance.finish

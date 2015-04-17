@@ -39,7 +39,15 @@ import db
 
 import merge
 
-findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < 200 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
+import os
+
+findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < $1 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
+
+maxDistance = os.environ.get('distance')
+if maxDistance is None:
+    maxDistance = 200
+else:
+    maxDistance = int(maxDistance)
 
 loop = GLib.MainLoop()
 
@@ -84,7 +92,7 @@ print(findStmt)
 class Finder:
     def reload(self):
         print('go')
-        self.dupes = iter(db.execute(findStmt))
+        self.dupes = iter(db.execute(findStmt,(maxDistance,)))
         print('go2')
     a = b = -1
     starting = True
@@ -97,7 +105,7 @@ class Finder:
     def next(self,then):
         try: self.source, self.dest = next(self.dupes)
         except StopIteration:
-            self.dupes = iter(db.execute(findStmt))
+            self.dupes = iter(db.execute(findStmt,(maxDistance,)))
             try:
                 self.source, self.dest = next(self.dupes)
             except StopIteration:
@@ -127,7 +135,9 @@ class Finder:
             a = self.dest
             b = self.source
         print('boing',a,b)
-        db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
+        try: db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
+        except db.ProgrammingError as e:
+            print(e)
         self.next(then)
     def dupe(self,inferior,then=None):
         print('dupe',self.dest,self.source)

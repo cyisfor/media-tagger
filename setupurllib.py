@@ -1,3 +1,5 @@
+import time
+start = time.time()
 from filedb import top
 from contextlib import closing,contextmanager
 
@@ -15,6 +17,10 @@ import re
 
 import http.client
 
+print('bou',time.time()-start)
+sys.stdout.flush()
+oj = os.path.join
+
 isPypy = hasattr(pickle.Pickler,'dispatch')
 
 proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
@@ -22,44 +28,27 @@ handlers = [proxy]
 
 space = re.compile('[ \t]+')
 
+if isPypy:
+    import copyreg
+    import _thread
+    import struct
+    class DerpLock: pass
+    class MyPickler(pickle.Pickler):
+        def save_global(self,obj,name=None,pack=struct.pack):
+            if isinstance(obj,_thread.RLock):
+                obj = DerpLock()
+            if obj is _thread.RLock:
+                obj = DerpLock
+            super().save_global(obj,name,pack)
+        pickle.Pickler.dispatch[type] = save_global
+    copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
+else:
+    MyPickler = pickle.Pickler
 if not 'skipcookies' in os.environ:
-    if isPypy:
-        print('ispypy')
-        import copyreg
-        import _thread
-        import struct
-        class DerpLock: pass
-        class MyPickler(pickle.Pickler):
-            def save_global(self,obj,name=None,pack=struct.pack):
-                if isinstance(obj,_thread.RLock):
-                    obj = DerpLock()
-                if obj is _thread.RLock:
-                    obj = DerpLock
-                super().save_global(obj,name,pack)
-            pickle.Pickler.dispatch[type] = save_global
-        copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
-    else:
-        MyPickler = pickle.Pickler
+    # this can take a while...
 
-    import sqlite3
     import http.cookiejar
-
-    def get_cookies(cj, ff_cookies):
-        print('getting',ff_cookies)
-        with closing(sqlite3.connect(ff_cookies)) as con:
-            cur = con.cursor()
-            cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
-            for item in cur.fetchall():
-                c = http.cookiejar.Cookie(0, item[4], item[5],
-                    None, False,
-                    item[0], item[0].startswith('.'), item[0].startswith('.'),
-                    item[1], False,
-                    item[2],
-                    item[3], item[3]=="",
-                    None, None, {})
-                cj.set_cookie(c)
-
-    cookiefile = os.path.join(top,"temp","cookies.pickle")
+    cookiefile = oj(top,"temp","cookies.pickle")
     try:
         with open(cookiefile,'rb') as inp:
             jar = pickle.load(inp)
@@ -67,28 +56,79 @@ if not 'skipcookies' in os.environ:
             jar._cookies_lock = _thread.RLock()
     except (IOError,AttributeError):
         jar = http.cookiejar.CookieJar()
+    handlers.append(urllib.request.HTTPCookieProcessor(jar))
+    
+    import sqlite3
+    import json
+        
+    def fileProcessor(f):
+        def wrapper(path):
+            print('getting',path)
+            if not os.path.exists(path): return
+            for c in f(path):
+                jar.set_cookie(c)
+        return wrapper
 
-    get_cookies(jar,os.path.join(top,"cookies.sqlite"))
-    for ff_cookies in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/cookies.sqlite")):
-        get_cookies(jar,ff_cookies)
+    def lineProcessor(f):
+        @fileProcessor
+        def wrapper(path):
+            with open(path,encoding='utf-8') as inp:
+                for line in inp:
+                    c = f(line)
+                    if c:
+                        yield c
+        return wrapper
 
-    def get_text_cookies(cj, text):
-        if not os.path.exists(text): return
-        with open(text) as inp:
-            for line in inp:
-                host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-                c = http.cookiejar.Cookie(0, name, value,
+    @fileProcessor
+    def get_cookies(ff_cookies):
+        with closing(sqlite3.connect(ff_cookies)) as con:
+            cur = con.cursor()
+            cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
+            for item in cur.fetchall():
+                yield http.cookiejar.Cookie(0, item[4], item[5],
                     None, False,
-                    host, host.startswith('.'), host.startswith('.'),
-                    path, False,
-                    isSecure=='TRUE',
-                    int(expiry), expiry=="",
+                    item[0], item[0].startswith('.'), item[0].startswith('.'),
+                    item[1], False,
+                    item[2],
+                    item[3], item[3]=="",
                     None, None, {})
-                cj.set_cookie(c)
+    @lineProcessor
+    def get_text_cookies(line):
+        host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
+        return http.cookiejar.Cookie(
+            0, name, value,
+            None, False,
+            host, host.startswith('.'), host.startswith('.'),
+            path, False,
+            isSecure=='TRUE',
+            int(expiry), expiry=="",
+            None, None, {})
+    @lineProcessor
+    def get_json_cookies(line):
+        try:
+            c = json.loads(line)
+            host = c['host']
+        except KeyError:
+            return
+        return http.cookiejar.Cookie(
+            0, c['name'], c['value'],
+            None, False,
+            host, host.startswith('.'), host.startswith('.'),
+            c['path'],not not c['path'],
+            c['isSecure'], c['expires'],not not c['expires'],
+            None, None, {})
+    
+    get_cookies(oj(top,"cookies.sqlite"))
+    
+    #for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
+    ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
+    get_cookies(oj(ff,'cookies.sqlite'))
+    get_json_cookies(oj(ff,'cookies.jsons'))
 
-    get_text_cookies(jar, "/extra/user/tmp/cookies.txt")
+    get_text_cookies("/extra/user/tmp/cookies.txt")    
+    get_json_cookies("/extra/user/tmp/cookies.jsons")
 
-    with tempfile.NamedTemporaryFile(dir=os.path.join(top,"temp")) as out:
+    with tempfile.NamedTemporaryFile(dir=oj(top,"temp")) as out:
         pickler = MyPickler(out)
         pickler.dump(jar)
         if os.path.exists(cookiefile):
@@ -96,7 +136,6 @@ if not 'skipcookies' in os.environ:
         os.rename(out.name,cookiefile)
         try: out.close()
         except OSError: pass
-    handlers.append(urllib.request.HTTPCookieProcessor(jar))
 
 
 class HeaderWatcher(urllib.request.HTTPHandler):

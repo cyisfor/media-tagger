@@ -7,15 +7,17 @@ from gi.repository import GLib, Gtk, Gdk
 
 def derp(f):
     def wrapper(*a,**kw):
-        print('derp',f)
+        #print('derp',f)
         return f(*a,**kw)
     return wrapper
-        
+
+import threading
 
 def make(handler,check):
     seen = set()
     clipboard = None
     def gotClip(clipboard, text, nun=None):
+
         if text:
             if check:
                 res = check(text)
@@ -26,7 +28,7 @@ def make(handler,check):
                 if type(text)==bytes:
                     text = text.decode('utf-8')
                 handler(text)
-        GLib.timeout_add(200,checkClip)
+        GLib.timeout_add(200,derp(checkClip))
     
     def checkClip(nun):
         assert(clipboard)
@@ -37,13 +39,14 @@ def make(handler,check):
         nonlocal clipboard
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         clipboard.set_text('',0)
-        GLib.timeout_add(200,checkClip)
+        GLib.timeout_add(200,derp(checkClip))
     
     def run():
+        loop = GLib.MainLoop()
         GLib.timeout_add(200,derp(start))
-        import signal
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        Gtk.main()
+        #import signal
+        #signal.signal(signal.SIGINT, signal.SIG_DFL)
+        loop.run()
     return start,run
 
 def run(handler,check):
