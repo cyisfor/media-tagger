@@ -8,20 +8,20 @@ from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
 import db
 
-from multiprocessing import Process, Condition, Value
+from multiprocessing import Process, Condition, RawValue
 import time
 import fixprint
+from ctypes import c_bool
 
 class Catchup(Process):
     def __init__(self):
         super().__init__()
         self.condition = Condition()
-        self.done = Value(False)
+        self.done = RawValue(c_bool,False)
     def squeak(self,*a):
         uri = top()
         if uri is None:
             print('none dobu')
-            if self.done.value: raise SystemExit
             return
         ah = alreadyHere(uri)
         if ah:
@@ -72,12 +72,12 @@ class Catchup(Process):
         with self.condition:
             self.condition.notify_all()
     def finish(self):
-        self.done.value = True
+        with self.condition:
+            self.done.value = True
         while True:
             self.poke()
             self.join(1)
             if not self.is_alive(): break
-            self.done.value = True
 
 
 
