@@ -1,4 +1,31 @@
 #!/usr/bin/python3
+from multiprocessing import Process, Queue
+
+class SourceFinder(Process):
+    def __init__(self):
+        super().__init__()
+        self.inp = Queue()
+        self.out = Queue()
+    def check(self,source):
+        self.inp.put(source)
+        e = self.out.get()
+        if isinstance(e,Exception):
+            raise RuntimeError("Thread boom") from e
+        return e
+    def run(self):
+        while True:
+            source = self.inp.get()
+            while True:
+                res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+                if res:
+                    self.out.put(res[0][0])
+                    break
+                else:
+                    try: parse.parse(source)
+                    except Exception as e:
+                        self.out.put(e)
+                        break
+
 
 try: 
     import pgi
@@ -15,8 +42,6 @@ import urllib.parse
 import gtkclipboardy as clipboardy
 from gi.repository import Gtk,Gdk,GObject,GLib
 
-from threading import Thread
-from queue import Queue
 
 comic = None
 page = None
@@ -83,31 +108,6 @@ def createComic(com,created):
     sourceEntry.connect('activate',onActivate)
 
     win.show_all()
-
-class SourceFinder(Thread):
-    def __init__(self):
-        super().__init__()
-        self.inp = Queue()
-        self.out = Queue()
-    def check(self,source):
-        self.inp.put(source)
-        e = self.out.get()
-        if isinstance(e,Exception):
-            raise RuntimeError("Thread boom") from e
-        return e
-    def run(self):
-        while True:
-            source = self.inp.get()
-            while True:
-                res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
-                if res:
-                    self.out.put(res[0][0])
-                    break
-                else:
-                    try: parse.parse(source)
-                    except Exception as e:
-                        self.out.put(e)
-                        break
 
 sourceFinder = SourceFinder()
 sourceFinder.start()

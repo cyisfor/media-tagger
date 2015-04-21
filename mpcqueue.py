@@ -22,12 +22,15 @@ class Queue:
         flags = channel.get_flags()
         channel.set_flags(flags|GLib.IO_FLAG_NONBLOCK)
         self.channel = channel
-        if 0 != flags | GLib.IO_FLAG_IS_READABLE:
+        if flags & GLib.IO_FLAG_IS_READABLE:
+            print('reading channel',flags | GLib.IO_FLAG_IS_READABLE,flags)
             self.buffer = b''
-            self.source_id = channel.add_watch(GLib.IO_IN|GLib.IO_HUP, self.collect)
+            self.source_id = channel.add_watch(GLib.IO_IN|GLib.IO_HUP, self.collect,self)
+        else:
+            print("writing channel",flags)
         self.flush = self.channel.flush
-    def collect(self, io, condition):
-        print(self,condition)
+    def collect(self, io, condition, udata):
+        print('collectingUGH')
         if condition is GLib.IO_IN:
             self.buffer += io.read()
             messages = self.buffer.split(b'\1')
@@ -53,6 +56,7 @@ class Test(Queue):
         self.loop = loop
     def received(self, message):
         print('got message',message)
+        sys.stdout.flush()
         if message == 42:
             self.done()
     def done(self):
@@ -60,22 +64,29 @@ class Test(Queue):
         self.loop.quit()
 
 def test():
-    r,w = os.pipe()
-    pid = os.fork()
-    if pid == 0:
-        os.close(w)
+    pipe = '/tmp/derp.pipe'
+    try: os.mkfifo(pipe)
+    except OSError: pass
+    
+    if 'read' in os.environ:
+        r = os.open(pipe,os.O_RDONLY)
         loop = GLib.MainLoop()
-        GLib.idle_add(lambda: Test(GLib.IOChannel.unix_new(r),loop) and False)
+        t = Test(GLib.IOChannel.unix_new(r),loop)
+        t.channel.ref()
+        print('test?',t.channel)
+        GLib.timeout_add(2,(lambda *a: print('idled',a) and False))
         loop.run()
+        print('oy')
         os._exit(0)
-    os.close(r)
+    print('writing')
+    w = os.open(pipe,os.O_WRONLY)
     queue = Queue(GLib.IOChannel.unix_new(w))
     loop = GLib.MainLoop()
 
     class Thingy:
         def done(self,*a):
             print('ayyy',a)
-            loop.quit()
+            #loop.quit()
             print('yoy')
         def sendit(self,wha):
             print(wha)
@@ -83,11 +94,15 @@ def test():
             queue.send(4)
             queue.send([5,6])
             queue.send(42)
-            queue.finish(self.done)
+            queue.finish(self.sent)
+            return False
+        def sent(self,*a):
+            print('sent',a)
     thingy = Thingy()
-    GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, thingy.done)
-    GLib.idle_add(thingy.sendit)
+    #GLib.child_watch_add(GLib.PRIORITY_DEFAULT, pid, thingy.done)
+    GLib.timeout_add(1000,thingy.sendit)
     loop.run()
+    print(thingy)
 
 if __name__ == '__main__':
     test()
