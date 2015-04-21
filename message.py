@@ -57,27 +57,39 @@ class codecs:
             message[:] = s.encode('utf-8')
 
 class Command:
-    def __init__(self,f,command,codec=None):
+    codecs = None
+    def __init__(self,f,command,codec=None,codecs=None):
         self.f = f
         self.command = command
-        self.codec = codec
+        if codecs:
+            self.codecs = codecs
+        else if codec:
+            self.codecs = [codec]
     def __get__(self):
-        if self.codec is None:
+        if self.codecs is None:
             return self.f
         return self
     def __call__(self,message):
-        if self.codec:
+        if self.codecs:
             args = []
+            i = 0
             while(message):
-                args.append(self.codec.decode(message))
+                codec = self.codecs.get(i)
+                if codec is None:
+                    codec = self.codecs[0]
+                args.append(codec.decode(message))
+                i = i + 1
             self.f(self,*args)
         else:
             self.f(self,message)
     def __remotelycall__(self,proc,*args):
         message = [0,0,self.command]
-        if self.codec:
-            for arg in args:
-                self.codec.encode(message,arg)
+        if self.codecs:
+            for i,arg in enumerate(args):
+                codec = self.codecs.get(i)
+                if codec is None:
+                    codec = self.codecs[0]
+                codec.encode(message,arg)
         else:
             message.extend(args[0])
         length = len(message) + 1 # for command

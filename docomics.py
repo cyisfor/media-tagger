@@ -1,47 +1,63 @@
 #!/usr/bin/python3
-from multiprocessing import Process, Queue
+from message import MessageProcess, Command, codec
+from multiprocessing import Process, Pipe
 
-class SourceFinder(Process):
-    def __init__(self):
-        super().__init__()
-        self.inp = Queue()
-        self.out = Queue()
-    def check(self,source):
-        self.inp.put(source)
-        e = self.out.get()
-        if isinstance(e,Exception):
-            raise RuntimeError("Thread boom") from e
-        return e
-    def run(self):
+class ComicMaker(MessageProcess):
+    @Command(arguments=codec.num)
+    def setup(self,comic,which):
+        self.comic = comic
+        self.which = which
+    @Command(codec=codec.onestr)
+    def newpage(self,source):
+        source = 
         while True:
-            source = self.inp.get()
-            while True:
-                res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
-                if res:
-                    self.out.put(res[0][0])
+            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+            if res:
+                self.gotsource(res[0][0])
+                break
+            else:
+                try:
+                    parse.parse(source)
+                    continue
+                except Exception as e:
+                    self.error(e)
                     break
-                else:
-                    try: parse.parse(source)
-                    except Exception as e:
-                        self.out.put(e)
-                        break
+    @Command(codecs={'default': codec.str, 2: codec.num})
+    def create(self,title,description,source=None):
+        if source:
+            s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
+            if s:
+                source = s[0][0]
+            else:
+                s = db.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
+                source = s[0][0]
+            assert(source)
+        else:
+            source = None
 
+        if source is not None:
+           db.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3)',(
+               title,
+               desc,
+               source))
+        else:
+           db.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
+               title,
+               desc))
 
-try: 
+    def gotsource(self,id):
+        
+        
+try:
     import pgi
     pgi.install_as_gi()
 except ImportError: pass
 
 import db,sys,os
-import filedb
-import favorites.parsers
-import favorites.parseBase as parse
-
 import urllib.parse
 
 import gtkclipboardy as clipboardy
 from gi.repository import Gtk,Gdk,GObject,GLib
-
 
 comic = None
 page = None
@@ -81,26 +97,7 @@ def createComic(com,created):
         if not title and desc: return
 
         source = sourceEntry.get_text()
-        if source:
-            s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
-            if s:
-                source = s[0][0]
-            else:
-                s = db.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
-                source = s[0][0]
-            assert(source)
-        else:
-            source = None
-
-        if source is not None:
-           db.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3)',(
-               title,
-               desc,
-               source))
-        else:
-           db.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
-               title,
-               desc))
+        comicMaker.create(title,desc,source)
         win.destroy()
         created()
     titleEntry.connect('activate',onActivate)
@@ -111,7 +108,7 @@ def createComic(com,created):
 
 sourceFinder = SourceFinder()
 sourceFinder.start()
-                
+
 def findBySource(source,foundSource,fail):
     try:
         res = sourceFinder.check(source)
@@ -147,11 +144,11 @@ def mine(url):
 
 def gotMedium(medium,pageSet=None):
     global getting
-    if getting: 
+    if getting:
         print('getting',medium)
         return
     getting = True
-    if not gobutton.get_active(): 
+    if not gobutton.get_active():
         getting = False
         return
 
@@ -180,7 +177,7 @@ def gotMedium(medium,pageSet=None):
     else:
         try: return haveMedium(mine(medium))
         except ValueError as e: pass
-        try: 
+        try:
             medium = parse.normalize(medium)
         except RuntimeError: pass
         print('source?', medium)
@@ -189,7 +186,7 @@ def gotMedium(medium,pageSet=None):
             getting = False
 
         def foundSource(res):
-            if res: 
+            if res:
                 haveMedium(res)
             else:
                 try: haveMedium(mine(medium))
@@ -198,7 +195,7 @@ def gotMedium(medium,pageSet=None):
 
 def checkInitialized(e=None):
     com = comic.get_text()
-    if com: 
+    if com:
         com = int(com,0x10)
     else:
         com = db.execute('SELECT MAX(id) + 1 FROM comics')[0][0]
