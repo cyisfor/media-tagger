@@ -9,38 +9,44 @@ n: {item}
 ...
 '''
     #fsck metaclasses
-    class many:
-        __doc__ = oneToMany.__doc__.format(item=one.__name__)
+    
+    class many(type):
         __name__ = 'many '+one.__name__
-    @staticmethod
-    def decode(message):
-        "decode a list of {item}".format(one.__name__)
-        size = message.pop(0)
-        if size == 0:
-            return 0
-        l = message[:size]
-        del message[:size]
-        return one.decode(l)
-    @staticmethod
-    def encode(message,v):
-        "encode a list of {item}".format(one.__name__)
-        if not v:
-            # this actually isn't necessary, but is just a shortcut for
-            # what below accomplishes
-            message.push(0)
-            return
-        res = bytearray()
-        one.encode(res)
-        message.push(len(res))
-        message.extend(res)
-        del res[:]
-    help(many)
-    return many
+        __doc__ = "a list of "+one.__doc__+ oneToMany.__doc__.format(item=one.__name__)
+        @staticmethod
+        def decode(message):
+            size = message.pop(0)
+            if size == 0:
+                return 0
+            l = message[:size]
+            del message[:size]
+            return one.decode(l)
+        @staticmethod
+        def encode(message,v):
+            if not v:
+                # this actually isn't necessary, but is just a shortcut for
+                # what below accomplishes
+                message.push(0)
+                return
+            res = bytearray()
+            one.encode(res)
+            message.push(len(res))
+            message.extend(res)
+            del res[:]
+    class o(metaclass=many):
+        __doc__ = many.__doc__
+        __name__ = 'many '+one.__name__
+    return o
 class codecs:
+    '''
+encode: push arguments encoded to the message
+decode: take bytes out of the message and return as value
+(decode MAY not clear message (no need if there's only one argument))
+'''
     class one:
         'only one argument per message'
         class str:
-            'bytes of a utf-8 encoded string'
+            'bytes of an utf-8 encoded string'
             @staticmethod
             def decode(message):
                 s = bytes(*message).decode('utf-8')
