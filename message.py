@@ -82,6 +82,10 @@ class Command:
     codec = None
     command = None
     def __init__(self,f,codec=None,codecs=None,backend=False):
+        # if backend is true, this will go to the backend
+        # if it's already in the backend, it'll stay there.
+        # if it's not, no error, but remotely call
+        # and vice versa if backend == false
         self.backend = backend
         self.f = f
         self.codecs = codecs
@@ -92,6 +96,8 @@ class Command:
     def __get__(self):
         return self
     def remotely_called(self,commander,message):
+        # this is a pretty safe assumption
+        assert self.backend == commander.backend
         if self.codecs:
             args = []
             i = 0
@@ -122,6 +128,7 @@ class Command:
                     codec = self.codec
             else:
                 codec = self.codec
+            # if codec == None allow undecoded tails here?
             codec.encode(message,arg)
         else:
             message.extend(args[0])

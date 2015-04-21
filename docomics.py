@@ -33,8 +33,8 @@ class ComicMaker(MessageProcess):
                 except Exception as e:
                     self.errorFindingMedium(e,source)
                     break
-    @Command(codec=codec.str,backend=True)
-    def create(self,title,description,source=None):
+    @Command(codec=codecs.str,backend=True,codecs={3:codecs.one.num})
+    def create(self,title,description,source,medium):
         if source is not None:
             s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
             if s:
@@ -54,10 +54,16 @@ class ComicMaker(MessageProcess):
                desc))
         self.comic = comic[0][0]
         self.which = 0
-        self.created(self.comic,self.which)
+        self.setPage(medium,self.comic,self.which)
+    @Command(codec=codecs.num,backend=True)
+    def setPage(self,medium,comic,which):
+        db.execute('SELECT setComicPage($1,$2,$3)',(medium,comic,which))
+        self.pageSet(comic,which)
     @Command(codec=codecs.num,backend=False)
-    def created(self,comic,which):
-        pass #update stuff
+    def pageSet(self,comic,which):
+        self.page.set_text('{:x}'.format(which+1))
+        self.comic.set_text('{:x}'.format(comic))
+        self.getting = False
     def start(self):
         # this is in the main (GUI) process
         super().start()
@@ -67,7 +73,7 @@ class ComicMaker(MessageProcess):
         except ImportError: pass
         import gtkclipboardy as clipboardy
         window = Gtk.Window()
-        window.connect('destroy',Gtk.main_quit)
+        window.connect('destroy',self.quit)
         box = Gtk.VBox()
         window.add(box)
 
@@ -78,7 +84,7 @@ class ComicMaker(MessageProcess):
 
         self.gobutton = Gtk.ToggleButton(label='Go!')
         box.pack_start(self.gobutton,True,False,0)
-        self.gobutton.connect('toggled',checkInitialized)
+        self.gobutton.connect('toggled',lambda e: checkInitialized(None))
 
         window.show_all()
         start,run = clipboardy.make(self.clipboardYanked,self.notGetting)
@@ -87,7 +93,7 @@ class ComicMaker(MessageProcess):
         run()
     def notGetting(self):
         return not self.getting
-    def createComic(self,com,created):
+    def createComic(self,com,medium):
         from gi.repository import Gtk
         def label(name,entry):
             box = Gtk.HBox()
@@ -118,14 +124,13 @@ class ComicMaker(MessageProcess):
             if not title and desc: return
 
             source = sourceEntry.get_text() or None
-            self.create(title,desc,source)
+            self.create(title,desc,source,medium)
             win.destroy()
         titleEntry.connect('activate',onActivate)
         descEntry.connect('activate',onActivate)
         sourceEntry.connect('activate',onActivate)
 
         win.show_all()
-    resume = None
     @Command(codec=codecs.onestr,backend=False)
     def errorFindingMedium(self,err,source):
         dl = Gtk.MessageDialog(
@@ -141,11 +146,14 @@ class ComicMaker(MessageProcess):
                 self.findMedium(source)
             else:
                 self.getting = False
-                self.terminate()
-                self.join()
-                Gtk.main_quit()
+                self.quit()
         dl.connect('response',andle)
         dl.show_all()
+    def quit(self):
+        assert not self.backend
+        self.terminate()
+        self.join()
+        Gtk.main_quit()
     def clipboardYanked(self,source):
         if self.getting:
             print('getting',source)
@@ -162,47 +170,45 @@ class ComicMaker(MessageProcess):
         print('source?', source)
         self.findMedium(cleanSource(source))
     @Command(codec=codec.one.num)
-    def backendFoundMedium(self,medium):
-        # errrrr
-        self.foundMedium(medium)
     def foundMedium(self,medium):
+        assert not self.backend
         print('yay',medium)
         try:
-            com = int(self.comic.get_text(),0x10)
-            pag = int(self.page.get_text(),0x10)
+            comic = int(self.comic.get_text(),0x10)
+            page = int(self.page.get_text(),0x10)
         except ValueError:
-            self.checkInitialized()
+            self.checkInitialized(medium)
             return
-        self.setPage(medium,com,pag)
-    @Command(codec=codec.num)
-    def setPage(self,medium,com,pag):
         with db.transaction():
             if db.execute('SELECT count(id) FROM comics WHERE id = $1',(com,))[0][0] == 0:
-                self.createComic(com,setPage)
+                self.createComic(comic,medium)
             else:
-                setPage()
-
-    if isinstance(medium,int):
-        haveMedium(medium)
-    else:
-
-def checkInitialized(e=None):
-    com = comic.get_text()
-    if com:
-        com = int(com,0x10)
-    else:
-        com = db.execute('SELECT MAX(id) + 1 FROM comics')[0][0]
-        comic.set_text('{:x}'.format(com))
-    pag = page.get_text()
-    if pag == '':
-        pag = db.execute('SELECT MAX(which) + 1 FROM comicPage WHERE comic = $1',(com,))
-        if pag:
-            pag = pag[0][0]
-            if not pag:
-                pag = 0
-        else:
-            pag = 0
-        page.set_text('{:x}'.format(pag))
+                self.setPage(medium,comic,page)
+    @Command(backend=True,codec=codecs.nothing)
+    def maxComic(self):
+        self.setMaxComic(db.execute('SELECT MAX(id) + 1 FROM comics')[0][0])
+    @Command(backend=False,codec=codecs.one.num)
+    def setMaxComic(self,comic):
+        if self.comic.get_text() == '':
+            self.comic.set_text('{:x}'.format(comic))
+            
+    @Command(backend=True,codec=codecs.one.num)
+    def maxPage(self,comic):
+        self.setMaxPage(db.execute('SELECT MAX(which) + 1 FROM comicPage WHERE comic = $1',(comic,)))
+    @Command(backend=False,codec=codecs.one.num)
+    def setMaxPage(self,page):
+        if self.page.get_text() == '':
+            self.page.set_text('{:x}'.format(page))                    
+    def checkInitialized(self,medium):
+        # TODO: optional arguments by passing None
+        # so that you can pass medium around, w/out it being
+        # in the protocol when you're not passing it around.
+        comic = self.comic.get_text()
+        if not comic:
+            return self.findMaxComic(medium)        
+        page = self.page.get_text()
+        if not page:
+            return self.findMaxPage(int(comic,0x10))
 def main():
     global comic,page,gobutton,window
 if __name__ == '__main__': main()
