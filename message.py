@@ -26,16 +26,16 @@ n: {item}
             if not v:
                 # this actually isn't necessary, but is just a shortcut for
                 # what below accomplishes
-                message.push(0)
+                message.append(0)
                 return
             res = bytearray()
-            one.encode(res)
-            message.push(len(res))
+            one.encode(res,v)
+            message.append(len(res))
             message.extend(res)
             del res[:]
     class o(metaclass=many):
         __doc__ = many.__doc__
-        __name__ = 'many '+one.__name__
+        __name__ = 'many '+one.__name__    
     return o
 class codecs:
     '''
@@ -49,7 +49,7 @@ decode: take bytes out of the message and return as value
             'bytes of an utf-8 encoded string'
             @staticmethod
             def decode(message):
-                s = bytes(*message).decode('utf-8')
+                s = bytes(message).decode('utf-8')
                 return s
             @staticmethod
             def encode(message,s):
@@ -60,13 +60,13 @@ decode: take bytes out of the message and return as value
             def decode(message):
                 sum = 0
                 for i in message:
-                    sum = sum << 8 + i
+                    sum = (sum << 8) + i
                 return sum
             @staticmethod
             def encode(message,i):
                 while i > 0:
-                    m = i & 0x100
-                    message.append(m)
+                    m = i & 0xff
+                    message.append(m)                    
                     i = i >> 8
                 message.reverse()
     str = oneToMany(one.str)
@@ -121,7 +121,7 @@ class Command:
             message.extend(args[0])
         length = len(message) + 1 # for command
         message[0:2] = (length >> 8, length & 0xff)
-        self.write.send_bytes(bytes(*message))
+        self.write.send_bytes(message)
 
 class CommandEnabler(type):
     commands = []
@@ -150,7 +150,7 @@ codecs can encode/decode messages
         # large lists append MUCH faster than large strings.
         self.buffer = bytearray()
     def send(self,command,message,finished=None):
-        self.write.send_bytes(bytes(*message))
+        self.write.send_bytes(message)
     def check(self):
         b = self.read.recv_bytes()
         if not b:
