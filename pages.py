@@ -473,6 +473,7 @@ def desktop(raw,path,params):
             links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid),
                             href=pageLink(id))))
         Session.refresh = not allexists
+        raise gen.Return(links)
     links = yield makeDesktopLinks()
     def makeDesktopRows():
         row = []

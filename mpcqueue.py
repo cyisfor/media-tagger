@@ -77,7 +77,8 @@ def test():
             print('ayyy',a)
             loop.quit()
             print('yoy')
-        def sendit(self):
+        def sendit(self,wha):
+            print(wha)
             queue.send(3)
             queue.send(4)
             queue.send([5,6])
