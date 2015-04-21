@@ -17,7 +17,7 @@ n: {item}
         def decode(message):
             size = message.pop(0)
             if size == 0:
-                return 0
+                return one.nothing
             l = message[:size]
             del message[:size]
             return one.decode(l)
@@ -47,6 +47,7 @@ decode: take bytes out of the message and return as value
         'only one argument per message'
         class str:
             'bytes of an utf-8 encoded string'
+            nothing = ''
             @staticmethod
             def decode(message):
                 s = bytes(message).decode('utf-8')
@@ -56,6 +57,7 @@ decode: take bytes out of the message and return as value
                 message[:] = s.encode('utf-8')
         class num:
             'digits of a number in base 0x100'
+            nothing = 0
             @staticmethod
             def decode(message):
                 sum = 0
@@ -69,6 +71,10 @@ decode: take bytes out of the message and return as value
                     message.append(m)                    
                     i = i >> 8
                 message.reverse()
+    # strings can't be more than 0xff BYTES long (in utf-8)
+    # if you keep within 0-0x80 characters (7-bit) you get 0xff characters
+    # 0x80-0x800 eat 2 bytes though, 0x800->0x8000 eat 3, etc
+    # using one.str you can have a string up to 0xffff bytes long
     str = oneToMany(one.str)
     num = oneToMany(one.num)
     

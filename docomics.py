@@ -31,7 +31,7 @@ class ComicMaker(MessageProcess):
                     parse.parse(source)
                     continue
                 except Exception as e:
-                    self.error(e)
+                    self.errorFindingMedium(e,source)
                     break
     @Command(codec=codec.str,backend=True)
     def create(self,title,description,source=None):
@@ -66,7 +66,27 @@ class ComicMaker(MessageProcess):
             pgi.install_as_gi()
         except ImportError: pass
         import gtkclipboardy as clipboardy
-        ...
+        window = Gtk.Window()
+        window.connect('destroy',Gtk.main_quit)
+        box = Gtk.VBox()
+        window.add(box)
+
+        self.comic = Gtk.Entry()
+        box.pack_start(label("Comic",self.comic),True,True,0)
+        self.page = Gtk.Entry()
+        box.pack_start(label("Page",self.page),True,True,0)
+
+        self.gobutton = Gtk.ToggleButton(label='Go!')
+        box.pack_start(self.gobutton,True,False,0)
+        self.gobutton.connect('toggled',checkInitialized)
+
+        window.show_all()
+        start,run = clipboardy.make(self.clipboardYanked,self.notGetting)
+        # run inside start? because this is starting the other process
+        # then running as this one.
+        run()
+    def notGetting(self):
+        return not self.getting
     def createComic(self,com,created):
         from gi.repository import Gtk
         def label(name,entry):
@@ -106,15 +126,23 @@ class ComicMaker(MessageProcess):
 
         win.show_all()
     resume = None
-    def error(self,err):
-        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,str(e))
+    @Command(codec=codecs.onestr,backend=False)
+    def errorFindingMedium(self,err,source):
+        dl = Gtk.MessageDialog(
+            window,
+            0,
+            Gtk.MessageType.ERROR,
+            Gtk.ButtonsType.OK_CANCEL,
+            err)
         def andle(dialog,response):
             dialog.destroy()
             if response == Gtk.ResponseType.OK:
-                # XXX: assuming this got set previous to calling error!
-                self.resume()
+                # back to the backend with ye!
+                self.findMedium(source)
             else:
                 self.getting = False
+                self.terminate()
+                self.join()
                 Gtk.main_quit()
         dl.connect('response',andle)
         dl.show_all()
@@ -177,21 +205,4 @@ def checkInitialized(e=None):
         page.set_text('{:x}'.format(pag))
 def main():
     global comic,page,gobutton,window
-    window = Gtk.Window()
-    window.connect('destroy',Gtk.main_quit)
-    box = Gtk.VBox()
-    window.add(box)
-
-    comic = Gtk.Entry()
-    box.pack_start(label("Comic",comic),True,True,0)
-    page = Gtk.Entry()
-    box.pack_start(label("Page",page),True,True,0)
-
-    gobutton = Gtk.ToggleButton(label='Go!')
-    box.pack_start(gobutton,True,False,0)
-    gobutton.connect('toggled',checkInitialized)
-
-    window.show_all()
-    start,run = clipboardy.make(gotMedium,notGetting)
-    run()
 if __name__ == '__main__': main()
