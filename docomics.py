@@ -2,137 +2,10 @@
 from message import MessageProcess, Command, codec
 from multiprocessing import Process, Pipe
 
-class ComicMaker(MessageProcess):
-    @Command(arguments=codec.num)
-    def setup(self,comic,which):
-        self.comic = comic
-        self.which = which
-    @Command(codec=codec.onestr)
-    def newpage(self,source):
-        source = 
-        while True:
-            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
-            if res:
-                self.gotsource(res[0][0])
-                break
-            else:
-                try:
-                    parse.parse(source)
-                    continue
-                except Exception as e:
-                    self.error(e)
-                    break
-    @Command(codecs={'default': codec.str, 2: codec.num})
-    def create(self,title,description,source=None):
-        if source:
-            s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
-            if s:
-                source = s[0][0]
-            else:
-                s = db.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
-                source = s[0][0]
-            assert(source)
-        else:
-            source = None
-
-        if source is not None:
-           db.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3)',(
-               title,
-               desc,
-               source))
-        else:
-           db.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
-               title,
-               desc))
-
-    def gotsource(self,id):
-        
-        
-try:
-    import pgi
-    pgi.install_as_gi()
-except ImportError: pass
-
-import db,sys,os
-import urllib.parse
-
-import gtkclipboardy as clipboardy
-from gi.repository import Gtk,Gdk,GObject,GLib
-
-comic = None
-page = None
-gobutton = None
-window = None
-
-
-def label(name,entry):
-    box = Gtk.HBox()
-    box.pack_start(Gtk.Label(name),True,True,0)
-    box.pack_start(entry,True,True,0)
-    return box
-
-def createComic(com,created):
-    builder = Gtk.Builder()
-    message = "Please Give Comic {:x}'s Info".format(com)
-    win = Gtk.Dialog()
-    win.set_title(message)
-
-    titleEntry = Gtk.Entry()
-    descEntry = Gtk.Entry()
-    sourceEntry = Gtk.Entry()
-
-    action_area = win.get_internal_child(builder,"action_area")
-    vbox = Gtk.VBox()
-    action_area.pack_start(vbox,True,True,0)
-    vbox.pack_start(Gtk.Label(message),True,True,0)
-    vbox.pack_start(label('Title',titleEntry),True,True,0)
-    vbox.pack_start(label('Description',descEntry),True,True,0)
-    vbox.pack_start(label('Source',sourceEntry),True,True,0)
-
-
-    def onActivate(e):
-        title = titleEntry.get_text()
-        desc = descEntry.get_text()
-        print('activateboo',title,desc)
-        if not title and desc: return
-
-        source = sourceEntry.get_text()
-        comicMaker.create(title,desc,source)
-        win.destroy()
-        created()
-    titleEntry.connect('activate',onActivate)
-    descEntry.connect('activate',onActivate)
-    sourceEntry.connect('activate',onActivate)
-
-    win.show_all()
-
-sourceFinder = SourceFinder()
-sourceFinder.start()
-
-def findBySource(source,foundSource,fail):
-    try:
-        res = sourceFinder.check(source)
-        print('found source ',source,res)
-        foundSource(res)
-    except Exception as e:
-        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,str(e))
-        def andle(dialog,response):
-            dialog.destroy()
-            if response == Gtk.ResponseType.OK:
-                findBySource(source,foundSource,fail)
-            else:
-                fail()
-        dl.connect('response',andle)
-        dl.show_all()
-
 getting = False
-
-def notGetting(text):
-    return not getting
 
 def cleanSource(url):
     return url.split('?',1)[0]
-
 def mine(url):
     url = urllib.parse.urlparse(url)
     if url.scheme == 'http':
@@ -142,56 +15,148 @@ def mine(url):
         raise ValueError('not checking https derp')
     return int(url.path.rstrip('/').rsplit('/',1)[-1],0x10)
 
-def gotMedium(medium,pageSet=None):
-    global getting
-    if getting:
-        print('getting',medium)
-        return
-    getting = True
-    if not gobutton.get_active():
-        getting = False
-        return
 
-    def haveMedium(medium):
+class ComicMaker(MessageProcess):
+    backend = False
+    @Command(codec=codec.onestr,backend=True)
+    def findMedium(self,source):
+        assert self.backend
+        while True:
+            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+            if res:
+                self.backendFoundMedium(res[0][0])
+                break
+            else:
+                try:
+                    parse.parse(source)
+                    continue
+                except Exception as e:
+                    self.error(e)
+                    break
+    @Command(codec=codec.str,backend=True)
+    def create(self,title,description,source=None):
+        if source is not None:
+            s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
+            if s:
+                source = s[0][0]
+            else:
+                s = db.execute('WITH derp AS (INSERT INTO sources DEFAULT VALUES RETURNING id) INSERT INTO urisources (id,uri,code) SELECT id,$1,200 FROM derp RETURNING urisources.id',(source,))
+                source = s[0][0]
+            assert(source)
+
+            comic = db.execute('INSERT INTO comics (title,description,source) VALUES ($1,$2,$3) RETURNING id',(
+                title,
+                desc,
+                source))
+        else:
+           comic = db.execute('INSERT INTO comics (title,description) VALUES ($1,$2)',(
+               title,
+               desc))
+        self.comic = comic[0][0]
+        self.which = 0
+        self.created(self.comic,self.which)
+    @Command(codec=codecs.num,backend=False)
+    def created(self,comic,which):
+        pass #update stuff
+    def start(self):
+        # this is in the main (GUI) process
+        super().start()
+        try:
+            import pgi
+            pgi.install_as_gi()
+        except ImportError: pass
+        import gtkclipboardy as clipboardy
+        ...
+    def createComic(self,com,created):
+        from gi.repository import Gtk
+        def label(name,entry):
+            box = Gtk.HBox()
+            box.pack_start(Gtk.Label(name),True,True,0)
+            box.pack_start(entry,True,True,0)
+            return box
+        builder = Gtk.Builder()
+        message = "Please Give Comic {:x}'s Info".format(com)
+        win = Gtk.Dialog()
+        win.set_title(message)
+
+        titleEntry = Gtk.Entry()
+        descEntry = Gtk.Entry()
+        sourceEntry = Gtk.Entry()
+
+        action_area = win.get_internal_child(builder,"action_area")
+        vbox = Gtk.VBox()
+        action_area.pack_start(vbox,True,True,0)
+        vbox.pack_start(Gtk.Label(message),True,True,0)
+        vbox.pack_start(label('Title',titleEntry),True,True,0)
+        vbox.pack_start(label('Description',descEntry),True,True,0)
+        vbox.pack_start(label('Source',sourceEntry),True,True,0)
+        
+        def onActivate(e):
+            title = titleEntry.get_text()
+            desc = descEntry.get_text()
+            print('activateboo',title,desc)
+            if not title and desc: return
+
+            source = sourceEntry.get_text() or None
+            self.create(title,desc,source)
+            win.destroy()
+        titleEntry.connect('activate',onActivate)
+        descEntry.connect('activate',onActivate)
+        sourceEntry.connect('activate',onActivate)
+
+        win.show_all()
+    resume = None
+    def error(self,err):
+        dl = Gtk.MessageDialog(window,0,Gtk.MessageType.ERROR,Gtk.ButtonsType.OK_CANCEL,str(e))
+        def andle(dialog,response):
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                # XXX: assuming this got set previous to calling error!
+                self.resume()
+            else:
+                self.getting = False
+                Gtk.main_quit()
+        dl.connect('response',andle)
+        dl.show_all()
+    def clipboardYanked(self,source):
+        if self.getting:
+            print('getting',source)
+            return
+        if not self.gobutton.get_active():
+            self.getting = False
+            return
+        self.getting = True
+        try: self.foundMedium(mine(source))
+        except ValueError as e: pass
+        try:
+            source = parse.normalize(source)
+        except RuntimeError: pass
+        print('source?', source)
+        self.findMedium(cleanSource(source))
+    @Command(codec=codec.one.num)
+    def backendFoundMedium(self,medium):
+        # errrrr
+        self.foundMedium(medium)
+    def foundMedium(self,medium):
         print('yay',medium)
         try:
-            com = int(comic.get_text(),0x10)
-            pag = int(page.get_text(),0x10)
+            com = int(self.comic.get_text(),0x10)
+            pag = int(self.page.get_text(),0x10)
         except ValueError:
-            checkInitialized()
+            self.checkInitialized()
             return
-        def setPage():
-            global getting
-            db.execute('SELECT setComicPage($1,$2,$3)',(medium,com,pag))
-            page.set_text('{:x}'.format(pag+1))
-            getting = False
-            if pageSet: pageSet()
+        self.setPage(medium,com,pag)
+    @Command(codec=codec.num)
+    def setPage(self,medium,com,pag):
         with db.transaction():
             if db.execute('SELECT count(id) FROM comics WHERE id = $1',(com,))[0][0] == 0:
-                createComic(com,setPage)
+                self.createComic(com,setPage)
             else:
                 setPage()
 
     if isinstance(medium,int):
         haveMedium(medium)
     else:
-        try: return haveMedium(mine(medium))
-        except ValueError as e: pass
-        try:
-            medium = parse.normalize(medium)
-        except RuntimeError: pass
-        print('source?', medium)
-        def fail():
-            global getting
-            getting = False
-
-        def foundSource(res):
-            if res:
-                haveMedium(res)
-            else:
-                try: haveMedium(mine(medium))
-                except ValueError: return
-        findBySource(cleanSource(medium),foundSource,fail)
 
 def checkInitialized(e=None):
     com = comic.get_text()

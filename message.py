@@ -14,10 +14,11 @@ class OneToMany:
             # what below accomplishes
             message.push(0)
             return
-        res = []
+        res = bytearray()
         self.one.encode(res)
         message.push(len(res))
         message.extend(res)
+        del res[:]
         
 class codecs:
     class one:
@@ -25,7 +26,6 @@ class codecs:
             @staticmethod
             def decode(message):
                 s = bytes(*message).decode('utf-8')
-                del message[:]
                 return s
             @staticmethod
             def encode(message,s):
@@ -50,7 +50,8 @@ class codecs:
 class Command:
     codec = None
     command = None
-    def __init__(self,f,codec=None,codecs=None):
+    def __init__(self,f,codec=None,codecs=None,backend=False):
+        self.backend = backend
         self.f = f
         self.codecs = codecs
         if codec:
@@ -58,10 +59,8 @@ class Command:
         elif 'default' in codecs:
             self.codec = codecs.pop('default')
     def __get__(self):
-        if self.codecs is None:
-            return self.f
         return self
-    def __call__(self,message):
+    def remotely_called(self,commander,message):
         if self.codecs:
             args = []
             i = 0
@@ -74,10 +73,15 @@ class Command:
                     codec = self.codec
                 args.append(codec.decode(message))
                 i = i + 1
-            self.f(self,*args)
+            self.f(commander,*args)
         else:
-            self.f(self,message)
-    def __remotelycall__(self,proc,*args):
+            self.f(commander,message)
+    def __call__(self,commander,*args):
+        if commander.backend is self.backend:
+            # no state transition, just call it!
+            return self.f(commander,*args)
+        # send to the other side, which will call its self.f
+        # later.
         assert self.command is not None
         message = [0,0,self.command]
         for i,arg in enumerate(args):
@@ -98,9 +102,8 @@ class CommandEnabler(type):
     commands = []
     def __new__(cls, name, bases, attrs):
         for n,attr in attrs.items():
-            if hasattr(attr,'__remotelycall__'):
+            if isinstance(attr,Command):
                 attr.command = len(CommandEnabler.commands)
-                attrs[n] = attr.__remotelycall__
                 # all commands must have global IDs
                 # so no subclasses w/ separate lists!
                 cls.commands = CommandEnabler.commands
@@ -129,11 +132,13 @@ class MessageProcess(Process,metaclass=CommandEnabler):
             # python has odd splicing syntax
             del self.buffer[2:2+size]
 
-            self.commands[message.pop(0)](self,message)
+            self.commands[message.pop(0)].remotely_called(self,message)
+    backend = False
     def start(self):
         self.read.setblocking(False)
         super().start()
     def run(self):
+        self.backend = True
         self.read.setblocking(True)
         while True:
             self.check()
