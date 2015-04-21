@@ -1,28 +1,46 @@
-class OneToMany:
-    def __init__(self,one):
-        self.one = one
-    def decode(self,message):
+from multiprocessing import Process
+
+def oneToMany(one):
+    '''
+1: size
+n: {item}
+1: size
+n: {item}
+...
+'''
+    #fsck metaclasses
+    class many:
+        __doc__ = oneToMany.__doc__.format(item=one.__name__)
+        __name__ = 'many '+one.__name__
+    @staticmethod
+    def decode(message):
+        "decode a list of {item}".format(one.__name__)
         size = message.pop(0)
         if size == 0:
             return 0
         l = message[:size]
         del message[:size]
-        return self.one.decode(l)
-    def encode(self,message,v):
+        return one.decode(l)
+    @staticmethod
+    def encode(message,v):
+        "encode a list of {item}".format(one.__name__)
         if not v:
             # this actually isn't necessary, but is just a shortcut for
             # what below accomplishes
             message.push(0)
             return
         res = bytearray()
-        self.one.encode(res)
+        one.encode(res)
         message.push(len(res))
         message.extend(res)
         del res[:]
-        
+    help(many)
+    return many
 class codecs:
     class one:
+        'only one argument per message'
         class str:
+            'bytes of a utf-8 encoded string'
             @staticmethod
             def decode(message):
                 s = bytes(*message).decode('utf-8')
@@ -31,6 +49,7 @@ class codecs:
             def encode(message,s):
                 message[:] = s.encode('utf-8')
         class num:
+            'digits of a number in base 0x100'
             @staticmethod
             def decode(message):
                 sum = 0
@@ -44,8 +63,8 @@ class codecs:
                     message.append(m)
                     i = i >> 8
                 message.reverse()
-    str = OneToMany(one.str)
-    num = OneToMany(one.num)
+    str = oneToMany(one.str)
+    num = oneToMany(one.num)
     
 class Command:
     codec = None
@@ -108,9 +127,17 @@ class CommandEnabler(type):
                 # so no subclasses w/ separate lists!
                 cls.commands = CommandEnabler.commands
                 CommandEnabler.commands.append(attr)
-        return super(CommandEnabler, cls).__new__(cls, name, bases, newattrs)
+        return super(CommandEnabler, cls).__new__(cls, name, bases, attrs)
 
 class MessageProcess(Process,metaclass=CommandEnabler):
+    '''
+messages are:
+1: command index
+2: message size
+n: message
+
+codecs can encode/decode messages
+'''
     def __init__(self):
         super().__init__()
         self.read, self.write = Pipe(duplex=True)
@@ -128,7 +155,7 @@ class MessageProcess(Process,metaclass=CommandEnabler):
             size = size[0] << 8 + size[1]
             if size > len(self.buffer) - 2: return
 
-            message = self.buffer[2:2+size])
+            message = self.buffer[2:2+size]
             # python has odd splicing syntax
             del self.buffer[2:2+size]
 
