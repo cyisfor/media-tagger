@@ -203,6 +203,7 @@ class ComicMaker(MessageProcess):
         # TODO: optional arguments by passing None
         # so that you can pass medium around, w/out it being
         # in the protocol when you're not passing it around.
+        # ...probably better to just recalculate it?
         comic = self.comic.get_text()
         if not comic:
             return self.findMaxComic(medium)        
