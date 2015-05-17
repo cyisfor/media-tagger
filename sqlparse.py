@@ -64,9 +64,7 @@ def parse(inp):
         s = ''.join(value)
         value[:] = ()
         return s
-    tee = open('sofar.log','wt')
     def check(token,lit):
-        tee.write(lit)
         nonlocal inComment,eatingSpace,seekDolla
 
         if inComment:

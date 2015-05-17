@@ -40,6 +40,7 @@ def sourceId(source):
     if source == '': return None
     if source[0] == '/': return None
     id = db.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
+    raise RuntimeError("Ummmm",source,id)
     if id:
         return id[0][0]
     else:
@@ -80,6 +81,7 @@ def retryCreateImage(id):
     return image,type
 
 def getanId(sources,uniqueSource,download,name):
+    raise RuntimeError("unioueu",uniqueSource)
     if uniqueSource:
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
         if result:
@@ -188,7 +190,6 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
     else:
         sources = (primarySource,)+otherSources
     sources = [source for source in sources if source]
-    note.red('derp')
     with db.transaction():
         if media:
             mediaId = sourceId(media)

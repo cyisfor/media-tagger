@@ -34,9 +34,12 @@ def parse(primarySource):
     url = urllib.parse.urlparse(primarySource)
     doc = None
     for name,matcher,handlers in finders:
+        if 'normalize' in handlers:
+            normalize = handlers['normalize']
+        else:
+            normalize = lambda url: url
         if matcher(url):
-            if 'normalize' in handlers:
-                primarySource = handlers['normalize'](primarySource)
+            primarySource = normalize(primarySource)
             if 'json' in handlers:
                 derp = handlers['jsonuri'](primarySource)
             else:
@@ -95,7 +98,8 @@ def parse(primarySource):
                 note("PSource",primarySource)
                 note("Sources",sources)
             for media in medias:
-                derpSources = sources + [media.url]
+                media.url = normalize(media.url)
+                derpSources = [normalise(source) for source in sources] + [media.url]
                 media.url = urllib.parse.urljoin(primarySource,media.url)
                 if len(medias) == 1:
                     derpSource = primarySource
@@ -118,6 +122,7 @@ def parse(primarySource):
 #                        shutil.copyfileobj(inp,dest)
 #                        mtime = os.fstat(inp.fileno()).st_mtime
 #                    return datetime.datetime.fromtimestamp(mtime)
+                assert derpSource
                 try:
                     image,wasCreated = create.internet(download,media.url,tags,derpSource,derpSources,
                         name = name)

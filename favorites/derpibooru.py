@@ -11,16 +11,15 @@ def mystrip(s,chars):
 
 def extract(doc):
     gotImage = False
-    taglist = doc.find('div',{'class': 'tag-list'})
-    
-    for tag in taglist.findAll('span'):
-        if not 'tag' in tag.get('class',()): continue
-        namespace = tag.get('data-tag-namespace','general')
-        try: name = tag['data-tag-name-in-namespace']
-        except KeyError:
-            print('tag is',tag)
-            raise
-        yield Tag(namespace,name)
+    for taglist in doc.findAll('div',{'class': 'tagsauce'}):    
+        for tag in taglist.findAll('span'):
+            if not 'tag' in tag.get('class',()): continue
+            namespace = tag.get('data-tag-namespace','general')
+            try: name = tag['data-tag-name-in-namespace']
+            except KeyError:
+                print('tag is',tag)
+                raise
+            yield Tag(namespace,name)
     sauce = doc.find('span',{'class': 'source_url'})
     if sauce:
         yield Source(sauce.find('a')['href'])
