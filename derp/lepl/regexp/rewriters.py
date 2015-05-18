@@ -254,7 +254,7 @@ def make_clone(alphabet_, old_clone, regexp_type, use_from_start):
             ret = RegexpContainer.build(original, regexp, alphabet_, 
                                          regexp_type, use, add_reqd=add_reqd,
                                          wrapper=wrapper)
-            log.debug(fmt('hmm {}',ret))
+            raise RuntimeError(fmt('hmm {}',ret))
             return ret
         except Unsuitable:
             # combine contiguous matchers where possible

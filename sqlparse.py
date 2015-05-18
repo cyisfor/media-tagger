@@ -1,27 +1,121 @@
-
 import sys
 sys.path.insert(0,'derp')
 import lepl as l
+from itertools import chain
 
-alnum = '[a-zA-Z0-9_]+'
-space = l.Token('[ \t\n]+')
-newline = l.Token(l.Literal('\n'))
-dolla = l.Literal('$')
-dolla = l.Token(dolla&l.Regexp(alnum)[0:1]&dolla)
+import re
+rc = re.compile
+
+alnum = rc('(?u)\w')
+space = rc('(?u)\s')
+dolla = '$'
+parens = ('{}','()','[]')
+escape = '\\'
+
+class Stream:
+    pos = 0
+    c = None
+    cc = None
+    def __init__(self,inp):
+        self.inp = inp
+        c = inp.read(2)
+        if c is None:
+            self.next = lambda state,count: self.stop()
+        self.c = c[0]
+        self.cc = c[1]
+    def stop(self):
+        raise StopIteration
+    def key(self, state, other):
+        return HashKey(hash(state) ^ hash(self.c+self.cc) ^ hash(other) ^ hash(self.pos),(self.pos,self.c,self.cc,hash(other)))
+    def kargs(self, state, prefix='', kargs=none):
+        return {'pos': self.pos, 'c': self.c, 'cc': self.cc}
+    def debug(self,state):
+        return 'uh'
+    def empty(self):
+        return self.c is None
+    def len(self, state):
+        raise TypeError
+    def next(self, state, count=1):
+        start = state
+        if start != self.pos:
+            if start != self.inp.seek(start):
+                raise StopIteration
+        self.pos = start
+        tokens = [self.readToken() for i in range(count)]
+        new_stream = (self.pos, self)
+        return (tokens,new_stream)
+    def readToken(self):
+        obuf = []
+        while True:
+            if space.match(self.c):
+                if obuf: return Other(''.join(obuf))
+                while space.match(self.readNext()):
+                    pass
+                return Space(self.commit())
+            elif dolla == self.c:
+                if obuf: return Other(''.join(obuf))
+                while not dolla == self.readNext():
+                    pass
+                return Dolla(self.commit())
+            elif escape == self.c:
+                self.readNext()
+                return Escape(self.commit())
+            elif self.c in oparens:
+                if obuf: return Other(''.join(obuf))
+                return Oparen(self.commit())
+            elif self.c in cparens:
+                if obuf: return Other(''.join(obuf))
+                return Cparen(self.commit())
+            elif self.c in '-':
+                if self.c2 == self.readNext():
+                    if obuf: return Other(''.join(obuf))
+                    while self.readNext() != '\n':
+                        pass
+                    return Comment(self.commit())
+                else:
+                    obuf.extend('-',nc)
+            else:
+                obuf.append(self.c)
+                self.readNext()
+    def readNext(self):
+        # read the next character into self.c and return it.
+        # goes into self.c for backtracking
+        # self.cc for backtracking twice, for -- :(
+        self.buf.append(self.c)
+        self.c = self.cc
+        if not self.c:
+            raise StopIteration
+        if self.cc:
+            # don't read if not self.cc because that means EOF
+            self.cc = inp.read(1)
+        return self.c
+    def commit(self):
+        buf = ''.join(self.buf)
+        self.buf[:] = ()
+        return buf
+
+class TokenFactory:
+    def from_file(self,inp):
+        return Stream(inp)
+
+l.config.factory(TokenFactory())
+
+space = l.Token(space)
+dolla = l.Token(dolla)
+escape = l.Token(escape)
 parens = [(l.Token(l.Literal(s[0])),l.Token(l.Literal(s[1]))) for s in (
-    '{}','()','[]')]
-semicolon = l.Token(l.Literal(';'))
-escape = l.Token(l.Literal('\\')&l.Any())
-comment = l.Token(l.Literal('--')&l.Star(l.Any())&l.Literal('\n'))
+comment = l.Token(comment)
 name = l.Token(alnum)
 
 block = l.Delayed()
-derp = [l.Token(l.Any()[:])]
+derp = []
 for p in parens:
     derp.append(space[0:1] & p[0] & space[0:1] & block & space[0:1] & p[1] & space[0:1])
 block += l.Or(*derp)
-                
+
 stmt = name & space[0:1] & parens[0][0] & block & parens[0][1] & space[0:1]
+
+stmts = l.Star(stmt)
 
 #print(repr(stmt))
 
@@ -33,14 +127,14 @@ def testTokens():
     print(repr(dolla))
 
     print(dolla.match("$abcdefg$"))
-    
-    tokens = stmt.get_match_file()
+
+    tokens = stmts.get_match_file()
     for token in tokens(sys.stdin):
         print(token)
     raise SystemExit
 testTokens()
 
-tokens = stmt.get_match_file()
+tokens = stmts.get_match_file()
 
 REDO,IGNORE,COMMIT = range(3)
 
@@ -95,9 +189,9 @@ def parse(inp):
             if token is OPAREN or token is SPACE:
                 if token is OPAREN:
                     parens.append(lit)
-                return COMMIT                
+                return COMMIT
             return
-        
+
         if seekDolla:
             if token is DOLLA:
                 v = commitValue()
@@ -114,7 +208,7 @@ def parse(inp):
                 seekDolla = False
                 return REDO
             return
-        
+
         if quotes:
             if token is QUOTE:
                 if quotes and quotes[-1] == lit:
@@ -127,7 +221,7 @@ def parse(inp):
                 seekDolla = True
             # ignore braces inside quotes, even mismatched ones
             return
-        
+
         if parens:
             if token is OPAREN:
                 parens.append(lit)
@@ -151,7 +245,7 @@ def parse(inp):
             parens.append(lit)
             eatingSpace = True
             return IGNORE
-            
+
     name = None
     for token,lit in tokens(inp):
         action = check(token,lit)
@@ -160,7 +254,7 @@ def parse(inp):
         if action is COMMIT:
             eatingSpace = True
             if name is None:
-                
+
                 name = commitValue()
                 gettingName = False
             else:
