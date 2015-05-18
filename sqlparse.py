@@ -1,6 +1,7 @@
 import sys
 sys.path.insert(0,'derp')
 import lepl as l
+import lepl.core.config
 from itertools import chain
 
 import re
@@ -11,6 +12,20 @@ space = rc('(?u)\s')
 dolla = '$'
 parens = ('{}','()','[]')
 escape = '\\'
+
+oparens = set(p[0] for p in parens)
+cparens = set(p[1] for p in parens)
+
+class Thingy(str):
+    def __repr__(self):
+        return '<'+self.__class__.__name__+' '+repr(str(self))+'>'
+
+class Space(Thingy): pass
+class Other(Thingy): pass
+class Dolla(Thingy): pass
+class Oparen(Thingy): pass
+class Cparen(Thingy): pass
+class Escape(Thingy): pass
 
 class Stream:
     pos = 0
@@ -23,11 +38,12 @@ class Stream:
             self.next = lambda state,count: self.stop()
         self.c = c[0]
         self.cc = c[1]
+        self.buf = []
     def stop(self):
         raise StopIteration
     def key(self, state, other):
         return HashKey(hash(state) ^ hash(self.c+self.cc) ^ hash(other) ^ hash(self.pos),(self.pos,self.c,self.cc,hash(other)))
-    def kargs(self, state, prefix='', kargs=none):
+    def kargs(self, state, prefix='', kargs=None):
         return {'pos': self.pos, 'c': self.c, 'cc': self.cc}
     def debug(self,state):
         return 'uh'
@@ -45,15 +61,14 @@ class Stream:
         new_stream = (self.pos, self)
         return (tokens,new_stream)
     def readToken(self):
-        obuf = []
         while True:
             if space.match(self.c):
-                if obuf: return Other(''.join(obuf))
+                if self.buf: return Other(self.commit())
                 while space.match(self.readNext()):
                     pass
                 return Space(self.commit())
             elif dolla == self.c:
-                if obuf: return Other(''.join(obuf))
+                if self.buf: return Other(self.commit())
                 while not dolla == self.readNext():
                     pass
                 return Dolla(self.commit())
@@ -61,21 +76,22 @@ class Stream:
                 self.readNext()
                 return Escape(self.commit())
             elif self.c in oparens:
-                if obuf: return Other(''.join(obuf))
+                if self.buf: return Other(self.commit())
+                self.readNext()
                 return Oparen(self.commit())
             elif self.c in cparens:
                 if obuf: return Other(''.join(obuf))
+                self.readNext()
                 return Cparen(self.commit())
             elif self.c in '-':
                 if self.c2 == self.readNext():
-                    if obuf: return Other(''.join(obuf))
+                    if self.buf: return Other(self.commit())
                     while self.readNext() != '\n':
                         pass
                     return Comment(self.commit())
                 else:
-                    obuf.extend('-',nc)
+                    self.buf.extend('-',nc)
             else:
-                obuf.append(self.c)
                 self.readNext()
     def readNext(self):
         # read the next character into self.c and return it.
@@ -87,7 +103,7 @@ class Stream:
             raise StopIteration
         if self.cc:
             # don't read if not self.cc because that means EOF
-            self.cc = inp.read(1)
+            self.cc = self.inp.read(1)
         return self.c
     def commit(self):
         buf = ''.join(self.buf)
@@ -98,12 +114,24 @@ class TokenFactory:
     def from_file(self,inp):
         return Stream(inp)
 
-l.config.factory(TokenFactory())
+def derp():
+    derp = Stream(sys.stdin)
+    pos = 0
+    while True:
+        try:
+            stuff,(pos,derp) = derp.next(pos,3)
+            print(stuff,pos,derp)
+        except StopIteration: break
+derp()
+
+#lepl.config.factory(TokenFactory())
+
+
 
 space = l.Token(space)
 dolla = l.Token(dolla)
 escape = l.Token(escape)
-parens = [(l.Token(l.Literal(s[0])),l.Token(l.Literal(s[1]))) for s in (
+#parens = [(l.Token(l.Literal(s[0])),l.Token(l.Literal(s[1]))) for s in (
 comment = l.Token(comment)
 name = l.Token(alnum)
 
