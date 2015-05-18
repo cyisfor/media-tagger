@@ -15,79 +15,16 @@ name = l.Token(alnum)
 
 block = l.Delayed()
 block += Or(*((space[0:1]&p[0]&space[0:1]&block&space[0:1]&+p[1]&space[0:1]) for p in parens))
-stmt = name & space[0:1] & parens[0] & block & parens[1]
-QUOTE,OPAREN,CPAREN,ESCAPE,SPACE,STUFF = range(6)
-NL = '\n'
-COMMENT = '--'
-DOLLA = '$'
-SEMICOLON = ';'
-
-parenfor = {
-    '}': '{',
-    ')': '(',
-    ']': '[',
-    }
+stmt = name & space[0:1] & parens[0] & block & parens[1] & space[0:1]
 
 def tokens(inp):
-    buf = ''
-    last = STUFF
-    c = inp.read(1)
-    if not c: return
-    while True:
-        gotit = None
-        if c in {' ','\t','\n'}:
-            gotit = SPACE,c
-        if c == '\\':
-            gotit = ESCAPE,inp.read(1)
-        elif c in {'{','(','['}:
-            gotit = OPAREN,c
-        elif c in {'}',')',']'}:
-            gotit = CPAREN,c
-        elif c in {'"',"'"}:
-            gotit = QUOTE,c
-        elif c == "$":
-            gotit = DOLLA,DOLLA
-        elif c == '-':
-            nc = inp.read(1)
-            if not nc: break
-            if nc == '-':
-                gotit = COMMENT,COMMENT
-            else:
-                buf += c + nc
-        elif c == '\n':
-            gotit = NL,NL
-        else:
-            buf += c
-        
-        if not gotit:
-            c = inp.read(1)
-        else:
-            if buf:
-                yield STUFF,buf
-                buf = ''
-            mode,c = gotit
-            if mode == SPACE:
-                buf.append(c)
-                while True:
-                    c = inp.read(1)
-                    if c in {' ','\t','\n'}:
-                        buf.append(c)
-                    else:
-                        yield SPACE,buf
-                        buf = ''
-                        break
-            elif mode == DOLLA:
-                while True:
-                    c = inp.read(1)
-                    if c == DOLLA:
-                        yield DOLLA,buf
-                        buf = ''
-                        break
-                    else:
-                        buf.append(c)
-            else:
-                yield gotit
-                c = inp.read(1)
+    return stmt.get_parse_file(inp)
+
+def testTokens():
+    for token in tokens(sys.stdin):
+        print(token)
+    raise SystemExit
+testTokens()
 
 
 REDO,IGNORE,COMMIT = range(3)
