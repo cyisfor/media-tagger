@@ -27,6 +27,10 @@ class Oparen(Thingy): pass
 class Cparen(Thingy): pass
 class Escape(Thingy): pass
 
+class GotToken(Exception):
+    def __init__(self,token):
+        self.token = token
+
 class Stream:
     pos = 0
     c = None
@@ -60,37 +64,55 @@ class Stream:
         tokens = [self.readToken() for i in range(count)]
         new_stream = (self.pos, self)
         return (tokens,new_stream)
+    nextToken = None
     def readToken(self):
+        try:
+            return self.readTokenDerp()
+        except GotToken as e:
+            return e.token
+    def readTokenDerp(self):
+        if self.nextToken:
+            nt = self.nextToken
+            delete self.nextToken
+            return nt
+        def check(res):
+            def decorator(f):
+                if res:
+                    if self.buf:
+                        nt = Other(self.commit())
+                        self.nextToken = f()(self.commit())
+                        raise GotToken(nt)
+                    else:
+                        raise GotToken(f()(self.commit()))
+            return decorator
         while True:
-            if space.match(self.c):
-                if self.buf: return Other(self.commit())
+            @check(space.match(self.c))
+            def eat():
                 while space.match(self.readNext()):
                     pass
-                return Space(self.commit())
-            elif dolla == self.c:
-                if self.buf: return Other(self.commit())
+                return Space
+            @check(dolla == self.c)
+            def eat():
                 while not dolla == self.readNext():
                     pass
-                return Dolla(self.commit())
-            elif escape == self.c:
+                return Dolla
+            @check(escape == self.c)
+            def eat():
                 self.readNext()
-                return Escape(self.commit())
-            elif self.c in oparens:
-                if self.buf: return Other(self.commit())
+                return Escape
+            @check(self.c in oparens)
+            def eat():
                 self.readNext()
-                return Oparen(self.commit())
-            elif self.c in cparens:
-                if obuf: return Other(''.join(obuf))
+                return Oparen
+            @check(self.c in cparens)
+            def eat():
                 self.readNext()
-                return Cparen(self.commit())
-            elif self.c in '-':
-                if self.c2 == self.readNext():
-                    if self.buf: return Other(self.commit())
-                    while self.readNext() != '\n':
-                        pass
-                    return Comment(self.commit())
-                else:
-                    self.buf.extend('-',nc)
+                return Cparen
+            @check(self.c == '-' and self.cc == '-')
+            def eat():
+                while self.readNext() != '\n':
+                    pass
+                return Comment
             else:
                 self.readNext()
     def readNext(self):
@@ -123,6 +145,7 @@ def derp():
             print(stuff,pos,derp)
         except StopIteration: break
 derp()
+raise SystemExit
 
 #lepl.config.factory(TokenFactory())
 
