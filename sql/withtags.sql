@@ -5,18 +5,22 @@ complextagindex {
 CREATE INDEX bycomplex ON tags(complexity)
 }
 implications {
-CREATE FUNCTION implications(_tags bigint[]) RETURNS SETOF bigint AS $$
+CREATE OR REPLACE FUNCTION implications(_tags bigint[]) RETURNS SETOF bigint AS $$
+DECLARE
+_complexity int;
+_tag bigint;
+_neighbor bigint;
 BEGIN    
-    FOREACH _tag IN ARRAY tags
+    FOREACH _tag IN ARRAY _tags
     LOOP
-     _complexity := SELECT complexity FROM tags WHERE id = _tag
+     SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
      IF FOUND THEN
-        RETURN NEXT _tag
-        RETURN QUERY SELECT tag FROM implications(
+        RETURN NEXT _tag;
+        RETURN QUERY SELECT implications FROM implications(
                array(SELECT unnest(neighbors) FROM things
-                            INNER JOIN tags ON tags.id = _neighbor
+                            INNER JOIN tags ON neighbors @> ARRAY[tags.id]
                             WHERE things.id = _tag
-                            AND tags.complexity >  _complexity))
+                            AND tags.complexity >  _complexity));
      END IF;
    END LOOP;
 END
@@ -24,7 +28,7 @@ $$
 LANGUAGE 'plpgsql'
 }
 wanted {
-wanted(tags) AS (SELECT array(implications(%(tags)s::bigint[])))
+wanted(tag) AS (SELECT implications FROM implications(%(tags)s::bigint[]))
 }
 unwanted {
 unwanted(id) AS (
@@ -34,32 +38,32 @@ unwanted(id) AS (
             %(notWanted)s
         UNION
         SELECT id
-            FROM unnest(%%(negatags)s::bigint[]) AS id);
+            FROM unnest(%%(negatags)s::bigint[]) AS id)
 }
 
 notWanted {
-AND NOT things.id = ANY(%(tags)s::bigint[]);
+AND NOT things.id = ANY(%(tags)s::bigint[])
 }
 
 positiveClause {
-media INNER JOIN things ON things.id = media.id;
+media INNER JOIN things ON things.id = media.id
 }
 
 positiveWhere {
-    WHERE (SELECT every(neighbors && wanted.tags) FROM wanted);
+    WHERE neighbors && array(select wanted.tag from wanted)
 }
 
 negativeClause {
-    NOT neighbors && array(select id from unwanted %(anyWanted)s);
+    NOT neighbors && array(select id from unwanted %(anyWanted)s)
 }
 
 anyWanted {
-    where id != ANY(array(SELECT unnest(wanted.tags) FROM wanted));
+    where id NOT IN (select tag from wanted)
 }
 
 ordering {
     ORDER BY media.added DESC
-    OFFSET %(offset)s LIMIT %(limit)s;
+    OFFSET %(offset)s LIMIT %(limit)s
 }
 
 main {
@@ -83,5 +87,5 @@ FROM
         %(negativeClause)s
     %(ordering)s) 
     GROUP BY tags.id
-    LIMIT %%(taglimit)s::int) AS derp ORDER BY derp.name;
+    LIMIT %%(taglimit)s::int) AS derp ORDER BY derp.name
 }

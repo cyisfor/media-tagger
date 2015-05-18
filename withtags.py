@@ -6,7 +6,7 @@ from tags import Taglist
 
 import os
 
-explain = True
+explain = False
 
 stmts = {}
 import sqlparse
@@ -23,11 +23,11 @@ def derp():
 #derp()
 
 v = Versioner('tag')
-@v(0)
+@v(1)
 def setup():
     db.execute(stmts['complextagalter'])
     db.execute(stmts['complextagindex'])
-
+db.execute(stmts['implications'])
 class scalartuple(tuple):
     def __add__(self,other):
         if not isinstance(other,tuple):

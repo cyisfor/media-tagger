@@ -166,7 +166,7 @@ def parse(inp):
             cur[:] = ()
     except StopIteration:
         return results
-def derp()
+def derp():
     for k,v in parse(sys.stdin).items():
         print('um',k)
         print(repr(v))
@@ -174,7 +174,7 @@ def derp()
 
 if __name__ == '__main__':
     import sys
-    for name,value in parse(sys.stdin):
+    for name,value in parse(sys.stdin).items():
         print(name)
         print('-'*60)
         print(value)

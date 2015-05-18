@@ -4,7 +4,7 @@ import db
 
 import hashlib,base64
 
-db.setup(*db.source("sql/resultCache.sql"))
+db.setup(*db.source("sql/resultCache.sql",False))
 
 def encache(query,args,docache=True):
     #db.c.verbose = True
