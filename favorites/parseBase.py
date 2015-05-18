@@ -99,7 +99,7 @@ def parse(primarySource):
                 note("Sources",sources)
             for media in medias:
                 media.url = normalize(media.url)
-                derpSources = [normalise(source) for source in sources] + [media.url]
+                derpSources = [normalize(source) for source in sources] + [media.url]
                 media.url = urllib.parse.urljoin(primarySource,media.url)
                 if len(medias) == 1:
                     derpSource = primarySource

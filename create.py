@@ -80,17 +80,25 @@ def retryCreateImage(id):
         createImageDBEntry(id,image)
     return image,type
 
-def getanId(sources,uniqueSource,download,name):
-    raise RuntimeError("unioueu",uniqueSource)
-    if uniqueSource:
-        result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource,)) if uniqueSource else False
+class Source:
+    uri = None
+    id = None
+    def __init__(self,uri):
+        self.uri = uri
+    def lookup(self):
+        if self.id is None:
+            self.id = sourceId(self.uri)
+        return self.id
+
+def getanId(sources,uniqueSources,download,name):
+    for uniqueSource in uniqueSources:
+        result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
         if result:
-            yield result[0][0],False
+            yield result[0][0], False
             return
     md5 = None
-    for source in sources:
-        if isinstance(source,int): continue
-        m = findMD5.search(source)
+    for i,source in enumerate(sources):
+        m = findMD5.search(source.uri)
         if m:
             md5 = m.group(0)
             result = db.execute("SELECT id FROM media WHERE md5 = $1",
@@ -98,7 +106,6 @@ def getanId(sources,uniqueSource,download,name):
             if result:
                 yield result[0][0],False
                 return
-
     note("downloading to get an id")
     with filedb.mediaBecomer() as data:
         created = yield download(data)
@@ -151,7 +158,7 @@ def getanId(sources,uniqueSource,download,name):
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
             note("New {} with id {:x} ({})".format(type,id,name))
-            sources = set([sourceId(source) for source in sources])
+            sources = set([source.lookup() for source in sources])
             db.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
                 id,name,digest,created,
                 os.fstat(data.fileno()).st_size,type,md5,sources))
@@ -172,7 +179,7 @@ tagsModule = tags
 def update(id,sources,tags,name):
     donetags = []
     with db.transaction():
-        db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",(sources,id,name))
+        db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([sources.lookup() for source in sources],id,name))
         
     tagsModule.tag(id,tags)
 
@@ -184,18 +191,20 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             name = name[1]
         else:
             name = name[0]
+    uniqueSources = set()
+    if media and '://' in media:
+        media = Source(media)
+        uniqueSources.add(media)
+    if primarySource and '://' in primarySource:
+        primarySource = Source(primarySource)
+        uniqueSources.add(primarySource)
+    if not uniqueSources:
+        raise RuntimeError("No unique sources in this attempt to create?")
     note('name is',name)
-    if media and primarySource and '://' in media and '://' in primarySource:
-        sources = set([primarySource,media] + [source for source in otherSources])
-    else:
-        sources = (primarySource,)+otherSources
-    sources = [source for source in sources if source]
+    otherSources = set(Source(source) for source in otherSources)
+    sources = uniqueSources.union(otherSources)
     with db.transaction():
-        if media:
-            mediaId = sourceId(media)
-        else:
-            mediaId = None
-        g = getanId(sources,mediaId,download,name)
+        g = getanId(sources,uniqueSources,download,name)
         result = None
         while True:
             try:
