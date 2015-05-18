@@ -7,18 +7,6 @@ import filedb
 import collections
 import sys,os
 
-stmts = {}
-stmts = db.source('sql/withtags.sql')
-db.setup(*db.source('sql/connect.sql',False))
-
-def derp():
-    print('-'*60)
-    for stmt in stmts.items():
-        print(stmt)
-        print('-'*60)
-    raise SystemExit
-
-
 def disconnect(thing,nega):
     if thing and nega:
         note('removing',thing,nega)

@@ -1,7 +1,7 @@
-complextag {
+complextagalter {
 ALTER TABLE tags ADD COLUMN complexity int DEFAULT 0 NOT NULL
 }
-index {
+complextagindex {
 CREATE INDEX bycomplex ON tags(complexity)
 }
 implications {

@@ -1,19 +1,30 @@
 import db
+from versions import Versioner
 import resultCache
 from itertools import count
-from tags import Taglist,stmts
+from tags import Taglist
 
 import os
 
-explain = False
+explain = True
 
-# for n,v in stmts.items():
-#     print(n)
-#     print('-'*60)
-#     print(v)
-#     print('-'*60)
-# raise SystemExit
+stmts = {}
+stmts = db.source('sql/withtags.sql')
+db.setup(*db.source('sql/connect.sql',False))
 
+def derp():
+    print('-'*60)
+    for stmt in stmts.items():
+        print(stmt)
+        print('-'*60)
+    raise SystemExit
+derp()
+
+v = Versioner('tag')
+@v(0)
+def setup():
+    db.execute(stmts['complextagalter'])
+    db.execute(stmts['complextagindex'])
 
 class scalartuple(tuple):
     def __add__(self,other):
@@ -31,7 +42,6 @@ def nonumbers(f):
     def wrapper(*k,**a):
         return filter(f(*k,**a))
     return wrapper
-        
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt = scalartuple()
@@ -109,6 +119,8 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 
 def test():
-    for tag in searchForTags():
+    import tags
+    for tag in searchForTags(tags.parse("apple, smile, -evil")):
         print(tag)
-#test()
+if __name__ == '__main__':
+    test()

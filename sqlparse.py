@@ -51,6 +51,8 @@ REDO,IGNORE,COMMIT = range(3)
 
 # syntax name { ... } name { ... } yields name,statement pairs
 
+debugging = False
+
 def parse(inp):
     inComment = False
     gettingName = True
@@ -138,6 +140,8 @@ def parse(inp):
             
     name = None
     for token,lit in tokens(inp):
+        if debugging:
+            print(token,lit)
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
