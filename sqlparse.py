@@ -11,6 +11,8 @@ dolla = '$'
 parens = ('{}','()','[]')
 escape = '\\'
 
+matchparen = dict((p[1],p[0]) for p in parens)
+
 oparens = set(p[0] for p in parens)
 cparens = set(p[1] for p in parens)
 
@@ -20,10 +22,11 @@ class Thingy(str):
 
 class Space(Thingy): pass
 class Other(Thingy): pass
-class Dolla(Thingy): pass
+class Quote(Thingy): pass
 class Oparen(Thingy): pass
 class Cparen(Thingy): pass
 class Escape(Thingy): pass
+class Name(Thingy): pass
 
 class GotToken(Exception):
     def __init__(self,token):
@@ -43,11 +46,13 @@ class Tokens:
         self.buf = []
     def stop(self):
         raise StopIteration
+    def __iter__(self): return self
     def __next__(self):
         try:
             return self.readToken()
         except GotToken as e:
             return e.token
+    nextToken = None
     def readToken(self):
         if self.nextToken:
             nt = self.nextToken
@@ -73,7 +78,15 @@ class Tokens:
             def eat():                
                 while alnum.match(self.readNext()):
                     pass
-                return Dolla
+                return Quote
+            @check('"' == self.c)
+            def eat():
+                self.readNext()
+                return Quote
+            @check("'" == self.c)
+            def eat():
+                self.readNext()
+                return Quote
             @check(escape == self.c)
             def eat():
                 self.readNext()
@@ -91,6 +104,11 @@ class Tokens:
                 while self.readNext() != '\n':
                     pass
                 return Comment
+            @check(alnum.match(self.c))
+            def eat():
+                while alnum.match(self.readNext()):
+                    pass
+                return Name
             self.readNext()
     def readNext(self):
         # read the next character into self.c and return it.
@@ -109,10 +127,35 @@ class Tokens:
         self.buf[:] = ()
         return buf
 
+def expect(what,tok):
+    assert isinstance(tok,what)
+    return tok
+
 def derp():
-    for token in Tokens(sys.stdin):
-        print(token)
+    tokens = Tokens(sys.stdin)
+    parens = []
+    quotes = []
+    while True:
+        tok = None
+        for tok in tokens:
+            if not isinstance(tok,Space): break
+        name = expect(Name,tok)
+        for tok in tokens:
+            if isinstance(tok,Oparen):
+                parens.append(tok)
+                break
+            expect(Space,tok)
+        for tok in tokens:
+            print('parens',len(parens),parens[-1],type(tok),tok)
+            if isinstance(tok,Oparen):
+                parens.append(tok)
+            elif isinstance(tok,Cparen) and matchparen[tok] == parens[-1]:
+                parens.pop(-1)
+                break
+        
+        print('got',name)
 derp()
+raise SystemExit
 
 lepl.core.config.factory(TokenFactory())
 raise SystemExit()
