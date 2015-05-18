@@ -1,7 +1,5 @@
 import sys
 sys.path.insert(0,'derp')
-import lepl as l
-import lepl.core.config
 from itertools import chain
 
 import re
@@ -31,7 +29,7 @@ class GotToken(Exception):
     def __init__(self,token):
         self.token = token
 
-class Stream:
+class Tokens:
     pos = 0
     c = None
     cc = None
@@ -45,35 +43,15 @@ class Stream:
         self.buf = []
     def stop(self):
         raise StopIteration
-    def key(self, state, other):
-        return HashKey(hash(state) ^ hash(self.c+self.cc) ^ hash(other) ^ hash(self.pos),(self.pos,self.c,self.cc,hash(other)))
-    def kargs(self, state, prefix='', kargs=None):
-        return {'pos': self.pos, 'c': self.c, 'cc': self.cc}
-    def debug(self,state):
-        return 'uh'
-    def empty(self):
-        return self.c is None
-    def len(self, state):
-        raise TypeError
-    def next(self, state, count=1):
-        start = state
-        if start != self.pos:
-            if start != self.inp.seek(start):
-                raise StopIteration
-        self.pos = start
-        tokens = [self.readToken() for i in range(count)]
-        new_stream = (self.pos, self)
-        return (tokens,new_stream)
-    nextToken = None
-    def readToken(self):
+    def __next__(self):
         try:
-            return self.readTokenDerp()
+            return self.readToken()
         except GotToken as e:
             return e.token
-    def readTokenDerp(self):
+    def readToken(self):
         if self.nextToken:
             nt = self.nextToken
-            delete self.nextToken
+            del self.nextToken
             return nt
         def check(res):
             def decorator(f):
@@ -92,8 +70,8 @@ class Stream:
                     pass
                 return Space
             @check(dolla == self.c)
-            def eat():
-                while not dolla == self.readNext():
+            def eat():                
+                while alnum.match(self.readNext()):
                     pass
                 return Dolla
             @check(escape == self.c)
@@ -113,44 +91,31 @@ class Stream:
                 while self.readNext() != '\n':
                     pass
                 return Comment
-            else:
-                self.readNext()
+            self.readNext()
     def readNext(self):
         # read the next character into self.c and return it.
         # goes into self.c for backtracking
         # self.cc for backtracking twice, for -- :(
+        if self.cc:
+            # don't read if not self.cc because that means EOF
+            self.cc = self.inp.read(1)
         self.buf.append(self.c)
         self.c = self.cc
         if not self.c:
             raise StopIteration
-        if self.cc:
-            # don't read if not self.cc because that means EOF
-            self.cc = self.inp.read(1)
         return self.c
     def commit(self):
         buf = ''.join(self.buf)
         self.buf[:] = ()
         return buf
 
-class TokenFactory:
-    def from_file(self,inp):
-        return Stream(inp)
-
 def derp():
-    derp = Stream(sys.stdin)
-    pos = 0
-    while True:
-        try:
-            stuff,(pos,derp) = derp.next(pos,3)
-            print(stuff,pos,derp)
-        except StopIteration: break
+    for token in Tokens(sys.stdin):
+        print(token)
 derp()
-raise SystemExit
 
-#lepl.config.factory(TokenFactory())
-
-
-
+lepl.core.config.factory(TokenFactory())
+raise SystemExit()
 space = l.Token(space)
 dolla = l.Token(dolla)
 escape = l.Token(escape)
