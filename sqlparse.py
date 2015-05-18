@@ -1,3 +1,21 @@
+import lepl as l
+import strings
+
+alnum = l.Regexp('(?u)\w+')
+spaces = l.Regexp('(?u)\s+')
+newline = l.Token(l.Literal('\n'))
+dolla = l.Literal('$')
+dolla = l.Token(dolla&alnum[0:1]&dolla)
+parens = [(l.Token(s[0]),l.Token(s[1])) for s in (
+    '()','[]','{}')]
+semicolon = l.Token(l.Literal(';'))
+escape = l.Token(l.Literal('\\')&l.Any())
+comment = l.Token(l.Literal('--')&l.Star(l.Any())&l.Literal('\n'))
+name = l.Token(alnum)
+
+block = l.Delayed()
+block += Or(*((space[0:1]&p[0]&space[0:1]&block&space[0:1]&+p[1]&space[0:1]) for p in parens))
+stmt = name & space[0:1] & parens[0] & block & parens[1]
 QUOTE,OPAREN,CPAREN,ESCAPE,SPACE,STUFF = range(6)
 NL = '\n'
 COMMENT = '--'
@@ -12,13 +30,14 @@ parenfor = {
 
 def tokens(inp):
     buf = ''
+    last = STUFF
+    c = inp.read(1)
+    if not c: return
     while True:
-        c = inp.read(1)
-        if not c: break
         gotit = None
-        if c in {' ','\t'}:
+        if c in {' ','\t','\n'}:
             gotit = SPACE,c
-        elif c == '\\':
+        if c == '\\':
             gotit = ESCAPE,inp.read(1)
         elif c in {'{','(','['}:
             gotit = OPAREN,c
@@ -39,12 +58,36 @@ def tokens(inp):
             gotit = NL,NL
         else:
             buf += c
-            
-        if gotit:
+        
+        if not gotit:
+            c = inp.read(1)
+        else:
             if buf:
                 yield STUFF,buf
                 buf = ''
-            yield gotit
+            mode,c = gotit
+            if mode == SPACE:
+                buf.append(c)
+                while True:
+                    c = inp.read(1)
+                    if c in {' ','\t','\n'}:
+                        buf.append(c)
+                    else:
+                        yield SPACE,buf
+                        buf = ''
+                        break
+            elif mode == DOLLA:
+                while True:
+                    c = inp.read(1)
+                    if c == DOLLA:
+                        yield DOLLA,buf
+                        buf = ''
+                        break
+                    else:
+                        buf.append(c)
+            else:
+                yield gotit
+                c = inp.read(1)
 
 
 REDO,IGNORE,COMMIT = range(3)
@@ -52,6 +95,15 @@ REDO,IGNORE,COMMIT = range(3)
 # syntax name { ... } name { ... } yields name,statement pairs
 
 debugging = False
+
+def derpyderp(f):
+    def wrapper(token,lit):
+        action = f(token,lit)
+        if debugging:
+            print(token,action,repr(lit))
+        return action
+    return wrapper
+
 
 def parse(inp):
     inComment = False
@@ -61,14 +113,17 @@ def parse(inp):
     parens = []
     quotes = []
     value = []
+    beforeDolla = []
     def commitValue():
         nonlocal value
         s = ''.join(value)
         value[:] = ()
         return s
+    @derpyderp
     def check(token,lit):
-        nonlocal inComment,eatingSpace,seekDolla
-
+        nonlocal inComment,eatingSpace,seekDolla, beforeDolla
+        if debugging:
+            print('incom',inComment,eatingSpace,seekDolla,quotes,parens)
         if inComment:
             if token is NL:
                 inComment = False
@@ -98,6 +153,9 @@ def parse(inp):
                     quotes.pop()
                 else:
                     quotes.append(v)
+                if beforeDolla:
+                    value[:0] = beforeDolla
+                    value.append(v)
                 seekDolla = False
             elif token is not STUFF:
                 # $1 is valid, despite $1___derp$ being a dollar quote...
@@ -112,6 +170,8 @@ def parse(inp):
                 else:
                     quotes.append(lit)
             elif token is DOLLA:
+                beforeDolla[:] = value
+                value[:] = ()
                 seekDolla = True
             # ignore braces inside quotes, even mismatched ones
             return
@@ -130,7 +190,9 @@ def parse(inp):
             elif token is COMMENT:
                 inComment = True
             elif token is DOLLA:
-                seekDolla = True                
+                beforeDolla[:] = value
+                value[:] = ()
+                seekDolla = True
             return
 
         if token is OPAREN:
@@ -140,14 +202,13 @@ def parse(inp):
             
     name = None
     for token,lit in tokens(inp):
-        if debugging:
-            print(token,lit)
         action = check(token,lit)
         while action is REDO:
             action = check(token,lit)
         if action is COMMIT:
             eatingSpace = True
             if name is None:
+                
                 name = commitValue()
                 gettingName = False
             else:

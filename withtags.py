@@ -9,6 +9,8 @@ import os
 explain = True
 
 stmts = {}
+import sqlparse
+sqlparse.debugging = True
 stmts = db.source('sql/withtags.sql')
 db.setup(*db.source('sql/connect.sql',False))
 
@@ -18,7 +20,7 @@ def derp():
         print(stmt)
         print('-'*60)
     raise SystemExit
-derp()
+#derp()
 
 v = Versioner('tag')
 @v(0)
