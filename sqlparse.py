@@ -131,197 +131,46 @@ def expect(what,tok):
     assert isinstance(tok,what)
     return tok
 
-def derp():
-    tokens = Tokens(sys.stdin)
-    parens = []
-    quotes = []
-    while True:
-        tok = None
-        for tok in tokens:
-            if not isinstance(tok,Space): break
-        name = expect(Name,tok)
-        for tok in tokens:
-            if isinstance(tok,Oparen):
-                parens.append(tok)
-                break
-            expect(Space,tok)
-        for tok in tokens:
-            print('parens',len(parens),parens[-1],type(tok),tok)
-            if isinstance(tok,Oparen):
-                parens.append(tok)
-            elif isinstance(tok,Cparen) and matchparen[tok] == parens[-1]:
-                parens.pop(-1)
-                break
-        
-        print('got',name)
-derp()
-raise SystemExit
-
-lepl.core.config.factory(TokenFactory())
-raise SystemExit()
-space = l.Token(space)
-dolla = l.Token(dolla)
-escape = l.Token(escape)
-#parens = [(l.Token(l.Literal(s[0])),l.Token(l.Literal(s[1]))) for s in (
-comment = l.Token(comment)
-name = l.Token(alnum)
-
-block = l.Delayed()
-derp = []
-for p in parens:
-    derp.append(space[0:1] & p[0] & space[0:1] & block & space[0:1] & p[1] & space[0:1])
-block += l.Or(*derp)
-
-stmt = name & space[0:1] & parens[0][0] & block & parens[0][1] & space[0:1]
-
-stmts = l.Star(stmt)
-
-#print(repr(stmt))
-
-def testTokens():
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    logging.debug("test")
-    import sys
-    print(repr(dolla))
-
-    print(dolla.match("$abcdefg$"))
-
-    tokens = stmts.get_match_file()
-    for token in tokens(sys.stdin):
-        print(token)
-    raise SystemExit
-testTokens()
-
-tokens = stmts.get_match_file()
-
-REDO,IGNORE,COMMIT = range(3)
-
-# syntax name { ... } name { ... } yields name,statement pairs
-
-debugging = False
-
-def derpyderp(f):
-    def wrapper(token,lit):
-        action = f(token,lit)
-        if debugging:
-            print(token,action,repr(lit))
-        return action
-    return wrapper
-
-
 def parse(inp):
-    inComment = False
-    gettingName = True
-    eatingSpace = True
-    seekDolla = False
+    tokens = Tokens(inp)
     parens = []
     quotes = []
-    value = []
-    beforeDolla = []
-    def commitValue():
-        nonlocal value
-        s = ''.join(value)
-        value[:] = ()
-        return s
-    @derpyderp
-    def check(token,lit):
-        nonlocal inComment,eatingSpace,seekDolla, beforeDolla
-        if debugging:
-            print('incom',inComment,eatingSpace,seekDolla,quotes,parens)
-        if inComment:
-            if token is NL:
-                inComment = False
-            if eatingSpace: return IGNORE
-            return
-
-        if eatingSpace:
-            if token is COMMENT:
-                inComment = True
-            elif token not in {SPACE,NL}:
-                eatingSpace = False
-                inComment = False
-                return REDO
-            return IGNORE
-
-        if gettingName:
-            if token is OPAREN or token is SPACE:
-                if token is OPAREN:
-                    parens.append(lit)
-                return COMMIT
-            return
-
-        if seekDolla:
-            if token is DOLLA:
-                v = commitValue()
-                if quotes and quotes[-1] == v:
-                    quotes.pop()
+    results = {}
+    cur = []
+    def eatSpace():
+        tok = next(tokens)
+        if isinstance(tok,Space):
+            return next(tokens)
+        return tok
+    try:
+        while True:
+            tok = eatSpace()
+            name = expect(Name,tok)
+            for tok in tokens:
+                if isinstance(tok,Oparen):
+                    parens.append(tok)
+                    break
+                expect(Space,tok)
+            for tok in tokens:
+                cur.append(tok)
+                if quotes:
+                    if isinstance(tok,Quote) and tok == quotes[-1]:
+                        quotes.pop(-1)
                 else:
-                    quotes.append(v)
-                if beforeDolla:
-                    value[:0] = beforeDolla
-                    value.append(v)
-                seekDolla = False
-            elif token is not STUFF:
-                # $1 is valid, despite $1___derp$ being a dollar quote...
-                seekDolla = False
-                return REDO
-            return
-
-        if quotes:
-            if token is QUOTE:
-                if quotes and quotes[-1] == lit:
-                    quotes.pop()
-                else:
-                    quotes.append(lit)
-            elif token is DOLLA:
-                beforeDolla[:] = value
-                value[:] = ()
-                seekDolla = True
-            # ignore braces inside quotes, even mismatched ones
-            return
-
-        if parens:
-            if token is OPAREN:
-                parens.append(lit)
-            elif token is CPAREN:
-                op = parens.pop()
-                assert op == parenfor[lit], "{} != {}".format(op,lit)
-                if not parens:
-                    # yay finished
-                    return COMMIT
-            elif token is QUOTE:
-                quotes.append(lit)
-            elif token is COMMENT:
-                inComment = True
-            elif token is DOLLA:
-                beforeDolla[:] = value
-                value[:] = ()
-                seekDolla = True
-            return
-
-        if token is OPAREN:
-            parens.append(lit)
-            eatingSpace = True
-            return IGNORE
-
-    name = None
-    for token,lit in tokens(inp):
-        action = check(token,lit)
-        while action is REDO:
-            action = check(token,lit)
-        if action is COMMIT:
-            eatingSpace = True
-            if name is None:
-
-                name = commitValue()
-                gettingName = False
-            else:
-                yield name,commitValue().rstrip().rstrip(';')
-                name = None
-                gettingName = True
-        elif action is not IGNORE:
-            value.append(lit)
+                    if isinstance(tok,Oparen):
+                        parens.append(tok)
+                    elif isinstance(tok,Cparen) and matchparen[tok] == parens[-1]:
+                        parens.pop(-1)
+                if not (quotes or parens): break
+            results[name] = ''.join(cur[:-1])
+            cur[:] = ()
+    except StopIteration:
+        return results
+def derp()
+    for k,v in parse(sys.stdin).items():
+        print('um',k)
+        print(repr(v))
+    raise SystemExit
 
 if __name__ == '__main__':
     import sys
