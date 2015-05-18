@@ -26,5 +26,5 @@ class Versioner:
     def __call__(self,version=0):
         def decorator(go):
             self.versions.append((version,go))
-            return staticmethod(go)
+            return go()
         return decorator

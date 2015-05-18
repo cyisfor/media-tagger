@@ -1,11 +1,31 @@
-wanted {
-wanted(tags) AS (SELECT array(
-        SELECT tags.id 
-            FROM tags INNER JOIN things ON tags.id = things.id WHERE things.neighbors @> ARRAY[unnest.unnest]
-        ) || unnest.unnest AS tags
-    FROM unnest(%(tags)s::bigint[]) AS unnest);
+complextag {
+ALTER TABLE tags ADD COLUMN complexity int DEFAULT 0 NOT NULL
 }
-
+index {
+CREATE INDEX bycomplex ON tags(complexity)
+}
+implications {
+CREATE FUNCTION implications(_tags bigint[]) RETURNS SETOF bigint AS $$
+BEGIN    
+    FOREACH _tag IN ARRAY tags
+    LOOP
+     _complexity := SELECT complexity FROM tags WHERE id = _tag
+     IF FOUND THEN
+        RETURN NEXT _tag
+        RETURN QUERY SELECT tag FROM implications(
+               array(SELECT unnest(neighbors) FROM things
+                            INNER JOIN tags ON tags.id = _neighbor
+                            WHERE things.id = _tag
+                            AND tags.complexity >  _complexity))
+     END IF;
+   END LOOP;
+END
+$$
+LANGUAGE 'plpgsql'
+}
+wanted {
+wanted(tags) AS (SELECT array(implications(%(tags)s::bigint[])))
+}
 unwanted {
 unwanted(id) AS (
         SELECT tags.id

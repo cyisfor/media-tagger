@@ -35,12 +35,11 @@ def isGood(type):
     return category in {'image','video','audio'} or type in {'application/x-shockwave-flash'}
 
 def sourceId(source):
-    if source is None: return None
-    if isinstance(source,int): return source
+    assert source is not None
+    assert not isinstance(source,int)
     if source == '': return None
-    if source[0] == '/': return None
+    if source[0] == '/': return None # todo: file sources?
     id = db.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
-    raise RuntimeError("Ummmm",source,id)
     if id:
         return id[0][0]
     else:
@@ -83,6 +82,16 @@ def retryCreateImage(id):
 class Source:
     uri = None
     id = None
+    def __repr__(self):
+        return "<Source {} {}>".format(self.id,self.uri)
+    def __hash__(self):
+        if self.id:
+            return hash((self.id,self.uri))
+        return hash(self.uri)
+    def __eq__(self,other):
+        if self.id:
+            return self.id == other.id
+        return self.uri == other.uri
     def __init__(self,uri):
         self.uri = uri
     def lookup(self):
@@ -179,7 +188,7 @@ tagsModule = tags
 def update(id,sources,tags,name):
     donetags = []
     with db.transaction():
-        db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([sources.lookup() for source in sources],id,name))
+        db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([source.lookup() for source in sources],id,name))
         
     tagsModule.tag(id,tags)
 
@@ -217,7 +226,6 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         note('got id',id,wasCreated)
         if not wasCreated:
              note("Old medium with id {:x}".format(id))
-        sources = set([sourceId(source) for source in sources])
     note("update")
     update(id,sources,tags,name)
     yield id,wasCreated
