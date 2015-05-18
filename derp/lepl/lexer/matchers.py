@@ -152,7 +152,7 @@ class BaseToken(OperatorMatcher, NoMemo):
                 raise LexerError(
                     fmt('A Token was specified with a matcher, '
                         'but the matcher could not be converted to '
-                        'a regular expression: {0} {0}', rewrite, rewriter))
+                        'a regular expression: {} {}', rewrite, rewriter))
         return regexp
         
     def __call__(self, content, complete=None):
