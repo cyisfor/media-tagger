@@ -1,31 +1,46 @@
-import lepl as l
-import strings
 
-alnum = l.Regexp('(?u)\w+')
-spaces = l.Regexp('(?u)\s+')
+import sys
+sys.path.insert(0,'derp')
+import lepl as l
+
+alnum = '[a-zA-Z0-9_]+'
+space = l.Token('[ \t\n]+')
 newline = l.Token(l.Literal('\n'))
 dolla = l.Literal('$')
-dolla = l.Token(dolla&alnum[0:1]&dolla)
-parens = [(l.Token(s[0]),l.Token(s[1])) for s in (
-    '()','[]','{}')]
+dolla = l.Token(dolla&l.Regexp(alnum)[0:1]&dolla)
+parens = [(l.Token(l.Literal(s[0])),l.Token(l.Literal(s[1]))) for s in (
+    '{}','()','[]')]
 semicolon = l.Token(l.Literal(';'))
 escape = l.Token(l.Literal('\\')&l.Any())
 comment = l.Token(l.Literal('--')&l.Star(l.Any())&l.Literal('\n'))
 name = l.Token(alnum)
 
 block = l.Delayed()
-block += Or(*((space[0:1]&p[0]&space[0:1]&block&space[0:1]&+p[1]&space[0:1]) for p in parens))
-stmt = name & space[0:1] & parens[0] & block & parens[1] & space[0:1]
+derp = [l.Token(l.Any()[:])]
+for p in parens:
+    derp.append(space[0:1] & p[0] & space[0:1] & block & space[0:1] & p[1] & space[0:1])
+block += l.Or(*derp)
+                
+stmt = name & space[0:1] & parens[0][0] & block & parens[0][1] & space[0:1]
 
-def tokens(inp):
-    return stmt.get_parse_file(inp)
+#print(repr(stmt))
 
 def testTokens():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("test")
+    import sys
+    print(repr(dolla))
+
+    print(dolla.match("$abcdefg$"))
+    
+    tokens = stmt.get_match_file()
     for token in tokens(sys.stdin):
         print(token)
     raise SystemExit
 testTokens()
 
+tokens = stmt.get_match_file()
 
 REDO,IGNORE,COMMIT = range(3)
 
