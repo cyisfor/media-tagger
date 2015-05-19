@@ -12,15 +12,15 @@ _tag bigint;
 _neighbor bigint;
 _count int default 0;
 BEGIN
-    raise notice 'implications % % %',_tags,_returned,_depth;
-    IF _returned > 100 THEN
+    IF _returned > 100 OR array_length(_tags,1) IS NULL THEN
        RETURN;
     END IF;
+    raise notice 'implications % % %',_tags,_returned,_depth;
     FOREACH _tag IN ARRAY _tags
     LOOP
      SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
      IF FOUND THEN     
-        --raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
+        raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
         RETURN NEXT _tag;
         _count := _count + 1;
         FOR _tag IN SELECT implications FROM implications(
