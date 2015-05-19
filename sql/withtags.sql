@@ -5,22 +5,34 @@ complextagindex {
 CREATE INDEX bycomplex ON tags(complexity)
 }
 implications {
-CREATE OR REPLACE FUNCTION implications(_tags bigint[]) RETURNS SETOF bigint AS $$
+CREATE OR REPLACE FUNCTION implications(_tags bigint[], _returned int default 0, _depth int default 0) RETURNS SETOF bigint AS $$
 DECLARE
 _complexity int;
 _tag bigint;
 _neighbor bigint;
-BEGIN    
+_count int default 0;
+BEGIN
+    raise notice 'implications % % %',_tags,_returned,_depth;
+    IF _returned > 100 THEN
+       RETURN;
+    END IF;
     FOREACH _tag IN ARRAY _tags
     LOOP
      SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
-     IF FOUND THEN
+     IF FOUND THEN     
+        --raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
         RETURN NEXT _tag;
-        RETURN QUERY SELECT implications FROM implications(
-               array(SELECT unnest(neighbors) FROM things
-                            INNER JOIN tags ON neighbors @> ARRAY[tags.id]
-                            WHERE things.id = _tag
-                            AND tags.complexity >  _complexity));
+        _count := _count + 1;
+        FOR _tag IN SELECT implications FROM implications(
+               array(SELECT tags.id FROM things
+                            INNER JOIN tags ON tags.id = things.id
+                            WHERE neighbors @> ARRAY[_tag]
+                            AND tags.complexity >  _complexity),
+                            _returned + _count,
+                            1 + _depth) LOOP
+            RETURN NEXT _tag;
+            _count := _count + 1;
+        END LOOP;
      END IF;
    END LOOP;
 END

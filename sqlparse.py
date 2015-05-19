@@ -27,6 +27,7 @@ class Oparen(Thingy): pass
 class Cparen(Thingy): pass
 class Escape(Thingy): pass
 class Name(Thingy): pass
+class Comment(Thingy): pass
 
 class GotToken(Exception):
     def __init__(self,token):
