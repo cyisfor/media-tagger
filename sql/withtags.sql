@@ -5,42 +5,40 @@ complextagindex {
 CREATE INDEX bycomplex ON tags(complexity)
 }
 implications {
-CREATE OR REPLACE FUNCTION implications(_tags bigint[], _returned int default 0, _depth int default 0) RETURNS SETOF bigint AS $$
+CREATE OR REPLACE FUNCTION implications(_tag bigint, _returned int default 0, _depth int default 0) RETURNS SETOF bigint AS $$
 DECLARE
 _complexity int;
-_tag bigint;
 _neighbor bigint;
 _count int default 0;
 BEGIN
-    IF _returned > 100 OR array_length(_tags,1) IS NULL THEN
+    IF _returned > 100 THEN
        RETURN;
     END IF;
-    raise notice 'implications % % %',_tags,_returned,_depth;
-    FOREACH _tag IN ARRAY _tags
-    LOOP
-     SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
-     IF FOUND THEN     
-        raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
-        RETURN NEXT _tag;
-        _count := _count + 1;
-        FOR _tag IN SELECT implications FROM implications(
-               array(SELECT tags.id FROM things
-                            INNER JOIN tags ON tags.id = things.id
-                            WHERE neighbors @> ARRAY[_tag]
-                            AND tags.complexity >  _complexity),
-                            _returned + _count,
-                            1 + _depth) LOOP
-            RETURN NEXT _tag;
-            _count := _count + 1;
-        END LOOP;
+    raise notice 'implications % % %',_tag,_returned,_depth;
+    SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
+    IF FOUND THEN     
+       raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
+       RETURN NEXT _tag;
+       _count := _count + 1;       
+       FOR _tag IN SELECT implications(
+                tags.id,
+                _returned + _count,
+                1 + _depth) 
+           FROM tags
+                INNER JOIN things ON tags.id = things.id
+                WHERE neighbors @> ARRAY[_tag]
+                AND tags.complexity >  _complexity
+       LOOP
+               RETURN NEXT _tag;
+               _count := _count + 1;
+       END LOOP;
      END IF;
-   END LOOP;
 END
 $$
 LANGUAGE 'plpgsql'
 }
 wanted {
-wanted(tag) AS (SELECT implications FROM implications(%(tags)s::bigint[]))
+wanted(tags) AS (SELECT array(SELECT implications(unnest)) FROM unnest(%(tags)s::bigint[])) 
 }
 unwanted {
 unwanted(id) AS (
@@ -62,7 +60,7 @@ media INNER JOIN things ON things.id = media.id
 }
 
 positiveWhere {
-    WHERE neighbors && array(select wanted.tag from wanted)
+    WHERE (SELECT EVERY(neighbors && wanted.tags) from wanted)
 }
 
 negativeClause {
@@ -70,7 +68,7 @@ negativeClause {
 }
 
 anyWanted {
-    where id NOT IN (select tag from wanted)
+    where id NOT IN (select unnest(tags) from wanted)
 }
 
 ordering {
