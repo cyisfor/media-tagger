@@ -18,6 +18,7 @@ def regularlyCommit():
                 print('done')
                 break
             dest,source,inferior = message
+            print(hex(dest),'inferior to',hex(source))
             merge.merge(dest,source,inferior)
             print('left',mergequeue.qsize())
         except Exception as e:
@@ -117,7 +118,7 @@ class Finder:
         if self.source < self.dest:
             self.source, self.dest = self.dest, self.source
     def nodupe(self,then=None):
-        print('nadupe',self.dest,self.source)
+        print('nadupe',hex(self.dest),hex(self.source))
         if self.dest > self.source:
             a = self.source
             b = self.dest
@@ -130,7 +131,7 @@ class Finder:
             print(e)
         self.next()
     def dupe(self,inferior):
-        print('dupe',self.dest,self.source)
+        print('dupe',hex(self.dest),hex(self.source))
         mergequeue.put((self.dest,self.source,inferior))
         self.next()
 
@@ -167,18 +168,25 @@ class ImageScrobber:
     def __init__(self):
         self.image = Gtk.Image()
     def setup(self,images):
+        global busy
+        print('new images',images)
         images = [Image(image) for image in images]
         self.images = images
         self.which = 0
         self.image.set_from_animation(images[0].animation)
+        busy = False
     swapping = None
     def next(self):
         self.which = (self.which + 1)%len(self.images)
         if self.swapping:
             GLib.source_remove(self.swapping)
-        self.alpha = 0x20
+        self.alpha = 0x80
         source = self.images[self.which%len(self.images)].animation.get_static_image()
-        dest = self.image.get_animation().get_static_image() or self.image
+        dest = self.image.get_animation()
+        if dest is None:
+            dest = self.image.get_pixbuf()
+        else:
+            dest = dest.get_static_image()            
         assert dest
         self.image.set_from_pixbuf(dest)
         if dest.get_width() != source.get_width():
@@ -186,14 +194,18 @@ class ImageScrobber:
                                      source.get_height(),
                                      GdkPixbuf.InterpType.NEAREST)
             self.image.set_from_pixbuf(dest)
-        self.swapping = GLib.timeout_add(100,partial(self.scrob,source,dest))
+        self.swapping = GLib.timeout_add(10,partial(self.scrob,source,dest))
     def scrob(self,source,dest,nothin):
         source.composite(dest,
                          0,0,source.get_width(),source.get_height(),0,0,
                          1.0,1.0,GdkPixbuf.InterpType.NEAREST,self.alpha)
-        self.alpha += 0x20
+        self.alpha += 0x80
         if self.alpha >= 0x100:
+            label.set_text(hex(self.images[self.which].id))
             self.image.set_from_animation(self.images[self.which].animation)
+            if self.images[self.which].id == finder.dest:
+                # derp
+                finder.dest, finder.source = finder.source, finder.dest
             del self.swapping
             return False
         return True
