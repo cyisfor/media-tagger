@@ -90,19 +90,11 @@ maxoff = int(db.execute("SELECT max(id) FROM media")[0][0] / 10000)
 print('pages',maxoff)
 print(findStmt)
 class Finder:
-    def reload(self):
-        print('go')
-        self.dupes = iter(db.execute(findStmt,(maxDistance,)))
-        print('go2')
     a = b = -1
-    starting = True
     done = False
     def __init__(self):
-        self.reload()
-        print('starting finder')
-        self.next(None)
-        self.starting = False
-    def next(self,then):
+        self.next()
+    def next(self):
         try: self.source, self.dest = next(self.dupes)
         except StopIteration:
             self.dupes = iter(db.execute(findStmt,(maxDistance,)))
@@ -121,11 +113,7 @@ class Finder:
             idle_add(self.next,then)
             return
         if self.source < self.dest:
-            self.swap()
-        else:
-            print('now checking2',hex(self.dest),hex(self.source),then)
-        if then:
-            then()
+            self.source, self.dest = self.dest, self.source
     def nodupe(self,then=None):
         print('nadupe',self.dest,self.source)
         if self.dest > self.source:
@@ -138,17 +126,11 @@ class Finder:
         try: db.execute('INSERT INTO nadupes (bro,sis) VALUES ($1,$2)',(a,b))
         except db.ProgrammingError as e:
             print(e)
-        self.next(then)
-    def dupe(self,inferior,then=None):
+        self.next()
+    def dupe(self,inferior):
         print('dupe',self.dest,self.source)
         mergequeue.put((self.dest,self.source,inferior))
-        self.next(then)
-    def swap(self,then=None):
-        temp = self.dest
-        self.dest = self.source
-        self.source = temp
-        print('now checking',self.dest,self.source,then)
-        if then: then()
+        self.next()
 
 finder = Finder()
 if finder.done:
@@ -165,10 +147,11 @@ win.add(vbox)
 
 labelbox = Gtk.HBox()
 vbox.pack_start(labelbox,False, True, 0)
+imagebox = Gtk.HBox(){:x}
+#'.format(self.id))
+label = Gtk.Label(label='...')
+labelbox.pack_start(self.label,True,True,0)
 
-imagebox = Gtk.HBox()
-
-images = {}
 class Image:
     def __init__(self,id):
         self.id = id
@@ -182,15 +165,17 @@ class ImageScrobber:
     def __init__(self):
         self.image = Gtk.Image()
     def setup(self,images):
+        images = [Image(image) for image in images]
         self.images = images
         self.which = 0
         self.image.set_from_pixbuf(images[0].pixbuf)
     swapping = None
     def next(self):
+        self.which += 1
         if self.swapping:
             GLib.source_remove(self.swapping)
         self.alpha = 0x20
-        source = self.images[(self.which+1)%len(self.images)].pixbuf
+        source = self.images[self.which%len(self.images)].pixbuf
         dest = self.image.get_pixbuf()
         if dest.width != source.width:
             dest = dest.scale_simple(source.width,
@@ -204,30 +189,13 @@ class ImageScrobber:
                          1.0,1.0,GdkPixbuf.NEAREST,self.alpha)
         self.alpha += 0x20
         if self.alpha >= 0x100:
-            self.which = (self.which +1) % len(self.images)
             self.image.set_from_file(filedb.mediaPath(self.images[which]))
             del self.swapping
             return False
         return True
 
-whichImage = 0
-
-def swaparoo():
-    temp = images['source'].pixbuf
-    images['source'].pixbuf = images['dest'].pixbuf
-    images['dest'].pixbuf = temp
-    images['dest'].refresh()
-    images['source'].refresh()
-
-def oneImage(name):
-    images[name] = Image(name)
-
-oneImage('dest')
-
-busylabel = Gtk.Label(label='...')
-labelbox.pack_start(busylabel,True,True,0)
-
-oneImage('source')
+scrobber = ImageScrobber()
+imagebox.pack_start(scrobber.image,True,True,0)
 
 viewport = Gtk.ScrolledWindow(None,None)
 viewport.add(imagebox)
@@ -241,28 +209,9 @@ vbox.pack_start(viewport,True,True,0)
 
 busy = False
 
-updaters = 0
-def updateboo(name):
-    global updaters
-    updaters += 1
-    print('updetau',updaters)
-    def doit(*a):
-        print(a)
-        global updaters, busy
-        images[name].update()
-        updaters -= 1
-        print('now updaters',updaters)
-        if updaters == 0:
-            busylabel.set_text('')
-            busy = False
-    #idle_add(doit)
-    doit()
-
-def refillimages():
+def scrollReset():
     scroller.set_value(0)
     hscroll.set_value(0)
-    updateboo('dest')
-    updateboo('source')
 
 vbox.pack_start(Gtk.Label("Dupe? (note, right one will be deleted)"),False,False,0)
 
@@ -317,7 +266,7 @@ def addButton(label,shortcut,ambusy=True):
             def getbusy(e):
                 global busy
                 busy = True
-                busylabel.set_text('busy')
+                label.set_text('busy')
                 idle_add(f,e)
         else:
             getbusy = f
@@ -328,19 +277,25 @@ def addButton(label,shortcut,ambusy=True):
 @addButton("Superior",Gdk.KEY_a)
 def answer(e):
     # therefore the right one is inferior (finder.source)
-    finder.dupe(True,then=refillimages)
+    finder.dupe(True)
+    scrollReset()
+    scrobber.setup([finder.source,finder.dest])
 
 @addButton("Yes",Gdk.KEY_o)
 def answer(e):
-    finder.dupe(False,then=refillimages)
+    finder.dupe(False)
+    scrollReset()
+    scrobber.setup([finder.source,finder.dest])
 
 @addButton("Swap",Gdk.KEY_e,ambusy=False)
 def answer(e):
-    finder.swap(then=swaparoo)
+    scrobber.next()
 
 @addButton("No",Gdk.KEY_u)
 def answer(e):
-    finder.nodupe(then=refillimages)
+    finder.nodupe()
+    scrollReset()
+    scrobber.setup([finder.source,finder.dest])
 
 def cleanup(e):
     win.hide()
