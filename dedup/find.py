@@ -33,6 +33,7 @@ t.start()
 
 import gi
 from gi.repository import Gtk,GLib
+from functools import partial
 
 import filedb
 import db
@@ -93,6 +94,7 @@ class Finder:
     a = b = -1
     done = False
     def __init__(self):
+        self.dupes = iter(())
         self.next()
     def next(self):
         try: self.source, self.dest = next(self.dupes)
@@ -147,19 +149,19 @@ win.add(vbox)
 
 labelbox = Gtk.HBox()
 vbox.pack_start(labelbox,False, True, 0)
-imagebox = Gtk.HBox(){:x}
-#'.format(self.id))
+imagebox = Gtk.HBox()
 label = Gtk.Label(label='...')
-labelbox.pack_start(self.label,True,True,0)
+labelbox.pack_start(label,True,True,0)
 
 class Image:
     def __init__(self,id):
         self.id = id
-    _pixbuf = None
+    _animation = None
     @property
-    def pixbuf(self):
-        if self._pixbuf: return self._pixbuf
-        self._pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
+    def animation(self):
+        if self._animation: return self._animation
+        self._animation = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
+        return self._animation
 
 class ImageScrobber:
     def __init__(self):
@@ -168,28 +170,30 @@ class ImageScrobber:
         images = [Image(image) for image in images]
         self.images = images
         self.which = 0
-        self.image.set_from_pixbuf(images[0].pixbuf)
+        self.image.set_from_animation(images[0].animation)
     swapping = None
     def next(self):
-        self.which += 1
+        self.which = (self.which + 1)%len(self.images)
         if self.swapping:
             GLib.source_remove(self.swapping)
         self.alpha = 0x20
-        source = self.images[self.which%len(self.images)].pixbuf
-        dest = self.image.get_pixbuf()
-        if dest.width != source.width:
-            dest = dest.scale_simple(source.width,
-                                     source.height,
-                                     GdkPixbuf.NEAREST)
+        source = self.images[self.which%len(self.images)].animation.get_static_image()
+        dest = self.image.get_animation().get_static_image() or self.image
+        assert dest
+        self.image.set_from_pixbuf(dest)
+        if dest.get_width() != source.get_width():
+            dest = dest.scale_simple(source.get_width(),
+                                     source.get_height(),
+                                     GdkPixbuf.InterpType.NEAREST)
             self.image.set_from_pixbuf(dest)
-        self.swapping = GLib.timeout_add(self.scrob,100,source,dest)
-    def scrob(self,source,dest):
+        self.swapping = GLib.timeout_add(100,partial(self.scrob,source,dest))
+    def scrob(self,source,dest,nothin):
         source.composite(dest,
-                         0,0,source,width,source.height,0,0,
-                         1.0,1.0,GdkPixbuf.NEAREST,self.alpha)
+                         0,0,source.get_width(),source.get_height(),0,0,
+                         1.0,1.0,GdkPixbuf.InterpType.NEAREST,self.alpha)
         self.alpha += 0x20
         if self.alpha >= 0x100:
-            self.image.set_from_file(filedb.mediaPath(self.images[which]))
+            self.image.set_from_animation(self.images[self.which].animation)
             del self.swapping
             return False
         return True
@@ -258,9 +262,9 @@ def unpress(win,e):
 win.connect('key-press-event',onpress)
 win.connect('key-release-event',unpress)
 
-def addButton(label,shortcut,ambusy=True):
+def addButton(text,shortcut,ambusy=True):
     def decorator(f):
-        btn = Gtk.Button(label=label)
+        btn = Gtk.Button(label=text)
         buttonbox.pack_start(btn,True,True,3)
         if ambusy:
             def getbusy(e):
@@ -273,6 +277,8 @@ def addButton(label,shortcut,ambusy=True):
         btn.connect('clicked',getbusy)
         buttonkeys[shortcut] = btn
     return decorator
+
+scrobber.setup([finder.source,finder.dest])
 
 @addButton("Superior",Gdk.KEY_a)
 def answer(e):
