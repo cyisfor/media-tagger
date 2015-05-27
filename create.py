@@ -93,7 +93,10 @@ class Source:
             return self.id == other.id
         return self.uri == other.uri
     def __init__(self,uri):
-        self.uri = uri
+        if isinstance(uri,int):
+            self.id = uri
+        else: 
+            self.uri = uri
     def lookup(self):
         if self.id is None:
             self.id = sourceId(self.uri)
@@ -107,13 +110,14 @@ def getanId(sources,uniqueSources,download,name):
             return
     md5 = None
     for i,source in enumerate(sources):
-        m = findMD5.search(source.uri)
-        if m:
-            md5 = m.group(0)
-            result = db.execute("SELECT id FROM media WHERE md5 = $1",
-                        (md5,))
-            if result:
-                yield result[0][0],False
+        if source.uri:
+            m = findMD5.search(source.uri)
+            if m:
+                md5 = m.group(0)
+                result = db.execute("SELECT id FROM media WHERE md5 = $1",
+                            (md5,))
+                if result:
+                    yield result[0][0],False
                 return
     note("downloading to get an id")
     with filedb.mediaBecomer() as data:
@@ -204,7 +208,7 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
     if media and '://' in media:
         media = Source(media)
         uniqueSources.add(media)
-    if primarySource and '://' in primarySource:
+    if primarySource and isinstance(primarySource,int) or '://' in primarySource:
         primarySource = Source(primarySource)
         uniqueSources.add(primarySource)
     if not uniqueSources:

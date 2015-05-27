@@ -1,4 +1,4 @@
-try: 
+try:
     import pgi
     pgi.install_as_gi()
 except ImportError: pass
@@ -14,7 +14,7 @@ def regularlyCommit():
         message = None
         try:
             message = mergequeue.get()
-            if message == 'done': 
+            if message == 'done':
                 print('done')
                 break
             dest,source,inferior = message
@@ -170,29 +170,47 @@ imagebox = Gtk.HBox()
 
 images = {}
 class Image:
-    def __init__(self,name):
-        self.name = name
-        while True:
-            try:
-                self.id = getattr(finder,name)
-                self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
-                break
-            except GLib.GError as e:
-                print('error loading',self.id,e)
-                finder.next(None)            
-        self.image = Gtk.Image.new_from_animation(self.pixbuf)
-        self.label = Gtk.Label(label='{:x}'.format(self.id))
-        labelbox.pack_start(self.label,True,True,0)
-        imagebox.pack_start(self.image,True,True,0)
-    def update(self):
-        try: self.pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(getattr(finder,self.name)))
-        except Exception as e:
-            print('dop',e)
-            raise
-        self.refresh()
-    def refresh(self):
-        self.image.set_from_animation(self.pixbuf)
-        self.label.set_text('{:x}'.format(getattr(finder,self.name)))
+    def __init__(self,id):
+        self.id = id
+    _pixbuf = None
+    @property
+    def pixbuf(self):
+        if self._pixbuf: return self._pixbuf
+        self._pixbuf = GdkPixbuf.PixbufAnimation.new_from_file(filedb.mediaPath(self.id))
+
+class ImageScrobber:
+    def __init__(self):
+        self.image = Gtk.Image()
+    def setup(self,images):
+        self.images = images
+        self.which = 0
+        self.image.set_from_pixbuf(images[0].pixbuf)
+    swapping = None
+    def next(self):
+        if self.swapping:
+            GLib.source_remove(self.swapping)
+        self.alpha = 0x20
+        source = self.images[(self.which+1)%len(self.images)].pixbuf
+        dest = self.image.get_pixbuf()
+        if dest.width != source.width:
+            dest = dest.scale_simple(source.width,
+                                     source.height,
+                                     GdkPixbuf.NEAREST)
+            self.image.set_from_pixbuf(dest)
+        self.swapping = GLib.timeout_add(self.scrob,100,source,dest)
+    def scrob(self,source,dest):
+        source.composite(dest,
+                         0,0,source,width,source.height,0,0,
+                         1.0,1.0,GdkPixbuf.NEAREST,self.alpha)
+        self.alpha += 0x20
+        if self.alpha >= 0x100:
+            self.which = (self.which +1) % len(self.images)
+            self.image.set_from_file(filedb.mediaPath(self.images[which]))
+            del self.swapping
+            return False
+        return True
+
+whichImage = 0
 
 def swaparoo():
     temp = images['source'].pixbuf
@@ -327,7 +345,7 @@ def answer(e):
 def cleanup(e):
     win.hide()
     idle_add(lambda e: loop.quit())
-    
+
 win.connect('destroy',cleanup)
 win.show_all()
 loop.run()

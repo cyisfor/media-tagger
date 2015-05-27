@@ -176,7 +176,7 @@ codecs can encode/decode messages
 
             message = self.buffer[2:2+size]
             # python has odd splicing syntax
-            del self.buffer[2:2+size]
+            del self.buffer[:2+size]
 
             self.commands[message.pop(0)].remotely_called(self,message)
     backend = False
