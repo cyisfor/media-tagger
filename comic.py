@@ -48,18 +48,20 @@ def withC(f):
 def findComicByTitle(title,getinfo):
     rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
     if len(rows) == 0:
-        description = getinfo();
-        return db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+        @getinfo
+        def handle(description):
+            return db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
                 (title,
                 description))[0][0]
     return rows[0][0]
 
-def findInfo(id,getinfo):
+def findInfo(id,getinfo,next=None):
     rows = db.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source) FROM comics WHERE id = $1",(id,))
     if len(rows) == 0:
-        title,description,source = getinfo() # some GUI thing
-        db.execute("INSERT INTO comics (id,title,description VALUES ($1,$2,$3) RETURNING id",(id,title,description))
-        return title, description,source
+        @getinfo
+        def handle(title,description,source):
+            db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
+            if next: next(title, description,source)
     return rows[0]
 
 def findMediumDerp(comic,which,medium=None):
