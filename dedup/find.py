@@ -43,7 +43,12 @@ import merge
 
 import os
 
-findStmt = 'SELECT sis,bro FROM possibleDupes WHERE NOT sis IN (select id from glibsucks) AND NOT bro IN (select id from glibsucks) AND dist < $1 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'
+findStmt = '''SELECT sis,bro FROM possibleDupes WHERE 
+NOT sis IN (select id from glibsucks) AND 
+NOT bro IN (select id from glibsucks) AND 
+sis IN (select id from media where type = ANY($2)) AND 
+bro IN (select id from media where type = ANY($2)) AND 
+dist < $1 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'''
 
 maxDistance = os.environ.get('distance')
 if maxDistance is None:
@@ -100,7 +105,10 @@ class Finder:
     def next(self):
         try: self.source, self.dest = next(self.dupes)
         except StopIteration:
-            self.dupes = iter(db.execute(findStmt,(maxDistance,)))
+            self.dupes = iter(db.execute(findStmt,(
+                maxDistance,
+                ['image/png',
+                 'image/jpeg'])))
             try:
                 self.source, self.dest = next(self.dupes)
             except StopIteration:

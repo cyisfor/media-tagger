@@ -1,11 +1,12 @@
 #!/usr/bin/python3
-from message import MessageProcess, Command, codec
+from message import MessageProcess, Command, codecs
 from multiprocessing import Process, Pipe
 
 getting = False
 
 def cleanSource(url):
     return url.split('?',1)[0]
+
 def mine(url):
     url = urllib.parse.urlparse(url)
     if url.scheme == 'http':
@@ -21,10 +22,17 @@ class ComicMaker(MessageProcess):
     @Command(codec=codec.onestr,backend=True)
     def findMedium(self,source):
         assert self.backend
+        import parse,db
+        try:
+            source = parse.normalize(source)
+        except RuntimeError: pass
+        source = cleanSource(source)
+        print('source?', source)
+
         while True:
-            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(parse.normalize(source),))
+            res = db.execute('SELECT media.id FROM media,urisources WHERE uri = $1 AND sources @> ARRAY[urisources.id]',(source,))
             if res:
-                self.backendFoundMedium(res[0][0])
+                self.foundMedium(res[0][0])
                 break
             else:
                 try:
@@ -67,6 +75,7 @@ class ComicMaker(MessageProcess):
     def start(self):
         # this is in the main (GUI) process
         super().start()
+        self.clipqueue = []
         try:
             import pgi
             pgi.install_as_gi()
@@ -155,23 +164,27 @@ class ComicMaker(MessageProcess):
         self.join()
         Gtk.main_quit()
     def clipboardYanked(self,source):
-        if self.getting:
-            print('getting',source)
-            return
         if not self.gobutton.get_active():
-            self.getting = False
+            return
+        self.clipqueue.append(source)
+        if self.getting:
+            print('getting',self.clipqueue)
             return
         self.getting = True
+        self.nextSource()
+    def nextSource(self):
+        if not self.clipqueue:
+            self.getting = False
+            return
+        source = self.clipqueue.pop(0)
         try: self.foundMedium(mine(source))
         except ValueError as e: pass
-        try:
-            source = parse.normalize(source)
-        except RuntimeError: pass
-        print('source?', source)
-        self.findMedium(cleanSource(source))
-    @Command(codec=codec.one.num)
+        self.findMedium(source)
+    pendingMedium = None
+    @Command(codec=codecs.one.num)
     def foundMedium(self,medium):
         assert not self.backend
+        self.pendingMedium = medium
         print('yay',medium)
         try:
             comic = int(self.comic.get_text(),0x10)

@@ -117,7 +117,7 @@ def main():
                 except ImportError: continue
                 if idnum:
                     print("Adding saource",idnum,source)
-                    create.update(idnum,(source,),implied.union(discovered),name)
+                    create.update(idnum,(create.Source(source),),implied.union(discovered),name)
                 else:
                     print("importing",path,discovered)
                     create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)

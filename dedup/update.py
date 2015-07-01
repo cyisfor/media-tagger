@@ -100,7 +100,11 @@ if __name__ == '__main__':
     elapsed = 0
     current = 0
     with db.transaction():
-        for id, in db.execute('SELECT id FROM media WHERE NOT pHashFail AND pHash IS NULL ORDER BY id'):
+        for id, in db.execute('''SELECT id FROM media WHERE 
+NOT pHashFail AND 
+pHash IS NULL AND
+type = ANY($1)
+ORDER BY id''',(['image/png','image/jpeg'],)):
             hid = '{:x}'.format(id)
             status(hid+' '+timeify((total - current) * (timespent + elapsed) / (achieved if achieved else 1))+' left')
             if not os.path.exists(filedb.mediaPath(id)):
