@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import comic
-from favorites.parseBase import parse, ParseError
+from favorites.parseBase import parse, ParseError, normalize
+import favorites.parsers
 import gtkclipboardy as clipboardy
 from gi.repository import Gtk,Gdk,GObject,GLib
 import sys
@@ -13,9 +14,15 @@ box.pack_start(centry,True,True,0)
 wentry = Gtk.Entry()
 box.pack_start(wentry,True,True,0)
 
+window.connect('destroy',Gtk.main_quit)
 window.show_all()
 
-def getinfo():
+def handling(f,*a,**kw):
+    def wrapper(handler):
+        f(*(a+(handler,)),**kw)
+    return wrapper
+
+def getinfo(next):
     window = Gtk.Window()
     box = Gtk.VBox()
     window.add(box)
@@ -33,24 +40,35 @@ def getinfo():
     description.connect('activate',lambda *a: source.grab_focus())
     title.grab_focus()
     source.connect('activate',lambda *a: window.destroy())
-    window.connect('destroy',Gtk.main_quit)
+    def herp(*a):
+        nonlocal title, description, source
+        title = title.get_text() or None
+        description = description.get_text() or None
+        source = source.get_text() or None
+        assert title
+        next(title,description,source)
+    window.connect('destroy',herp)
     window.show_all()
-    Gtk.main()
-    return title.get_text() or None, description.get_text() or None, source.get_text() or None
     
 
 def gotURL(url):
     url = url.strip()
     print("Trying {}".format(url))
     sys.stdout.flush()
-    c = int(centry.get_text(),0x10)
+    c = centry.get_text()
     if not c: return
-    w = int(wentry.get_text(),0x10)
-    try: m = parse(url)
+    c = int(c,0x10)
+    w = wentry.get_text()
+    if w:
+        w = int(w,0x10)
+    else:
+        w = 0
+    try: m = parse(normalize(url))
     except ParseError:
         m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-    comic.findInfo(c,getinfo)
-    comic.findMedium(c,w,m)
-    wentry.set_text(str(w+1))
+    @handling(comic.findInfo,c,getinfo)
+    def gotcomic(title,description,source):
+        comic.findMedium(c,w,m)
+        wentry.set_text("%x".format(w+1))
 
 clipboardy.run(gotURL,lambda piece: b'http' == piece[:4])

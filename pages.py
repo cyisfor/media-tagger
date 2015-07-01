@@ -630,7 +630,7 @@ def showPages(path,params):
     if Session.head:
         for stuff in getMedia(): pass
         return
-    title,description,source = comic.findInfo(com,comicNoExist)
+    title,description,source = comic.findInfoDerp(com)[0]
     if not description: description = 'ehunno' 
     def getInfos():
         for medium,which in getMedia():
@@ -659,7 +659,7 @@ def showComicPage(path):
     medium = comic.findMedium(com,which)
     checkModified(medium)
     if Session.head: return
-    title,description,source = comic.findInfo(com,comicNoExist)
+    title,description,source = comic.findInfoDerp(com)[0]
     typ,size,width,height = getStuff(medium)
     name = title + '.' + typ.rsplit('/',1)[-1]
     with Links:
