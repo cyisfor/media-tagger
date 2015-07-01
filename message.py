@@ -43,6 +43,12 @@ encode: push arguments encoded to the message
 decode: take bytes out of the message and return as value
 (decode MAY not clear message (no need if there's only one argument))
 '''
+    class nothing:
+        @staticmethod
+        def encode(message,s):
+            return message
+        @staticmethod
+        def decode(message): pass
     class one:
         'only one argument per message'
         class str:
@@ -136,6 +142,11 @@ class Command:
         message[0:2] = (length >> 8, length & 0xff)
         self.write.send_bytes(message)
 
+def command(**kw):
+    def wrapper(f):
+        return Command(f,**kw)
+    return wrapper
+        
 class CommandEnabler(type):
     commands = []
     def __new__(cls, name, bases, attrs):

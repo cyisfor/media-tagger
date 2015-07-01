@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from message import MessageProcess, Command, codecs
+from message import MessageProcess, command, codecs
 from multiprocessing import Process, Pipe
 
 getting = False
@@ -19,7 +19,7 @@ def mine(url):
 
 class ComicMaker(MessageProcess):
     backend = False
-    @Command(codec=codec.onestr,backend=True)
+    @command(codec=codecs.one.str,backend=True)
     def findMedium(self,source):
         assert self.backend
         import parse,db
@@ -41,7 +41,7 @@ class ComicMaker(MessageProcess):
                 except Exception as e:
                     self.errorFindingMedium(e,source)
                     break
-    @Command(codec=codecs.str,backend=True,codecs={3:codecs.one.num})
+    @command(codec=codecs.str,backend=True,codecs={3:codecs.one.num})
     def create(self,title,description,source,medium):
         if source is not None:
             s = db.execute('SELECT id FROM urisources WHERE uri = $1',(source,))
@@ -63,11 +63,11 @@ class ComicMaker(MessageProcess):
         self.comic = comic[0][0]
         self.which = 0
         self.setPage(medium,self.comic,self.which)
-    @Command(codec=codecs.num,backend=True)
+    @command(codec=codecs.num,backend=True)
     def setPage(self,medium,comic,which):
         db.execute('SELECT setComicPage($1,$2,$3)',(medium,comic,which))
         self.pageSet(comic,which)
-    @Command(codec=codecs.num,backend=False)
+    @command(codec=codecs.num,backend=False)
     def pageSet(self,comic,which):
         self.page.set_text('{:x}'.format(which+1))
         self.comic.set_text('{:x}'.format(comic))
@@ -140,7 +140,7 @@ class ComicMaker(MessageProcess):
         sourceEntry.connect('activate',onActivate)
 
         win.show_all()
-    @Command(codec=codecs.onestr,backend=False)
+    @command(codec=codecs.one.str,backend=False)
     def errorFindingMedium(self,err,source):
         dl = Gtk.MessageDialog(
             window,
@@ -181,7 +181,7 @@ class ComicMaker(MessageProcess):
         except ValueError as e: pass
         self.findMedium(source)
     pendingMedium = None
-    @Command(codec=codecs.one.num)
+    @command(codec=codecs.one.num)
     def foundMedium(self,medium):
         assert not self.backend
         self.pendingMedium = medium
@@ -197,18 +197,18 @@ class ComicMaker(MessageProcess):
                 self.createComic(comic,medium)
             else:
                 self.setPage(medium,comic,page)
-    @Command(backend=True,codec=codecs.nothing)
+    @command(backend=True,codec=codecs.nothing)
     def maxComic(self):
         self.setMaxComic(db.execute('SELECT MAX(id) + 1 FROM comics')[0][0])
-    @Command(backend=False,codec=codecs.one.num)
+    @command(backend=False,codec=codecs.one.num)
     def setMaxComic(self,comic):
         if self.comic.get_text() == '':
             self.comic.set_text('{:x}'.format(comic))
             
-    @Command(backend=True,codec=codecs.one.num)
+    @command(backend=True,codec=codecs.one.num)
     def maxPage(self,comic):
         self.setMaxPage(db.execute('SELECT MAX(which) + 1 FROM comicPage WHERE comic = $1',(comic,)))
-    @Command(backend=False,codec=codecs.one.num)
+    @command(backend=False,codec=codecs.one.num)
     def setMaxPage(self,page):
         if self.page.get_text() == '':
             self.page.set_text('{:x}'.format(page))                    
