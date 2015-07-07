@@ -43,10 +43,14 @@ def reopen():
     except IOError:
         password = None
     db.c = pg.Connection(dbname='pics',port=5433,password=password)
-    #db.c.verbose = True
-    #db.c.out = open('/tmp/db.log','at')
+    db.c.verbose = True
+    db.c.out = open('/tmp/db.log','at')
     password = None
 reopen()
+
+def vsetup(*stmts):
+    for stmt in stmts:
+        execute(stmt)
 
 def setup(*stmts):
     #execute("COMMIT")

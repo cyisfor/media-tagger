@@ -69,6 +69,6 @@ def gotURL(url):
     @handling(comic.findInfo,c,getinfo)
     def gotcomic(title,description,source):
         comic.findMedium(c,w,m)
-        wentry.set_text("%x".format(w+1))
+        wentry.set_text("{:x}".format(w+1))
 
 clipboardy.run(gotURL,lambda piece: b'http' == piece[:4])

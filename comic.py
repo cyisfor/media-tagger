@@ -1,11 +1,16 @@
-from db import setup,saved
+from versions import Versioner
+from db import vsetup,saved
 import db
 from redirect import Redirect
 
 from urllib.error import HTTPError as Error
 from functools import wraps
 
-setup("""CREATE TABLE comics
+version = Versioner('comic')
+
+@version(1)
+def go():
+    vsetup("""CREATE TABLE comics
     (id INTEGER PRIMARY KEY, 
      title TEXT UNIQUE, 
      description TEXT,
@@ -38,6 +43,12 @@ BEGIN
 END;
 $$ language 'plpgsql'""")
 
+@version(2)
+def go():
+    vsetup("ALTER TABLE comics ADD COLUMN tags bigint[]")
+
+version.setup()
+    
 def withC(f):
     @wraps(f)
     def wrapper(*a,**kw):
@@ -110,6 +121,7 @@ def pages(comic):
     rows = db.execute("SELECT COUNT(id) FROM comicPage WHERE comic = $1",(comic,))
     return rows[0][0]
 
-def list(page):
-    return db.execute("SELECT id,title FROM comics ORDER BY added DESC, id OFFSET $1 LIMIT $2",(page*0x20,0x20))
+def list(page,negatags=()):
+    print('nega',negatags)
+    return db.execute("SELECT id,title FROM comics WHERE array_length($1::bigint[],1) IS NULL OR tags IS NULL OR NOT tags && $1::bigint[] ORDER BY added DESC, id OFFSET $2 LIMIT $3",(tuple(negatags),page*0x20,0x20))
 

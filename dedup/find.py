@@ -205,7 +205,7 @@ hscroll = viewport.get_hadjustment()
 
 vbox.pack_start(viewport,True,True,0)
 
-busy = False
+busy = True
 
 def scrollReset():
     scroller.set_value(0)
@@ -216,6 +216,9 @@ vbox.pack_start(Gtk.Label("Dupe? (note, right one will be deleted)"),False,False
 buttonbox = Gtk.HBox()
 vbox.pack_start(buttonbox,False,False,0)
 
+activator = Gtk.ToggleButton.new_with_label('Activated')
+buttonbox.pack_start(activator,False,False,0)
+
 buttonkeys = {}
 
 pressed = set()
@@ -223,6 +226,7 @@ pressed = set()
 def onpress(win,e):
     global busy
     if busy: return True
+    if not activator.get_active(): return True
     if e.keyval in pressed: return True
     btn = buttonkeys.get(e.keyval)
     if btn:

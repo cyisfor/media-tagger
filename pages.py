@@ -583,7 +583,7 @@ def checkModified(medium):
 @gen.coroutine
 def showAllComics(params):
     page = getPage(params)
-    comics = comic.list(page)
+    comics = comic.list(page,User.tags().nega)
     def getInfos():
         for id,title in comics:
             try: 

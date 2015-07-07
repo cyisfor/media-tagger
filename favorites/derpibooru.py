@@ -44,14 +44,16 @@ def extract(doc):
 noquery = re.compile('^[^?]*')
 
 def normalize(url):
-    url = urllib.parse.urlparse(url)
-    path = url.path
+    u = urllib.parse.urlparse(url)
+    if url.netloc == 'derpiboo.ru':
+        host = 'derpibooru.org'
+    elif url.endswith('derpicdn.net'): pass
+    elif not url.netloc.endswith('derpibooru.org'):
+        return url
+    
+    path = u.path
     if path.startswith('/images/'):
         path = path[len('/images'):]
-    if url.netloc == 'derpicdn.net':
-        host = 'derpicdn.net'
-    else:
-        host = 'derpibooru.org'
     url = urllib.parse.urlunparse(('https',host,path,None,None,None))
     #raise SystemExit('okay',url)
     return url
