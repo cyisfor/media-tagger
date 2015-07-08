@@ -9,6 +9,8 @@ def mystrip(s,chars):
             s = s[i+1:]
     return s
 
+notags = re.compile('([0-9]+).*(\\..*)')
+
 def extract(doc):
     gotImage = False
     for taglist in doc.findAll('div',{'class': 'tagsauce'}):    
@@ -41,17 +43,20 @@ def extract(doc):
             yield Image(src)
             foundImage = True
 
-noquery = re.compile('^[^?]*')
-
 def normalize(url):
     u = urllib.parse.urlparse(url)
-    if url.netloc == 'derpiboo.ru':
-        host = 'derpibooru.org'
-    elif url.endswith('derpicdn.net'): pass
-    elif not url.netloc.endswith('derpibooru.org'):
-        return url
-    
+    host = u.netloc
     path = u.path
+    if host == 'derpiboo.ru':
+        host = 'derpibooru.org'
+    elif host.endswith('derpicdn.net'):
+        path,tail = path.rsplit('/',1)
+        match = notags.match(tail)
+        if match:
+            path = path + '/' +  match.group(1) + match.group(2)
+    elif not host.endswith('derpibooru.org'):
+        return url
+
     if path.startswith('/images/'):
         path = path[len('/images'):]
     url = urllib.parse.urlunparse(('https',host,path,None,None,None))

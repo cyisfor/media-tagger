@@ -1,16 +1,20 @@
 DROP FUNCTION mergeSources(int,int,text);
-
-CREATE OR REPLACE FUNCTION mergeSources(_dest int, _loser int, _uri text) RETURNS text AS $$
+DROP FUNCTION mergeSources(int,int);
+CREATE OR REPLACE FUNCTION mergeSources(_dest int, _loser int) RETURNS VOID AS $$
 BEGIN
     IF _dest != _loser THEN
         UPDATE media SET sources = array(SELECT unnest(sources) UNION SELECT _dest EXCEPT SELECT _loser) WHERE sources @> ARRAY[_loser];
         UPDATE comics SET source = _dest WHERE source = _loser;
         DELETE FROM sources WHERE id = _loser;
-        UPDATE urisources SET uri = _uri WHERE id = _dest;
-        RETURN _dest || ' yay ' || _uri;
     END IF;
+END;
+$$ language 'plpgsql';
+
+
+CREATE OR REPLACE FUNCTION mergeSources(_dest int, _loser int, _uri text) RETURNS void AS $$
+BEGIN
+    PERFORM mergeSources(_dest,_loser);
     UPDATE urisources SET uri = _uri WHERE id = _dest;
-    RETURN 'nope ' || _uri;
 END;
 $$ language 'plpgsql';
 

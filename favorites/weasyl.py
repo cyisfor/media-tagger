@@ -13,9 +13,10 @@ def extract(doc):
     for a in doc.findAll('a'):
         href = a.get('href')
         if not href: continue
+        href = urllib.parse.urlparse(href).path
         try: name,category,rest = href[1:].split('/',2)
         except ValueError: continue
-        if not category in set(("submission","character")):            
+        if not category in set(("submissions","characters")):
             continue
         derp = href.rsplit('.',1)
         if len(derp) == 2:
@@ -26,6 +27,7 @@ def extract(doc):
         img = a.find('img')
         if img:
             name = img['alt'] + '.' + ext
+            print('found',href,name)
             yield Name(name)
             yield Image(href)
             image = True

@@ -25,6 +25,13 @@ finders = []
 
 skip = os.environ.get('skip')
 
+def displayit(f):
+    def wrap(*a,**kw):
+        r = f(*a,**kw)
+        print("GINOUH",f,a,kw,'=>',r)
+        return r
+    return wrap
+
 def parse(primarySource):
     primarySource = primarySource.strip()
     if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
@@ -35,7 +42,7 @@ def parse(primarySource):
     doc = None
     for name,matcher,handlers in finders:
         if 'normalize' in handlers:
-            normalize = handlers['normalize']
+            normalize = displayit(handlers['normalize'])
         else:
             normalize = lambda url: url
         if matcher(url):
@@ -98,7 +105,9 @@ def parse(primarySource):
                 note("PSource",primarySource)
                 note("Sources",sources)
             for media in medias:
+                print('BOING',media.url,normalize)
                 media.url = normalize(media.url)
+                print(media.url)
                 derpSources = [normalize(source) for source in sources] + [media.url]
                 media.url = urllib.parse.urljoin(primarySource,media.url)
                 if len(medias) == 1:
@@ -108,6 +117,7 @@ def parse(primarySource):
                 derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
                 media.headers['Referer'] = primarySource
                 def download(dest):
+                    print('download',media.url)
                     myretrieve(Request(media.url,
                         headers=media.headers),
                         dest)
@@ -138,6 +148,7 @@ def normalize(url):
     for name,matcher,handlers in finders:
         if matcher(burl):
             if 'normalize' in handlers:
+                print('handler',handlers['normalize'])
                 return handlers['normalize'](url)
             return url
     return url

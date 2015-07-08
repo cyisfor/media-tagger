@@ -167,7 +167,10 @@ def getanId(sources,uniqueSources,download,name):
                     type = input("Type:")
                     if not type or not '/' in type:
                         raise NoGood("Couldn't determine type of",id)
-            if not isGood(type): raise NoGood(uniqueSource if uniqueSource else name,type)
+            if not isGood(type):
+                print('check',data.name)
+                input()
+                raise NoGood(uniqueSource if uniqueSource else name,type)
             if not '.' in name:
                 name += '.' + magic.guess_extension(type)
             note("New {} with id {:x} ({})".format(type,id,name))
