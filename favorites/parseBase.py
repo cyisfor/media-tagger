@@ -42,7 +42,7 @@ def parse(primarySource):
     doc = None
     for name,matcher,handlers in finders:
         if 'normalize' in handlers:
-            normalize = displayit(handlers['normalize'])
+            normalize = handlers['normalize']
         else:
             normalize = lambda url: url
         if matcher(url):
@@ -105,15 +105,13 @@ def parse(primarySource):
                 note("PSource",primarySource)
                 note("Sources",sources)
             for media in medias:
-                print('BOING',media.url,normalize)
-                media.url = normalize(media.url)
-                print(media.url)
-                derpSources = [normalize(source) for source in sources] + [media.url]
+                derpmedia = normalize(media.url)
+                derpSources = [normalize(source) for source in sources] + [derpmedia]
                 media.url = urllib.parse.urljoin(primarySource,media.url)
                 if len(medias) == 1:
                     derpSource = primarySource
                 else:
-                    derpSource = media.url
+                    derpSource = derpmedia
                 derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
                 media.headers['Referer'] = primarySource
                 def download(dest):

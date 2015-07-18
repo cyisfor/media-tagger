@@ -25,7 +25,6 @@ def extract(doc):
     sauce = doc.find('span',{'class': 'source_url'})
     if sauce:
         yield Source(sauce.find('a')['href'])
-    imgr = doc.find('div',id='image_target').next.next
     foundImage = False
     for a in doc.findAll('a'):
         rel = a.get('rel')
@@ -36,12 +35,8 @@ def extract(doc):
             yield Image(href)
             foundImage = True
     if not foundImage:
-        for img in imgr.findAll('img'):
-            src = img.get('src')
-            if not src: continue
-            if '/thumbs/' in src: continue
-            yield Image(src)
-            foundImage = True
+        imgr = doc.find('div',id='image_target')
+        yield Image(imgr.getAttribute('data-download-uri'))
 
 def normalize(url):
     u = urllib.parse.urlparse(url)

@@ -49,7 +49,7 @@ def sourceId(source):
             db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2)",(id,source))
         return id
 
-findMD5 = re.compile("[0-9a-fA-F]{32}")
+findMD5 = re.compile("\\b[0-9a-fA-F]{32}\\b")
 
 class NoGood(Exception): pass
 
