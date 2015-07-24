@@ -3,7 +3,7 @@
 # when passing a function as an argument, make a reply identifier
 # and save the function to a replying dict
 
-from counter import count
+from itertools import count
 import json
 
 replying = {}
@@ -23,12 +23,12 @@ def proxifyCallables(socket,arg):
     return arg    
     
 class ProxyMethod:
-    def __init__(self,socket,returns,method):
+    def __init__(self,name,socket,returns,method):
+        self.name = name
         self.socket = socket
         socket.setblocking(True)
         self.method = method
         self.returns = returns
-        self.buffer = bytearray(0x1000)
         self.pos = 0
     def __call__(self,*a,**kw):
         a = list(a)
@@ -48,10 +48,12 @@ class Proxy:
     def __init__(self,backend,socket):
         self.backend = backend # only run on one not the other
         self.socket = socket
+        self.buffer = bytearray(0x1000)
     def __getattr__(self,name):
+        assert name != 'waitFor'
         method = getattr(self.backend,name)
         return ProxyMethod(self,
-                           name
+                           name,
                            method.func_annotations.get('return'),
                            method)
     def waitFor(self,returnid=None):
@@ -64,8 +66,9 @@ class Proxy:
                 print(type(e))
                 raise
             else:
+                end = len(self.buffer) - self.pos
                 self.buffer[:] = self.buffer[self.pos:]
-                self.pos = 0
+                self.pos = end
                 id,*message = message
                 if isinstance(id,str):
                     realmethod = getattr(self.backend,id)
@@ -95,6 +98,7 @@ class Proxy:
 class Importer:
     def run(self):
         import favorites.parsers
+        self.gui.waitFor(None)
     def gotClipboard(self,uri,c,w):
         from favorites.parseBase import parse, ParseError, normalize
         import comic
@@ -104,11 +108,12 @@ class Importer:
         try: m = parse(normalize(url))
         except ParseError:
             m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-        comic.findInfo(m,self.gui.getInfo,lambda *a: self.comicReady(c,w,m))
-    def openComic(self):
+        comic.findInfo(m,self.gui.getInfo
+                       ,lambda *a: self.comicReady(c,w,m))
+    def openComic(self) -> int:
         import db
         return db.c.execute("SELECT (SELECT MAX(id)+1 FROM comic)")
-    def maxWhich(self,c):
+    def maxWhich(self,c) -> int:
         import db
         return db.c.execute("SELECT (SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))
     def comicReady(self,c,w,m):
@@ -116,15 +121,25 @@ class Importer:
         c,w = self.gui.getStuff()
         comic.findMedium(c,w,m)        
         self.gui.setWhich(w+1)
-    def __init__(self,gui):
-        self.gui = gui
+
+def once(f):
+    def wrapper(*a,**kw):
+        try:
+            f(*a,**kw)
+        except Exception as e:
+            print(e)
+        else:
+            return False
         
 class GUI:
     def run(self):
         import gtkclipboardy as clipboardy
-        from gi.repository import Gtk
+        from gi.repository import Gtk,GLib
         import sys
 
+        GLib.idle_add(once(self.setup))
+        Gtk.main()
+    def setup(self):
         window = Gtk.Window()
         window.connect('destroy',Gtk.main_quit)
         box = Gtk.VBox()
@@ -136,7 +151,7 @@ class GUI:
 
         window.connect('destroy',Gtk.main_quit)
         window.show_all()
-        clipboardy.run(self.gotClipboard,
+        clipboardy.start(self.gotClipboard,
                        lambda piece: b'http' == piece[:4])
     def setWhich(self,which):
         self.wentry.set_text('{:x}'.format(which))
@@ -167,9 +182,9 @@ class GUI:
         title = e("title")
         description = e("description")
         source = e("source")
+        title.grab_focus()
         title.connect('activate',lambda *a: description.grab_focus())
         description.connect('activate',lambda *a: source.grab_focus())
-        title.grab_focus()
         source.connect('activate',lambda *a: window.destroy())
         def herp(*a):
             nonlocal title, description, source
@@ -191,10 +206,10 @@ g.db = Proxy(i,importer)
 i.gui = Proxy(g,gui)
 
 pid = os.fork()
-if pid:
-    gui.run()
-    os.exit(0)
+if pid == 0:
+    i.run()
+    raise SystemExit
 
-try: importer.run()
+try: g.run()
 finally:
     os.kill(pid,signal.SIGTERM)

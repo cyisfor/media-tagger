@@ -42,11 +42,10 @@ def make(handler,check):
         GLib.timeout_add(200,derp(checkClip))
     
     def run():
-        loop = GLib.MainLoop()
         GLib.timeout_add(200,derp(start))
         #import signal
         #signal.signal(signal.SIGINT, signal.SIG_DFL)
-        loop.run()
+        Gtk.main()
     return start,run
 
 def run(handler,check):
