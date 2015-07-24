@@ -3,6 +3,95 @@
 # when passing a function as an argument, make a reply identifier
 # and save the function to a replying dict
 
+from counter import count
+import json
+
+replying = {}
+replyid = count(0)
+
+def saveCallables(arg):
+    if callable(arg):
+        id = next(replyid)
+        replying[id] = arg
+        return ('call',id)
+    return arg # uhh
+
+def proxifyCallables(socket,arg):
+    # UHH...
+    if isinstance(arg,tuple) and arg and arg[0] == 'call' and isinstance(arg[1],'int'):
+        return lambda *a,**kw: socket.send(json.encode([arg[1],a,kw]))
+    return arg    
+    
+class ProxyMethod:
+    def __init__(self,socket,returns,method):
+        self.socket = socket
+        socket.setblocking(True)
+        self.method = method
+        self.returns = returns
+        self.buffer = bytearray(0x1000)
+        self.pos = 0
+    def __call__(self,*a,**kw):
+        a = list(a)
+        for i,e in enumerate(a):
+            a[i] = saveCallables(e)
+        for n,v in kw.items():
+            kw[n] = saveCallables(v)
+        # if annotation nowait, don't add a return function
+        returnid = None
+        if self.returns:
+            returnid = next(replyid)
+        
+        self.socket.write(json.encode([self.name,returnid,a,kw]))
+        self.proxy.waitFor(returnid)
+
+class Proxy:
+    def __init__(self,backend,socket):
+        self.backend = backend # only run on one not the other
+        self.socket = socket
+    def __getattr__(self,name):
+        method = getattr(self.backend,name)
+        return ProxyMethod(self,
+                           name
+                           method.func_annotations.get('return'),
+                           method)
+    def waitFor(self,returnid=None):
+        while True:
+            amt = self.socket.recv_into([memoryview(self.buffer)[self.pos:]])
+            self.pos += amt
+            try:
+                message = json.loads(memoryview(self.buffer)[self.pos:].decode('utf-8'))
+            except Exception as e:
+                print(type(e))
+                raise
+            else:
+                self.buffer[:] = self.buffer[self.pos:]
+                self.pos = 0
+                id,*message = message
+                if isinstance(id,str):
+                    realmethod = getattr(self.backend,id)
+                    returns,a,kw = message
+                    for i,v in enumerate(a):
+                        a[i] = proxifyCallables(self.socket,v)
+                    for n,v in kw.items():
+                        kw[n] = proxifyCallables(self.socket,v)
+                    ret = realmethod(*a,**kw)
+                    if returns is not None:
+                        self.socket.write(json.encode([returns,ret]))
+                if returnid is not None and id == returnid:
+                    ret = message[0]
+                    for i,v in enumerate(ret):
+                        ret[i] = proxifyCallables(self.socket,v)
+                    return ret
+                else:
+                    a,kw = message
+                    for i,v in enumerate(a):
+                        a[i] = proxifyCallables(self.socket,v)
+                    for n,v in kw.items():
+                        kw[n] = proxifyCallables(self.socket,v)
+                    reply = replying[id]
+                    del replying[id]
+                    reply(*a,**kw)
+
 class Importer:
     def run(self):
         import favorites.parsers
@@ -92,25 +181,20 @@ class GUI:
         window.connect('destroy',herp)
         window.show_all()
 
-def runGUI(socket):
-    g = GUI()
-    g.db = Proxy(Importer,socket)
-    g.run()
-
-def runImporter(socket):
-    i = Importer()
-    i.gui = Proxy(GUI,socket)
-    i.run()
+g = GUI()
+i = Importer()
 
 import os,socket,signal
 
 gui,importer = socket.socketpair()
+g.db = Proxy(i,importer)
+i.gui = Proxy(g,gui)
 
 pid = os.fork()
 if pid:
-    runGUI(gui)
+    gui.run()
     os.exit(0)
 
-try: runImporter(importer)
+try: importer.run()
 finally:
     os.kill(pid,signal.SIGTERM)
