@@ -34,26 +34,25 @@ class MessageDecoder:
     size = None
     def __init__(self):
         self.buffer = b''
-        self.derp = bytearray(0x1000)
-    def pull(self,readinto):
+    def pull(self,socket):
         while True:
-            amt = readinto(self.derp)
-            if not amt: break # closed?
-            self.buffer += self.derp
+            buf = socket.recv(0x1000)
+            if not buf: break # closed?
+            self.buffer += buf
             while True:
                 if self.size is None:
                     if len(self.buffer) < 2: break
-                    self.size = struct.unpack('H', self.advance(2))[0]
-                if len(self.buffer) >= self.size:
-                    yield self.advance(self.size)
-                    del self.size
-                else:
-                    # no more messages
+                    self.size = struct.unpack('H', self.advance(socket,2))[0]
+                    note("got size",self.size)
+                if len(self.buffer) < self.size:
                     break
-    def advance(self,amt):
-        note('advance',amt)
+                derp = self.size
+                del self.size
+                yield self.advance(socket,derp)
+    def advance(self,socket,amt):
         ret = self.buffer[:amt]
         self.buffer = self.buffer[amt:]
+        note(R(socket),'advance',amt,ret,self.buffer)
         return ret
 
 def encode(*a):
@@ -108,46 +107,56 @@ class Proxy:
                            method)
     def waitFor(self,returnid=None):
         note(self,'wait for',returnid,R(self.socket))
-        for message in self.md.pull(self.socket.recv_into):
-            print('jsony',message.tobytes())
-            message = json.loads(message.tobytes().decode('utf-8'))
-            id,*message = message
-            note('message',id,message)
-            if isinstance(id,str):
-                realmethod = getattr(self.inward,id)
-                returns,a,kw = message
-                for i,v in enumerate(a):
-                    a[i] = proxifyCallables(self.socket,v)
-                for n,v in kw.items():
-                    kw[n] = proxifyCallables(self.socket,v)
-                ret = realmethod(*a,**kw)
-                if returns is not None:
-                    self.send(encode(returns,ret))
-            elif returnid is not None and id == returnid:
-                ret = message[0]
-                note(self,'returning',ret)
-                try: 
-                    for i,v in enumerate(ret):
-                        ret[i] = proxifyCallables(self.socket,v)
-                except TypeError:
-                    ret = proxifyCallables(self.socket,ret)
-                return ret
+        while True:
+            for message in self.md.pull(self.socket):
+                print('jsony',message)
+                message = json.loads(message.decode('utf-8'))
+                id,*message = message
+                note('message',id,message)
+                if isinstance(id,str):
+                    realmethod = getattr(self.inward,id)
+                    returns,a,kw = message
+                    for i,v in enumerate(a):
+                        a[i] = proxifyCallables(self.socket,v)
+                    for n,v in kw.items():
+                        kw[n] = proxifyCallables(self.socket,v)
+                    note("calling",realmethod,a,kw)
+                    ret = realmethod(*a,**kw)
+                    if returns is not None:
+                        self.send(encode(returns,ret))
+                elif returnid is not None and id == returnid:
+                    ret = message[0]
+                    note(self,'returning',ret)
+                    try: 
+                        for i,v in enumerate(ret):
+                            ret[i] = proxifyCallables(self.socket,v)
+                    except TypeError:
+                        ret = proxifyCallables(self.socket,ret)
+                    return ret
+                else:
+                    a,kw = message
+                    for i,v in enumerate(a):
+                        a[i] = proxifyCallables(self.socket,v)
+                    for n,v in kw.items():
+                        kw[n] = proxifyCallables(self.socket,v)
+                    reply = replying[id]
+                    note('found reply',id,reply)
+                    del replying[id]
+                    reply(*a,**kw)
+            if returnid is None:
+                GLib.timeout_add(200,lambda *a: self.waitFor())
+                return
             else:
-                a,kw = message
-                for i,v in enumerate(a):
-                    a[i] = proxifyCallables(self.socket,v)
-                for n,v in kw.items():
-                    kw[n] = proxifyCallables(self.socket,v)
-                reply = replying[id]
-                note('found reply',id,reply)
-                del replying[id]
-                reply(*a,**kw)
+                # augh
+                GLib.timeout_add(200,Gtk.main_quit)
+                Gtk.main()
+            
 
 class Importer:
     def run(self):
         import favorites.parsers
         return self.gui.waitFor(None)
-    def gotClipboard(self,uri,c,w):
+    def gotClipboard(self,url,c,w):
         from favorites.parseBase import parse, ParseError, normalize
         import comic
         url = url.strip()
@@ -246,6 +255,7 @@ class GUI:
         self.db.gotClipboard(uri,c,w)
     def getInfo(self,next):
         from gi.repository import Gtk
+        print("Getting the infos?",next)
         window = Gtk.Window()
         box = Gtk.VBox()
         window.add(box)
