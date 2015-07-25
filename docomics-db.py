@@ -14,10 +14,10 @@ def R(a):
 
 def note(*a):
     import sys
+    l = []
     for e in a:
-        sys.stdout.write(str(R(e)))
-        sys.stdout.write(' ')
-    sys.stdout.write('\n')
+        l.append(str(R(e)))
+    sys.stdout.write(' '.join(l)+'\n')
     sys.stdout.flush()
 
 replying = {}
@@ -30,6 +30,27 @@ def saveCallables(arg):
         return ('call',id)
     return arg # uhh
 
+class MessageDecoder:
+    size = None
+    def __init__(self):
+        self.buffer = memoryview(bytearray(0x1000))[:0]
+    def feed(self,amt):
+        self.buffer = memoryview(self.buffer.obj[:len(self.buffer)+amt])
+        if self.size is None:
+            if len(self.buffer) < 2: return
+            self.size = struct.unpack('H',self.buffer[:2])
+            # have to shift the memory over, sigh...
+            self.buffer[:] = self.buffer[2:]
+        if len(self.buffer) >= self.size:
+    v = memoryview(buff)
+    size = 
+    if len(buff)
+        
+    def encode(self,*a):
+        message = json.dumps(a).encode('utf-8')
+        self.bufferstruct.pack("H",len(message))+message)
+def demessage(buff):
+    
 def proxifyCallables(socket,arg):
     # UHH...
     if isinstance(arg,tuple) and arg and arg[0] == 'call' and isinstance(arg[1],'int'):
@@ -68,7 +89,7 @@ class Proxy:
         self.buffer = bytearray(0x1000)
         self.pos = 0
     def send(self,b):
-        note('send',R(self.socket))
+        note('send',R(self.socket),b)
         return self.socket.send(b)
     def __getattr__(self,name):
         assert name != 'waitFor'
@@ -79,13 +100,16 @@ class Proxy:
                            method)
     def waitFor(self,returnid=None):
         while True:
-            note('wait for',returnid,R(self.socket))
+            note(self,'wait for',returnid,R(self.socket))
             amt = self.socket.recv_into(memoryview(self.buffer)[self.pos:])
             if not amt: break
             note(self,'got bit',amt,R(self.socket),
                   self.inward,
                   bytes(memoryview(self.buffer)[self.pos:amt]))
             self.pos += amt
+            self.parseMessages()
+    def parseMessages(self):
+        while True:
             try:
                 message = json.loads(bytes(memoryview(self.buffer)[:self.pos]).decode('utf-8'))
                 if not message: break
@@ -111,7 +135,7 @@ class Proxy:
                         self.socket.send(json.dumps([returns,ret]).encode('utf-8'))
                 elif returnid is not None and id == returnid:
                     ret = message[0]
-                    print('returning',ret)
+                    note(self,'returning',ret)
                     try: 
                         for i,v in enumerate(ret):
                             ret[i] = proxifyCallables(self.socket,v)
@@ -200,17 +224,20 @@ class GUI:
     def setWhich(self,which):
         self.wentry.set_text('{:x}'.format(which))
     def gotClipboard(self,uri):
+        c = self.centry.get_text()
+        if not c:
+            c = self.db.openComic()
+            self.centry.set_text('{:x}'.format(c))
         w = self.wentry.get_text()
         if w:
             w = int(w,0x10)
         else:
             w = self.db.maxWhich()
-            if w is not None:
-                self.wentry.set_text('{:x}'.format(w+1))
-                c = self.centry.get_text()
-                if not c:
-                    c = self.db.openComic()
-                    self.centry.set_text('{:x}'.format(c))
+            if w is None:
+                w = 0
+            else:
+                w = w + 1
+            self.wentry.set_text('{:x}'.format(w))
         self.db.gotClipboard(uri,c,w)
     def getInfo(self,next):
         from gi.repository import Gtk
