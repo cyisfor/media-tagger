@@ -36,7 +36,8 @@ class MessageDecoder:
         self.buffer = b''
     def pull(self,socket):
         while True:
-            buf = socket.recv(0x1000)
+            try: buf = socket.recv(0x1000)
+            except BlockingIOError: break
             if not buf: break # closed?
             self.buffer += buf
             while True:
@@ -61,7 +62,7 @@ def encode(*a):
     
 def proxifyCallables(socket,arg):
     # UHH...
-    if isinstance(arg,tuple) and arg and arg[0] == 'call' and isinstance(arg[1],'int'):
+    if isinstance(arg,list) and arg and arg[0] == 'call' and isinstance(arg[1],int):
         return lambda *a,**kw: socket.send(encode(arg[1],a,kw))
     return arg    
     
@@ -88,11 +89,14 @@ class ProxyMethod:
 class Proxy:
     def __repr__(self):
         return 'proxy for '+self.name
-    def __init__(self,name,outward,inward,socket):
+    def __init__(self,name,outward,inward,socket,guihack):
         self.name = name
         self.outward = outward
         self.inward = inward
         self.socket = socket
+        self.guihack = guihack
+        if guihack:
+            self.socket.setblocking(False)
         self.md = MessageDecoder()
         self.pos = 0
     def send(self,b):
@@ -106,7 +110,8 @@ class Proxy:
                            method.__func__.__annotations__.get('return'),
                            method)
     def waitFor(self,returnid=None):
-        note(self,'wait for',returnid,R(self.socket))
+        if not self.guihack:
+            note(self,'wait for',returnid,R(self.socket))
         while True:
             for message in self.md.pull(self.socket):
                 print('jsony',message)
@@ -143,13 +148,21 @@ class Proxy:
                     note('found reply',id,reply)
                     del replying[id]
                     reply(*a,**kw)
-            if returnid is None:
-                GLib.timeout_add(200,lambda *a: self.waitFor())
-                return
+            if self.guihack:
+                if returnid is None:
+                    from gi.repository import GLib
+                    GLib.timeout_add(200,lambda *a: self.waitFor())
+                    return                
+                else:
+                    # augh
+                    from gi.repository import GLib,Gtk
+                    note("Dropping to graphics loop for a bit")
+                    GLib.timeout_add(200,Gtk.main_quit)
+                    Gtk.main()
             else:
-                # augh
-                GLib.timeout_add(200,Gtk.main_quit)
-                Gtk.main()
+                while True:
+                    r,w,l = select.select([self.socket.fileno()],[],[])
+                    if r: break
             
 
 class Importer:
@@ -165,7 +178,7 @@ class Importer:
         try: m = parse(normalize(url))
         except ParseError:
             m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-        comic.findInfo(m,self.gui.getInfo
+        comic.findInfo(c,self.gui.getInfo
                        ,lambda *a: self.comicReady(c,w,m))
     def openComic(self) -> int:
         import db
@@ -175,7 +188,6 @@ class Importer:
         return db.execute("SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))[0][0]
     def comicReady(self,c,w,m):
         import comic
-        c,w = self.gui.getStuff()
         comic.findMedium(c,w,m)        
         self.gui.setWhich(w+1)
 
@@ -204,10 +216,6 @@ def kbquit(f):
 
 class GUI:
     def run(self):
-        try: 
-            import pgi
-            pgi.install_as_gi()
-        except ImportError: pass
         from gi.repository import Gtk,GLib
         import sys
 
@@ -269,6 +277,8 @@ class GUI:
         title = e("title")
         description = e("description")
         source = e("source")
+        title.set_text("Spike Wins a Gameshow")
+        description.set_text("Big head Spike loses a gameshow about how to pick which pony is Rarity... by orally pleasuring the Apple Family (sans Applejack)")
         title.grab_focus()
         title.connect('activate',lambda *a: description.grab_focus())
         description.connect('activate',lambda *a: source.grab_focus())
@@ -289,8 +299,8 @@ i = Importer()
 import os,socket,signal
 
 gui,importer = socket.socketpair()
-g.db = Proxy('Importer',i,g,importer)
-i.gui = Proxy('GUI',g,i,gui)
+g.db = Proxy('Importer',i,g,importer,True)
+i.gui = Proxy('GUI',g,i,gui,False)
 
 note('gi',R(gui),R(importer))
 

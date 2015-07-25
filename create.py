@@ -39,14 +39,14 @@ def sourceId(source):
     assert not isinstance(source,int)
     if source == '': return None
     if source[0] == '/': return None # todo: file sources?
-    id = db.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
-    if id:
-        return id[0][0]
-    else:
-        with db.saved():
-            id = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")
+    with db.transaction():
+        id = db.execute("SELECT id FROM urisources WHERE uri = $1",(source,))
+        if id:
+            return id[0][0]
+        else:
+            id = db.execute("INSERT INTO urisources (uri) VALUES ($1) RETURNING id",(source))
             id = id[0][0]
-            db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2)",(id,source))
+
         return id
 
 findMD5 = re.compile("\\b[0-9a-fA-F]{32}\\b")
