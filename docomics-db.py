@@ -4,7 +4,7 @@
 # and save the function to a replying dict
 
 from itertools import count
-import json
+import json,struct
 
 import socket
 
@@ -43,8 +43,8 @@ class MessageDecoder:
             self.end += amt
             while True:
                 if self.size is None:
-                    if self.start + 2 > self.end: return            
-                        self.size = struct.unpack('H', self.advance(2))
+                    if self.start + 2 > self.end: break
+                    self.size = struct.unpack('H', self.advance(2))[0]
                 if self.end - self.start >= self.size:
                     yield self.advance(self.size)
                     del self.size
@@ -52,15 +52,19 @@ class MessageDecoder:
                     # no more messages
                     break
     def advance(self,amt):
+        note('advance',amt)
         ret = memoryview(self.buffer)[self.start:self.start+amt]
         self.start += amt
         if self.start == self.end:
             self.start = self.end = 0
         elif self.start > (self.end - self.start):
             # XXX: should we even shift the tail over?
-            self.buffer[:] = self.buffer[self.start,self.end]
+            try: self.buffer[:self.end-self.start] = self.buffer[self.start:self.end]
+            except TypeError:
+                print((self.start,self.end))
+                raise
             self.start = self.end = 0
-            self.buffer[:] = self.buffer[2:]
+            self.buffer[:len(self.buffer)-2] = self.buffer[2:]
         elif self.end > len(self.buffer) - self.end:
             # not enough tail space, should expand?
             new = bytearray(self.end * 2)
@@ -70,7 +74,8 @@ class MessageDecoder:
         return ret
 
 def encode(*a):
-    return json.dumps(a).encode('utf-8')
+    b = json.dumps(a).encode('utf-8')
+    return struct.pack('H',len(b))+b
     
 def proxifyCallables(socket,arg):
     # UHH...
@@ -121,12 +126,13 @@ class Proxy:
     def waitFor(self,returnid=None):
         note(self,'wait for',returnid,R(self.socket))
         for message in self.md.pull(self.socket.recv_into):
+            print('jsony',message.tobytes())
             message = json.loads(message.tobytes().decode('utf-8'))
             id,*message = message
             note('message',id,message)
             if isinstance(id,str):
                 realmethod = getattr(self.inward,id)
-                    returns,a,kw = message
+                returns,a,kw = message
                 for i,v in enumerate(a):
                     a[i] = proxifyCallables(self.socket,v)
                 for n,v in kw.items():
@@ -171,10 +177,10 @@ class Importer:
                        ,lambda *a: self.comicReady(c,w,m))
     def openComic(self) -> int:
         import db
-        return db.execute("SELECT (SELECT MAX(id)+1 FROM comics)")[0][0]
+        return db.execute("SELECT MAX(id)+1 FROM comics")[0][0]
     def maxWhich(self,c) -> int:
         import db
-        return db.execute("SELECT (SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))[0][0]
+        return db.execute("SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))[0][0]
     def comicReady(self,c,w,m):
         import comic
         c,w = self.gui.getStuff()
@@ -233,7 +239,7 @@ class GUI:
         if w:
             w = int(w,0x10)
         else:
-            w = self.db.maxWhich()
+            w = self.db.maxWhich(c)
             if w is None:
                 w = 0
             else:
