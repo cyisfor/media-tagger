@@ -33,19 +33,18 @@ def saveCallables(arg):
 class MessageDecoder:
     size = None
     def __init__(self):
-        self.buffer = bytearray(0x1000)
-        self.start = 0
-        self.end = 0
+        self.buffer = b''
+        self.derp = bytearray(0x1000)
     def pull(self,readinto):
         while True:
-            amt = readinto(memoryview(self.buffer)[self.end:])
+            amt = readinto(self.derp)
             if not amt: break # closed?
-            self.end += amt
+            self.buffer += self.derp
             while True:
                 if self.size is None:
-                    if self.start + 2 > self.end: break
+                    if len(self.buffer) < 2: break
                     self.size = struct.unpack('H', self.advance(2))[0]
-                if self.end - self.start >= self.size:
+                if len(self.buffer) >= self.size:
                     yield self.advance(self.size)
                     del self.size
                 else:
@@ -53,24 +52,8 @@ class MessageDecoder:
                     break
     def advance(self,amt):
         note('advance',amt)
-        ret = memoryview(self.buffer)[self.start:self.start+amt]
-        self.start += amt
-        if self.start == self.end:
-            self.start = self.end = 0
-        elif self.start > (self.end - self.start):
-            # XXX: should we even shift the tail over?
-            try: self.buffer[:self.end-self.start] = self.buffer[self.start:self.end]
-            except TypeError:
-                print((self.start,self.end))
-                raise
-            self.start = self.end = 0
-            self.buffer[:len(self.buffer)-2] = self.buffer[2:]
-        elif self.end > len(self.buffer) - self.end:
-            # not enough tail space, should expand?
-            new = bytearray(self.end * 2)
-            new[:] = self.buffer[self.start:self.end]
-            self.buffer = new
-            self.start = self.end = 0
+        ret = self.buffer[:amt]
+        self.buffer = self.buffer[amt:]
         return ret
 
 def encode(*a):
@@ -199,7 +182,17 @@ def once(f):
         else:
             return False
     return wrapper
-        
+
+def kbquit(f):
+    def wrapper(*a,**kw):
+        try:
+            return f(*a,**kw)
+        except KeyboardInterrupt:
+            note("quitting")
+            from gi.repository import Gtk
+            Gtk.main_quit()
+    return wrapper
+
 class GUI:
     def run(self):
         try: 
@@ -210,7 +203,11 @@ class GUI:
         import sys
 
         GLib.idle_add(once(self.setup))
+        Gtk.init(())
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
         Gtk.main()
+    @kbquit
     def setup(self,um=None):
         from gi.repository import Gtk
         window = Gtk.Window()
@@ -230,6 +227,7 @@ class GUI:
         start()
     def setWhich(self,which):
         self.wentry.set_text('{:x}'.format(which))
+    @kbquit
     def gotClipboard(self,uri):
         c = self.centry.get_text()
         if not c:
