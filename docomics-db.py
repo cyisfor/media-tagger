@@ -6,6 +6,12 @@
 from itertools import count
 import json
 
+import socket
+
+def R(a):
+    if isinstance(a,socket.socket): return a.fileno()
+    return a
+
 replying = {}
 replyid = count(0)
 
@@ -38,34 +44,42 @@ class ProxyMethod:
         returnid = None
         if self.returns:
             returnid = next(replyid)
-        
+        print(self.proxy,'calling',self.name)
         self.proxy.send(json.dumps(
             [self.name,returnid,a,kw]).encode('utf-8'))
         self.proxy.waitFor(returnid)
 
 class Proxy:
-    def __init__(self,backend,socket):
-        self.backend = backend # only run on one not the other
+    def __repr__(self):
+        return 'proxy for '+self.name
+    def __init__(self,name,outward,inward,socket):
+        self.name = name
+        self.outward = outward
+        self.inward = inward
         self.socket = socket
         self.buffer = bytearray(0x1000)
         self.pos = 0
     def send(self,b):
+        print('send',R(self.socket))
         return self.socket.send(b)
     def __getattr__(self,name):
         assert name != 'waitFor'
-        method = getattr(self.backend,name)
-        print(dir(method.__func__))
-        return ProxyMethod(
+        method = getattr(self.outward,name)
+        return ProxyMethod(self,
                            name,
-                           self.socket,
                            method.__func__.__annotations__.get('return'),
                            method)
     def waitFor(self,returnid=None):
         while True:
+            print('wait for',R(self.socket))
             amt = self.socket.recv_into(memoryview(self.buffer)[self.pos:])
+            print(self,'got bit',R(self.socket),
+                  self.inward,
+                  bytes(memoryview(self.buffer)[self.pos:amt]))
             self.pos += amt
             try:
-                message = json.loads(memoryview(self.buffer)[self.pos:].decode('utf-8'))
+                message = json.loads(bytes(memoryview(self.buffer)[:self.pos]).decode('utf-8'))
+            except ValueError: continue
             except Exception as e:
                 print(type(e))
                 raise
@@ -75,7 +89,7 @@ class Proxy:
                 self.pos = end
                 id,*message = message
                 if isinstance(id,str):
-                    realmethod = getattr(self.backend,id)
+                    realmethod = getattr(self.inward,id)
                     returns,a,kw = message
                     for i,v in enumerate(a):
                         a[i] = proxifyCallables(self.socket,v)
@@ -116,10 +130,10 @@ class Importer:
                        ,lambda *a: self.comicReady(c,w,m))
     def openComic(self) -> int:
         import db
-        return db.c.execute("SELECT (SELECT MAX(id)+1 FROM comic)")
+        return db.execute("SELECT (SELECT MAX(id)+1 FROM comics)")
     def maxWhich(self,c) -> int:
         import db
-        return db.c.execute("SELECT (SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))
+        return db.execute("SELECT (SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))
     def comicReady(self,c,w,m):
         import comic
         c,w = self.gui.getStuff()
@@ -133,6 +147,8 @@ def once(f):
         except Exception as e:
             import traceback
             traceback.print_exc()
+            from gi.repository import Gtk
+            Gtk.main_quit()
         else:
             return False
     return wrapper
@@ -150,6 +166,7 @@ class GUI:
         Gtk.main()
     def setup(self,um=None):
         print('um?',um)
+        print('ocom',self.db.openComic())
         from gi.repository import Gtk
         window = Gtk.Window()
         window.connect('destroy',Gtk.main_quit)
@@ -215,13 +232,15 @@ i = Importer()
 import os,socket,signal
 
 gui,importer = socket.socketpair()
-g.db = Proxy(i,importer)
-i.gui = Proxy(g,gui)
+g.db = Proxy('Importer',i,g,importer)
+i.gui = Proxy('GUI',g,i,gui)
+
+print('gi',R(gui),R(importer))
+
 
 pid = os.fork()
 if pid == 0:
     import sys
-    sys.stderr.close()
     i.run()
     raise SystemExit
 
