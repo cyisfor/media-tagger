@@ -35,7 +35,7 @@ def make(handler,check):
         clipboard.request_text(gotClip,None)
         return False
     
-    def start(nun):
+    def start(nun=None):
         nonlocal clipboard
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
         clipboard.set_text('',0)

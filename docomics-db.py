@@ -19,17 +19,15 @@ def saveCallables(arg):
 def proxifyCallables(socket,arg):
     # UHH...
     if isinstance(arg,tuple) and arg and arg[0] == 'call' and isinstance(arg[1],'int'):
-        return lambda *a,**kw: socket.send(json.encode([arg[1],a,kw]))
+        return lambda *a,**kw: socket.send(json.dumps([arg[1],a,kw]).encode('utf-8'))
     return arg    
     
 class ProxyMethod:
-    def __init__(self,name,socket,returns,method):
+    def __init__(self,proxy,name,returns,method):
         self.name = name
-        self.socket = socket
-        socket.setblocking(True)
+        self.proxy = proxy
         self.method = method
         self.returns = returns
-        self.pos = 0
     def __call__(self,*a,**kw):
         a = list(a)
         for i,e in enumerate(a):
@@ -41,7 +39,8 @@ class ProxyMethod:
         if self.returns:
             returnid = next(replyid)
         
-        self.socket.write(json.encode([self.name,returnid,a,kw]))
+        self.proxy.send(json.dumps(
+            [self.name,returnid,a,kw]).encode('utf-8'))
         self.proxy.waitFor(returnid)
 
 class Proxy:
@@ -49,16 +48,21 @@ class Proxy:
         self.backend = backend # only run on one not the other
         self.socket = socket
         self.buffer = bytearray(0x1000)
+        self.pos = 0
+    def send(self,b):
+        return self.socket.send(b)
     def __getattr__(self,name):
         assert name != 'waitFor'
         method = getattr(self.backend,name)
-        return ProxyMethod(self,
+        print(dir(method.__func__))
+        return ProxyMethod(
                            name,
-                           method.func_annotations.get('return'),
+                           self.socket,
+                           method.__func__.__annotations__.get('return'),
                            method)
     def waitFor(self,returnid=None):
         while True:
-            amt = self.socket.recv_into([memoryview(self.buffer)[self.pos:]])
+            amt = self.socket.recv_into(memoryview(self.buffer)[self.pos:])
             self.pos += amt
             try:
                 message = json.loads(memoryview(self.buffer)[self.pos:].decode('utf-8'))
@@ -79,7 +83,7 @@ class Proxy:
                         kw[n] = proxifyCallables(self.socket,v)
                     ret = realmethod(*a,**kw)
                     if returns is not None:
-                        self.socket.write(json.encode([returns,ret]))
+                        self.socket.send(json.dumps([returns,ret]).encode('utf-8'))
                 if returnid is not None and id == returnid:
                     ret = message[0]
                     for i,v in enumerate(ret):
@@ -127,19 +131,26 @@ def once(f):
         try:
             f(*a,**kw)
         except Exception as e:
-            print(e)
+            import traceback
+            traceback.print_exc()
         else:
             return False
+    return wrapper
         
 class GUI:
     def run(self):
-        import gtkclipboardy as clipboardy
+        try: 
+            import pgi
+            pgi.install_as_gi()
+        except ImportError: pass
         from gi.repository import Gtk,GLib
         import sys
 
         GLib.idle_add(once(self.setup))
         Gtk.main()
-    def setup(self):
+    def setup(self,um=None):
+        print('um?',um)
+        from gi.repository import Gtk
         window = Gtk.Window()
         window.connect('destroy',Gtk.main_quit)
         box = Gtk.VBox()
@@ -151,8 +162,10 @@ class GUI:
 
         window.connect('destroy',Gtk.main_quit)
         window.show_all()
-        clipboardy.start(self.gotClipboard,
+        import gtkclipboardy as clipboardy
+        start,run = clipboardy.make(self.gotClipboard,
                        lambda piece: b'http' == piece[:4])
+        start()
     def setWhich(self,which):
         self.wentry.set_text('{:x}'.format(which))
     def gotClipboard(self,uri):
@@ -207,9 +220,15 @@ i.gui = Proxy(g,gui)
 
 pid = os.fork()
 if pid == 0:
+    import sys
+    sys.stderr.close()
     i.run()
     raise SystemExit
 
-try: g.run()
+try:
+    g.run()
+    os.waitpid(pid)
+    pid = None
 finally:
-    os.kill(pid,signal.SIGTERM)
+    if pid is not None:
+        os.kill(pid,signal.SIGTERM)
