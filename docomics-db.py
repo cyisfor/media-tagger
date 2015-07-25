@@ -33,28 +33,49 @@ def saveCallables(arg):
 class MessageDecoder:
     size = None
     def __init__(self):
-        self.buffer = memoryview(bytearray(0x1000))[:0]
-    def feed(self,amt):
-        self.buffer = memoryview(self.buffer.obj[:len(self.buffer)+amt])
-        if self.size is None:
-            if len(self.buffer) < 2: return
-            self.size = struct.unpack('H',self.buffer[:2])
-            # have to shift the memory over, sigh...
+        self.buffer = bytearray(0x1000)
+        self.start = 0
+        self.end = 0
+    def pull(self,readinto):
+        while True:
+            amt = readinto(memoryview(self.buffer)[self.end:])
+            if not amt: break # closed?
+            self.end += amt
+            while True:
+                if self.size is None:
+                    if self.start + 2 > self.end: return            
+                        self.size = struct.unpack('H', self.advance(2))
+                if self.end - self.start >= self.size:
+                    yield self.advance(self.size)
+                    del self.size
+                else:
+                    # no more messages
+                    break
+    def advance(self,amt):
+        ret = memoryview(self.buffer)[self.start:self.start+amt]
+        self.start += amt
+        if self.start == self.end:
+            self.start = self.end = 0
+        elif self.start > (self.end - self.start):
+            # XXX: should we even shift the tail over?
+            self.buffer[:] = self.buffer[self.start,self.end]
+            self.start = self.end = 0
             self.buffer[:] = self.buffer[2:]
-        if len(self.buffer) >= self.size:
-    v = memoryview(buff)
-    size = 
-    if len(buff)
-        
-    def encode(self,*a):
-        message = json.dumps(a).encode('utf-8')
-        self.bufferstruct.pack("H",len(message))+message)
-def demessage(buff):
+        elif self.end > len(self.buffer) - self.end:
+            # not enough tail space, should expand?
+            new = bytearray(self.end * 2)
+            new[:] = self.buffer[self.start:self.end]
+            self.buffer = new
+            self.start = self.end = 0
+        return ret
+
+def encode(*a):
+    return json.dumps(a).encode('utf-8')
     
 def proxifyCallables(socket,arg):
     # UHH...
     if isinstance(arg,tuple) and arg and arg[0] == 'call' and isinstance(arg[1],'int'):
-        return lambda *a,**kw: socket.send(json.dumps([arg[1],a,kw]).encode('utf-8'))
+        return lambda *a,**kw: socket.send(encode(arg[1],a,kw))
     return arg    
     
 class ProxyMethod:
@@ -74,8 +95,7 @@ class ProxyMethod:
         if self.returns:
             returnid = next(replyid)
         note(self.proxy,'calling',self.name)
-        self.proxy.send(json.dumps(
-            [self.name,returnid,a,kw]).encode('utf-8'))
+        self.proxy.send(encode(self.name,returnid,a,kw))
         return self.proxy.waitFor(returnid)
 
 class Proxy:
@@ -86,7 +106,7 @@ class Proxy:
         self.outward = outward
         self.inward = inward
         self.socket = socket
-        self.buffer = bytearray(0x1000)
+        self.md = MessageDecoder()
         self.pos = 0
     def send(self,b):
         note('send',R(self.socket),b)
@@ -99,59 +119,40 @@ class Proxy:
                            method.__func__.__annotations__.get('return'),
                            method)
     def waitFor(self,returnid=None):
-        while True:
-            note(self,'wait for',returnid,R(self.socket))
-            amt = self.socket.recv_into(memoryview(self.buffer)[self.pos:])
-            if not amt: break
-            note(self,'got bit',amt,R(self.socket),
-                  self.inward,
-                  bytes(memoryview(self.buffer)[self.pos:amt]))
-            self.pos += amt
-            self.parseMessages()
-    def parseMessages(self):
-        while True:
-            try:
-                message = json.loads(bytes(memoryview(self.buffer)[:self.pos]).decode('utf-8'))
-                if not message: break
-            except ValueError: continue
-            except Exception as e:
-                note(type(e))
-                raise
-            else:
-                end = len(self.buffer) - self.pos
-                self.buffer[:] = self.buffer[self.pos:]
-                self.pos = end
-                id,*message = message
-                note('message',id,message)
-                if isinstance(id,str):
-                    realmethod = getattr(self.inward,id)
+        note(self,'wait for',returnid,R(self.socket))
+        for message in self.md.pull(self.socket.recv_into):
+            message = json.loads(message.tobytes().decode('utf-8'))
+            id,*message = message
+            note('message',id,message)
+            if isinstance(id,str):
+                realmethod = getattr(self.inward,id)
                     returns,a,kw = message
-                    for i,v in enumerate(a):
-                        a[i] = proxifyCallables(self.socket,v)
-                    for n,v in kw.items():
-                        kw[n] = proxifyCallables(self.socket,v)
-                    ret = realmethod(*a,**kw)
-                    if returns is not None:
-                        self.socket.send(json.dumps([returns,ret]).encode('utf-8'))
-                elif returnid is not None and id == returnid:
-                    ret = message[0]
-                    note(self,'returning',ret)
-                    try: 
-                        for i,v in enumerate(ret):
-                            ret[i] = proxifyCallables(self.socket,v)
-                    except TypeError:
-                        ret = proxifyCallables(self.socket,ret)
-                    return ret
-                else:
-                    a,kw = message
-                    for i,v in enumerate(a):
-                        a[i] = proxifyCallables(self.socket,v)
-                    for n,v in kw.items():
-                        kw[n] = proxifyCallables(self.socket,v)
-                    reply = replying[id]
-                    note('found reply',id,reply)
-                    del replying[id]
-                    reply(*a,**kw)
+                for i,v in enumerate(a):
+                    a[i] = proxifyCallables(self.socket,v)
+                for n,v in kw.items():
+                    kw[n] = proxifyCallables(self.socket,v)
+                ret = realmethod(*a,**kw)
+                if returns is not None:
+                    self.send(encode(returns,ret))
+            elif returnid is not None and id == returnid:
+                ret = message[0]
+                note(self,'returning',ret)
+                try: 
+                    for i,v in enumerate(ret):
+                        ret[i] = proxifyCallables(self.socket,v)
+                except TypeError:
+                    ret = proxifyCallables(self.socket,ret)
+                return ret
+            else:
+                a,kw = message
+                for i,v in enumerate(a):
+                    a[i] = proxifyCallables(self.socket,v)
+                for n,v in kw.items():
+                    kw[n] = proxifyCallables(self.socket,v)
+                reply = replying[id]
+                note('found reply',id,reply)
+                del replying[id]
+                reply(*a,**kw)
 
 class Importer:
     def run(self):
