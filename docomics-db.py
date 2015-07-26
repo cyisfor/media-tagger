@@ -110,7 +110,7 @@ class Proxy:
                            method.__func__.__annotations__.get('return'),
                            method)
     def waitFor(self,returnid=None):
-        if not self.guihack:
+        if returnid is not None:
             note(self,'wait for',returnid,R(self.socket))
         while True:
             for message in self.md.pull(self.socket):
@@ -156,7 +156,6 @@ class Proxy:
                 else:
                     # augh
                     from gi.repository import GLib,Gtk
-                    note("Dropping to graphics loop for a bit")
                     GLib.timeout_add(200,Gtk.main_quit)
                     Gtk.main()
             else:
@@ -188,7 +187,8 @@ class Importer:
         return db.execute("SELECT MAX(which) FROM comicPage WHERE comic = $1",(c,))[0][0]
     def comicReady(self,c,w,m):
         import comic
-        comic.findMedium(c,w,m)        
+        print('ready {:x} {:x} {:x}'.format(c,w,m))
+        comic.findMedium(c,w,m)
         self.gui.setWhich(w+1)
 
 def once(f):
@@ -247,7 +247,9 @@ class GUI:
     @kbquit
     def gotClipboard(self,uri):
         c = self.centry.get_text()
-        if not c:
+        if c:
+            c = int(c,0x10)
+        else:
             c = self.db.openComic()
             self.centry.set_text('{:x}'.format(c))
         w = self.wentry.get_text()
@@ -316,5 +318,7 @@ try:
     os.waitpid(pid,0)
     pid = None
 finally:
+    importer.close()
     if pid is not None:
+        os.waitpid(pid,0)
         os.kill(pid,signal.SIGTERM)

@@ -44,9 +44,9 @@ def sourceId(source):
         if id:
             return id[0][0]
         else:
-            id = db.execute("INSERT INTO urisources (uri) VALUES ($1) RETURNING id",(source))
+            id = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")
             id = id[0][0]
-
+            db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2) RETURNING id",(id,source))
         return id
 
 findMD5 = re.compile("\\b[0-9a-fA-F]{32}\\b")

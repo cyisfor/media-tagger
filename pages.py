@@ -585,7 +585,7 @@ def showAllComics(params):
     page = getPage(params)
     comics = comic.list(page,User.tags().nega)
     def getInfos():
-        for id,title in comics:
+        for id,title,tagids,tags in comics:
             try: 
                 medium = comic.findMedium(id,0)
             except Redirect: 
@@ -593,7 +593,7 @@ def showAllComics(params):
             if not medium: 
                 medium = 0x5c911
             checkModified(medium)
-            yield medium,title,getType(medium),()
+            yield medium,title,getType(medium),tags or ()
     if Session.head:
         for stuff in getInfos(): pass
         return
@@ -608,7 +608,7 @@ def showAllComics(params):
             return '{:x}/0/'.format(comics[i][0])
         links = yield makeLinks(getInfos(),formatLink)
         page = makePage("{:x} Page Comics".format(page),
-                d.table(links) if links else '',
+                links if links else '',
                 d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
                     (' ' if Links.prev and Links.next else ''),
                     (d.a("Next",href=Links.next)if Links.next else '')))
@@ -643,7 +643,7 @@ def showPages(path,params):
         links = yield makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
         page = makePage(title + " - Comics",
                 d.h1(title),
-                d.table(links) if numPages and links else '',
+                links if numPages and links else '',
                 d.p(RawString(description)),
                 d.p(d.a('Source',href=source)) if source else '',
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
