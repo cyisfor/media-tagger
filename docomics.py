@@ -3,7 +3,7 @@ import comic
 from favorites.parseBase import parse, ParseError, normalize
 import favorites.parsers
 import gtkclipboardy as clipboardy
-from gi.repository import Gtk,Gdk,GObject,GLib
+from mygi import Gtk,Gdk,GObject,GLib
 import sys
 window = Gtk.Window()
 window.connect('destroy',Gtk.main_quit)

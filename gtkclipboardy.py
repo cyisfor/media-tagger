@@ -1,4 +1,4 @@
-from gi.repository import GLib, Gtk, Gdk
+from mygi import GLib, Gtk, Gdk
 
 def derp(f):
     def wrapper(*a,**kw):

@@ -35,11 +35,6 @@ def forked(f):
 
 @forked
 def take(name):
-    try:
-        import pgi
-        pgi.install_as_gi()
-    except ImportError: pass
-
     from gi.repository import Gtk,Gdk,GObject,GLib
 
     discovered, name = impmort.discover(name)    

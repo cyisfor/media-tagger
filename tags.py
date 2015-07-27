@@ -186,13 +186,8 @@ if __name__ == '__main__':
         tag(int(sys.argv[1],0x10),parse(sys.argv[2:]))
         resultCache.clear()
     else:
-        try:
-            import pgi
-            pgi.install_as_gi()
-        except ImportError: pass
-
         import gtkclipboardy as clipboardy
-        from gi.repository import Gtk,Gdk,GObject,GLib
+        from mygi import Gtk,Gdk,GObject,GLib
         window = Gtk.Window()
         window.connect('destroy',Gtk.main_quit)
         box = Gtk.VBox()

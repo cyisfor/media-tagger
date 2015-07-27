@@ -150,12 +150,12 @@ class Proxy:
                     reply(*a,**kw)
             if self.guihack:
                 if returnid is None:
-                    from gi.repository import GLib
+                    from mygi import GLib
                     GLib.timeout_add(200,lambda *a: self.waitFor())
                     return                
                 else:
                     # augh
-                    from gi.repository import GLib,Gtk
+                    from mygi import GLib,Gtk
                     GLib.timeout_add(200,Gtk.main_quit)
                     Gtk.main()
             else:
@@ -198,7 +198,7 @@ def once(f):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            from gi.repository import Gtk
+            from mygi import Gtk
             Gtk.main_quit()
         else:
             return False
@@ -210,13 +210,13 @@ def kbquit(f):
             return f(*a,**kw)
         except KeyboardInterrupt:
             note("quitting")
-            from gi.repository import Gtk
+            from mygi import Gtk
             Gtk.main_quit()
     return wrapper
 
 class GUI:
     def run(self):
-        from gi.repository import Gtk,GLib
+        from mygi import Gtk,GLib
         import sys
 
         GLib.idle_add(once(self.setup))
@@ -226,7 +226,7 @@ class GUI:
         Gtk.main()
     @kbquit
     def setup(self,um=None):
-        from gi.repository import Gtk
+        from mygi import Gtk
         window = Gtk.Window()
         window.connect('destroy',Gtk.main_quit)
         box = Gtk.VBox()
@@ -264,7 +264,7 @@ class GUI:
             self.wentry.set_text('{:x}'.format(w))
         self.db.gotClipboard(uri,c,w)
     def getInfo(self,next):
-        from gi.repository import Gtk
+        from mygi import Gtk
         print("Getting the infos?",next)
         window = Gtk.Window()
         box = Gtk.VBox()
