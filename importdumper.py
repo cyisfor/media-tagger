@@ -35,7 +35,7 @@ def forked(f):
 
 @forked
 def take(name):
-    from gi.repository import Gtk,Gdk,GObject,GLib
+    from mygi import Gtk,Gdk,GObject,GLib
 
     discovered, name = impmort.discover(name)    
 

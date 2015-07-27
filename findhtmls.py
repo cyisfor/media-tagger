@@ -2,7 +2,7 @@
 
 import os,magic,signal
 from bs4 import BeautifulSoup
-from gi.repository import Gtk,Gdk,GLib
+from mygi import Gtk,Gdk,GLib
 
 clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 
