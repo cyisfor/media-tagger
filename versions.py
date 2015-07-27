@@ -1,9 +1,10 @@
 import db
 
 class Versioner:
-    def __init__(self,kind):
+    def __init__(self,kind,after=None):
         self.versions = []
         self.name = kind + 'Version';
+        self.after = after
         try:
             db.execute("CREATE TABLE "+self.name+" (latest int)")
             db.execute("INSERT INTO "+self.name+" (latest) VALUES (0)")
@@ -15,6 +16,15 @@ class Versioner:
             version = version[0][0]
         else:
             version = 0
+
+        if self.after:
+            after = db.execute('SELECT latest FROM'+self.after)
+            if after:
+                after = after[0][0]
+            else:
+                after = 0
+        else:
+            after = 0
 
         for testversion,setup in self.versions:
             #print(testversion,'>',version)

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-import comic
+import comic,db
+
 from favorites.parseBase import parse, ParseError, normalize
 import favorites.parsers
 import gtkclipboardy as clipboardy
@@ -55,18 +56,38 @@ def gotURL(url):
     url = url.strip()
     print("Trying {}".format(url))
     sys.stdout.flush()
-    c = centry.get_text()
-    if not c: return
-    c = int(c,0x10)
-    w = wentry.get_text()
-    if w:
-        w = int(w,0x10)
-    else:
-        w = 0
     try: m = parse(normalize(url))
     except ParseError:
-        m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-    @handling(comic.findInfo,c,getinfo)
+        m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)    
+    c = centry.get_text()
+    if c:
+        c = int(c,0x10)
+    else:
+        c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1',(m,))
+        if len(c)==1:
+            c = c[0]
+            c,w = c
+            wentry.set_text('{:x}'.format(w))
+        else:
+            c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
+        centry.set_text('{:x}'.format(c))
+
+    if w is None:
+        w = wentry.get_text()
+        if w:
+            w = int(w,0x10)
+        else:
+            w = db.execute('SELECT MAX(which)+1 FROM comicpage WHERE comic = $1',(c,))
+            if w[0][0]:
+                w = w[0][0]
+            else:
+                w = 0
+            try:
+                wentry.set_text('{:x}'.format(w))
+            except TypeError:
+                print(repr(w))
+                raise
+        @handling(comic.findInfo,c,getinfo)
     def gotcomic(title,description,source):
         comic.findMedium(c,w,m)
         wentry.set_text("{:x}".format(w+1))

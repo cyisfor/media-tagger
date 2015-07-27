@@ -38,8 +38,8 @@ def make(handler,check):
     
     def run():
         GLib.timeout_add(200,derp(start))
-        #import signal
-        #signal.signal(signal.SIGINT, signal.SIG_DFL)
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
         Gtk.main()
     return start,run
 

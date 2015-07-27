@@ -76,7 +76,7 @@ def findInfo(id,getinfo,next=None):
         def handle(title,description,source):
             db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
             if next: next(title,description,source)
-    if next:
+    elif next:
         next(*rows[0])
 
 def findMediumDerp(comic,which,medium=None):
