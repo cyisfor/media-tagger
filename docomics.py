@@ -58,7 +58,11 @@ def gotURL(url):
     sys.stdout.flush()
     try: m = parse(normalize(url))
     except ParseError:
-        m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)    
+        try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
+        except ValueError:
+            print('nope')
+            return
+    w = None
     c = centry.get_text()
     if c:
         c = int(c,0x10)
@@ -67,7 +71,9 @@ def gotURL(url):
         if len(c)==1:
             c = c[0]
             c,w = c
-            wentry.set_text('{:x}'.format(w))
+            centry.set_text('{:x}'.format(c))
+            wentry.set_text('{:x}'.format(w+1))
+            return
         else:
             c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
         centry.set_text('{:x}'.format(c))
@@ -87,7 +93,7 @@ def gotURL(url):
             except TypeError:
                 print(repr(w))
                 raise
-        @handling(comic.findInfo,c,getinfo)
+    @handling(comic.findInfo,c,getinfo)
     def gotcomic(title,description,source):
         comic.findMedium(c,w,m)
         wentry.set_text("{:x}".format(w+1))
