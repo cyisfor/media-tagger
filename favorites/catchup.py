@@ -87,7 +87,7 @@ class Catchup(Process):
 instance = Catchup()
 
 if __name__ == '__main__':
-    instance.squeak()
+    while instance.squeak() is True: pass
 else:
     instance.start()
 

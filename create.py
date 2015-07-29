@@ -118,7 +118,10 @@ def getanId(sources,uniqueSources,download,name):
                             (md5,))
                 if result:
                     yield result[0][0],False
-                return
+                    return
+                # don't return here!
+                # we found an md5 and it wasn't in our database
+                # so download it!
     note("downloading to get an id")
     with filedb.mediaBecomer() as data:
         created = yield download(data)
@@ -225,7 +228,10 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         while True:
             try:
                 result = g.send(result)
-            except StopIteration: break
+                print('doop',result)
+            except StopIteration:
+                assert result,(sources,uniqueSources,download,name)
+                break
             except gen.Return as ret:
                 result = ret.value
                 break
