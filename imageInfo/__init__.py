@@ -1,3 +1,5 @@
+import note
+
 import os
 import subprocess
 import struct
@@ -50,6 +52,7 @@ def get(path):
         animated = (process.stdout.read(1)[0] > 1)
         width = struct.unpack('>H',process.stdout.read(2))[0]
         height = struct.unpack('>H',process.stdout.read(2))[0]
+        note.blue('type found',type)
         return (animated,width,height),type
     else:
         print('unsync')

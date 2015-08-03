@@ -5,7 +5,8 @@ import movie
 import note
 
 from imagecheck import NoGood,isGood
-
+from weirdui import manuallyGetType
+    
 from futurestuff import drain
 
 import imageInfo
@@ -98,8 +99,6 @@ class Source:
             self.id = sourceId(self.uri)
         return self.id
 
-from weirdui import manuallyGet
-    
 def getanId(sources,uniqueSources,download,name):
     for uniqueSource in uniqueSources:
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
@@ -157,27 +156,27 @@ def getanId(sources,uniqueSources,download,name):
 #                    data = gzip.open(data)
 #                except IOError as e:
 #                    raise
-            image,type = openImage(data)
+            image,mimetype = openImage(data)
             if not image:
                 note('we hafe to guess')
-                type, encoding = magic.guess_type(data.name)[:2]
-                if type is None or type == 'binary':
-                    type = manuallyGetType(data.name,type)
-            if not isGood(type):
-                type = manuallyGetType(data.name,type)
-                print('check',data.name)
-                input()
-                raise NoGood(uniqueSource if uniqueSource else name,type)
+                mimetype, encoding = magic.guess_type(data.name)[:2]
+                if mimetype is None or mimetype == 'binary':
+                    mimetype = manuallyGetType(data,mimetype)
+                else:
+                    mimetype = mimetype.split('\n')[0]
+                note.blue('guessed mimetype',mimetype,type(mimetype))
+            if not isGood(mimetype):
+                mimetype = manuallyGetType(data,mimetype)
             if not '.' in name:
-                name += '.' + magic.guess_extension(type)
-            note("New {} with id {:x} ({})".format(type,id,name))
+                name += '.' + magic.guess_extension(mimetype)
+            note("New {} with id {:x} ({})".format(mimetype,id,name))
             sources = set([source.lookup() for source in sources])
             db.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
                 id,name,digest,created,
-                os.fstat(data.fileno()).st_size,type,md5,sources))
+                os.fstat(data.fileno()).st_size,mimetype,md5,sources))
             if image: createImageDBEntry(id,image)
             else:
-                if type.startswith('video'):
+                if mimetype.startswith('video'):
                     movie.isMovie(id,data)
                 else:
                     print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))

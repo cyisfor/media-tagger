@@ -114,7 +114,7 @@ def parse(primarySource):
                     derpSource = derpmedia
                 derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
                 media.headers['Referer'] = primarySource
-                def download(dest):
+                def boundownload(dest):
                     print('download',media.url)
                     myretrieve(Request(media.url,
                         headers=media.headers),
@@ -125,11 +125,12 @@ def parse(primarySource):
 #                        shutil.copyfileobj(dest,out)
                     dest.seek(0,0)
                     return datetime.datetime.fromtimestamp(mtime)
-#                def download(dest):
-#                    with open('/tmp/derp.image','rb') as inp:
-#                        shutil.copyfileobj(inp,dest)
-#                        mtime = os.fstat(inp.fileno()).st_mtime
-#                    return datetime.datetime.fromtimestamp(mtime)
+                def download(dest):
+                    with open('/tmp/derp.image','rb') as inp:
+                        shutil.copyfileobj(inp,dest)
+                        dest.seek(0,0)
+                        mtime = os.fstat(inp.fileno()).st_mtime
+                    return datetime.datetime.fromtimestamp(mtime)
                 assert derpSource
                 try:
                     image,wasCreated = create.internet(download,media.url,tags,derpSource,derpSources,

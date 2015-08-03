@@ -4,26 +4,30 @@ import note
 
 import textwrap
 
-def manuallyGet(data,badtype):
+def manuallyGetType(data,badtype):
     note("What is {}?".format(badtype))
     bit = data.read(0x100)
     bit = textwrap.fill(repr(bit))
-    
+
+    mimetype = None
+
     def getByTTY():
+        nonlocal mimetype
         import os
         if not os.isatty(sys.stdin.fileno()): return False
         try:
-            print(path)
+            print(data.name)
             print("What type is that?")
             while True:
                 type = input()
                 if '/' in type:
-                    return type
+                    mimetype = type
+                    return True
                 else:
                     print('not sure what type is '+type)
         except KeyboardInterrupt:
-                raise NoGood("User wouldn't enter a good type for",badtype,type)
-    
+            print(NoGood("User wouldn't enter a good type for",badtype,type))
+            return False
     
     def getByGUI():
         from gi.repository import Gtk
@@ -31,12 +35,13 @@ def manuallyGet(data,badtype):
         if not ok: return False
             
         win = Gtk.Window()
-        vbox = Gtk.Box(Gtk.Orientation.VERTICAL)
+        vbox = Gtk.VBox(False,2)
         win.add(vbox)
         def lbl(s):
             vbox.pack_start(Gtk.Label(s),True,True,2)
         lbl(bit)
-        lbl(path)
+        lbl(data.name)
+        lbl(badtype)
         lbl("What type is that?")
         ent = Gtk.Entry()
         vbox.pack_start(ent,True,True,2)
