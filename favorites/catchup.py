@@ -28,6 +28,9 @@ class Catchup(Process):
         ah = alreadyHere(uri)
         if ah:
             print("WHEN I AM ALREADY HERE")
+            if 'noupdate' in os.environ:
+                win(uri)
+                return True
         try:
             for attempts in range(2):
                 print("Parsing",uri)
@@ -89,8 +92,10 @@ instance = Catchup()
 if __name__ == '__main__':
     while instance.squeak() is True: pass
 else:
-    instance.start()
+    instance.start() 
 
     poke = instance.poke
+
+    terminate = instance.terminate
 
     finish = instance.finish

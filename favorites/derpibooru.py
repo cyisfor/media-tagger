@@ -37,7 +37,8 @@ def extract(doc):
     if not foundImage:
         imgr = doc.find('div',id='image_target')
         if not imgr:
-            with open('derp.html','wt') as out:
+            return
+            with open('/tmp/derp.html','wt') as out:
                 out.write(doc.prettify())
             raise RuntimeError('derp')
         yield Image(imgr.getAttribute('data-download-uri'))

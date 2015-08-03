@@ -60,10 +60,12 @@ def extract(doc):
 
 toNum = re.compile('[^0-9]*[0-9]{2,}')
 
-def normalize(url):
-    url = urllib.parse.urlparse(url)
+def normalize(ourl):
+    url = urllib.parse.urlparse(ourl)
     m = toNum.match(url.path)
-    if not m: raise RuntimeError("Couldn't figure out {}".format(url))
+    if not m:
+        return ourl
+        #raise RuntimeError("Couldn't figure out {}".format(url))
     url = (url.scheme, url.netloc, m.group(0), None, None, None)
     return urllib.parse.urlunparse(url)
 

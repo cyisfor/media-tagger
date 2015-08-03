@@ -11,6 +11,7 @@ if __name__ == '__main__':
     import sys,io
     if len(sys.argv)>1:
         parse(sys.argv[1])
+        print("Nothing went wrong yay")
     else:
         sys.stdin = io.TextIOWrapper(sys.stdin.detach(),'utf-8')
         for line in sys.stdin:

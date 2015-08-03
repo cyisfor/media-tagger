@@ -4,6 +4,8 @@ import filedb
 import movie
 import note
 
+from imagecheck import NoGood,isGood
+
 from futurestuff import drain
 
 import imageInfo
@@ -30,10 +32,6 @@ def mediaHash(data):
     digest = digest.decode().rstrip('=')
     return digest
 
-def isGood(type):
-    category = type.split('/',1)[0]
-    return category in {'image','video','audio'} or type in {'application/x-shockwave-flash'}
-
 def sourceId(source):
     assert source is not None
     assert not isinstance(source,int)
@@ -50,8 +48,6 @@ def sourceId(source):
         return id
 
 findMD5 = re.compile("\\b[0-9a-fA-F]{32}\\b")
-
-class NoGood(Exception): pass
 
 def openImage(data):
     if isinstance(data,str):
@@ -102,6 +98,8 @@ class Source:
             self.id = sourceId(self.uri)
         return self.id
 
+from weirdui import manuallyGet
+    
 def getanId(sources,uniqueSources,download,name):
     for uniqueSource in uniqueSources:
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
@@ -164,13 +162,9 @@ def getanId(sources,uniqueSources,download,name):
                 note('we hafe to guess')
                 type, encoding = magic.guess_type(data.name)[:2]
                 if type is None or type == 'binary':
-                    note("What is {}?".format(data.name))
-                    os.chdir(filedb.top+'/temp')
-                    subprocess.call(['bash'])
-                    type = input("Type:")
-                    if not type or not '/' in type:
-                        raise NoGood("Couldn't determine type of",id)
+                    type = manuallyGetType(data.name,type)
             if not isGood(type):
+                type = manuallyGetType(data.name,type)
                 print('check',data.name)
                 input()
                 raise NoGood(uniqueSource if uniqueSource else name,type)
