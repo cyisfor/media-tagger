@@ -263,21 +263,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
             for thing in path:
                 if thing:
                     thing = urllib.parse.unquote(thing)
-                    if thing[0] == '-':
-                        tag = tagsModule.getTag(thing[1:])
-                        if tag:
-                            tags.posi.discard(tag)
-                            tags.nega.add(tag)
-                            basic.nega.add(tag)
-                        continue
-                    elif thing[0] == '+':
-                        thing = thing[1:]
-                    tag = tagsModule.getTag(thing)
-                    if tag:
-                        tags.posi.add(tag)
-                        basic.posi.add(tag)
-                        tags.nega.discard(tag)
+                    bitt = tagsModule.parse(thing)
+                    tags.update(bitt)
+                    basic.update(bitt)
             tagfilter.filter(tags)
+            print('effective tags',repr(tags))
             o = params.get('o')
             if o:
                 o = int(o[0],0x10)

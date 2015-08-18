@@ -80,6 +80,40 @@ def tag(thing,tags):
             db.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
             db.execute("SELECT connectManyToOne($1,$2)",(tags.posi,thing))
 
+class Tag:
+    name = None
+    id = None
+    def __init__(self,nid):
+        if isinstance(nid,int):
+            self.id = nid
+        else:
+            self.name = nid
+    def __hash__(self):
+        return hash(self.getid())
+    def __eq__(self,b):
+        return self.getid() == b.getid()
+    def getid():
+        if self.id is None:
+            r = db.execute("SELECT id from tags where name = $1",(self.name,))
+            if not r:
+                raise RuntimeError("No tag by the id "+str(name))
+            self.id = r[0][0]
+        return self.id
+    def make():
+        if self.id is None:
+            if self.name is None:
+                raise RuntimeError("Blank tag")            
+            r = db.execute("SELECT findTag($1)",(self.name,))
+            self.id = r[0][0]
+        return self.id
+    def __repr__(self):
+        return 'Tag'+str((self.id,self.getname()))
+    def getname(self):
+        if self.name is None and self.id is not None:
+            r = db.execute("SELECT name FROM tag WHERE id = $1")
+            if r:
+                self.name = r[0][0]
+            
 class Taglist:
     def __init__(self):
         self.posi = set()
@@ -104,26 +138,6 @@ class Taglist:
                 s += ', '
             s += ', '.join('-'+name for name in friend.nega)
         return s
-
-def makeTag(name):
-    try: 
-        name = int(name)
-        result = db.execute("SELECT id FROM tags WHERE id = $1",(name,))
-        if not result:
-            raise RuntimeError("No tag by the id "+str(name))
-        return result[0][0]
-    except ValueError: pass
-
-    for attempt in range(3):
-        result = db.execute("SELECT id FROM tags WHERE name = $1",(name,))
-        if result: break
-        result = db.execute("WITH thing AS (INSERT INTO things DEFAULT VALUES RETURNING id) INSERT INTO tags (id,name) SELECT thing.id,$1 FROM thing RETURNING id",(name,))
-    return result[0][0]
-
-def getTag(name):
-    result = db.execute("SELECT id FROM tags WHERE name = $1",(name,))
-    if result: return result[0][0]
-    return None
 
 def _namesOneSide(tags):
     tags = list(tags)
@@ -174,13 +188,16 @@ def parse(s):
             thing = thing[1:]
             tags.posi.discard(thing)
             tags.nega.add(thing)
+        elif thing[0] == '+':
+            tags.posi.add(thing[1:])
         else:
             tags.posi.add(thing)
-    tags.posi = set(makeTag(tag) for tag in tags.posi)
-    tags.nega = set(makeTag(tag) for tag in tags.nega)
+    tags.posi = set(Tag(tag) for tag in tags.posi)
+    tags.nega = set(Tag(tag) for tag in tags.nega)
     tags.posi = tags.posi.difference(tags.nega)
     tags.nega = tags.nega.difference(tags.posi)
     return tags
+
 if __name__ == '__main__':
     if len(sys.argv)==3:
         tag(int(sys.argv[1],0x10),parse(sys.argv[2:]))

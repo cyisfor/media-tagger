@@ -163,8 +163,8 @@ def getanId(sources,uniqueSources,download,name):
                 if mimetype is None or mimetype == 'binary':
                     mimetype = manuallyGetType(data,mimetype)
                 else:
-                    mimetype = mimetype.split('\n')[0]
-                note.blue('guessed mimetype',mimetype,type(mimetype))
+                    mimetype = mimetype.split('\\012')[0]
+                note.blue('guessed mimetype',repr(mimetype),type(mimetype))
             if not isGood(mimetype):
                 mimetype = manuallyGetType(data,mimetype)
             if not '.' in name:
