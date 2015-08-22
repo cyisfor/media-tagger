@@ -92,7 +92,7 @@ class Taglist:
         self.posi.difference_update(bro.nega)
         self.nega.difference_update(bro.posi)
     def __repr__(self):
-        return repr(('taglist',self.posi,self.nega))
+        return repr(('taglist',full(self.posi),full(self.nega)))
     def __str__(self):        
         friend = Taglist()
         friend.posi = self.posi

@@ -280,6 +280,8 @@ def resized(info,path,params):
         if exists: break
     raise Redirect("/resized/"+fid+"/donotsave.this")
 
+tagsModule = tags # sigh
+
 @gen.coroutine
 def page(info,path,params):
     note("head boo")
@@ -289,6 +291,8 @@ def page(info,path,params):
     else:
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
 
+    print('yo',tagsModule.full(tags))
+        
     doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize
 

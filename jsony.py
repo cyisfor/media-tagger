@@ -53,7 +53,7 @@ def makeLinks(info):
             tagz = [str(tag) for tag in tagz]
             fid,oneexists = yield filedb.check(id,create=False)
             allexists = allexists and oneexists
-            links.append(dict(id=id,exists=oneexists,name=name,type=type,tags=tagz.full()))
+            links.append(dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz)))
     def done(f):
         return {'allexists': allexists, 
             'rowsize': thumbnailRowSize, 
