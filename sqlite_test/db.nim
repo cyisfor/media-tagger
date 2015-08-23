@@ -8,26 +8,29 @@ proc startdb*() =
 
 iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tuple[medium: int,title: string] =
   var query = ""
-  for tag in posi:
-    if query != "":
-      query = query & " INTERSECT "
-    query = query & onequery
-  if nega.len > 0:
-    for tag in nega:
+  if posi.len == 0 and nega.len == 0:
+    query = "SELECT id FROM media"
+  else:
+    for tag in posi:
       if query != "":
-        query = query & " EXCEPT "
+        query = query & " INTERSECT "
       query = query & onequery
+    if nega.len > 0:
+      for tag in nega:
+        if query != "":
+          query = query & " EXCEPT "
+        query = query & onequery
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
+  echo("query is ",escape(query))
   query = "SELECT id,name FROM media WHERE id IN (" & query & ")"
-  var herpderp = posi
-  var nerp = nega
   var st = prepare(conn,query)
+  echo("yay?")
   var which = 0
-  for tag in herpderp:
+  for tag in posi:
     st.Bind(which,tag)
     which += 1
-  for tag in nerp:
+  for tag in nega:
     st.Bind(which,tag)
     which += 1
   st.Bind(which,limit)

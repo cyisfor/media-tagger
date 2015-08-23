@@ -12,7 +12,7 @@ proc toHex(x: BiggestInt): string =
 
 proc sendChunk(client: AsyncSocket, hunk: string): Future[void] =
   var chunk = toHex(len(hunk)) & "\c\L" & hunk & "\c\L"
-  echo(escape(chunk))
+  echo("sending",escape(chunk))
   return send(client,chunk)
 
 proc endChunks(client: AsyncSocket): Future[void] =
@@ -21,13 +21,19 @@ proc endChunks(client: AsyncSocket): Future[void] =
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
-    echo(req.url.path)
-    var tags = split(req.url.path,'/');
-    echo(tags)
-    var posi: seq[string] = newSeq(0);
-    var nega: seq[string] = newSeq(0);
+    var path = req.url.path[1..req.url.path.len];
+    if path[0..4] == "art/":
+      path = path[4..path.len];
+    var tags = split(path,'/')
+    echo("tags ",escape($tags))
+    if tags.len > 1 and tags[0] == "art":
+      tags = tags[1..tags.len]
+      
+    var posi: seq[string] = @[];
+    var nega: seq[string] = @[];
     for tag in tags:
-      if tag == nil:
+      echo("tag ",escape(tag))
+      if tag == nil or tag == "":
         continue
       if tag[0] == '-':
         add(nega,tag[1..tag.len])
@@ -39,13 +45,13 @@ proc handle(req: Request) {.async.} =
     await req.sendHeaders(newStringTable({"Transfer-Encoding": "chunked"}))
     await req.client.send("\c\L")
 
-    echo(posi)
     await sendChunk(req.client, "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
     await sendChunk(req.client,"<p>" & req.url.path & "</p>")
     for medium,title in db.list(posi,nega,0x20,0x20*page):
       await sendChunk(req.client,format("""{<a href="/art/~page/$1">
       <img title="$2" src="/thumb/$1/">
 </a>""",toHex(medium),title))
+    echo("yay?")
     await sendChunk(req.client,"</body></html>")
     await endChunks(req.client)
   else:

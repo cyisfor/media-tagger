@@ -26,7 +26,12 @@ proc check(db: CheckDB, res: cint) =
 proc check(st: CheckStmt, res: cint) {.inline.} =
   check(st.db,res)
 
+proc `=`(st: var CheckStmt, src: CheckStmt):
+  st.st = src.st
+  src.st = nil # trading ownership
+  
 proc `=destroy`(st: var CheckStmt) =
+  echo("destructodisk")
   if st.st != nil:
     check(st,finalize(st.st))
     st.st = nil
