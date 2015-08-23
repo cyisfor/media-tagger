@@ -1,5 +1,3 @@
-{.experimental.}
-
 import sqlite3
 import strutils
 
@@ -11,7 +9,7 @@ type CheckStmt* = object
   db: CheckDB
   st: PStmt
 
-type DBError* = ref object of IOError
+type DBError* = ref object of SystemError
   res: cint
   columns: cint
   index: int
@@ -67,15 +65,18 @@ proc column_int*(st: CheckStmt, idx: int): int =
 
 proc open*(location: string, db: var CheckDB) =
   var res = sqlite3.open(location,db.PSqlite3)
+  assert(db != nil)
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
-template withPrep*(st, derpdb, sql: expr, actions: stmt) {.immediate.} =
+template withPrep*(st, derpdb, sql: expr, actions: stmt): stmt {.immediate.} =
   var st: CheckStmt
+  var ssql = sql
   st.db = derpdb
-  echo("b4",sql)
-  derpdb.check(prepare_v2(derpdb,sql,sql.len.cint,st.st,nil))
-  echo("after")
+  echo("b4",ssql,ssql.len,' ',st.db==nil)
+  var res = prepare_v2(st.db,ssql,ssql.len.cint,st.st,nil)
+  echo("result ",res,"==",SQLITE_OK,st.st==nil)
+  derpdb.check(res)
   try:
     actions
   finally:
