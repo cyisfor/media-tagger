@@ -1,5 +1,6 @@
 #/usr/bin/python3
 
+import ctypes
 import magic,os,threading
 from mimetypes import guess_extension
 
@@ -7,12 +8,15 @@ class MyGuesser:
     def __init__(self,magic_file):
         self.cookie = magic.magic_open(magic.MAGIC_COMPRESS|magic.MAGIC_MIME|magic.MAGIC_CONTINUE|magic.MAGIC_PRESERVE_ATIME|magic.MAGIC_ERROR|magic.MAGIC_MIME_ENCODING)
         # lolololo
-        try: magic.magic_load(self.cookie,magic_file)
+        try: magic.magic_load(self.cookie,magic_file.encode('utf-8'))
         except AttributeError:
             raise AttributeError(magic)
+        except ctypes.ArgumentError:
+            print('uhhhh',type(magic_file))
+            raise
         self.thread = threading.currentThread()
     def from_file(self, path):
-        return magic.magic_file(self.cookie,path)
+        return magic.magic_file(self.cookie,path.encode('utf-8'))
     def from_buffer(self, data, length):
         return magic.magic_buffer(self.cookie, data, length)
 

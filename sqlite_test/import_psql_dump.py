@@ -36,14 +36,17 @@ for i,line in enumerate(sys.stdin):
         db.execute("INSERT INTO media (" + ', '.join(fields) + ") VALUES ("+', '.join('?' for f in fields)+")",record)
     elif mode == tags:
         if line[0] == '(':
-            mode = findConnections
+            mode = findConns
             continue
         id, name = [s.strip() for s in line.split(' | ')]
-        print('?',name)
-        try: db.execute("INSERT INTO tags (id,name) VALUES (?,?)",(id,name))
+        if not name: continue
+        print('?',id,name)
+        try: db.execute("INSERT OR REPLACE INTO tags (id,name) VALUES (?,?)",(id,name))
         except sqlite3.IntegrityError:
             print('tag',name,'failed')
             raise
     elif mode == connections:
+        if line[0] == '(':
+            break
         media, tag = [s.strip() for s in line.split(' | ')]
-        db.execute("INSERT INTO media_tags (media,tag) VALUES(?,?)",(media,tag))
+        db.execute("INSERT OR REPLACE INTO media_tags (medium,tag) VALUES(?,?)",(media,tag))
