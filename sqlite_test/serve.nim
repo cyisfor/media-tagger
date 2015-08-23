@@ -30,13 +30,19 @@ proc handle(req: Request) {.async.} =
       else:
         add(posi,tag)
     var page = 3
-    var html = "<!DOCTYPE html><html><head><title>Drep</title></head><body>"
-    db.list(posi,nega,0x20,0x20*page) do (medium: int, title: string):
-      add(html,format("""{<a href="/art/~page/$1">
+
+    await req.client.sendStatus(Http200, "Yay?")
+    await req.sendHeaders(newStringTable({"Transfer-Encoding": "chunked"}))
+    await req.client.send("\c\L")
+
+    await sendChunk(req.client,
+              "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
+    for medium,title in db.list(posi,nega,0x20,0x20*page):
+      await sendChunk(req.client,format("""{<a href="/art/~page/$1">
       <img title="$2" src="/thumb/$1/">
 </a>""",toHex(medium),title))
-    add(html,"</body></html>")
-    await req.respond(Http200,html)
+    await sendChunk("</body></html>")
+    await endChunks()
 
 var server = newAsyncHttpServer()
 

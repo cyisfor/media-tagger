@@ -9,6 +9,12 @@ type CheckStmt* = tuple
   db: CheckDB
   st: PStmt
 
+  
+proc `=destroy`(st: var CheckStmt) =
+  if st.st != nil:
+    finalize(st.st)
+    st.st = nil
+
 type DBError* = ref object of IOError
   res: cint
   columns: cint
@@ -39,7 +45,8 @@ iterator foreach*(st: CheckStmt, bounce: proc()): int =
     var res = step(st.st)
     check(st, res)
     if res == SQLITE_ROW:
-      yield inc(i)
+      yield i
+      inc(i)
     elif res == SQLITE_DONE:
       break
   
@@ -67,14 +74,11 @@ proc open*(location: string, db: var CheckDB) =
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
-proc withPrep*(db: CheckDB, sql: string, actions: proc(st: CheckStmt)) =
+proc prepare*(db: CheckDB, sql: string): st: CheckStmt =
   var st: CheckStmt
   st.db = db
   db.check(prepare_v2(db,sql,sql.len.cint,st.st,nil))
-  try:
-    actions(st)
-  finally:
-    db.check(finalize(st.st))
+  return st
 
 template withTransaction*(db: expr, actions: stmt) =
   db.withPrep("BEGIN") do (begin: CheckStmt):

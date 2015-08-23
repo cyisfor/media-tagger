@@ -6,7 +6,7 @@ const onequery = "SELECT medium FROM media_tags WHERE tag = (SELECT id FROM tags
 proc startdb*() =
   open("pics.sqlite",conn)
 
-proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int, handle: proc(medium: int,title: string)) =
+iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tuple[medium: int,title: string) =
   var query = ""
   for tag in posi:
     if query != "":
@@ -22,19 +22,18 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int, handle:
   query = "SELECT id,name FROM media WHERE id IN (" & query & ")"
   var herpderp = posi
   var nerp = nega
-  withPrep(conn,query) do (st: CheckStmt):
-    var which = 0
-    for tag in herpderp:
-      st.Bind(which,tag)
-      which += 1
-    for tag in nerp:
-      st.Bind(which,tag)
-      which += 1
-    st.Bind(which,limit)
+  var st = prepare(conn,query)
+  var which = 0
+  for tag in herpderp:
+    st.Bind(which,tag)
     which += 1
-    st.Bind(which,offset)
+  for tag in nerp:
+    st.Bind(which,tag)
     which += 1
-    st.foreach() do ():
-      var medium: int = column_int(st,0)
-      var title: string = column(st,1)
-      handle(medium,title)
+  st.Bind(which,limit)
+  which += 1
+  st.Bind(which,offset)
+  for _ in st.foreach():
+    var medium: int = column_int(st,0)
+    var title: string = column(st,1)
+    handle(medium,title)
