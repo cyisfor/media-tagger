@@ -21,10 +21,14 @@ proc endChunks(client: AsyncSocket): Future[void] =
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
+    echo(req.url.path)
     var tags = split(req.url.path,'/');
-    var posi: seq[string];
-    var nega: seq[string];
+    echo(tags)
+    var posi: seq[string] = newSeq(0);
+    var nega: seq[string] = newSeq(0);
     for tag in tags:
+      if tag == nil:
+        continue
       if tag[0] == '-':
         add(nega,tag[1..tag.len])
       else:
@@ -35,14 +39,17 @@ proc handle(req: Request) {.async.} =
     await req.sendHeaders(newStringTable({"Transfer-Encoding": "chunked"}))
     await req.client.send("\c\L")
 
-    await sendChunk(req.client,
-              "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
+    echo(posi)
+    await sendChunk(req.client, "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
+    await sendChunk(req.client,"<p>" & req.url.path & "</p>")
     for medium,title in db.list(posi,nega,0x20,0x20*page):
       await sendChunk(req.client,format("""{<a href="/art/~page/$1">
       <img title="$2" src="/thumb/$1/">
 </a>""",toHex(medium),title))
-    await sendChunk("</body></html>")
-    await endChunks()
+    await sendChunk(req.client,"</body></html>")
+    await endChunks(req.client)
+  else:
+    await req.respond(Http500,"uhh")
 
 var server = newAsyncHttpServer()
 

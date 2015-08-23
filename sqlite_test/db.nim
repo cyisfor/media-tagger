@@ -6,7 +6,7 @@ const onequery = "SELECT medium FROM media_tags WHERE tag = (SELECT id FROM tags
 proc startdb*() =
   open("pics.sqlite",conn)
 
-iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tuple[medium: int,title: string) =
+iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tuple[medium: int,title: string] =
   var query = ""
   for tag in posi:
     if query != "":
@@ -36,4 +36,5 @@ iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tu
   for _ in st.foreach():
     var medium: int = column_int(st,0)
     var title: string = column(st,1)
-    handle(medium,title)
+    var res = (medium: medium, title: title)
+    yield res

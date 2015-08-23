@@ -1,3 +1,5 @@
+{.experimental.}
+
 import sqlite3
 import strutils
 
@@ -8,12 +10,6 @@ type CheckDB* = PSqlite3
 type CheckStmt* = tuple
   db: CheckDB
   st: PStmt
-
-  
-proc `=destroy`(st: var CheckStmt) =
-  if st.st != nil:
-    finalize(st.st)
-    st.st = nil
 
 type DBError* = ref object of IOError
   res: cint
@@ -30,6 +26,11 @@ proc check(db: CheckDB, res: cint) =
 proc check(st: CheckStmt, res: cint) {.inline.} =
   check(st.db,res)
 
+proc `=destroy`(st: var CheckStmt) =
+  if st.st != nil:
+    check(st,finalize(st.st))
+    st.st = nil
+  
 proc Bind*(st: CheckStmt, idx: int, val: int) =
   st.check(bind_int(st.st,idx.cint,val.cint))
 
@@ -39,7 +40,7 @@ proc Bind*(st: CheckStmt, idx: int, val: string) =
 proc step*(st: CheckStmt) =
   st.check(step(st.st))
 
-iterator foreach*(st: CheckStmt, bounce: proc()): int =
+iterator foreach*(st: CheckStmt): int =
   var i = 0
   while true:
     var res = step(st.st)
@@ -74,27 +75,27 @@ proc open*(location: string, db: var CheckDB) =
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
-proc prepare*(db: CheckDB, sql: string): st: CheckStmt =
+proc prepare*(db: CheckDB, sql: string): CheckStmt =
   var st: CheckStmt
   st.db = db
   db.check(prepare_v2(db,sql,sql.len.cint,st.st,nil))
   return st
 
 template withTransaction*(db: expr, actions: stmt) =
-  db.withPrep("BEGIN") do (begin: CheckStmt):
-    db.withPrep("ROLLBACK") do (rollback: CheckStmt):
-      db.withPrep("COMMIT") do (commit: CheckStmt):
-        begin.step()
-        try:
-          actions
-          commit.step()
-        except:
-          rollback.step()
-          raise
+  var begin = db.prepare("BEGIN")
+  var commit = db.prepare("COMMIT")
+  var rollback = db.prepare("ROLLBACK")
+  begin.step()
+  try:
+    actions
+    commit.step()
+  except:
+    rollback.step()
+    raise
 
 proc exec*(db: CheckDB, sql: string) =
-  withPrep(db,sql) do (st: CheckStmt):
-    db.check(step(st.st))
+  var st = prepare(db,sql)
+  db.check(step(st.st))
 
 proc getValue*(st: CheckStmt): int =
   assert(1==column_count(st.st))
@@ -107,8 +108,5 @@ proc getValue*(st: CheckStmt): int =
       raise DBError(msg:"Didn't return a single row",res:res)
 
 proc getValue*(db: CheckDB, sql: string): int =
-  var val = 0
-  withPrep(db,sql) do (st: CheckStmt):
-    val = st.getValue()
-
-  return val
+  var st = db.prepare(sql)
+  return st.getValue()
