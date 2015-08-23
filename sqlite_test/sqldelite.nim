@@ -58,6 +58,12 @@ proc column*(st: CheckStmt, idx: int): string =
     raise DBError(msg: "No column at index $1" % [$idx], index: idx, columns: column_count(st.st))
   return $res
 
+proc column*(st: CheckStmt, idx: int): int =
+  var res = column_int(st.st,idx.cint)
+  if(res == nil):
+    raise DBError(msg: "No column at index $1" % [$idx], index: idx, columns: column_count(st.st))
+  return res
+
 proc open*(location: string, db: var CheckDB) =
   var res = sqlite3.open(location,db.PSqlite3)
   if (res != SQLITE_OK):

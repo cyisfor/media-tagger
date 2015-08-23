@@ -1,5 +1,7 @@
 import asynchttpserver, asyncnet, asyncdispatch, strtabs, strutils, math
 
+import db
+
 # SIGH...
 proc sendStatus(client: AsyncSocket, code: HttpCode, status: string): Future[void] =
   client.send("HTTP/1.1 " & $code & " " & status & "\c\L")
@@ -19,15 +21,22 @@ proc endChunks(client: AsyncSocket): Future[void] =
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
-    await req.client.sendStatus(Http200, "Yay?")
-    await req.sendHeaders(newStringTable({"Transfer-Encoding": "chunked"}))
-    await req.client.send("\c\L")
-    for n,v in req.headers.pairs:
-      await sendChunk(req.client,n & ": " & v & "\n")
-    await endChunks(req.client)
-                          
-  else:
-    await req.respond(Http500, "Uh oh! " & req.reqMethod)
+    var uri = parseUri(req.url)
+    var tags = split(uri,'/');
+    var posi: seq[string];
+    var nega: seq[string];
+    for tag in tags:
+      if tag[0] == '-':
+        add(nega,tag[1..])
+      else:
+        add(posi,tag)
+    var html = "<!DOCTYPE html><html><head><title>Drep</title></head><body>"
+    db.list(posi,nega,0x20,0x20*page) do (medium: int, title: string):
+      add(html,q"{<a href="/art/~page/}" & toHex(medium) & q"{">
+<img title="}" & title & q"{" src="/thumb/}" & toHex(medium) & q"{" />
+</a>\n}")
+    add(html,"</body></html>")
+    await req.respond(Http200,html)
 
 var server = newAsyncHttpServer()
 
