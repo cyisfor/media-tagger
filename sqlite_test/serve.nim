@@ -1,5 +1,5 @@
 import asynchttpserver, asyncnet, asyncdispatch, strtabs, strutils, math
-
+import uri
 import db
 
 # SIGH...
@@ -21,20 +21,20 @@ proc endChunks(client: AsyncSocket): Future[void] =
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
-    var uri = parseUri(req.url)
-    var tags = split(uri,'/');
+    var tags = split(req.url.path,'/');
     var posi: seq[string];
     var nega: seq[string];
     for tag in tags:
       if tag[0] == '-':
-        add(nega,tag[1..])
+        add(nega,tag[1..tag.len])
       else:
         add(posi,tag)
+    var page = 3
     var html = "<!DOCTYPE html><html><head><title>Drep</title></head><body>"
     db.list(posi,nega,0x20,0x20*page) do (medium: int, title: string):
-      add(html,q"{<a href="/art/~page/}" & toHex(medium) & q"{">
-<img title="}" & title & q"{" src="/thumb/}" & toHex(medium) & q"{" />
-</a>\n}")
+      add(html,format("""{<a href="/art/~page/$1">
+      <img title="$2" src="/thumb/$1/">
+</a>""",toHex(medium),title))
     add(html,"</body></html>")
     await req.respond(Http200,html)
 

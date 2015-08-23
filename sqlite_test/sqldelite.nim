@@ -33,12 +33,13 @@ proc Bind*(st: CheckStmt, idx: int, val: string) =
 proc step*(st: CheckStmt) =
   st.check(step(st.st))
 
-proc foreach*(st: CheckStmt, bounce: proc()) =
+iterator foreach*(st: CheckStmt, bounce: proc()): int =
+  var i = 0
   while true:
     var res = step(st.st)
-    check(res)
+    check(st, res)
     if res == SQLITE_ROW:
-      bounce()
+      yield inc(i)
     elif res == SQLITE_DONE:
       break
   
@@ -58,11 +59,8 @@ proc column*(st: CheckStmt, idx: int): string =
     raise DBError(msg: "No column at index $1" % [$idx], index: idx, columns: column_count(st.st))
   return $res
 
-proc column*(st: CheckStmt, idx: int): int =
-  var res = column_int(st.st,idx.cint)
-  if(res == nil):
-    raise DBError(msg: "No column at index $1" % [$idx], index: idx, columns: column_count(st.st))
-  return res
+proc column_int*(st: CheckStmt, idx: int): int =
+  return column_int(st.st,idx.cint)
 
 proc open*(location: string, db: var CheckDB) =
   var res = sqlite3.open(location,db.PSqlite3)
