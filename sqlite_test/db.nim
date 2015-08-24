@@ -5,25 +5,27 @@ const onequery = "SELECT medium FROM media_tags WHERE tag = (SELECT id FROM tags
 var conn: CheckDB
 
 open("pics.sqlite",conn)
-  
-iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tuple[medium: int,title: string] {.inline.} =
-  var query = ""
-  if posi.len == 0 and nega.len == 0:
-    query = "SELECT id FROM media"
+
+proc makeQuery(posi,nega) string:
+  if posi.len == 0:
+    result = "SELECT media FROM media"
   else:
     for tag in posi:
-      if query != "":
-        query = query & " INTERSECT "
-      query = query & onequery
-    if nega.len > 0:
-      for tag in nega:
-        if query != "":
-          query = query & " EXCEPT "
-        query = query & onequery
-  query = query & " ORDER BY added DESC"
+      if result != "":
+        result = result & " INTERSECT "
+      result = result & oneresult
+  for tag in nega:
+    if result != "":
+      result = result & " EXCEPT "
+    result = result & oneresult
+  result = "SELECT id,name FROM media WHERE id IN (" & result & ")"
+  result = result & " ORDER BY added DESC"
+
+  
+proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
+  var query = makeQuery(posi,nega)
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
-  query = "SELECT id,name FROM media WHERE id IN (" & query & ")"
   withPrep(st,conn,query):
     var which = 1
     for tag in posi:
@@ -38,5 +40,4 @@ iterator list*(posi: seq[string],nega: seq[string], limit: int, offset: int): tu
     for _ in st.foreach():
       var medium: int = column_int(st,0)
       var title: string = column(st,1)
-      var res = (medium: medium, title: title)
-      yield res
+      add(result,(medium: medium, title: title))
