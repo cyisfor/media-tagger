@@ -14,6 +14,8 @@ type DBError* = ref object of SystemError
   columns: cint
   index: int
 
+type NoResults* = ref object of DBError
+  
 proc check(db: CheckDB, res: cint) =
   case(res):
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
@@ -53,7 +55,7 @@ proc get*(st: CheckStmt) =
   var res = step(st.st)
   if(res == SQLITE_DONE):
     st.reset()
-    raise DBError(msg: "No results?")
+    raise NoResults(msg: "No results?")
   st.check(res)
 
 proc column*(st: CheckStmt, idx: int): string =

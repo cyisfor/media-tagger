@@ -1,7 +1,7 @@
 import asynchttpserver, asyncnet, asyncdispatch, strtabs, strutils, math
 import uri
 from cgi import decodeUrl
-import db
+import db,sqldelite
 
 # SIGH...
 proc sendStatus(client: AsyncSocket, code: HttpCode, status: string): Future[void] =
@@ -27,28 +27,44 @@ proc sendChunk(client: AsyncSocket, hunk: string): Future[void] =
 proc endChunks(client: AsyncSocket): Future[void] =
   return send(client,"0\c\L\c\L")
 
-proc chop(s: string, c: char): array[0..2,string] =
+proc chop(s: string, c: char): (string,string) =
   var where = s.find(c)
   if(where == -1):
     return (s,"")
-  return (s[0..where],s[where+1..s.len])
+  return (s[0..where-1],s[where+1..s.len])
 
 proc handle(req: Request, mode: string, path: string) {.async.} =
   case mode
   of "page":
-    var id = parseHex(path)
-    var Type, name, tags = db.page(id)
-    req.respond(Http200,format("""<html><head><title>Page for $id</title></head><body><p><a href="/image/$id/$meta"><img src="/image/$id/$meta" /></a><p>$tags</p>""",(id: toHex(id), meta: join((Type,name),'/'), tags: tags)))
+    echo("PATH ",path)
+    var id = parseHexInt(path)
+    var Type, name, tags: string
+    var nope = false
+    try:
+      let derp = db.page(id)
+      Type = derp[0]
+      name = derp[1]
+      tags = derp[2]
+    except sqldelite.NoResults:
+      nope = true
+    if nope:
+      await req.respond(Http500,"No page by that id " & $id)
+      return
+    await req.respond(Http200,format("""<html><head><title>Page for $id</title></head><body><p><a href="/media/$id/$meta"><img src="/media/$id/$meta" /></a><p>$tags</p></body></html>\n""",["id", toHex(id).toLower(), "meta", Type & "/" & name, "tags", tags]))
+  else:
+   await req.respond(Http500,"No mode derp " & mode)
+   
 
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
     var path = req.url.path[1..req.url.path.len];
-    if path[0..3] == "art/":
+    if path[0..3] == "testart/":
       path = path[4..path.len]
     if path[0] == '~':
-      mode, path = chop(path,'/')
-      return handle(req,mode,path)
+      var (mode, path) = chop(path[1..path.len],'/')
+      await handle(req,mode,path)
+      return
     var tags = split(path,'/')
     echo("path ",req.url.path)
     echo("tags ",escape($tags))

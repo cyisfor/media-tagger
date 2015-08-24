@@ -48,10 +48,12 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
       var title: string = column(st,1)
       add(result,(medium: medium, title: title))
 
-proc page*(id: int): array[0..3,string] =
-  withPrep(st,conn,"SELECT type, name, (select name from tags inner join media_tags on tags.id = media_tags.tag where media_tags.media = media.id) FROM media WHERE id = ?"):
-    st.bindQuery(id)
-    st.step()
+proc page*(id: int): (string,string,string) =
+  withPrep(st,conn,"SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?"):
+    echo("IDE ",id)
+    st.Bind(1,", ")
+    st.Bind(2,id)
+    st.get()
     return (column(st,0),column(st,1),column(st,2))
       
 proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
