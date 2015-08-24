@@ -66,8 +66,12 @@ proc handle(req: Request) {.async.} =
       <img title="$2" src="/thumb/$1">
 </a>""",toHex(medium).toLower(),title))
 
+    await sendChunk(req.client,"</p><p>")
+
     echo("yay?")
-    await sendChunk(req.client,"</body></html>\n")
+    for name,count in items(db.related(posi,nega,8,0)):
+      await sendChunk(req.client,name & ":" & $count & " ")
+    await sendChunk(req.client,"</p></body></html>\n")
     await endChunks(req.client)
   else:
     await req.respond(Http500,"uhh")
