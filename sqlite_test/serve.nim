@@ -1,5 +1,6 @@
 import asynchttpserver, asyncnet, asyncdispatch, strtabs, strutils, math
 import uri
+from cgi import decodeUrl
 import db
 
 # SIGH...
@@ -25,13 +26,29 @@ proc sendChunk(client: AsyncSocket, hunk: string): Future[void] =
 
 proc endChunks(client: AsyncSocket): Future[void] =
   return send(client,"0\c\L\c\L")
-  
+
+proc chop(s: string, c: char): array[0..2,string] =
+  var where = s.find(c)
+  if(where == -1):
+    return (s,"")
+  return (s[0..where],s[where+1..s.len])
+
+proc handle(req: Request, mode: string, path: string) {.async.} =
+  case mode
+  of "page":
+    var id = parseHex(path)
+    var Type, name, tags = db.page(id)
+    req.respond(Http200,format("""<html><head><title>Page for $id</title></head><body><p><a href="/image/$id/$meta"><img src="/image/$id/$meta" /></a><p>$tags</p>""",(id: toHex(id), meta: join((Type,name),'/'), tags: tags)))
+
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
     var path = req.url.path[1..req.url.path.len];
     if path[0..3] == "art/":
-      path = path[4..path.len];
+      path = path[4..path.len]
+    if path[0] == '~':
+      mode, path = chop(path,'/')
+      return handle(req,mode,path)
     var tags = split(path,'/')
     echo("path ",req.url.path)
     echo("tags ",escape($tags))
@@ -41,13 +58,14 @@ proc handle(req: Request) {.async.} =
     var posi: seq[string] = @[];
     var nega: seq[string] = @[];
     for tag in tags:
-      echo("tag ",escape(tag))
-      if tag == nil or tag == "":
+      var derp = decodeUrl(tag)
+      echo("tag ",escape(derp))
+      if derp == nil or derp == "":
         continue
-      if tag[0] == '-':
-        add(nega,tag[1..tag.len])
+      if derp[0] == '-':
+        add(nega,derp[1..derp.len])
       else:
-        add(posi,tag)
+        add(posi,derp)
     var page = 3
 
     await req.client.sendStatus(Http200, "Yay?")
@@ -67,7 +85,9 @@ proc handle(req: Request) {.async.} =
 </a>""",toHex(medium).toLower(),title))
 
     await sendChunk(req.client,"</p><p>")
-
+    if(true):
+      await endChunks(req.client)
+      return
     echo("yay?")
     for name,count in items(db.related(posi,nega,8,0)):
       await sendChunk(req.client,name & ":" & $count & " ")

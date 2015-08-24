@@ -1,6 +1,6 @@
 import sqldelite,strutils
 
-const onequery = "SELECT medium FROM media_tags WHERE tag = (SELECT id FROM tags WHERE name = ?)\n";
+const onequery = "SELECT medium FROM media_tags WHERE tag IN (SELECT id FROM tags WHERE name = ?)\n";
 
 var conn: CheckDB
 
@@ -20,7 +20,7 @@ proc makeQuery(posi: seq[string],nega: seq[string]): string =
       result = result & " EXCEPT "
     result = result & onequery
 
-template `++`(n: expr): expr =
+template `++`(n: expr): expr {.immediate.} =
   n = n + 1
   n
 
@@ -31,10 +31,12 @@ proc bindQuery(st: CheckStmt, posi: seq[string],nega: seq[string], limit: int, o
   for tag in nega:
     st.Bind(++which,tag)   
   st.Bind(++which,limit)
-  st.Bind(which,offset)
+  st.Bind(++which,offset)
   
 proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
-  var query = "SELECT id,name FROM media WHERE id IN (" & makeQuery(posi,nega) & ")"
+  result = @[]
+  var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id"
+  echo("query ",query)
   query = query & " ORDER BY added DESC"
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
@@ -46,6 +48,12 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
       var title: string = column(st,1)
       add(result,(medium: medium, title: title))
 
+proc page*(id: int): array[0..3,string] =
+  withPrep(st,conn,"SELECT type, name, (select name from tags inner join media_tags on tags.id = media_tags.tag where media_tags.media = media.id) FROM media WHERE id = ?"):
+    st.bindQuery(id)
+    st.step()
+    return (column(st,0),column(st,1),column(st,2))
+      
 proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
   var query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags WHERE medium IN (" & makeQuery(posi,nega) & ") GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
   withPrep(st,conn,query):
