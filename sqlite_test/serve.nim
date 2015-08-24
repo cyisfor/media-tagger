@@ -37,7 +37,11 @@ proc handle(req: Request, mode: string, path: string) {.async.} =
   case mode
   of "page":
     echo("PATH ",path)
-    var id = parseHexInt(path)
+    var id: int
+    if path[path.len-1] == '/':
+      id = parseHexInt(path[0..path.len-2])
+    else:
+      id = parseHexInt(path)
     var Type, name, tags: string
     var nope = false
     try:
@@ -55,12 +59,14 @@ proc handle(req: Request, mode: string, path: string) {.async.} =
    await req.respond(Http500,"No mode derp " & mode)
    
 
+const prefix = "testart/"
+   
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
     var path = req.url.path[1..req.url.path.len];
-    if path[0..3] == "testart/":
-      path = path[4..path.len]
+    if path[0..prefix.len-1] == prefix:
+      path = path[prefix.len..path.len]
     if path[0] == '~':
       var (mode, path) = chop(path[1..path.len],'/')
       await handle(req,mode,path)
