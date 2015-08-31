@@ -1,27 +1,35 @@
-import comic,info
-import dirty as d
+import comic,info,db
+from replacer import replacerFile as replace
+
+import dirty.html as d
 
 import sys,os
+oj = os.path.join
 
 c = int(sys.argv[1],0x10)
 dest = sys.argv[2]
 
+try:
+    os.mkdir(dest)
+except OSError: pass
+
 def makePage(*content,head=(),title='???'):
-    return d.html(d.head(d.title(title),*head),
-                  d.body(content))
+    return str(d.html(d.head(d.title(title),*head),
+                  d.body(content))).encode('utf-8')
 
 def makeLink(which):
     return '{:x}.html'.format(which)
 
 class Book:
     which = 0
-    def __init__(self,title,description,tags):
+    def __init__(self,pages,title,description,sources,tags):
+        self.pages = pages
         self.title = title
         self.description = description
         self.tags = tags
         self.index = []
-    def advance(self,which,medium,tags):
-        self.index.append((medium,tags))
+    def advance(self,which,mediumf,tags):
+        self.index.append((mediumf,tags))
         link = makeLink(which)
         head = []
         links = []
@@ -35,24 +43,30 @@ class Book:
             links.append(d.a("Next",href=next))
         links.append(d.a("Contents",href="./"))
         with replace(oj(dest,link)) as out:
-            out.write(makePage(d.p(d.a(href=medium,d.img(src=medium))),
-                               *((d.p(*links),) if links else ()),
-                               d.p("Tags: ",", ".join(tags))
+            out.write(makePage(d.p(d.a(d.img(src=mediumf),href=mediumf)),
+                               d.p(*links),
+                               d.p("Tags: ",", ".join(tags)),
                                head=head,
                                title="{} page {:x}".format(
-                                   self.title,which)).encode('utf-8'))
-    def commit():
-        index = [d.a(href=makeLink(which),d.img(
-            src=image[0],title=", ".join(image[1]))) for which,image in enumerate(self.index)]
+                                   self.title,which)))
+    def commit(self):
+        index = [d.a(d.img(
+            src=image[0],title=", ".join(image[1])),href=makeLink(which)) for which,image in enumerate(self.index)]
         with replace(oj(dest,"index.html")) as out:
             out.write(makePage(
                 d.h1(self.title),
                 d.p(*index),
-                d.p(self.description)
-                d.p(", ".join(self.tags))
+                d.p(self.description),
+                d.p(", ".join(self.tags)),
                 title=self.title))
+
+book = Book(comic.pages(c),*comic.findInfoDerp(c)[0])
             
-for which in range(comic.pages(c)):
-    medium = comic.findMedium(c,which)
-    book.advance(which,medium,[r[0] for r in info.tagsFor(medium)])
+for which in range(book.pages):
+    medium = comic.findMediumDerp(c,which)
+    type = db.execute("SELECT type FROM media WHERE id = $1",(medium,))
+    print(which,medium,type)
+    mediumf = '{:x}.{}'.format(medium,type.split('/')[-1])
+    shutil.copyfileobj(filedb.mediaPath(medium),oj(dest,mediumf))
+    book.advance(which,mediumf,[r[0] for r in info.tagsFor(medium)])
 book.commit()
