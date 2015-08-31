@@ -67,7 +67,7 @@ def findComicByTitle(title,getinfo):
     return rows[0][0]
 
 def findInfoDerp(id):
-    return db.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source) FROM comics WHERE id = $1",(id,))
+    return db.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source),array(SELECT name from tags WHERE comics.tags @> ARRAY[id]) FROM comics WHERE id = $1",(id,))
 
 def findInfo(id,getinfo,next=None):
     rows = findInfoDerp(id)

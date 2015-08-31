@@ -1,11 +1,8 @@
 import asynchttpserver, asyncnet, asyncdispatch, strtabs, strutils, math
 import uri
 from cgi import decodeUrl
+import times
 import db,sqldelite
-
-# SIGH...
-proc sendStatus(client: AsyncSocket, code: HttpCode, status: string): Future[void] =
-  client.send("HTTP/1.1 " & $code & " " & status & "\c\L")
 
 proc mylog(x: BiggestInt): float = 
   return math.ln(toFloat(cast[int](x))) / math.ln(0x10)
@@ -19,13 +16,6 @@ assert(toHex(0x8)=="8")
 assert(toHex(0x10)=="10")
 assert(toHex(0x11)=="11")
 assert(toHex(0xfff)=="FFF")
-
-proc sendChunk(client: AsyncSocket, hunk: string): Future[void] =
-  var chunk = toHex(len(hunk)) & "\c\L" & hunk & "\c\L"
-  return send(client,chunk)
-
-proc endChunks(client: AsyncSocket): Future[void] =
-  return send(client,"0\c\L\c\L")
 
 proc chop(s: string, c: char): (string,string) =
   var where = s.find(c)
@@ -60,7 +50,17 @@ proc handle(req: Request, mode: string, path: string) {.async.} =
    
 
 const prefix = "testart/"
-   
+
+type TimeTest = tuple
+  start: float
+  name: string
+
+proc startTest(name: string): TimeTest =
+  return (times.cpuTime(),name)
+proc done(lastTime: TimeTest) =
+  var curTime = times.cpuTime()
+  echo(lastTime.name," elapsed ",curTime-lastTime.start)
+
 proc handle(req: Request) {.async.} =
   case req.reqMethod
   of "get":
@@ -90,15 +90,20 @@ proc handle(req: Request) {.async.} =
         add(posi,derp)
     var page = 3
 
-    await req.client.sendStatus(Http200, "Yay?")
-    await req.sendHeaders(newStringTable({"Transfer-Encoding": "chunked"}))
-    await req.client.send("\c\L")
+    var choonks = ""
+    proc sendChunk(cli: AsyncSocket, chunk: string) {.async.} =
+      choonks = choonks & chunk
+    proc endChunks(cli: AsyncSocket) {.async.} =
+      choonks = choonks & "\n"
+      await req.respond(Http200,choonks)
 
     await sendChunk(req.client, "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
     await sendChunk(req.client,"<p>" & req.url.path & "</p><p>")
     var herp: seq[tuple[medium: int,title: string]];
     try:
+      var test = startTest("list")
       herp = db.list(posi,nega,0x20,0x20*page)
+      test.done()
     except:
       echo("DERRRRP ",getCurrentExceptionMsg())
     for medium,title in items(herp):
@@ -107,12 +112,14 @@ proc handle(req: Request) {.async.} =
 </a>""",toHex(medium).toLower(),title))
 
     await sendChunk(req.client,"</p><p>")
-    if(true):
+    if false:
       await endChunks(req.client)
       return
     echo("yay?")
+    var test = startTest("related")
     for name,count in items(db.related(posi,nega,8,0)):
       await sendChunk(req.client,name & ":" & $count & " ")
+    test.done()
     await sendChunk(req.client,"</p></body></html>\n")
     await endChunks(req.client)
   else:

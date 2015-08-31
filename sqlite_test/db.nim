@@ -35,7 +35,7 @@ proc bindQuery(st: CheckStmt, posi: seq[string],nega: seq[string], limit: int, o
   
 proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
   result = @[]
-  var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id"
+  var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id GROUP BY media.id"
   echo("query ",query)
   query = query & " ORDER BY added DESC"
   query = query & " LIMIT ?"
@@ -57,7 +57,12 @@ proc page*(id: int): (string,string,string) =
     return (column(st,0),column(st,1),column(st,2))
       
 proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
-  var query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags WHERE medium IN (" & makeQuery(posi,nega) & ") GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+  var query: string
+  if posi == nil and nega == nil:
+    query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+  else:
+    query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags WHERE medium IN (" & makeQuery(posi,nega) & ") GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+  result = @[]
   withPrep(st,conn,query):
     bindQuery(st,posi,nega,limit,offset)
     for _ in st.foreach():

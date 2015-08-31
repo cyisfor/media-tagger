@@ -634,7 +634,7 @@ def showPages(path,params):
     if Session.head:
         for stuff in getMedia(): pass
         return
-    title,description,source = comic.findInfoDerp(com)[0]
+    title,description,source,tags = comic.findInfoDerp(com)[0]
     if not description: description = 'ehunno' 
     def getInfos():
         for medium,which in getMedia():
@@ -649,6 +649,7 @@ def showPages(path,params):
                 d.h1(title),
                 links if numPages and links else '',
                 d.p(RawString(description)),
+                d.p("Tags:",", ".join(tags)),
                 d.p(d.a('Source',href=source)) if source else '',
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
                     d.a("Index",href=".."),
@@ -663,7 +664,7 @@ def showComicPage(path):
     medium = comic.findMedium(com,which)
     checkModified(medium)
     if Session.head: return
-    title,description,source = comic.findInfoDerp(com)[0]
+    title,description,source,tags = comic.findInfoDerp(com)[0]
     typ,size,width,height = getStuff(medium)
     name = title + '.' + typ.rsplit('/',1)[-1]
     with Links:
@@ -683,7 +684,8 @@ def showComicPage(path):
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
-                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None))
+                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None),
+                        d.p("Tags: ",", ".join(tags)))
         raise Return(page)
 
         

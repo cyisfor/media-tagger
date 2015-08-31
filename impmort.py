@@ -46,7 +46,7 @@ def discover(path):
         for start in (os.path.expanduser("~/art/"),'/home/extra/youtube'):
             relpath = os.path.relpath(path,start.encode('utf-8'))
             if not b'..' in relpath: break
-        else: raise ImportError("Can't import path "+path)
+        else: raise ImportError("Can't import path "+str(path))
         name = os.path.basename(relpath)
         relpath = relpath.decode('utf-8')
         name = name.decode('utf-8')

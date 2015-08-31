@@ -121,7 +121,7 @@ class Finder:
                 and
                 db.execute('SELECT id FROM media WHERE id = $1',(self.source,))):
             print('oops')
-            idle_add(self.next,then)
+            idle_add(self.next)
             return
         if self.source < self.dest:
             self.source, self.dest = self.dest, self.source
