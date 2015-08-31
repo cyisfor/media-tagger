@@ -51,6 +51,11 @@ def mediaPath(id=None):
     if id:
         return os.path.join(loc,'{:x}'.format(id))
     return loc
+def thumbPath(id=None):
+    loc = os.path.join(base,'thumb')
+    if id:
+        return os.path.join(loc,'{:x}'.format(id))
+    return loc
 def uploadPath(name):
     return os.path.join(base,'uploads',name)
 
