@@ -21,6 +21,11 @@ def oembed(path,params):
     id = getID(path)
     return id,[row[0] for row in db.execute("SELECT tags.name FROM tags, things where tags.id = ANY(things.neighbors) AND things.id = $1 ORDER BY name",(id,))]
 
+def tagsFor(medium):
+    return db.execute("""SELECT tags.name FROM tags 
+INNER JOIN things ON tags.id = ANY(things.neighbors)
+WHERE things.id = $1""",(medium,))
+
 def pageInfo(id):
     info = db.execute("""SELECT
     media.id,
