@@ -37,17 +37,20 @@ def getinfo(next):
     title = e("title")
     description = e("description")
     source = e("source")
+    tags = e("tags")
     title.connect('activate',lambda *a: description.grab_focus())
-    description.connect('activate',lambda *a: source.grab_focus())
     title.grab_focus()
-    source.connect('activate',lambda *a: window.destroy())
+    description.connect('activate',lambda *a: source.grab_focus())
+    source.connect('activate',lambda *a: tags.grab_focus())
+    tags.connect('activate',lambda *a: window.destroy())
     def herp(*a):
-        nonlocal title, description, source
+        nonlocal title, description, source, tags
         title = title.get_text() or None
         description = description.get_text() or None
         source = source.get_text() or None
+        tags = tags.get_text() or None
         assert title
-        next(title,description,source)
+        next(title,description,source,tags)
     window.connect('destroy',herp)
     window.show_all()
     
@@ -94,7 +97,7 @@ def gotURL(url):
                 print(repr(w))
                 raise
     @handling(comic.findInfo,c,getinfo)
-    def gotcomic(title,description,source):
+    def gotcomic(title,description,source,tags):
         comic.findMedium(c,w,m)
         wentry.set_text("{:x}".format(w+1))
 

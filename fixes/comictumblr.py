@@ -2,7 +2,7 @@ import setupurllib
 import create
 import db
 
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 
 import urllib.request
 

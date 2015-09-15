@@ -2,7 +2,7 @@ from .things import *
 import re
 import urllib.parse
 import urllib.request
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 from contextlib import closing
 
 import re

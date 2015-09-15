@@ -73,9 +73,9 @@ def findInfo(id,getinfo,next=None):
     rows = findInfoDerp(id)
     if len(rows) == 0:
         @getinfo
-        def handle(title,description,source):
+        def handle(title,description,source,tags):
             db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
-            if next: next(title,description,source)
+            if next: next(title,description,source,tags)
     elif next:
         next(*rows[0])
 

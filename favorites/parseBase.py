@@ -5,7 +5,7 @@ import fixprint
 import note
 
 import json
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 import urllib.parse
 import urllib.request
 from setupurllib import myretrieve,myopen

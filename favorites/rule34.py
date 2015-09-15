@@ -3,7 +3,7 @@ import re
 import urllib.parse
 import urllib.request
 import setupurllib
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 
 def mystrip(s,chars):
     for c in chars:
