@@ -2,7 +2,7 @@ from .things import Image,Tag,Source
 import os
 import re
 from contextlib import closing
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 
 import urllib.request
 import urllib.parse

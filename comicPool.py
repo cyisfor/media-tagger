@@ -4,7 +4,7 @@ import favorites.parsers
 import comic
 import db
 
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 import os
 import urllib.parse
 

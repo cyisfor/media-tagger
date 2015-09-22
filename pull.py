@@ -2,7 +2,7 @@ import tags as tagsModule
 import create
 from setupurllib import myretrieve,myopen
 
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 
 from pprint import pprint
 import dateutil.parser

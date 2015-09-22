@@ -11,7 +11,7 @@ from futurestuff import drain
 
 import imageInfo
 
-from Crypto.Hash import SHA,MD5
+from hashlib import sha256,md5
 from tornado.concurrent import is_future, Future
 from tornado import gen
 
@@ -25,7 +25,7 @@ import os
 import subprocess
 
 def mediaHash(data):
-    digest = SHA.new()
+    digest = sha256()
     setattr(digest,'write',digest.update)
     shutil.copyfileobj(data,digest)
     digest = digest.digest()
@@ -75,6 +75,12 @@ def retryCreateImage(id):
     if image:
         createImageDBEntry(id,image)
     return image,type
+
+class writer:
+    def __init__(self, write):
+        # pythoooon
+        self.write = write
+        
 
 class Source:
     uri = None
@@ -141,9 +147,8 @@ def getanId(sources,uniqueSources,download,name):
             raise NoGood("blacklisted",digest)
         if md5 is None:
             data.seek(0,0)
-            md5 = MD5.new()
-            setattr(md5,'write',md5.update)
-            shutil.copyfileobj(data,md5)
+            md5 = MD5()
+            shutil.copyfileobj(data,writer(md5.update))
             md5 = md5.hexdigest()
         with db.saved():
             id = db.execute("INSERT INTO things DEFAULT VALUES RETURNING id")

@@ -1,7 +1,7 @@
 import setupurllib
 import urllib.request
 import urllib.parse
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 import re
 
 import logging

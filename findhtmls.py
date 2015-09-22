@@ -1,7 +1,7 @@
 #!/usr/bin/env pypy3
 
 import os,magic,signal
-from bs4 import BeautifulSoup
+from bs4sux import BeautifulSoup
 from mygi import Gtk,Gdk,GLib
 
 clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
