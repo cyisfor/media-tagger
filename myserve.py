@@ -254,16 +254,16 @@ class Handler(FormCollector,myserver.ResponseHandler):
             Session.params = params
             implied = self.headers.get("X-Implied-Tags")
             if implied:
-                tags = tagsModule.parse(implied)
+                tags = tagsModule.parse(implied,False)
             else:
-                tags = tagsModule.parse("-special:rl")
+                tags = tagsModule.parse("-special:rl",False)
             tags.update(User.tags())
             basic = Taglist()
 
             for thing in path:
                 if thing:
                     thing = urllib.parse.unquote(thing)
-                    bitt = tagsModule.parse(thing)
+                    bitt = tagsModule.parse(thing,False)
                     tags.update(bitt)
                     basic.update(bitt)
             tagfilter.filter(tags)

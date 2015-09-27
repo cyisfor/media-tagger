@@ -11,9 +11,10 @@ from futurestuff import drain
 
 import imageInfo
 
-from hashlib import sha256,md5
 from tornado.concurrent import is_future, Future
 from tornado import gen
+
+from hashlib import sha1 as SHA,md5 as MD5
 
 import gzip
 import derpmagic as magic
@@ -24,10 +25,14 @@ import re
 import os
 import subprocess
 
+class writer:
+    def __init__(self, write):
+        # pythoooon
+        self.write = write
+        
 def mediaHash(data):
-    digest = sha256()
-    setattr(digest,'write',digest.update)
-    shutil.copyfileobj(data,digest)
+    digest = SHA()
+    shutil.copyfileobj(data,writer(digest.update))
     digest = digest.digest()
     digest = base64.b64encode(digest)
     digest = digest.decode().rstrip('=')
@@ -75,12 +80,6 @@ def retryCreateImage(id):
     if image:
         createImageDBEntry(id,image)
     return image,type
-
-class writer:
-    def __init__(self, write):
-        # pythoooon
-        self.write = write
-        
 
 class Source:
     uri = None

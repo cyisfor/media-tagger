@@ -1,4 +1,4 @@
-#!/usr/bin/env pypy
+#!/usr/bin/env pypy3
 
 import os
 if not 'nofork' in os.environ:
@@ -9,6 +9,7 @@ if not 'nofork' in os.environ:
     else:
         raise SystemExit(3)
 
+import sys
 import subprocess as s
 eu = os.path.expanduser
 
@@ -18,4 +19,4 @@ os.environ['name'] = name;
 os.environ['skipcookies'] = '1'
 print('oy')
 os.execlp('daemonize','daemonize',
-          'pypy',eu("~/code/image/tagger/myserve.py"))
+          sys.executable,eu("~/code/image/tagger/myserve.py"))

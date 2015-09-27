@@ -166,7 +166,7 @@ def full(tags):
         tags = _fullOneSide(tags)
     return tags
 
-def parse(s):
+def parse(s,create=True):
     tags = Taglist()
     for thing in s.split(','):
         thing = thing.strip()
@@ -176,8 +176,14 @@ def parse(s):
             tags.nega.add(thing)
         else:
             tags.posi.add(thing)
-    tags.posi = set(makeTag(tag) for tag in tags.posi)
-    tags.nega = set(makeTag(tag) for tag in tags.nega)
+    if create:
+        derp = makeTag
+    else:
+        derp = getTag
+    tags.posi = set(tag for tag in
+                    (derp(tag) for tag in tags.posi) if tag)
+    tags.nega = set(tag for tag in
+                    (derp(tag) for tag in tags.nega) if tag)
     tags.posi = tags.posi.difference(tags.nega)
     tags.nega = tags.nega.difference(tags.posi)
     return tags
