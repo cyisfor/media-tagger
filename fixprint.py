@@ -20,4 +20,6 @@ class Flushfile(object):
         setattr(self,name,value)
         return value
 
-sys.stdout = Flushfile(io.TextIOWrapper(sys.stdout.buffer,encoding = 'utf-8'))
+try:
+    sys.stdout = Flushfile(io.TextIOWrapper(sys.stdout.buffer,encoding = 'utf-8'))
+except AttributeError: pass

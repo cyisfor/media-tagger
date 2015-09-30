@@ -1,3 +1,4 @@
+from locks import processLocked
 import db
 import tags
 import filedb
@@ -104,6 +105,7 @@ class Source:
             self.id = sourceId(self.uri)
         return self.id
 
+@processLocked("creating")
 def getanId(sources,uniqueSources,download,name):
     for uniqueSource in uniqueSources:
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
