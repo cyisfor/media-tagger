@@ -1,5 +1,5 @@
 import versions,db
-import withtags,tags
+import withtags,tags as tagsModule
 
 from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With
 
@@ -28,7 +28,7 @@ def churn(tags,limit=9):
     category = hash(tags) % 0x7FFFFFFF
     print(category)
     stmt,arg = withtags.tagStatement(tags,limit=limit)
-    category = arg(category)
+    cat = arg(category)
     # [with.base] -> limit.clause -> order.clause -> select
     base = stmt.body if hasattr(stmt,'body') else stmt
     base = base.clause # order (.clause -> select)
@@ -36,17 +36,17 @@ def churn(tags,limit=9):
     base.clause.where = AND(base.clause.where,notSeen) if base.clause.where else notSeen
     base.clause.From = OuterJoin(base.clause.From,
                                  AS(Select('media','randomSeen',
-                                                                                 EQ('category',category)),
+                                                                                 EQ('category',cat)),
                                     'randomSeen'),
                             EQ('randomSeen.media','media.id'))
-    base.clause.what = ('media.id',category)
+    base.clause.what = ('media.id',cat)
     base.order = 'random()'
     stmt = With(
         Select('count(*)','rows'),
         rows=(None,'INSERT INTO randomSeen (media, category) ' + stmt.sql() + '\nRETURNING 1')).sql()
     args = arg.args
-    print(stmt.replace('  ','.'))
-    print(args)
+    #print(stmt.replace('  ','.'))
+    #print(args)
 
     while True:
         try:
@@ -72,7 +72,7 @@ def churn(tags,limit=9):
             # this shouldn't violate unique, since more than 1/2 were deleted
             # or... should it be SELECT MEDIAN(id) or something above?
             db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
-            db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1)",(category,))
+            db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
     
 def get(tags,offset=None,limit=9):
@@ -91,20 +91,33 @@ def get(tags,offset=None,limit=9):
     return rows
 
 from redirect import Redirect
+import time
+from filedb import oj
+import filedb
+
+with open(oj(filedb.base,'nope.tags'),'rt') as inp:
+    nopeTags = tagsModule.parse(inp.read())
 
 def info(path,params):
+    if 'o' in params:
+        offset = int(params['o'][0])
+        if offset == 0:
+            offset = None
+            del params['o']
+    else:
+        offset = None
     if 'q' in params:
         tags = tagsModule.parse(params['q'][0])
     else:
-        tags = User.tags 
+        tags = User.tags()
+    tags.update(nopeTags)
     if 'c' in params:
         print(params)
         churn(tags,limit=1)
-        raise Redirect('?o=0',code=302)
-    elif 'o' in params:
-        offset = int(params['o'][0])
-    else:
-        offset = None
+        zoop = {'t': str(time.time())}
+        zoop.update((n,v[0]) for n,v in params.items() if n != 'c')
+        zoop = urllib.parse.urlencode(zoop)
+        raise Redirect('?'+zoop if zoop else '.',code=302)
     while True:
         links = get(tags,offset=offset)
         if links: return links
@@ -116,6 +129,7 @@ from pages import makePage,makeLinks,makeLink,Links
 
 import dirty.html as d
 from tornado.gen import coroutine,Return
+import urllib.parse
 
 @coroutine
 def page(info,path,params):
@@ -125,10 +139,15 @@ def page(info,path,params):
         #Links.next = "." this gets preloaded sometimes :/
         links = yield makeLinks(info)
         fid,link,thing = yield makeLink(id,type,name,False,0,0)
+        zoop = {'c': '1'}
+        zoop.update((n,v[0]) for n,v in params.items())
+        zoop = urllib.parse.urlencode(zoop)
+        zoop = '?' + zoop if zoop else '.'
         page = makePage(
             "Random",
-                        d.p(d.a(link,href=thing)),
-            d.div('moar',links if links else ''))
+                        d.p(d.a('Another?',href=zoop)),
+                        d.p(d.a(link,href='/art/~page/'+fid+'/')),
+            d.div(links if links else '',title='past ones'))
         raise Return(page)
 
 if __name__ == '__main__':
