@@ -117,28 +117,33 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
     if tags.posi or tags.nega:
         if tags.posi:
-            tags.posi = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]
+            posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
         if tags.nega:
-            tags.nega = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]
+            nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
 
         # we're gonna need a with statement...
-        notWanted = Intersects('things.neighbors',Type(arg(tags.nega,'nega'),'bigint[]'))
-        if tags.posi:
-            # make sure positive tags don't override negative ones
-            notWanted = AND(notWanted,
-                            NOT(EQ('things.id',ANY(arg(tags.posi,'posi')))))
-        herp = AS(Func('unnest',arg(tags.nega,'nega')),'id')
-        stmt = With(stmt,
-                    wanted=('tags',Select(array(
-                        Select('implications(unnest)',
-                               Func('unnest',arg(tags.posi,'posi')))))),
-                    unwanted=(
+        notWanted = Intersects('things.neighbors',tags.nega)
+        clauses = {
+            'unwanted': (
                         'id',
                         Union(Select('tags.id',
                                      InnerJoin('tags','things',
                                                EQ('tags.id','things.id')),
                                      notWanted),
-                              Select('id',herp))))
+                              Select('id',herp)))
+        }
+
+        if tags.posi:
+            # make sure positive tags don't override negative ones
+            notWanted = AND(notWanted,
+                            NOT(EQ('things.id',ANY(posi))))
+            implications = Select('implications(unnest)',
+                                  Func('unnest',posi))
+            clauses['wanted'] = ('tags',Select(array(implications)))
+
+
+        herp = AS(Func('unnest',tags.nega),'id')
+        stmt = With(stmt,**clauses)
                                                     
     return stmt,arg.args
 

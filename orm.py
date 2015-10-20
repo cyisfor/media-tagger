@@ -103,7 +103,7 @@ class BaseJoin(Complex):
         self.right = right
         self.aux = aux
     def sql(self):
-        s = encode((self.left,self.operation,self.right))
+        s = encode((asGroup(self.left),self.operation,asGroup(self.right)))
         if self.aux is not None:
             s = s + ' ON '+encode(self.aux)
         return s
@@ -170,15 +170,16 @@ class Plus(Binary):
 class Intersects(Binary):
     op = '&&'
 
-class AS(SQL):
+class AS(Group):
     def __init__(self, clause, name):
+        super().__init__(clause)
         self.name = name
-        self.clause = clause
     def sql(self):
-        return encode(self.clause) + ' AS ' + encode(self.name)
+        return super().sql() + ' AS ' + encode(self.name)
 
-class ANY(Unary):
-    op = 'ANY'
+class ANY(Group):
+    def sql(self):
+        return 'ANY' + super().sql()
 
 class Func(SQL):
     def __init__(self, name, *args):
