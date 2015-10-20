@@ -60,7 +60,7 @@ class With(Complex):
         return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
         
 class Select(Complex):
-    def __init__(self, what, From, where):
+    def __init__(self, what, From, where=None):
         self.what = what
         self.From = From
         self.where = where
@@ -118,10 +118,10 @@ class Group(SQL):
             clause = clause.clause
         return '(' + encode(self.clause) + ')'
 
-class Boolean(Group):
+class Binary(Group):
     op = None
     def __init__(self, left, right):
-        super(Boolean, self).__init__((asGroup(left),self.op,asGroup(right)))
+        super(Binary, self).__init__((asGroup(left),self.op,asGroup(right)))
 
 class Unary(Group):
     op = None
@@ -131,30 +131,44 @@ class Unary(Group):
 def asGroup(clause):
     if isinstance(clause,Group):
         return clause
-    if isinstance(clause,(list,tuple,set,Boolean,Complex)):
+    if isinstance(clause,(list,tuple,set,Binary,Complex)):
         return Group(clause)
     return clause
         
-class AND(Boolean):
+class AND(Binary):
     op = 'AND'
 
-class OR(Boolean):
+class OR(Binary):
     op = 'OR'
         
 class NOT(Unary):
     op = 'NOT'
 
-class EQ(Boolean):
+class EQ(Binary):
     op = '='
 
-class IS(Boolean):
+class IS(Binary):
     op = 'IS'
     
-class IN(Unary):
+class IN(Binary):
     op = 'IN'
 
-class Plus(Boolean):
+class Plus(Binary):
     op = '+'
+
+class Intersects(Binary):
+    op = '&&'
+
+class AS(SQL):
+    def __init__(self, name, clause):
+        self.name = name
+        self.clause = clause
+    def sql(self):
+        return encode(self.clause) + ' AS ' + encode(self.name)
+
+class array(Unary):
+    def sql(self):
+        return 'array' + super().sql()
     
 def main():
     from pprint import pprint

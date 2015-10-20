@@ -1,4 +1,4 @@
-#from orm import Select,InnerJoin,AND,OR,With
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS
 #ehhh
 import db												# 
 from versions import Versioner
@@ -63,17 +63,17 @@ class argbuilder:
             self.names[name] = num
         return num
 
-def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     From = InnerJoin('media','things',EQ('things.id','media.id'))
     negaWanted = Select('id','unwanted')
-    negaClause = Not(Intersects('neighbors',array(negaWanted)))
+    negaClause = NOT(Intersects('neighbors',array(negaWanted)))
     if tags.posi or not tags.nega:
         # if any positive tags, or no positive but also no negative, this good
         if tags.posi:
             where = Select('EVERY(neighbors && wanted.tags)','wanted')
             if tags.nega:
-                negaWanted.where = Not(IN('id',Select('unnest(tags)','wanted')))
-                where = And(where,negaClause)
+                negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
+                where = AND(where,negaClause)
     elif tags.nega:
         # only negative tags
         negaWanted.where = None
@@ -89,7 +89,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
         mainOrdered = EQ('things.id',ANY(mainOrdered))
         if tags.posi:
             mainOrdered = And(
-                Not(EQ('tags.id',ANY(
+                NOT(EQ('tags.id',ANY(
                         Type(next(arg),'bigint[]')))),
                 mainOrdered)
             
@@ -101,7 +101,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
         stmt = Select(['derp.id','derp.name'],
                       AS(
                           Limit(Group(tagStuff,'tags.id'),
-                                Type(arg(taglimit),'int'))
+                                Type(arg(taglimit),'int')),
                           'derp'))
         stmt = Order(stmt,'derp.name')
     else:
@@ -166,7 +166,9 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 def test():
     import tags
-    for tag in searchForTags(tags.parse("apple, smile, -evil")):
+    bags = tags.parse("apple, smile, -evil")
+    print(tagStatement(bags))
+    for tag in searchForTags(bags):
         print(tag)
         
 if __name__ == '__main__':

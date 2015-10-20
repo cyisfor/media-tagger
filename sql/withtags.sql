@@ -38,7 +38,8 @@ $$
 LANGUAGE 'plpgsql'
 }
 wanted {
-wanted(tags) AS (SELECT array(SELECT implications(unnest)) FROM unnest(%(tags)s::bigint[])) 
+wanted(tags) AS
+(SELECT array(SELECT implications(unnest)) FROM unnest(%(tags)s::bigint[])) 
 }
 unwanted {
 unwanted(id) AS (
@@ -77,7 +78,8 @@ ordering {
 }
 
 main {
-SELECT media.id,media.name,media.type,
+SELECT
+media.id,media.name,media.type,
     array(SELECT tags.name FROM tags INNER JOIN (SELECT unnest(neighbors)) AS neigh ON neigh.unnest = tags.id)
 FROM
         %(positiveClause)s
