@@ -21,7 +21,8 @@ def encode(o):
                     s = encode(oo)
                 else:
                     s = s + ' ' + encode(oo)
-        except ValueError:
+            return s
+        except TypeError:
             return str(o)
 
 class Select(SQL):
@@ -74,22 +75,71 @@ class FullJoin(BaseJoin):
     def __init__(self, left, right):
         super(FullJoin, self).__init__('JOIN',left,right,None)
 
+class Group(SQL):
+    def __init__(self, clause):
+        self.clause = clause
+    def sql(self):
+        return '(' + self.clause + ')'
+
+def asGroup(clause):
+    if isinstance(clause,Group):
+        return clause
+    return Group(clause)
+        
+class Boolean(SQL):
+    def __init__(self, op, left, right):
+        self.op = op
+        self.left = asGroup(left)
+        self.right = asGroup(right)
+    def sql(self):
+        return encode(Group((self.left,self.op,self.right)))
+
+class AND(Boolean):
+    def __init__(self, left, right):
+        super(AND, self).__init__('AND',left,right)
+
+class OR(Boolean):
+    def __init__(self, left, right):
+        super(OR, self).__init__('OR',left,right)
+
+class NOT(SQL):
+    def __init__(self, clause):
+        self.clause = clause
+    def sql(self):
+        return Group(('NOT',self.clause))
+
+class EQ(Boolean):
+    def __init__(self,left,right):
+        super(EQ, self).__init__('=',left,right)
+
+class IS(Boolean):
+    def __init__(self,left,right):
+        super(IS, self).__init__('IS',left,right)
+
+class IS(Boolean):
+    def __init__(self,left,right):
+        super(IS, self).__init__('IS',left,right)
+
+        
+    
 def main():
-    print(
-        Limit(
-            Order(
-                Select(
-                    ["tableA.foo","tableD.bar","tableC.baz"],
-                    Join(
-                        OuterJoin(
-                            InnerJoin("tableA","tableB","tableA.id = tableB.id"),
-                            "tableC",
-                            "tableA.id = tableC.id"),
-                        "tableD"),
-                    "tableB.beep = $1 AND tableA.foo = tableC.baz + 3"),
-                "tableB.bar, tableC.baz"),
-            12,
-            20).sql())
+    stmt = Limit(
+        Order(
+            Select(
+                ["tableA.foo","tableD.bar","tableC.baz"],
+                FullJoin(
+                    OuterJoin(
+                        InnerJoin("tableA","tableB","tableA.id = tableB.id"),
+                        "tableC",
+                        "tableA.id = tableC.id"),
+                    "tableD"),
+                AND(EQ("tableB.beep","$1"),EQ("tableA.foo","tableC.baz + 3")),
+            "tableB.bar, tableC.baz"),
+        "$2",
+        20)
+    print(stmt.sql())
+    print('---')
+    print(stmt.clause.clause.sql())
 
 if __name__ == '__main__':
     main()
