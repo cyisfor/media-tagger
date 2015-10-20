@@ -253,6 +253,26 @@ class array(Group):
     def sql(self):
         return 'array' + super().sql()
 
+#################################################
+    
+class argbuilder:
+    n = 1
+    def __init__(self):
+        self.args = []
+        self.names = {}
+    def __call__(self,arg,name=None):
+        if name is not None:
+            if name in self.names:
+                return self.names[name]
+        num = '$'+str(self.n)
+        self.n += 1
+        if isinstance(arg,int):
+            num = Type(num,'int')
+        self.args.append(arg)
+        if name is not None:
+            self.names[name] = num
+        return num
+    
 def main():
     from pprint import pprint
     stmt = Limit(

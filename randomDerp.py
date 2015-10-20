@@ -1,7 +1,7 @@
 import versions,db
 import withtags,tags
 
-from orm import IS,EQ,Select,OuterJoin,AND,AS
+from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder
 
 v = versions.Versioner('random')
 
@@ -24,7 +24,7 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-def get(tags,limit=0x3):
+def churn(tags,limit=0x3):
     category = hash(tags) % 0x7FFFFFFF
     print(category)
     stmt,arg = withtags.tagStatement(tags,limit=limit)
@@ -41,39 +41,48 @@ def get(tags,limit=0x3):
                             EQ('randomSeen.media','media.id'))
     base.clause.what = ('media.id',category)
     base.order = 'random()'
-    stmt = 'INSERT INTO randomSeen (media, category) ' + stmt.sql()
+    stmt = 'INSERT INTO randomSeen (media, category) ' + stmt.sql() + '\nRETURNING count(media.id)'
     args = arg.args
     print(stmt.replace('  ','.'))
     print(args)
-    try:
-        rows = db.execute(stmt,args)
-    except db.ProgrammingError as e:
-        derp = 0
-        lines = stmt.split('\n')
-        import math
-        wid = int(1+math.log(len(lines)) / math.log(10))
-        wid = '{:'+str(wid)+'}'
-        def num():
-            nonlocal derp
-            ret = wid.format(derp)+' '
-            derp += 1
-            return ret
-        print('\n'.join(num()+line for line in lines))
-        print(e.info['message'].decode('utf-8'))
-        raise SystemExit
-    #print('\n'.join(r[0] for r in rows))
-    #raise SystemExit
-    if rows:
-        idents = [row[0] for row in rows]
-        with db.transaction():
-            res = db.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM (SELECT unnest($2::bigint[])) AS boop LEFT OUTER JOIN randomSeen ON randomSeen.media = boop.unnest AND randomSeen.category = $1 WHERE randomSeen.id IS NULL',(category,idents))
-    else:
+
+    while True:
+        try:
+            num = db.execute(stmt,args)[0][0]
+        except db.ProgrammingError as e:
+            derp = 0
+            lines = stmt.split('\n')
+            import math
+            wid = int(1+math.log(len(lines)) / math.log(10))
+            wid = '{:'+str(wid)+'}'
+            def num():
+                nonlocal derp
+                ret = wid.format(derp)+' '
+                derp += 1
+                return ret
+            print('\n'.join(num()+line for line in lines))
+            print(e.info['message'].decode('utf-8'))
+            raise SystemExit
+        if num > 0: break
         # out of media, better throw some back into the pot
         with db.transaction():
-            db.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen)',(category,))
-            db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen) WHERE category = $1',(category,))
-            db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen)")
-        return get(category,limit,where)
+            db.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen WHERE category = $1)',(category,))
+            db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
+            db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1)",(category,))
+
+    
+def get(tags,limit=0x3):
+    category = hash(tags) % 0x7FFFFFFF
+    print(category)
+    arg = argbuilder()
+    category = arg(category)
+    stmt = Select(withtags.tagsWhat,InnerJoin(
+        'randomSeen','media',
+        EQ('randomSeen.media','media.id')),
+                  EQ('randomSeen.category',category))
+    rows = db.execute(stmt.sql(),arg.args)
+    #print('\n'.join(r[0] for r in rows))
+    #raise SystemExit
     return rows
 
 def info(path,params):
