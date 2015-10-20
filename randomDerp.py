@@ -1,20 +1,16 @@
 import versions,db
-from tags import stmts
+import withTags
 
 v = versions.Versioner('random')
 
-# defaultTags means when there is no tags for a user, use the default ones as implied tags.
-# defaultTags=False means when there are no tags, have no implied tags.
-
-class VersionHolder:
-    @v(version=1)
-    def initially():
-        db.setup('''CREATE TABLE randomSeen (
-        id SERIAL PRIMARY KEY,
-        media bigint UNIQUE REFERENCES things(id),
-        category integer DEFAULT 0,
-        UNIQUE(media,category))''')
-
+@v(version=1)
+def initially():
+    db.setup('''CREATE TABLE randomSeen (
+    id SERIAL PRIMARY KEY,
+    media bigint UNIQUE REFERENCES things(id),
+    category integer DEFAULT 0,
+    UNIQUE(media,category))''')
+    
 v.setup()
 
 def tagsfor(idents):
@@ -26,10 +22,11 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-wheres = [
-
-def get(category=0,limit=0x30):
-    stmt = stmts['positiveClause']
+def get(tags,limit=0x30):
+    stmt = withTags.tagStatement(tags)	
+    category = hash(stmt)
+    print(stmt,category)
+    raise SystemExit
     stmt = stmt + " LEFT OUTER JOIN (SELECT media FROM randomSeen WHERE category = $1) AS randomSeen ON randomSeen.media = media.id"
     stmt = stmt + " WHERE"
     if where:

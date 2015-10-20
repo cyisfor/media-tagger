@@ -99,10 +99,10 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             args['tags'] = tags.posi
         if tags.nega:
             args['negatags'] = tags.nega
-    return stmt
+    return stmt,args
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-    stmt = tagStatement(tags,offset,limit,taglimit,wantRelated)
+    stmt,args = tagStatement(tags,offset,limit,taglimit,wantRelated)
     if explain:
         print(stmt)
         print(args)
