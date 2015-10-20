@@ -40,7 +40,25 @@ def encode(o):
         except TypeError:
             return str(o)
 
-class Select(SQL):
+class Complex(SQL): pass
+
+class With(Complex):
+    def __init__(self, body, **clauses):
+        self.body = body
+        self.clauses = clauses
+    def sql(self):
+        clauses = []
+        def add(d):
+            for n,v in d.items():
+                if n == 'clauses':
+                    add(v)
+                else:
+                    args,body = v
+                    clauses.append(n+'('+encode(args)+') AS ('+encode(body)+ ')')
+        add(self.clauses)
+        return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
+        
+class Select(Complex):
     def __init__(self, what, From, where):
         self.what = what
         self.From = From
@@ -48,14 +66,14 @@ class Select(SQL):
     def sql(self):
         return 'SELECT '+', '.join(encode(arg) for arg in self.what) + '\nFROM '+encode(self.From)+'\nWHERE '+encode(self.where)
 
-class Order(SQL):
+class Order(Complex):
     def __init__(self, clause, order):
         self.clause = clause
         self.order = order
     def sql(self):
         return encode(self.clause) + '\nORDER BY '+encode(self.order)
 
-class Limit(SQL):
+class Limit(Complex):
     def __init__(self, clause, limit, offset=None):
         self.clause = clause
         self.limit = limit
@@ -66,7 +84,7 @@ class Limit(SQL):
             s = s + " OFFSET "+encode(self.offset)
         return s
 
-class BaseJoin(SQL):
+class BaseJoin(Complex):
     def __init__(self, operation, left, right, aux):
         self.operation = operation
         self.left = left
@@ -75,7 +93,7 @@ class BaseJoin(SQL):
     def sql(self):
         s = encode((self.left,self.operation,self.right))
         if self.aux is not None:
-            s = s + ' ON '+self.aux
+            s = s + ' ON '+encode(self.aux)
         return s
 
 class InnerJoin(BaseJoin):
@@ -99,11 +117,6 @@ class Group(SQL):
             clause = clause.clause
         return '(' + encode(self.clause) + ')'
 
-def asGroup(clause):
-    if isinstance(clause,Group):
-        return clause
-    return Group(clause)
-        
 class Boolean(Group):
     op = None
     def __init__(self, left, right):
@@ -113,6 +126,13 @@ class Unary(Group):
     op = None
     def __init__(self,clause):
         super(Unary, self).__init__((self.op,asGroup(clause)))
+
+def asGroup(clause):
+    if isinstance(clause,Group):
+        return clause
+    if isinstance(clause,(list,tuple,set,Boolean,Complex)):
+        return Group(clause)
+    return clause
         
 class AND(Boolean):
     op = 'AND'
@@ -131,6 +151,9 @@ class IS(Boolean):
     
 class IN(Unary):
     op = 'IN'
+
+class Plus(Boolean):
+    op = '+'
     
 def main():
     from pprint import pprint
@@ -144,7 +167,7 @@ def main():
                         "tableC",
                         "tableA.id = tableC.id"),
                     "tableD"),
-                AND(EQ("tableB.beep","$1"),EQ("tableA.foo","tableC.baz + 3"))),
+                AND(EQ("tableB.beep","$1"),EQ("tableA.foo",Plus("tableC.baz",3)))),
             "tableB.bar, tableC.baz"),
         "$2",
         20)
@@ -155,6 +178,15 @@ def main():
     print(herp.sql())
     pprint(stmt.clause.clause.dump())
     print(stmt.clause.clause.sql())
+    w = With(Select(['herp','derp'],
+                    InnerJoin('herp','derp',EQ('herp.herp','derp.derp')),
+                    IS(42,42)),
+             herp=('id',stmt.clause.clause),
+             derp=('a,b,c',herp))
+
+    print(w.dump())
+    print(w.sql())
+          
 
 if __name__ == '__main__':
     main()
