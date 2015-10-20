@@ -1,5 +1,7 @@
 import versions,db
-import withTags
+import withtags,tags
+
+from orm import IS,EQ,Select,OuterJoin,AND
 
 v = versions.Versioner('random')
 
@@ -24,29 +26,24 @@ def tagsfor(idents):
 
 def get(tags,limit=0x30):
     category = hash(tags)
-    stmt,arg = withTags.tagStatement(tags)
-    # [with] -> limit -> select
-    base = stmt.base if hasattr(stmt,'base') else stmt
+    stmt,arg = withtags.tagStatement(tags)
+    # [with.base] -> limit.clause -> order.clause -> select
+    base = stmt.body if hasattr(stmt,'body') else stmt
+    base = base.clause # order (.clause -> select)
     notSeen = IS('randomSeen.media','NULL')
     base.clause.where = AND(base.clause.where,notSeen) if base.clause.where else notSeen
-    base.clause = OuterJoin(base.clause,
+    base.clause.From = OuterJoin(base.clause.From,
                             Select('media','randomSeen',
                                    EQ('category',arg(category))),
                             EQ('randomSeen.media','media.id'))
-    
-    print(stmt.sql(),category)
-    raise SystemExit
-    stmt = stmt + " LEFT OUTER JOIN (SELECT media FROM randomSeen WHERE category = $1) AS randomSeen ON randomSeen.media = media.id"
-    stmt = stmt + " WHERE"
-    if where:
-        stmt = stmt + " " + where + " AND"
-    stmt = stmt + " randomSeen.media IS NULL"
-    stmt = stmts['main'] % {
-        'positiveClause': stmt,
-        'negativeClause': '',
-        'ordering': 'ORDER BY random() LIMIT $2'}
-    print(stmt)
-    rows = db.execute(stmt,(category,limit))
+    base.order = 'random()'
+    print(stmt.sql().replace('  ','.'))
+    print(arg.args)
+    try:
+        rows = db.execute(stmt.sql(),arg.args)
+    except db.ProgrammingError as e:
+        print(e.info['message'].decode('utf-8'))
+        raise SystemExit
     #print('\n'.join(r[0] for r in rows))
     #raise SystemExit
     if rows:
@@ -62,10 +59,8 @@ def get(tags,limit=0x30):
     return rows
 
 def info(path,params):
-    if 'c' in params:
-        cat = int(params['c'])
-    else:
-        cat = 0
-    return get(
-        category=cat,
-        
+    return get(tags.parse(params['q']))		
+
+if __name__ == '__main__':
+    from pprint import pprint
+    pprint(get(tags.parse('apple bloom, -sweetie belle, scootaloo')))
