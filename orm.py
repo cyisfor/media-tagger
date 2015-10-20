@@ -54,7 +54,8 @@ class With(Complex):
                     add(v)
                 else:
                     args,body = v
-                    clauses.append(n+'('+encode(args)+') AS ('+encode(body)+ ')')
+                    body = encode(body).replace('\n','\n\t')
+                    clauses.append(n+'('+encode(args)+') AS ('+body+ ')')
         add(self.clauses)
         return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
         

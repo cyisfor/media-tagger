@@ -1,5 +1,5 @@
-from orm import Select,InnerJoin,AND,OR,With
-
+#from orm import Select,InnerJoin,AND,OR,With
+#ehhh
 import db												# 
 from versions import Versioner
 import resultCache
@@ -47,61 +47,100 @@ def nonumbers(f):
         return filter(f(*k,**a))
     return wrapper
 
+class argbuilder:
+    n = 0
+    def __init__(self):
+        self.args = []
+        self.names = {}
+    def __call__(self,arg,name=None):
+        if name is not None:
+            if name in self.names:
+                return self.names[name]
+        num = '$'+str(self.n)
+        self.n += 1			
+        self.args.append(arg)
+        if name is not None:
+            self.names[name] = num
+        return num
+
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-    stmt = scalartuple()
-    args = {}
-    if tags.posi or tags.nega:
-        stmt += "WITH "
+    From = InnerJoin('media','things',EQ('things.id','media.id'))
+    negaWanted = Select('id','unwanted')
+    negaClause = Not(Intersects('neighbors',array(negaWanted)))
+    if tags.posi or not tags.nega:
+        # if any positive tags, or no positive but also no negative, this good
         if tags.posi:
-            stmt += stmts['wanted']
-        if tags.nega:
-            if tags.posi:
-                stmt += ','
-                notWanted = stmts['notWanted']
-            else:
-                notWanted = ''
-            stmt += stmts['unwanted'] % {'notWanted': notWanted}
+            where = Select('EVERY(neighbors && wanted.tags)','wanted')
+            if tags.nega:
+                negaWanted.where = Not(IN('id',Select('unnest(tags)','wanted')))
+                where = And(where,negaClause)
+    elif tags.nega:
+        # only negative tags
+        negaWanted.where = None
+        where = negaClause
+
+    arg = argbuilder()
+
+    mainCriteria = Select('things.id',From,where)
+    mainOrdered = Limit(Order(mainCriteria,
+                          'media.added DESC'),
+                    arg(offset),arg(limit))
+    if wantRelated:
+        mainOrdered = EQ('things.id',ANY(mainOrdered))
+        if tags.posi:
+            mainOrdered = And(
+                Not(EQ('tags.id',ANY(
+                        Type(next(arg),'bigint[]')))),
+                mainOrdered)
+            
+        tagStuff = Select(
+            ['tags.id','first(tags.name) as name'],
+            InnerJoin('tags','things',
+                      EQ('tags.id','ANY(things.neighbors)')()),
+            mainOrdered)
+        stmt = Select(['derp.id','derp.name'],
+                      AS(
+                          Limit(Group(tagStuff,'tags.id'),
+                                Type(arg(taglimit),'int'))
+                          'derp'))
+        stmt = Order(stmt,'derp.name')
+    else:
+        mainCriteria.what = [
+            'media.id',
+            'media.name',
+            'media.type',
+            array(Select('tags.name',
+                         InnerJoin('tags',AS(Select('unnest(neighbors)'),'neigh'),
+                                   EQ('neigh.unnest','tags.id'))))
+            ]
+        stmt = mainOrdered
+
+    if tags.posi or tags.nega:
         if tags.posi:
             tags.posi = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]
         if tags.nega:
             tags.nega = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]
-    pc = stmts['positiveClause']
-    if tags.posi:
-        pc += ' ' + stmts['positiveWhere']
-    if tags.nega:
+
+        # we're gonna need a with statement...
+        notWanted = Intersect('things.neighbors',Type(arg(tags.nega,'nega'),'bigint[]'))
         if tags.posi:
-            negativeClause = 'AND '+stmts['negativeClause']
-            anyWanted = stmts['anyWanted']
-        else:
-            negativeClause = 'WHERE '+stmts['negativeClause']
-            anyWanted = ''
-        negativeClause = negativeClause % {'anyWanted': anyWanted}
-    else:
-        negativeClause = ''
-
-    if wantRelated:
-        template = stmts['related']
-        targs = {'relatedNoTags': ((stmts['relatedNoTags'] % {'tags': tags.posi}) if tags.posi else '')}
-    else:
-        template = stmts['main']
-        targs = {}
-
-    targs.update({
-            'positiveClause': pc,
-            'negativeClause': negativeClause,
-            'ordering': stmts['ordering']})
-    stmt += template % targs
-
-    stmt = " ".join(stmt)
-    args = {'offset': offset,'limit': limit}
-    if wantRelated:
-        args['taglimit'] = taglimit
-    if tags.posi or tags.nega:
-        if tags.posi:
-            args['tags'] = tags.posi
-        if tags.nega:
-            args['negatags'] = tags.nega
-    return stmt,args
+            # make sure positive tags don't override negative ones
+            notWanted = AND(notWanted,
+                            NOT(EQ('things.id',ANY(arg(tags.posi,'posi')))))
+        stmt = With(stmt,
+                    wanted=('tags',Select(array(
+                        Select('implications(unnest)',
+                               Func('unnest',arg(tags.posi,'posi')))))),
+                    unwanted=(
+                        'id',
+                        Union(Select('tags.id',
+                                     InnerJoin('tags','things',
+                                               EQ('tags.id','things.id')),
+                                     notWanted),
+                              Select('id',AS(
+                                  Func('unnest',arg(tags.nega,'nega'),'id'))))))
+                                                    
+    return stmt,arg.args
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt,args = tagStatement(tags,offset,limit,taglimit,wantRelated)
