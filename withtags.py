@@ -122,27 +122,30 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
 
         # we're gonna need a with statement...
-        notWanted = Intersects('things.neighbors',tags.nega)
-        clauses = {
-            'unwanted': (
+        clauses = {}
+        if tags.nega:
+            notWanted = Intersects('things.neighbors',nega)
+            herp = AS(Func('unnest',nega),'id')
+
+            clauses['unwanted'] = (
                         'id',
                         Union(Select('tags.id',
                                      InnerJoin('tags','things',
                                                EQ('tags.id','things.id')),
                                      notWanted),
-                              Select('id',herp)))
-        }
-
+                              Select('id',herp)))		
+        else:
+            notWanted = None
         if tags.posi:
             # make sure positive tags don't override negative ones
-            notWanted = AND(notWanted,
-                            NOT(EQ('things.id',ANY(posi))))
+            noOverride = NOT(EQ('things.id',ANY(posi)))
+            notWanted = AND(notWanted,noOverride) if notWanted else noOverride
+                         
             implications = Select('implications(unnest)',
                                   Func('unnest',posi))
             clauses['wanted'] = ('tags',Select(array(implications)))
 
 
-        herp = AS(Func('unnest',tags.nega),'id')
         stmt = With(stmt,**clauses)
                                                     
     return stmt,arg.args

@@ -201,7 +201,7 @@ class Type(SQL):
     def sql(self):
         return encode(self.clause) + '::' + encode(self.Type)
     
-class array(Unary):
+class array(Group):
     def sql(self):
         return 'array' + super().sql()
     
