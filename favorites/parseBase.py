@@ -32,6 +32,25 @@ def displayit(f):
         return r
     return wrap
 
+def locked(table):
+    def deco(f):
+        def wrapper(*a,**kw):
+            try:
+                with db.transaction():
+                    note.blue('locking',table)
+                    try:
+                        db.execute('LOCK TABLE '+table+' IN EXCLUSIVE MODE NOWAIT')
+                    except db.ProgrammingError:
+                        # something else is handling this URL...
+                        return
+                    note.blue('locked',table)
+                    return f(*a,**kw)
+            finally:
+                note.alarm('unlocked',table)
+        return wrapper
+    return deco
+
+@locked('urisources')
 def parse(primarySource):
     primarySource = primarySource.strip()
     if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):

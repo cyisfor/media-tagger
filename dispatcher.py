@@ -1,6 +1,8 @@
 import pages,info,process,uploader,jsony
+import randomDerp
 
 modes = {
+        'random': (randomDerp.page, randomDerp.info),
         'resized': (pages.resized,lambda path,params: None),
         'simple': (pages.simple,info.simple),
         'page': (pages.page,info.page),

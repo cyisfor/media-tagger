@@ -115,7 +115,7 @@ def fixName(id,type):
         name = 'unknown'
 
     if not '.' in name:
-        if type == 'application/octet-stream': 
+        if type == 'application/octet-stream':
             type = fixType(id)
         import derpmagic as magic
         name = name + magic.guess_extension(type)
@@ -129,7 +129,7 @@ def makeLinks(info,linkfor=None):
         linkfor = pageLink
     counter = count(0)
     row = []
-    rows = []        
+    rows = []
     allexists = True
     for id,name,type,tags in info:
         i = next(counter)
@@ -170,8 +170,14 @@ def standardHead(title,*contents):
     # oembed sucks:
     if Links.id:
         url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
-    return d.head(d.title(title),
-            d.meta(charset='utf-8'),
+        print(repr(Links.id))
+    return d.head(
+        d.title(title),
+        d.meta(charset='utf-8'),
+        d.meta(name="og:title",value=title),
+        d.meta(name="og:type",value="website"),
+        d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id) if Links.id else "/thumb/5d359")),
+        d.meta(name="og:url",value=url if Links.id else makeBase()),
         d.link(rel="icon",type="image/png",href="/favicon.png"),
         d.link(rel='stylesheet',type='text/css',href="/style/art.css"),
         d.link(rel='next',href=Links.next if Links.next else ''),
@@ -186,7 +192,7 @@ def makePage(title,*content,**kw):
         content = content + (
             d.p(d.a("User Settings",href=("/art/~user"))),)
     return d.xhtml(standardHead(title),d.body(
-#        d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
+#		d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
         *content))
 
 def makeE(tag):
@@ -255,8 +261,8 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
                         style=style,
                         type=type,
                         loop=True,
-                        autoplay=True, 
-                        width=width, 
+                        autoplay=True,
+                        width=width,
                         height=height),d.br(),"Download"),thing))
     if type == 'application/x-shockwave-flash':
         raise Return((fid,(d.object(d.param(name='SRC',value=thing),
@@ -292,12 +298,12 @@ def page(info,path,params):
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
 
     print('yo',tagsModule.full(tags))
-        
+
     doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize
 
     if Session.head:
-        if doScale: 
+        if doScale:
             fid, exists = yield filedb.checkResized(id)
             Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
@@ -380,7 +386,7 @@ def info(info,path,params):
             "Sources",
             d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
     raise Return(page)
-    
+
 
 def like(info):
     return "Under construction!"
@@ -472,7 +478,7 @@ def desktop(raw,path,params):
         links = []
         allexists = True
         for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
-            fid,exists = yield filedb.check(id) 
+            fid,exists = yield filedb.check(id)
             allexists = allexists and exists
             links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid),
                             href=pageLink(id))))
@@ -553,14 +559,14 @@ def getType(medium):
     return db.execute("SELECT type FROM media WHERE id = $1",(medium,))[0][0]
 
 def getStuff(medium):
-    return db.execute('''SELECT 
+    return db.execute('''SELECT
     type,
     size,
     COALESCE(images.width,videos.width),
     COALESCE(images.height,videos.height)
-    FROM media 
-    LEFT OUTER JOIN images ON media.id = images.id 
-    LEFT OUTER JOIN videos ON media.id = videos.id 
+    FROM media
+    LEFT OUTER JOIN images ON media.id = images.id
+    LEFT OUTER JOIN videos ON media.id = videos.id
     WHERE media.id = $1''',(medium,))[0]
 
 def comicPageLink(com,isDown=False):
@@ -590,11 +596,11 @@ def showAllComics(params):
     comics = comic.list(page,User.tags().nega)
     def getInfos():
         for id,title,tagids,tags in comics:
-            try: 
+            try:
                 medium = comic.findMedium(id,0)
-            except Redirect: 
+            except Redirect:
                 medium = 0x5c911
-            if not medium: 
+            if not medium:
                 medium = 0x5c911
             checkModified(medium)
             yield medium,title,getType(medium),tags or ()
@@ -617,7 +623,7 @@ def showAllComics(params):
                     (' ' if Links.prev and Links.next else ''),
                     (d.a("Next",href=Links.next)if Links.next else '')))
         raise Return(page)
-            
+
 @gen.coroutine
 def showPages(path,params):
     com = int(path[0],0x10)
@@ -635,7 +641,7 @@ def showPages(path,params):
         for stuff in getMedia(): pass
         return
     title,description,source,tags = comic.findInfoDerp(com)[0]
-    if not description: description = 'ehunno' 
+    if not description: description = 'ehunno'
     def getInfos():
         for medium,which in getMedia():
             yield medium,title + ' page {}'.format(which),getType(medium),()
@@ -655,7 +661,7 @@ def showPages(path,params):
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')))
         raise Return(page)
-            
+
 
 @gen.coroutine
 def showComicPage(path):
@@ -681,14 +687,14 @@ def showComicPage(path):
 
         page = makePage("{:x} page ".format(which)+title,
                 d.p(d.a(link,href=Links.next)),
-                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),                    
+                d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
                 d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None),
                         d.p("Tags: ",", ".join(tags)))
         raise Return(page)
 
-        
+
 def showComic(info,path,params):
     path = path[1:]
     if len(path) == 0:

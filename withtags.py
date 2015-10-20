@@ -1,4 +1,4 @@
-import db
+import db												# 
 from versions import Versioner
 import resultCache
 from itertools import count
@@ -99,11 +99,14 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             args['tags'] = tags.posi
         if tags.nega:
             args['negatags'] = tags.nega
+    return stmt
 
+def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+    stmt = tagStatement(tags,offset,limit,taglimit,wantRelated)
     if explain:
         print(stmt)
         print(args)
-        stmt = "EXPLAIN ANALYZE "+stmt        
+        stmt = "EXPLAIN ANALYZE "+stmt		
     for row in resultCache.encache(stmt,args,not explain):
         if explain:
             print(row[0])
@@ -124,5 +127,6 @@ def test():
     import tags
     for tag in searchForTags(tags.parse("apple, smile, -evil")):
         print(tag)
+        
 if __name__ == '__main__':
     test()

@@ -26,7 +26,9 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-def get(category=0,limit=0x30,where=None):
+wheres = [
+
+def get(category=0,limit=0x30):
     stmt = stmts['positiveClause']
     stmt = stmt + " LEFT OUTER JOIN (SELECT media FROM randomSeen WHERE category = $1) AS randomSeen ON randomSeen.media = media.id"
     stmt = stmt + " WHERE"
@@ -53,3 +55,11 @@ def get(category=0,limit=0x30,where=None):
         return get(category,limit,where)
     return rows
 
+def info(path,params):
+    if 'c' in params:
+        cat = int(params['c'])
+    else:
+        cat = 0
+    return get(
+        category=cat,
+        
