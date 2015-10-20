@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder
 #ehhh
 import db												# 
 from versions import Versioner
@@ -47,25 +47,17 @@ def nonumbers(f):
         return filter(f(*k,**a))
     return wrapper
 
-class argbuilder:
-    n = 1
-    def __init__(self):
-        self.args = []
-        self.names = {}
-    def __call__(self,arg,name=None):
-        if name is not None:
-            if name in self.names:
-                return self.names[name]
-        num = '$'+str(self.n)
-        self.n += 1
-        if isinstance(arg,int):
-            num = Type(num,'int')
-        self.args.append(arg)
-        if name is not None:
-            self.names[name] = num
-        return num
+tagsWhat = [
+            'media.id',
+            'media.name',
+            'media.type',
+            array(Select('tags.name',
+                         InnerJoin('tags',AS(Select('unnest(neighbors)'),'neigh'),
+                                   EQ('neigh.unnest','tags.id'))))
+            ]
 
-def tagStatement(tags,offset=0,limit=0x30,taglimit=0x5,wantRelated=False):
+    
+def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     From = InnerJoin('media','things',EQ('things.id','media.id'))
     negaWanted = Select('id','unwanted')
     negaClause = NOT(Intersects('neighbors',array(negaWanted)))
@@ -76,6 +68,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x5,wantRelated=False):
             if tags.nega:
                 negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
                 where = AND(where,negaClause)
+        else:
+            where = None
     elif tags.nega:
         # only negative tags
         negaWanted.where = None
@@ -103,19 +97,12 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x5,wantRelated=False):
         stmt = Select(['derp.id','derp.name'],
                       AS(
                           Limit(GroupBy(tagStuff,'tags.id'),
-                                arg(taglimit)),
+                                limit=arg(taglimit)),
                           'derp'))
         print(stmt.sql())
         stmt = Order(stmt,'derp.name')
     else:
-        mainCriteria.what = [
-            'media.id',
-            'media.name',
-            'media.type',
-            array(Select('tags.name',
-                         InnerJoin('tags',AS(Select('unnest(neighbors)'),'neigh'),
-                                   EQ('neigh.unnest','tags.id'))))
-            ]
+        mainCriteria.what = tagsWhat
         stmt = mainOrdered
 
     # we MIGHT need a with statement...

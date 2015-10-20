@@ -24,10 +24,11 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-def get(tags,limit=0x10):
-    category = hash(tags) % 0xFFFFFFFE
+def get(tags,limit=0x3):
+    category = hash(tags) % 0x7FFFFFFF
     print(category)
     stmt,arg = withtags.tagStatement(tags,limit=limit)
+    category = arg(category)
     # [with.base] -> limit.clause -> order.clause -> select
     base = stmt.body if hasattr(stmt,'body') else stmt
     base = base.clause # order (.clause -> select)
@@ -35,14 +36,15 @@ def get(tags,limit=0x10):
     base.clause.where = AND(base.clause.where,notSeen) if base.clause.where else notSeen
     base.clause.From = OuterJoin(base.clause.From,
                                  AS(Select('media','randomSeen',
-                                                                                 EQ('category',arg(category))),
+                                                                                 EQ('category',category)),
                                     'randomSeen'),
                             EQ('randomSeen.media','media.id'))
+    base.clause.what = ('media.id',category)
     base.order = 'random()'
-    print(stmt.sql().replace('  ','.'))
-    print(arg.args)
-    stmt = stmt.sql()
+    stmt = 'INSERT INTO randomSeen (media, category) ' + stmt.sql()
     args = arg.args
+    print(stmt.replace('  ','.'))
+    print(args)
     try:
         rows = db.execute(stmt,args)
     except db.ProgrammingError as e:
@@ -75,11 +77,11 @@ def get(tags,limit=0x10):
     return rows
 
 def info(path,params):
-    return get(tags.parse(params['q']))		
+    return get(tags.parse(params['q']) if 'q' in params else tags.Taglist())
 
 from user import User
 import dirty.html as d
-from pages import makePage,makeLinks,Links
+from pages import makePage,makeLinks,makeLink,Links
 
 from tornado.gen import coroutine,Return
 
@@ -93,7 +95,6 @@ def page(info,path,params):
         fid,link,thing = yield makeLink(id,type,name,False,0,0)
         page = makePage(
             "Random",
-            d.p("You are ",d.a(User.ident,href=place+"/~user")),
             d.p(d.a(link,href=thing),
                 d.img(src=thing)),
             d.div('moar',links if links else ''))
