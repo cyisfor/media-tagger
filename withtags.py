@@ -70,7 +70,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if tags.posi or not tags.nega:
         # if any positive tags, or no positive but also no negative, this good
         if tags.posi:
-            where = Select(EVERY(Intersects('neighbors','wanted.tags')))','wanted')
+            where = Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted')
             if tags.nega:
                 negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
                 where = AND(where,negaClause)

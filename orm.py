@@ -1,5 +1,7 @@
 # this is probably a horrible idea
 
+from functools import wraps
+
 class SQL:
     def sql(self):
         raise NotImplementedError("This is some SQL statement.")
@@ -123,12 +125,14 @@ class Unary(SQL):
 class UnaryOperation(Unary):
     op = None
     def sql(self):
-        return encode(self.op) + super().sql()
+        op = self.op or self.__class__.__name__
+        return encode(op) + ' ' + super().sql()
 
-class Binary(Unary):
+class BaseBinary(Unary):
     op = None
     def __init__(self, left, right):
-        super(Binary, self).__init__((left,self.op,right))
+        op = self.op or self.__class__.__name__
+        super().__init__((left,op,right))
 
 def asGroup(clause):
     if isinstance(clause,Group):
@@ -138,7 +142,7 @@ def asGroup(clause):
     return clause
 
 @complex
-class OnJoin(Binary):
+class OnJoin(BaseBinary):
     def __init__(self, left, right, on):
         super().__init__(left,right)
         self.on = on
@@ -151,26 +155,32 @@ class InnerJoin(OnJoin):
 class OuterJoin(OnJoin):
     op = 'LEFT OUTER JOIN'
 
-class FullJoin(Binary):
+class FullJoin(BaseBinary):
     op = 'JOIN'
 
-class AND(Binary):
-    op = 'AND'
+def grouping(c):
+    oldinit = c.__init__
+    @wraps(oldinit)
+    def wrapinit(self,*a):
+        return oldinit(self,*(asGroup(e) for e in a))
+    c.__init__ = wrapinit
+    return c
 
-class OR(Binary):
-    op = 'OR'
-
+@grouping
+class Binary(BaseBinary): pass
+        
+class AND(Binary): pass
+class OR(Binary): pass
+@grouping
 class NOT(UnaryOperation):
-    op = 'NOT'
+    def __init__(self,clause):
+        super().__init__(asGroup(clause))
 
 class EQ(Binary):
     op = '='
 
-class IS(Binary):
-    op = 'IS'
-
-class IN(Binary):
-    op = 'IN'
+class IS(Binary): pass
+class IN(Binary): pass
 
 class Plus(Binary):
     op = '+'
@@ -179,14 +189,13 @@ class Intersects(Binary):
     op = '&&'
 
 class AS(Binary):
-    op = 'AS'
     def __init__(self,left,right):
         super().__init__(asGroup(left),asGroup(right))
 
-class ANY(Unary):
-    def sql(self):
-        return 'ANY' + super().sql()
-
+class ANY(UnaryOperation): pass
+@grouping
+class EVERY(UnaryOperation): pass
+    
 class Func(SQL):
     def __init__(self, name, *args):
         self.name = name
