@@ -2,6 +2,23 @@
 
 from functools import wraps
 
+def indent(text,what):
+    return text.replace('\n','\n'+what)
+import textwrap
+level = 0
+def uplevel(f):
+    def wrap(*a,**kw):
+        global level
+        level += 1
+        res = f(*a,**kw)
+        lines = []
+        for line in res.split('\n'):
+            lines.extend(textwrap.wrap(line))
+        ret = '\n  '.join(lines)
+        level -= 1
+        return ret
+    return wrap
+
 class SQL:
     def sql(self):
         raise NotImplementedError("This is some SQL statement.")
@@ -23,7 +40,10 @@ def dump(o):
 
 def encode(o):
     if hasattr(o,'sql'):
-        return o.sql()
+        @uplevel
+        def do():
+            return o.sql()
+        return do()
     elif o is None:
         return ''
     elif isinstance(o,(bytes,bytearray,memoryview)):
@@ -59,10 +79,10 @@ class With(SQL):
                     add(v)
                 else:
                     args,body = v
-                    body = encode(body).replace('\n','\n\t\t')
+                    body = encode(body)
                     clauses.append(n+'('+encode(args)+') AS ('+body+ ')')
         add(self.clauses)
-        return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
+        return 'WITH\n'+',\n'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
 
 @complex
 class Select(SQL):
@@ -96,14 +116,16 @@ class Order(SQL):
 
 @complex
 class Limit(SQL):
-    def __init__(self, clause, limit, offset=None):
+    def __init__(self, clause, offset=None, limit=None):
         self.clause = clause
         self.limit = limit
         self.offset = offset
     def sql(self):
-        s = encode(self.clause) + '\nLIMIT '+encode(self.limit)
+        s = encode(self.clause)
         if self.offset:
-            s = s + " OFFSET "+encode(self.offset)
+            s += " OFFSET "+encode(self.offset)
+        if self.limit:
+            s += '\nLIMIT '+encode(self.limit)
         return s
 
 class Group(SQL):

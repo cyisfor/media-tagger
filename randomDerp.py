@@ -23,9 +23,18 @@ def tagsfor(idents):
     return tags
 
 def get(tags,limit=0x30):
-    stmt = withTags.tagStatement(tags)	
-    category = hash(stmt)
-    print(stmt,category)
+    category = hash(tags)
+    stmt,arg = withTags.tagStatement(tags)
+    # [with] -> limit -> select
+    base = stmt.base if hasattr(stmt,'base') else stmt
+    notSeen = IS('randomSeen.media','NULL')
+    base.clause.where = AND(base.clause.where,notSeen) if base.clause.where else notSeen
+    base.clause = OuterJoin(base.clause,
+                            Select('media','randomSeen',
+                                   EQ('category',arg(category))),
+                            EQ('randomSeen.media','media.id'))
+    
+    print(stmt.sql(),category)
     raise SystemExit
     stmt = stmt + " LEFT OUTER JOIN (SELECT media FROM randomSeen WHERE category = $1) AS randomSeen ON randomSeen.media = media.id"
     stmt = stmt + " WHERE"

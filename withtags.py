@@ -48,7 +48,7 @@ def nonumbers(f):
     return wrapper
 
 class argbuilder:
-    n = 0
+    n = 1
     def __init__(self):
         self.args = []
         self.names = {}
@@ -57,7 +57,9 @@ class argbuilder:
             if name in self.names:
                 return self.names[name]
         num = '$'+str(self.n)
-        self.n += 1			
+        self.n += 1
+        if isinstance(arg,int):
+            num = Type(num,'int')
         self.args.append(arg)
         if name is not None:
             self.names[name] = num
@@ -84,7 +86,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     mainCriteria = Select('things.id',From,where)
     mainOrdered = Limit(Order(mainCriteria,
                           'media.added DESC'),
-                    arg(offset),arg(limit))
+                    (arg(offset) if offset else False),arg(limit))
     if wantRelated:
         mainOrdered = EQ('things.id',ANY(mainOrdered))
         if tags.posi:
@@ -147,11 +149,12 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if clauses:
         stmt = With(stmt,**clauses)
                                                     
-    return stmt,arg.args
+    return stmt,arg
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt,args = tagStatement(tags,offset,limit,taglimit,wantRelated)
     stmt = stmt.sql()
+    args = args.args
     if explain:
         print(stmt)
         print(args)
@@ -175,9 +178,11 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 def test():
     try:
         import tags
+        from pprint import pprint
         bags = tags.parse("apple, smile, -evil")
         stmt,args = tagStatement(bags)
         print(stmt.sql())
+        print(args)
         for tag in searchForTags(bags):
             print(tag)
     except db.ProgrammingError as e:
