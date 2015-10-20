@@ -3,6 +3,21 @@
 class SQL:
     def sql(self):
         raise NotImplementedError("This is some SQL statement.")
+    def dump(self):
+        return dump(self)
+
+def dump(o):
+    if isinstance(o,(tuple,list,set)):
+        return [dump(oo) for oo in o]
+    if hasattr(o,'__dict__'):
+        return [o.__class__.__name__,dump(o.__dict__)]
+    if isinstance(o,dict):
+        d = dict()
+        for n,v in o.items():
+            v = dump(v)
+            d[n] = v
+        return d
+    return o
 
 def encode(o):
     if hasattr(o,'sql'):
@@ -79,50 +94,46 @@ class Group(SQL):
     def __init__(self, clause):
         self.clause = clause
     def sql(self):
-        return '(' + self.clause + ')'
+        clause = self.clause
+        while isinstance(clause,Group):
+            clause = clause.clause
+        return '(' + encode(self.clause) + ')'
 
 def asGroup(clause):
     if isinstance(clause,Group):
         return clause
     return Group(clause)
         
-class Boolean(SQL):
-    def __init__(self, op, left, right):
-        self.op = op
-        self.left = asGroup(left)
-        self.right = asGroup(right)
-    def sql(self):
-        return encode(Group((self.left,self.op,self.right)))
-
-class AND(Boolean):
+class Boolean(Group):
+    op = None
     def __init__(self, left, right):
-        super(AND, self).__init__('AND',left,right)
+        super(Boolean, self).__init__((asGroup(left),self.op,asGroup(right)))
+
+class Unary(Group):
+    op = None
+    def __init__(self,clause):
+        super(Unary, self).__init__((self.op,asGroup(clause)))
+        
+class AND(Boolean):
+    op = 'AND'
 
 class OR(Boolean):
-    def __init__(self, left, right):
-        super(OR, self).__init__('OR',left,right)
-
-class NOT(SQL):
-    def __init__(self, clause):
-        self.clause = clause
-    def sql(self):
-        return Group(('NOT',self.clause))
+    op = 'OR'
+        
+class NOT(Unary):
+    op = 'NOT'
 
 class EQ(Boolean):
-    def __init__(self,left,right):
-        super(EQ, self).__init__('=',left,right)
+    op = '='
 
 class IS(Boolean):
-    def __init__(self,left,right):
-        super(IS, self).__init__('IS',left,right)
-
-class IS(Boolean):
-    def __init__(self,left,right):
-        super(IS, self).__init__('IS',left,right)
-
-        
+    op = 'IS'
+    
+class IN(Unary):
+    op = 'IN'
     
 def main():
+    from pprint import pprint
     stmt = Limit(
         Order(
             Select(
@@ -133,12 +144,16 @@ def main():
                         "tableC",
                         "tableA.id = tableC.id"),
                     "tableD"),
-                AND(EQ("tableB.beep","$1"),EQ("tableA.foo","tableC.baz + 3")),
+                AND(EQ("tableB.beep","$1"),EQ("tableA.foo","tableC.baz + 3"))),
             "tableB.bar, tableC.baz"),
         "$2",
         20)
     print(stmt.sql())
     print('---')
+    herp =AND("3",EQ("A","B"))
+    pprint(herp.dump())
+    print(herp.sql())
+    pprint(stmt.clause.clause.dump())
     print(stmt.clause.clause.sql())
 
 if __name__ == '__main__':
