@@ -163,6 +163,10 @@ def asGroup(clause):
         return Group(clause)
     return clause
 
+class GroupBy(BaseBinary):
+    op = 'GROUP BY'
+    
+
 @complex
 class OnJoin(BaseBinary):
     def __init__(self, left, right, on):
@@ -198,9 +202,14 @@ class NOT(UnaryOperation):
     def __init__(self,clause):
         super().__init__(asGroup(clause))
 
-class EQ(Binary):
+class EQ(BaseBinary):
     op = '='
-
+    def __init__(self,left,right):
+        left = asGroup(left)
+        if not isinstance(right,ANY):
+            right = asGroup(right)
+        super().__init__(left,right)
+        
 class IS(Binary): pass
 class IN(Binary): pass
 
@@ -214,7 +223,9 @@ class AS(Binary):
     def __init__(self,left,right):
         super().__init__(asGroup(left),asGroup(right))
 
+@grouping
 class ANY(UnaryOperation): pass
+
 @grouping
 class EVERY(UnaryOperation): pass
     

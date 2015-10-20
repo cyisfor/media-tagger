@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy
 #ehhh
 import db												# 
 from versions import Versioner
@@ -65,7 +65,7 @@ class argbuilder:
             self.names[name] = num
         return num
 
-def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+def tagStatement(tags,offset=0,limit=0x30,taglimit=0x5,wantRelated=False):
     From = InnerJoin('media','things',EQ('things.id','media.id'))
     negaWanted = Select('id','unwanted')
     negaClause = NOT(Intersects('neighbors',array(negaWanted)))
@@ -94,17 +94,18 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
                 NOT(EQ('tags.id',ANY(
                         Type(next(arg),'bigint[]')))),
                 mainOrdered)
-            
+
         tagStuff = Select(
             ['tags.id','first(tags.name) as name'],
             InnerJoin('tags','things',
-                      EQ('tags.id','ANY(things.neighbors)')()),
+                      EQ('tags.id','ANY(things.neighbors)')),
             mainOrdered)
         stmt = Select(['derp.id','derp.name'],
                       AS(
-                          Limit(Group(tagStuff,'tags.id'),
-                                Type(arg(taglimit),'int')),
+                          Limit(GroupBy(tagStuff,'tags.id'),
+                                arg(taglimit)),
                           'derp'))
+        print(stmt.sql())
         stmt = Order(stmt,'derp.name')
     else:
         mainCriteria.what = [

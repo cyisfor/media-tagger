@@ -24,10 +24,10 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-def get(tags,limit=0x30):
+def get(tags,limit=0x10):
     category = hash(tags) % 0xFFFFFFFE
     print(category)
-    stmt,arg = withtags.tagStatement(tags)
+    stmt,arg = withtags.tagStatement(tags,limit=limit)
     # [with.base] -> limit.clause -> order.clause -> select
     base = stmt.body if hasattr(stmt,'body') else stmt
     base = base.clause # order (.clause -> select)
@@ -84,10 +84,10 @@ from pages import makePage,makeLinks,Links
 from tornado.gen import coroutine,Return
 
 @coroutine
-def page(path,params,info):
+def page(info,path,params):
     with Links:
         info = list(info)
-        id,type,name = info.pop(0)
+        id,name,type,tags = info.pop(0)
         Links.next = "."
         links = yield makeLinks(info)
         fid,link,thing = yield makeLink(id,type,name,False,0,0)
