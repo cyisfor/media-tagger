@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union
 #ehhh
 import db												# 
 from versions import Versioner
@@ -122,11 +122,12 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             tags.nega = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]
 
         # we're gonna need a with statement...
-        notWanted = Intersect('things.neighbors',Type(arg(tags.nega,'nega'),'bigint[]'))
+        notWanted = Intersects('things.neighbors',Type(arg(tags.nega,'nega'),'bigint[]'))
         if tags.posi:
             # make sure positive tags don't override negative ones
             notWanted = AND(notWanted,
                             NOT(EQ('things.id',ANY(arg(tags.posi,'posi')))))
+        herp = AS(Func('unnest',arg(tags.nega,'nega')),'id')
         stmt = With(stmt,
                     wanted=('tags',Select(array(
                         Select('implications(unnest)',
@@ -137,13 +138,13 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
                                      InnerJoin('tags','things',
                                                EQ('tags.id','things.id')),
                                      notWanted),
-                              Select('id',AS(
-                                  Func('unnest',arg(tags.nega,'nega'),'id'))))))
+                              Select('id',herp))))
                                                     
     return stmt,arg.args
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     stmt,args = tagStatement(tags,offset,limit,taglimit,wantRelated)
+    stmt = stmt.sql()
     if explain:
         print(stmt)
         print(args)
@@ -167,7 +168,8 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 def test():
     import tags
     bags = tags.parse("apple, smile, -evil")
-    print(tagStatement(bags))
+    stmt,args = tagStatement(bags)
+    print(stmt.sql())
     for tag in searchForTags(bags):
         print(tag)
         

@@ -60,12 +60,23 @@ class With(Complex):
         return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
         
 class Select(Complex):
-    def __init__(self, what, From, where=None):
+    def __init__(self, what, From=None, where=None):
         self.what = what
         self.From = From
         self.where = where
     def sql(self):
-        return 'SELECT '+', '.join(encode(arg) for arg in self.what) + '\nFROM '+encode(self.From)+'\nWHERE '+encode(self.where)
+        if isinstance(self.what,(str)):
+            args = self.what
+        else:
+            try: args = ', '.join(encode(arg) for arg in self.what)
+            except TypeError:
+                args = encode(self.what)
+        s = 'SELECT '+args
+        if self.From:
+            s += '\nFROM '+encode(self.From)
+            if self.where:
+                s += '\nWHERE '+encode(self.where)
+        return s
 
 class Order(Complex):
     def __init__(self, clause, order):
@@ -160,12 +171,35 @@ class Intersects(Binary):
     op = '&&'
 
 class AS(SQL):
-    def __init__(self, name, clause):
+    def __init__(self, clause, name):
         self.name = name
         self.clause = clause
     def sql(self):
         return encode(self.clause) + ' AS ' + encode(self.name)
 
+class ANY(Unary):
+    op = 'ANY'
+
+class Func(SQL):
+    def __init__(self, name, *args):
+        self.name = name
+        self.args = args
+    def sql(self):
+        return encode(self.name) + '(' + ', '.join(encode(arg) for arg in self.args) + ')';
+
+class Union(SQL):
+    def __init__(self, *selects):
+        self.selects = selects
+    def sql(self):
+        return '\nUNION\n'.join(encode(s) for s in self.selects)
+    
+class Type(SQL):
+    def __init__(self, clause, Type):
+        self.clause = clause
+        self.Type = Type
+    def sql(self):
+        return encode(self.clause) + '::' + encode(self.Type)
+    
 class array(Unary):
     def sql(self):
         return 'array' + super().sql()
