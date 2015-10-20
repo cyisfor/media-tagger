@@ -115,37 +115,36 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
             ]
         stmt = mainOrdered
 
-    if tags.posi or tags.nega:
-        if tags.posi:
-            posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
-        if tags.nega:
-            nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
+    # we MIGHT need a with statement...
+    clauses = {}
 
-        # we're gonna need a with statement...
-        clauses = {}
-        if tags.nega:
-            notWanted = Intersects('things.neighbors',nega)
-            herp = AS(Func('unnest',nega),'id')
+    if tags.nega:
+        nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
+        notWanted = Intersects('things.neighbors',nega)
+        herp = AS(Func('unnest',nega),'id')
 
-            clauses['unwanted'] = (
-                        'id',
-                        Union(Select('tags.id',
-                                     InnerJoin('tags','things',
-                                               EQ('tags.id','things.id')),
+        clauses['unwanted'] = (
+            'id',
+            Union(Select('tags.id',
+                         InnerJoin('tags','things',
+                                   EQ('tags.id','things.id')),
                                      notWanted),
-                              Select('id',herp)))		
-        else:
-            notWanted = None
-        if tags.posi:
-            # make sure positive tags don't override negative ones
-            noOverride = NOT(EQ('things.id',ANY(posi)))
-            notWanted = AND(notWanted,noOverride) if notWanted else noOverride
+                  Select('id',herp)))		
+    else:
+        notWanted = None
+        
+    if tags.posi:
+        posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
+        # make sure positive tags don't override negative ones
+        noOverride = NOT(EQ('things.id',ANY(posi)))
+        notWanted = AND(notWanted,noOverride) if notWanted else noOverride
                          
-            implications = Select('implications(unnest)',
-                                  Func('unnest',posi))
-            clauses['wanted'] = ('tags',Select(array(implications)))
+        implications = Select('implications(unnest)',
+                              Func('unnest',posi))
+        clauses['wanted'] = ('tags',Select(array(implications)))
 
 
+    if clauses:
         stmt = With(stmt,**clauses)
                                                     
     return stmt,arg.args
@@ -174,12 +173,15 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 
 def test():
-    import tags
-    bags = tags.parse("apple, smile, -evil")
-    stmt,args = tagStatement(bags)
-    print(stmt.sql())
-    for tag in searchForTags(bags):
-        print(tag)
+    try:
+        import tags
+        bags = tags.parse("apple, smile, -evil")
+        stmt,args = tagStatement(bags)
+        print(stmt.sql())
+        for tag in searchForTags(bags):
+            print(tag)
+    except db.ProgrammingError as e:
+        print(e.info['message'].decode('utf-8'))
         
 if __name__ == '__main__':
     test()

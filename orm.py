@@ -40,9 +40,11 @@ def encode(o):
         except TypeError:
             return str(o)
 
-class Complex(SQL): pass
+def complex(c):
+    c.__complex = True
 
-class With(Complex):
+@complex
+class With(SQL):
     def __init__(self, body, **clauses):
         self.body = body
         self.clauses = clauses
@@ -54,14 +56,17 @@ class With(Complex):
                     add(v)
                 else:
                     args,body = v
-                    body = encode(body).replace('\n','\n\t')
+                    body = encode(body).replace('\n','\n\t\t')
                     clauses.append(n+'('+encode(args)+') AS ('+body+ ')')
         add(self.clauses)
         return 'WITH '+',\n\t'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
-        
-class Select(Complex):
+
+@complex
+class Select(SQL):
     def __init__(self, what, From=None, where=None):
         self.what = what
+        while isinstance(From,Group):
+            From = From.clause
         self.From = From
         self.where = where
     def sql(self):
@@ -78,14 +83,16 @@ class Select(Complex):
                 s += '\nWHERE '+encode(self.where)
         return s
 
-class Order(Complex):
+@complex
+class Order(SQL):
     def __init__(self, clause, order):
         self.clause = clause
         self.order = order
     def sql(self):
         return encode(self.clause) + '\nORDER BY '+encode(self.order)
 
-class Limit(Complex):
+@complex
+class Limit(SQL):
     def __init__(self, clause, limit, offset=None):
         self.clause = clause
         self.limit = limit
@@ -96,7 +103,8 @@ class Limit(Complex):
             s = s + " OFFSET "+encode(self.offset)
         return s
 
-class BaseJoin(Complex):
+@complex
+class BaseJoin(SQL):
     def __init__(self, operation, left, right, aux):
         self.operation = operation
         self.left = left
@@ -129,30 +137,37 @@ class Group(SQL):
             clause = clause.clause
         return '(' + encode(self.clause) + ')'
 
-class Binary(Group):
+@complex
+class Unary(SQL):
+    def __init__(self,clause):
+        self.clause = clause
+    def sql(self):
+        return encode(self.clause)
+
+class UnaryOperation(Unary):
+    op = None
+    def sql(self):
+        return encode(self.op) + super().sql()
+
+class Binary(Unary):
     op = None
     def __init__(self, left, right):
         super(Binary, self).__init__((asGroup(left),self.op,asGroup(right)))
 
-class Unary(Group):
-    op = None
-    def __init__(self,clause):
-        super(Unary, self).__init__((self.op,asGroup(clause)))
-
 def asGroup(clause):
     if isinstance(clause,Group):
         return clause
-    if isinstance(clause,(list,tuple,set,Binary,Complex)):
+    if isinstance(clause,(list,tuple,set)) or hasattr(clause,'__complex'):
         return Group(clause)
     return clause
-        
+
 class AND(Binary):
     op = 'AND'
 
 class OR(Binary):
     op = 'OR'
-        
-class NOT(Unary):
+
+class NOT(UnaryOperation):
     op = 'NOT'
 
 class EQ(Binary):
@@ -160,7 +175,7 @@ class EQ(Binary):
 
 class IS(Binary):
     op = 'IS'
-    
+
 class IN(Binary):
     op = 'IN'
 
@@ -170,14 +185,14 @@ class Plus(Binary):
 class Intersects(Binary):
     op = '&&'
 
-class AS(Group):
+class AS(Unary):
     def __init__(self, clause, name):
-        super().__init__(clause)
+        super().__init__(asGroup(clause))
         self.name = name
     def sql(self):
         return super().sql() + ' AS ' + encode(self.name)
 
-class ANY(Group):
+class ANY(Unary):
     def sql(self):
         return 'ANY' + super().sql()
 
@@ -193,18 +208,18 @@ class Union(SQL):
         self.selects = selects
     def sql(self):
         return '\nUNION\n'.join(encode(s) for s in self.selects)
-    
+
 class Type(SQL):
     def __init__(self, clause, Type):
         self.clause = clause
         self.Type = Type
     def sql(self):
         return encode(self.clause) + '::' + encode(self.Type)
-    
+
 class array(Group):
     def sql(self):
         return 'array' + super().sql()
-    
+
 def main():
     from pprint import pprint
     stmt = Limit(
@@ -236,7 +251,7 @@ def main():
 
     print(w.dump())
     print(w.sql())
-          
+
 
 if __name__ == '__main__':
     main()
