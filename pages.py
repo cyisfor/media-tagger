@@ -170,7 +170,6 @@ def standardHead(title,*contents):
     # oembed sucks:
     if Links.id:
         url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
-        print(repr(Links.id))
     return d.head(
         d.title(title),
         d.meta(charset='utf-8'),
@@ -290,14 +289,10 @@ tagsModule = tags # sigh
 
 @gen.coroutine
 def page(info,path,params):
-    note("head boo")
-
     if Session.head:
         id,modified,size = info
     else:
         id,next,prev,name,type,width,height,size,modified,tags,comic = info
-
-    print('yo',tagsModule.full(tags))
 
     doScale = not 'ns' in params
     doScale = doScale and User.rescaleImages and size >= maxSize

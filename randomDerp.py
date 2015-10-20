@@ -3,6 +3,8 @@ import withtags,tags as tagsModule
 
 from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With
 
+import random
+
 v = versions.Versioner('random')
 
 @v(version=1)
@@ -15,18 +17,8 @@ def initially():
 
 v.setup()
 
-def tagsfor(idents):
-    print("\n".join(i[0] for i in db.execute('''EXPLAIN SELECT things.id,array(SELECT tags.name FROM tags INNER JOIN (SELECT unnest(neighbors)) AS neigh ON neigh.unnest = tags.id)
-    FROM things WHERE things.id = ANY($1)''',(idents,))))
-    raise SystemExit
-    print('ident',idents)
-    tags = [row for row in db.execute('SELECT things.id,array_agg(name) FROM tags INNER JOIN things ON ARRAY[tags.id] <@ things.neighbors WHERE ARRAY[things.id] <@ $1 GROUP BY things.id',(idents,))]
-    print('tags',len(tags))
-    return tags
-
 def churn(tags,limit=9):
     category = hash(tags) % 0x7FFFFFFF
-    print(category)
     stmt,arg = withtags.tagStatement(tags,limit=limit)
     cat = arg(category)
     # [with.base] -> limit.clause -> order.clause -> select
@@ -40,13 +32,14 @@ def churn(tags,limit=9):
                                     'randomSeen'),
                             EQ('randomSeen.media','media.id'))
     base.clause.what = ('media.id',cat)
-    base.order = 'random()'
+    base.order = 'random(),'+arg(random.random())
     stmt = With(
         Select('count(*)','rows'),
         rows=(None,'INSERT INTO randomSeen (media, category) ' + stmt.sql() + '\nRETURNING 1')).sql()
     args = arg.args
     #print(stmt.replace('  ','.'))
     #print(args)
+    #raise SystemExit
 
     while True:
         try:
@@ -95,8 +88,11 @@ import time
 from filedb import oj
 import filedb
 
-with open(oj(filedb.base,'nope.tags'),'rt') as inp:
-    nopeTags = tagsModule.parse(inp.read())
+try:
+    with open(oj(filedb.base,'nope.tags'),'rt') as inp:
+        nopeTags = tagsModule.parse(inp.read())
+except IOError:
+    nopeTags = None
 
 def info(path,params):
     if 'o' in params:
@@ -110,12 +106,12 @@ def info(path,params):
         tags = tagsModule.parse(params['q'][0])
     else:
         tags = User.tags()
-    tags.update(nopeTags)
+    if nopeTags: tags.update(nopeTags)
     if 'c' in params:
-        print(params)
+        #print(params)
         churn(tags,limit=1)
         zoop = {'t': str(time.time())}
-        zoop.update((n,v[0]) for n,v in params.items() if n != 'c')
+        zoop.update((n,v[0]) for n,v in params.items() if n not in {'o','c'})
         zoop = urllib.parse.urlencode(zoop)
         raise Redirect('?'+zoop if zoop else '.',code=302)
     while True:
