@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY
 #ehhh
 import db												# 
 from versions import Versioner
@@ -70,7 +70,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if tags.posi or not tags.nega:
         # if any positive tags, or no positive but also no negative, this good
         if tags.posi:
-            where = Select('EVERY(neighbors && wanted.tags)','wanted')
+            where = Select(EVERY(Intersects('neighbors','wanted.tags')))','wanted')
             if tags.nega:
                 negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
                 where = AND(where,negaClause)

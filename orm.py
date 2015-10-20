@@ -42,6 +42,7 @@ def encode(o):
 
 def complex(c):
     c.__complex = True
+    return c
 
 @complex
 class With(SQL):
@@ -103,31 +104,6 @@ class Limit(SQL):
             s = s + " OFFSET "+encode(self.offset)
         return s
 
-@complex
-class BaseJoin(SQL):
-    def __init__(self, operation, left, right, aux):
-        self.operation = operation
-        self.left = left
-        self.right = right
-        self.aux = aux
-    def sql(self):
-        s = encode((asGroup(self.left),self.operation,asGroup(self.right)))
-        if self.aux is not None:
-            s = s + ' ON '+encode(self.aux)
-        return s
-
-class InnerJoin(BaseJoin):
-    def __init__(self, left, right, on):
-        super(InnerJoin, self).__init__('INNER JOIN',left,right,on)
-
-class OuterJoin(BaseJoin):
-    def __init__(self, left, right, on):
-        super(OuterJoin, self).__init__('LEFT OUTER JOIN',left,right,on)
-
-class FullJoin(BaseJoin):
-    def __init__(self, left, right):
-        super(FullJoin, self).__init__('JOIN',left,right,None)
-
 class Group(SQL):
     def __init__(self, clause):
         self.clause = clause
@@ -152,7 +128,7 @@ class UnaryOperation(Unary):
 class Binary(Unary):
     op = None
     def __init__(self, left, right):
-        super(Binary, self).__init__((asGroup(left),self.op,asGroup(right)))
+        super(Binary, self).__init__((left,self.op,right))
 
 def asGroup(clause):
     if isinstance(clause,Group):
@@ -160,6 +136,23 @@ def asGroup(clause):
     if isinstance(clause,(list,tuple,set)) or hasattr(clause,'__complex'):
         return Group(clause)
     return clause
+
+@complex
+class OnJoin(Binary):
+    def __init__(self, left, right, on):
+        super().__init__(left,right)
+        self.on = on
+    def sql(self):
+        return super().sql() + ' ON ' + encode(self.on)
+
+class InnerJoin(OnJoin):
+    op = 'INNER JOIN'
+
+class OuterJoin(OnJoin):
+    op = 'LEFT OUTER JOIN'
+
+class FullJoin(Binary):
+    op = 'JOIN'
 
 class AND(Binary):
     op = 'AND'
@@ -185,12 +178,10 @@ class Plus(Binary):
 class Intersects(Binary):
     op = '&&'
 
-class AS(Unary):
-    def __init__(self, clause, name):
-        super().__init__(asGroup(clause))
-        self.name = name
-    def sql(self):
-        return super().sql() + ' AS ' + encode(self.name)
+class AS(Binary):
+    op = 'AS'
+    def __init__(self,left,right):
+        super().__init__(asGroup(left),asGroup(right))
 
 class ANY(Unary):
     def sql(self):
