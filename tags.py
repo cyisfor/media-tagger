@@ -91,6 +91,8 @@ class Taglist:
         self.nega.update(bro.nega)
         self.posi.difference_update(bro.nega)
         self.nega.difference_update(bro.posi)
+    def __hash__(self):
+        return hash((tuple(self.posi),tuple(self.nega)))
     def __repr__(self):
         return repr(('taglist',full(self.posi),full(self.nega)))
     def __str__(self):        

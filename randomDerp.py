@@ -1,7 +1,7 @@
 import versions,db
 import withtags,tags
 
-from orm import IS,EQ,Select,OuterJoin,AND
+from orm import IS,EQ,Select,OuterJoin,AND,AS
 
 v = versions.Versioner('random')
 
@@ -9,10 +9,10 @@ v = versions.Versioner('random')
 def initially():
     db.setup('''CREATE TABLE randomSeen (
     id SERIAL PRIMARY KEY,
-    media bigint UNIQUE REFERENCES things(id),
+    media bigint REFERENCES things(id),
     category integer DEFAULT 0,
     UNIQUE(media,category))''')
-    
+
 v.setup()
 
 def tagsfor(idents):
@@ -25,7 +25,8 @@ def tagsfor(idents):
     return tags
 
 def get(tags,limit=0x30):
-    category = hash(tags)
+    category = hash(tags) % 0xFFFFFFFE
+    print(category)
     stmt,arg = withtags.tagStatement(tags)
     # [with.base] -> limit.clause -> order.clause -> select
     base = stmt.body if hasattr(stmt,'body') else stmt
@@ -33,25 +34,40 @@ def get(tags,limit=0x30):
     notSeen = IS('randomSeen.media','NULL')
     base.clause.where = AND(base.clause.where,notSeen) if base.clause.where else notSeen
     base.clause.From = OuterJoin(base.clause.From,
-                            Select('media','randomSeen',
-                                   EQ('category',arg(category))),
+                                 AS(Select('media','randomSeen',
+                                                                                 EQ('category',arg(category))),
+                                    'randomSeen'),
                             EQ('randomSeen.media','media.id'))
     base.order = 'random()'
     print(stmt.sql().replace('  ','.'))
     print(arg.args)
+    stmt = stmt.sql()
+    args = arg.args
     try:
-        rows = db.execute(stmt.sql(),arg.args)
+        rows = db.execute(stmt,args)
     except db.ProgrammingError as e:
+        derp = 0
+        lines = stmt.split('\n')
+        import math
+        wid = int(1+math.log(len(lines)) / math.log(10))
+        wid = '{:'+str(wid)+'}'
+        def num():
+            nonlocal derp
+            ret = wid.format(derp)+' '
+            derp += 1
+            return ret
+        print('\n'.join(num()+line for line in lines))
         print(e.info['message'].decode('utf-8'))
         raise SystemExit
     #print('\n'.join(r[0] for r in rows))
     #raise SystemExit
     if rows:
         idents = [row[0] for row in rows]
-        db.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM randomSeen LEFT OUTER JOIN (SELECT unnest($2::bigint[])) AS boop ON randomSeen.media = boop.unnest WHERE randomSeen.id IS NULL',(category,idents))
+        with db.transaction():
+            res = db.execute('INSERT INTO randomSeen (media,category) SELECT boop.unnest,$1 FROM (SELECT unnest($2::bigint[])) AS boop LEFT OUTER JOIN randomSeen ON randomSeen.media = boop.unnest AND randomSeen.category = $1 WHERE randomSeen.id IS NULL',(category,idents))
     else:
         # out of media, better throw some back into the pot
-        with db:
+        with db.transaction():
             db.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen)',(category,))
             db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen) WHERE category = $1',(category,))
             db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen)")
@@ -60,6 +76,28 @@ def get(tags,limit=0x30):
 
 def info(path,params):
     return get(tags.parse(params['q']))		
+
+from user import User
+import dirty.html as d
+from pages import makePage,makeLinks,Links
+
+from tornado.gen import coroutine,Return
+
+@coroutine
+def page(path,params,info):
+    with Links:
+        info = list(info)
+        id,type,name = info.pop(0)
+        Links.next = "."
+        links = yield makeLinks(info)
+        fid,link,thing = yield makeLink(id,type,name,False,0,0)
+        page = makePage(
+            "Random",
+            d.p("You are ",d.a(User.ident,href=place+"/~user")),
+            d.p(d.a(link,href=thing),
+                d.img(src=thing)),
+            d.div('moar',links if links else ''))
+        raise Return(page)
 
 if __name__ == '__main__':
     from pprint import pprint

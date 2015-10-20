@@ -14,10 +14,10 @@ BEGIN
     IF _returned > 100 THEN
        RETURN;
     END IF;
-    raise notice 'implications % % %',_tag,_returned,_depth;
+--    raise notice 'implications % % %',_tag,_returned,_depth;
     SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
     IF FOUND THEN     
-       raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
+--       raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
        RETURN NEXT _tag;
        _count := _count + 1;       
        FOR _tag IN SELECT implications(
