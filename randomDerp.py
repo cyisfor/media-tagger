@@ -1,7 +1,7 @@
 import versions,db
 import withtags,tags
 
-from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder
+from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With
 
 v = versions.Versioner('random')
 
@@ -24,7 +24,7 @@ def tagsfor(idents):
     print('tags',len(tags))
     return tags
 
-def churn(tags,limit=0x3):
+def churn(tags,limit=9):
     category = hash(tags) % 0x7FFFFFFF
     print(category)
     stmt,arg = withtags.tagStatement(tags,limit=limit)
@@ -41,7 +41,9 @@ def churn(tags,limit=0x3):
                             EQ('randomSeen.media','media.id'))
     base.clause.what = ('media.id',category)
     base.order = 'random()'
-    stmt = 'INSERT INTO randomSeen (media, category) ' + stmt.sql() + '\nRETURNING count(media.id)'
+    stmt = With(
+        Select('count(*)','rows'),
+        rows=(None,'INSERT INTO randomSeen (media, category) ' + stmt.sql() + '\nRETURNING 1')).sql()
     args = arg.args
     print(stmt.replace('  ','.'))
     print(args)
@@ -67,31 +69,52 @@ def churn(tags,limit=0x3):
         # out of media, better throw some back into the pot
         with db.transaction():
             db.execute('DELETE FROM randomSeen WHERE category = $1 AND id < (SELECT AVG(id) FROM randomSeen WHERE category = $1)',(category,))
+            # this shouldn't violate unique, since more than 1/2 were deleted
+            # or... should it be SELECT MEDIAN(id) or something above?
             db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
             db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1)",(category,))
 
     
-def get(tags,limit=0x3):
+def get(tags,offset=None,limit=9):
     category = hash(tags) % 0x7FFFFFFF
-    print(category)
     arg = argbuilder()
     category = arg(category)
     stmt = Select(withtags.tagsWhat,InnerJoin(
-        'randomSeen','media',
+                    'randomSeen',InnerJoin('media','things',EQ('things.id','media.id')),
         EQ('randomSeen.media','media.id')),
                   EQ('randomSeen.category',category))
+    stmt = Order(stmt,'randomSeen.id DESC')
+    stmt = Limit(stmt,offset=offset,limit=limit)
     rows = db.execute(stmt.sql(),arg.args)
     #print('\n'.join(r[0] for r in rows))
     #raise SystemExit
     return rows
 
+from redirect import Redirect
+
 def info(path,params):
-    return get(tags.parse(params['q']) if 'q' in params else tags.Taglist())
+    if 'q' in params:
+        tags = tagsModule.parse(params['q'][0])
+    else:
+        tags = User.tags 
+    if 'c' in params:
+        print(params)
+        churn(tags,limit=1)
+        raise Redirect('?o=0',code=302)
+    elif 'o' in params:
+        offset = int(params['o'][0])
+    else:
+        offset = None
+    while True:
+        links = get(tags,offset=offset)
+        if links: return links
+        churn(tags)
 
 from user import User
-import dirty.html as d
+from session import Session
 from pages import makePage,makeLinks,makeLink,Links
 
+import dirty.html as d
 from tornado.gen import coroutine,Return
 
 @coroutine
@@ -99,13 +122,12 @@ def page(info,path,params):
     with Links:
         info = list(info)
         id,name,type,tags = info.pop(0)
-        Links.next = "."
+        #Links.next = "." this gets preloaded sometimes :/
         links = yield makeLinks(info)
         fid,link,thing = yield makeLink(id,type,name,False,0,0)
         page = makePage(
             "Random",
-            d.p(d.a(link,href=thing),
-                d.img(src=thing)),
+                        d.p(d.a(link,href=thing)),
             d.div('moar',links if links else ''))
         raise Return(page)
 

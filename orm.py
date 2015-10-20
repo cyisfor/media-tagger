@@ -80,7 +80,10 @@ class With(SQL):
                 else:
                     args,body = v
                     body = encode(body)
-                    clauses.append(n+'('+encode(args)+') AS ('+body+ ')')
+                    if args:
+                        clauses.append(n+'('+encode(args)+') AS ('+body+ ')')
+                    else:
+                        clauses.append(n+' AS ('+body+ ')')
         add(self.clauses)
         return 'WITH\n'+',\n'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
 
