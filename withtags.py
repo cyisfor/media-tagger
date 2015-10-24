@@ -1,6 +1,6 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
-import db												# 
+import db												#
 from versions import Versioner
 import resultCache
 from itertools import count
@@ -56,20 +56,18 @@ tagsWhat = [
                                    EQ('neigh.unnest','tags.id'))))
             ]
 
-    
+
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     From = InnerJoin('media','things',EQ('things.id','media.id'))
     negaWanted = Select('id','unwanted')
     negaClause = NOT(Intersects('neighbors',array(negaWanted)))
-    if tags.posi or not tags.nega:
-        # if any positive tags, or no positive but also no negative, this good
-        if tags.posi:
-            where = Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted')
-            if tags.nega:
-                negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
-                where = AND(where,negaClause)
-        else:
-            where = None
+    if not (tags.posi or tags.nega):
+        where = None
+    elif tags.posi:
+        where = Group(Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted'))
+        if tags.nega:
+            negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
+            where = AND(where,negaClause)
     elif tags.nega:
         # only negative tags
         negaWanted.where = None
@@ -81,12 +79,16 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     mainOrdered = Limit(Order(mainCriteria,
                           'media.added DESC'),
                     (arg(offset) if offset else False),arg(limit))
+
+    if tags.posi:
+        posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
+
+
     if wantRelated:
         mainOrdered = EQ('things.id',ANY(mainOrdered))
         if tags.posi:
-            mainOrdered = And(
-                NOT(EQ('tags.id',ANY(
-                        Type(next(arg),'bigint[]')))),
+            mainOrdered = AND(
+                            NOT(EQ('tags.id',ANY(posi))),
                 mainOrdered)
 
         tagStuff = Select(
@@ -99,7 +101,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
                           Limit(GroupBy(tagStuff,'tags.id'),
                                 limit=arg(taglimit)),
                           'derp'))
-        print(stmt.sql())
+
         stmt = Order(stmt,'derp.name')
     else:
         mainCriteria.what = tagsWhat
@@ -111,6 +113,9 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if tags.nega:
         nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
         notWanted = Intersects('things.neighbors',nega)
+        if tags.posi:
+            notWanted = AND(notWanted,
+                            NOT(EQ('things.id',ANY(posi))))
         herp = AS(Func('unnest',nega),'id')
 
         clauses['unwanted'] = (
@@ -119,24 +124,23 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
                          InnerJoin('tags','things',
                                    EQ('tags.id','things.id')),
                                      notWanted),
-                  Select('id',herp)))		
+                  Select('id',herp)))
     else:
         notWanted = None
-        
+
     if tags.posi:
-        posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
         # make sure positive tags don't override negative ones
         noOverride = NOT(EQ('things.id',ANY(posi)))
         notWanted = AND(notWanted,noOverride) if notWanted else noOverride
-                         
-        implications = Select('implications(unnest)',
-                              Func('unnest',posi))
-        clauses['wanted'] = ('tags',Select(array(implications)))
+
+        clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
+                                           Func('unnest',posi)))
+                                                 
 
 
     if clauses:
         stmt = With(stmt,**clauses)
-                                                    
+
     return stmt,arg
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
@@ -146,7 +150,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if explain:
         print(stmt)
         print(args)
-        stmt = "EXPLAIN ANALYZE "+stmt		
+        stmt = "EXPLAIN ANALYZE "+stmt
     for row in resultCache.encache(stmt,args,not explain):
         if explain:
             print(row[0])
@@ -175,6 +179,6 @@ def test():
             print(tag)
     except db.ProgrammingError as e:
         print(e.info['message'].decode('utf-8'))
-        
+
 if __name__ == '__main__':
     test()

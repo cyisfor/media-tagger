@@ -13,7 +13,7 @@ def uplevel(f):
         res = f(*a,**kw)
         lines = []
         for line in res.split('\n'):
-            lines.extend(textwrap.wrap(line))
+            lines.extend(textwrap.wrap(line,width=120))
         ret = '\n  '.join(lines)
         level -= 1
         return ret
@@ -222,12 +222,15 @@ class Plus(Binary):
 class Intersects(Binary):
     op = '&&'
 
-class AS(Binary):
-    def __init__(self,left,right):
-        super().__init__(asGroup(left),asGroup(right))
+@grouping
+class AS(Binary): pass
 
 @grouping
-class ANY(UnaryOperation): pass
+class ANY(Unary):
+    def __init__(self, clause):
+        super().__init__(Group(clause))
+    def sql(self):
+        return ' ANY ' + super().sql()
 
 @grouping
 class EVERY(UnaryOperation): pass
