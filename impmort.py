@@ -8,7 +8,7 @@ import fixstdin
 import fixprint
 
 from PIL import Image
-from Crypto.Hash import MD5
+from hashlib import md5 as MD5
 
 import codecs
 import shutil

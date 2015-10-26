@@ -205,8 +205,9 @@ if __name__ == '__main__':
         box.pack_start(tagentry,True,True,0)
         box.pack_start(gobutton,True,False,0)
         def gotPiece(piece):
-            if not piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]'):
+            if not ( piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]') or piece.startswith('http://cy.h')):
                 return
+
             try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
             except ValueError: return
             tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]

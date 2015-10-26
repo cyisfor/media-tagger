@@ -87,6 +87,67 @@ class With(SQL):
         add(self.clauses)
         return 'WITH\n'+',\n'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
 
+def initf(*required,**defaults):
+    if required:
+        lastreq = required[-1]
+        if lastreq.startswith('*'):
+            takeRest = True
+            lastreq = lastreq[1:]
+        required = required[:-1]
+        lasti = len(required)
+    else:
+        lastreq = None
+    def func(self,*a,**kw):
+        for i,n in enumerate(required):
+            setattr(self,n,a[i])
+        if lastreq:
+            if takeRest:
+                v = a[lasti:]
+            else:
+                assert(len(a) == lasti + 1)
+                v = a[lasti]
+            setattr(self,lastreq,v)		
+        for n,v in kw.items():
+            setattr(self,n,v)
+        for n,v in defaults.items():
+            if not hasattr(self,n):
+                setattr(self,n,v)
+    return func
+    
+class CreateTable(SQL):
+    __init__ = initf('name','*columns',temp=False,tail=None)
+    def sql(self):
+        s = 'CREATE'
+        if self.temp:
+            s += 'TEMPORARY'
+        s += 'TABLE IF NOT EXISTS ' + encode(self.name) + '(\n'
+        for column in self.columns:
+            s += '\t'+encode(column)+',\n'
+        s += ')\n'
+        if self.tail is not None:
+            s += self.tail
+        return s
+
+class Column(SQL):
+    __init__ = initf('name','type','*constraints')
+    def sql(self):
+        return encode((self.name,self.type,encode(self.constraints)))
+
+class Constraint(SQL): pass
+
+class References(Constraint):
+    __init__ = initf('name','table',column=None,cascade=True,default=None)
+    def sql(self):
+        s = 'REFERENCES '+ encode(self.name) + ' ' + encode(self.table)
+        if self.column is not None:
+            s += ' (' + encode(self.column) + ')'
+        if self.default:
+            s += ' DEFAULT '+encode(self.default)
+        if self.cascade is True:
+            s += ' ON DELETE CASCADE ON UPDATE CASCADE'
+        elif self.cascade == 'restrict':
+            s += ' ON DELETE RESTRICT ON UPDATE RESTRICT'
+
 @complex
 class Select(SQL):
     def __init__(self, what, From=None, where=None):
