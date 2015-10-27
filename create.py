@@ -1,5 +1,6 @@
 from locks import processLocked
 import db
+from versions import Versioner
 import tags
 import filedb
 import movie
@@ -25,6 +26,25 @@ import datetime
 import re
 import os
 import subprocess
+import time
+
+version = Versioner('create')
+@version(1)
+def refcounting():
+    print('Implementing reference counting')
+    db.vsetup(*db.source('sql/refcounting.sql',False))
+    db.execute('SELECT refcountingsetup()')
+    while True:
+        start = time.time()
+        count = db.execute('SELECT refcountingdiscover()')[0][0]
+        end = time.time()
+        if count == 0:
+            break
+        print('Discovered references for ',count,int(10*(end-start))/10)
+        time.sleep(end-start)
+    db.execute('SELECT refcountingfinish()')
+
+version.setup()
 
 class writer:
     def __init__(self, write):

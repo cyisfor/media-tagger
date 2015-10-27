@@ -10,6 +10,7 @@ class Versioner:
             db.execute("INSERT INTO "+self.name+" (latest) VALUES (0)")
         except db.ProgrammingError: pass
     def setup(self):
+        #print(self.name)
         self.versions.sort(key=lambda pair: pair[0])
         version = db.execute("SELECT latest FROM "+self.name)
         if version:

@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group,Contains
 #ehhh
 import db												#
 from versions import Versioner
@@ -64,9 +64,9 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if not (tags.posi or tags.nega):
         where = None
     elif tags.posi:
-        where = Group(Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted'))
+        where = Group(Select(EVERY(Contains('neighbors','wanted.tag')),'wanted'))
         if tags.nega:
-            negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
+            negaWanted.where = NOT(IN('id',Select('tag','wanted')))
             where = AND(where,negaClause)
     elif tags.nega:
         # only negative tags
@@ -133,11 +133,19 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
         noOverride = NOT(EQ('things.id',ANY(posi)))
         notWanted = AND(notWanted,noOverride) if notWanted else noOverride
 
-        clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
+        clauses['wanted'] = ('tag',Select('implications(unnest)',
                                            Func('unnest',posi)))
                                                  
 
 
+    #sel = stmt.clause.clause
+    #sel.what = 'media.id, neighbors'
+    #sel.where = Group(Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted'))
+    #stmt = 'SELECT tags FROM wanted WHERE $1::int > -1000'
+    stmt = Limit(Select((
+        'neighbors',
+                    'array(SELECT tag FROM wanted)',
+                         Group(Select(EVERY(Contains('neighbors','wanted.tag')),'wanted'))),'things',EQ('things.id',0x6f69c)),limit='$1::int')
     if clauses:
         stmt = With(stmt,**clauses)
 

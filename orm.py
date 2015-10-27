@@ -283,6 +283,16 @@ class Plus(Binary):
 class Intersects(Binary):
     op = '&&'
 
+class Array(Unary):
+    def sql(self):
+        return 'ARRAY['+encode(self.clause)+']'
+        
+    
+class Contains(Binary):
+    op = '@>'
+    def __init__(self,array,element):
+        super().__init__(array,Array([element]))
+
 @grouping
 class AS(Binary): pass
 
