@@ -20,7 +20,7 @@ def extract(doc):
             print(str(a))
             raise SystemExit
         keyword = str(span.contents[0]).strip()
-        yield Tag('general',keyword)
+        yield Tag(None,keyword)
     foundImage = False
     contentdiv = doc.find('div',{ 'id': 'size_container' })
     for a in contentdiv.findAll('a'):

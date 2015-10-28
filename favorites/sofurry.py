@@ -25,6 +25,6 @@ def extract(doc):
     for tag in doc.findAll('a',{'class': 'sf-tag'}):
         href = tag.get('href')
         if href and 'search=%23' in href:
-            yield Tag('general',urllib.parse.unquote(href.split('search=%23')[-1]))
+            yield Tag(None,urllib.parse.unquote(href.split('search=%23')[-1]))
     username = doc.find('span', hasClass('sf-username'))
     yield Tag('artist',username.contents[0])

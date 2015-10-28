@@ -67,7 +67,7 @@ class Image:
         return "Image({:x}".format(self.id)+','+','.join(str(s) for s in self.sources)+')'
 
 images = []
-for id, in db.execute("SELECT media.id FROM media INNER JOIN things ON media.id = things.id WHERE neighbors @> array(SELECT id FROM tags WHERE name = $1)",('general:three apples',)):
+for id, in db.execute("SELECT media.id FROM media INNER JOIN things ON media.id = things.id WHERE neighbors @> array(SELECT id FROM tags WHERE name = $1)",('three apples',)):
     if good(id):
         print('derp',hex(id))
         image = Image(id)

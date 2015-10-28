@@ -47,6 +47,6 @@ def extract(doc):
         for tag in tags.findAll('a'):
             tag = tag['data-tag']
             if not tag: continue
-            yield Tag('general',urllib.parse.unquote(tag))
+            yield Tag(None,urllib.parse.unquote(tag))
     else:
         yield Tag('special','tagme')

@@ -16,11 +16,15 @@ def extract(doc):
     for taglist in doc.findAll('div',{'class': 'tagsauce'}):    
         for tag in taglist.findAll('span'):
             if not 'tag' in tag.get('class',()): continue
-            namespace = tag.get('data-tag-namespace','general')
+            namespace = tag.get('data-tag-namespace')
             try: name = tag['data-tag-name-in-namespace']
             except KeyError:
                 print('tag is',tag)
                 raise
+            if namespace is None:
+                if 'tag-system' in tag['class']:
+                    if name in {'safe','explicit','questionable','suggestive'}:
+                        namespace = 'rating'			
             yield Tag(namespace,name)
     sauce = doc.find('span',{'class': 'source_url'})
     if sauce:

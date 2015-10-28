@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group,Contains
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
 import db												#
 from versions import Versioner
@@ -8,7 +8,7 @@ from tags import Taglist
 
 import os
 
-explain = False
+explain = 'explain' in os.environ
 
 stmts = {}
 import sqlparse
@@ -64,9 +64,10 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if not (tags.posi or tags.nega):
         where = None
     elif tags.posi:
-        where = Group(Select(EVERY(Contains('neighbors','wanted.tag')),'wanted'))
+        where = Intersects('neighbors',
+                          array(Select('tags','wanted')))
         if tags.nega:
-            negaWanted.where = NOT(IN('id',Select('tag','wanted')))
+            negaWanted.where = NOT(IN('id',Select('tags','wanted')))
             where = AND(where,negaClause)
     elif tags.nega:
         # only negative tags
@@ -132,8 +133,9 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
         # make sure positive tags don't override negative ones
         noOverride = NOT(EQ('things.id',ANY(posi)))
         notWanted = AND(notWanted,noOverride) if notWanted else noOverride
-
-        clauses['wanted'] = ('tag',Select('implications(unnest)',
+        # MUST separate implications to separate arrays
+        # for the AND requirement a & b & c = (a|a2|a3)&(b|b2|b3)&...
+        clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
                                            Func('unnest',posi)))
                                                  
 
@@ -142,10 +144,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     #sel.what = 'media.id, neighbors'
     #sel.where = Group(Select(EVERY(Intersects('neighbors','wanted.tags')),'wanted'))
     #stmt = 'SELECT tags FROM wanted WHERE $1::int > -1000'
-    stmt = Limit(Select((
-        'neighbors',
-                    'array(SELECT tag FROM wanted)',
-                         Group(Select(EVERY(Contains('neighbors','wanted.tag')),'wanted'))),'things',EQ('things.id',0x6f69c)),limit='$1::int')
+
     if clauses:
         stmt = With(stmt,**clauses)
 

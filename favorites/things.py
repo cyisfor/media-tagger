@@ -10,6 +10,8 @@ class Tag:
         self.category = category
         self.name = name
     def __str__(self):
+        if self.category is None:
+            return self.name
         return self.category + ':' + self.name
     def __repr__(self):
         return 'Tag('+repr(self.category)+','+repr(self.name)+')'

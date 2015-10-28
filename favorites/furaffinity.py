@@ -19,7 +19,7 @@ def extract(doc):
             if not href: continue
             m = kwMatch.match(href)
             if not m: continue
-            yield Tag('general',m.group(1).lower())
+            yield Tag(None,m.group(1).lower())
     auth = doc.findAll('td',{'class':'cat'})
     if not auth or len(auth) < 2:
         raise RuntimeError("No author on furaffinity?")

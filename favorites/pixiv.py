@@ -51,5 +51,5 @@ def extract(doc):
         if not href: continue
         tageq = href.find('tag=')
         if tageq > 0:
-            yield Tag('general',
+            yield Tag(None,
                     urllib.parse.unquote(href[tageq+4:]))

@@ -66,12 +66,15 @@ def tag(thing,tags):
                 categories = collections.defaultdict(list)
                 out = []
                 for tag in tags.posi:
-                    category = db.execute("SELECT findTag($1)",(tag.category,))[0][0]
-                    name = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
-                    whole = db.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
-                    categories[category].append(whole)
-                    db.execute("SELECT connectOne($1,$2)",(name,whole))
-                    db.execute("SELECT connectOne($1,$2)",(whole,name))
+                    if tag.category is None:
+                        whole = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
+                    else:
+                        category = db.execute("SELECT findTag($1)",(tag.category,))[0][0]
+                        name = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
+                        whole = db.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
+                        categories[category].append(whole)
+                        db.execute("SELECT connectOne($1,$2)",(name,whole))
+                        db.execute("SELECT connectOne($1,$2)",(whole,name))
                     out.append(whole)
                 for category,stags in categories.items():
                     db.execute('SELECT connectManyToOne($1,$2)',(stags,category))

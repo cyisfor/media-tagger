@@ -39,7 +39,7 @@ def extract(doc):
         href = a.get('href')
         if not href: continue
         if not str(href).startswith('/search?q='): continue
-        yield Tag('general',urllib.parse.unquote(href[len('/search?q='):]))
+        yield Tag(None,urllib.parse.unquote(href[len('/search?q='):]))
         tags = True
     if not tags:
         raise Exception("No tags found")

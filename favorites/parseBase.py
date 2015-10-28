@@ -16,6 +16,7 @@ Request = urllib.request.Request
 
 import os
 import datetime
+from pprint import pprint
 
 try: from .things import *
 except SystemError:
@@ -89,7 +90,7 @@ def parse(primarySource):
                 except TypeError: pass
                 if ':' in tag:
                     return Tag(*(tag.split(':')))
-                return Tag('general',tag)
+                return Tag(None,tag)
             tags = [generalize(tag) for tag in handlers.get('tags',[])]
             if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
                 note('skipping',primarySource)
@@ -104,6 +105,7 @@ def parse(primarySource):
                     setattr(doc,'url',primarySource)
                     results = handlers['extract'](doc)
                 for thing in results:
+                    pprint(('results',thing))
                     if isinstance(thing,Tag):
                         tags.append(thing)
                     elif isinstance(thing,Media):

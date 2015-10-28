@@ -13,7 +13,7 @@ def extract(doc):
     
     for tag in taglist.findAll('span'):
         if not 'tag' in tag.get('class',()): continue
-        namespace = tag.get('data-tag-namespace','general')
+        namespace = tag.get('data-tag-namespace',
         try: name = tag['data-tag-name-in-namespace']
         except KeyError:
             print('tag is',tag)
