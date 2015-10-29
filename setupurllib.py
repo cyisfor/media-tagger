@@ -3,7 +3,7 @@ start = time.time()
 from filedb import top
 from contextlib import closing,contextmanager
 
-from io import StringIO
+import io
 
 import gzip,zlib
 import sys
@@ -30,6 +30,39 @@ import re
 
 from six import raise_from
 
+
+def _gettextwriter(out=None, encoding='utf-8'):
+    if out is None:
+        import sys
+        out = sys.stdout
+
+    if isinstance(out, io.RawIOBase):
+        buffer = io.BufferedIOBase(out)
+        # Keep the original file open when the TextIOWrapper is
+        # destroyed
+        buffer.close = lambda: None
+    else:
+        # This is to handle passed objects that aren't in the
+        # IOBase hierarchy, but just have a write method
+        buffer = io.BufferedIOBase()
+        buffer.writable = lambda: True
+        buffer.write = out.write
+        try:
+            # TextIOWrapper uses this methods to determine
+            # if BOM (for UTF-16, etc) should be added
+            buffer.seekable = out.seekable
+            buffer.tell = out.tell
+        except AttributeError:
+            pass
+    # wrap a binary writer with TextIOWrapper
+    class UnbufferedTextIOWrapper(io.TextIOWrapper):
+        def write(self, s):
+            super(UnbufferedTextIOWrapper, self).write(s)
+            self.flush()
+    return UnbufferedTextIOWrapper(buffer, encoding=encoding,
+                                   errors='xmlcharrefreplace',
+                                   newline='\n')
+
 print('bou',time.time()-start)
 sys.stdout.flush()
 oj = os.path.join
@@ -42,19 +75,21 @@ handlers = [proxy]
 space = re.compile('[ \t]+')
 
 if isPypy:
-    import copyreg
-    import _thread
-    import struct
-    class DerpLock: pass
-    class MyPickler(pickle.Pickler):
-        def save_global(self,obj,name=None,pack=struct.pack):
-            if isinstance(obj,_thread.RLock):
-                obj = DerpLock()
-            if obj is _thread.RLock:
-                obj = DerpLock
-            super().save_global(obj,name,pack)
-        pickle.Pickler.dispatch[type] = save_global
-    copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
+    try:
+        from threading import _CRLock as RLock	
+        import copyreg
+        import struct
+        class DerpLock: pass
+        class MyPickler(pickle.Pickler):
+            def save_global(self,obj,name=None,pack=struct.pack):
+                if isinstance(obj,_thread.RLock):
+                    obj = DerpLock()
+                if obj is _thread.RLock:
+                    obj = DerpLock
+                super().save_global(obj,name,pack)
+            pickle.Pickler.dispatch[type] = save_global
+        copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
+    except ImportError: pass
 else:
     MyPickler = pickle.Pickler
 if not 'skipcookies' in os.environ:
@@ -70,7 +105,7 @@ if not 'skipcookies' in os.environ:
             jar = pickle.load(inp)
         if isPypy:
             jar._cookies_lock = _thread.RLock()
-    except (IOError,AttributeError):
+    except (IOError,AttributeError,ValueError):
         jar = cookiejar.CookieJar()
     handlers.append(urllib.HTTPCookieProcessor(jar))
     
@@ -88,7 +123,7 @@ if not 'skipcookies' in os.environ:
     def lineProcessor(f):
         @fileProcessor
         def wrapper(path):
-            with open(path,encoding='utf-8') as inp:
+            with _gettextwriter(open(path,'rb')) as inp:
                 for line in inp:
                     c = f(line)
                     if c:
@@ -101,7 +136,7 @@ if not 'skipcookies' in os.environ:
             cur = con.cursor()
             cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
             for item in cur.fetchall():
-                yield http.cookiejar.Cookie(0, item[4], item[5],
+                yield cookiejar.Cookie(0, item[4], item[5],
                     None, False,
                     item[0], item[0].startswith('.'), item[0].startswith('.'),
                     item[1], False,
@@ -141,7 +176,7 @@ if not 'skipcookies' in os.environ:
     get_cookies(oj(ff,'cookies.sqlite'))
     get_json_cookies(oj(ff,'cookies.jsons'))
 
-    get_text_cookies("/extra/user/tmp/cookies.txt")    
+    get_text_cookies("/extra/user/tmp/cookies.txt")	
     get_json_cookies("/extra/user/tmp/cookies.jsons")
 
     with tempfile.NamedTemporaryFile(dir=oj(top,"temp")) as out:
@@ -197,7 +232,7 @@ def myopen(request):
                 try: data = zlib.decompress(data)
                 except zlib.error:
                     data = zlib.decompress(data,-zlib.MAX_WBITS)
-                inp = StringIO(data)
+                inp = io.StringIO(data)
             inp.headers = headers
             yield inp
     except urlerror.HTTPError as e:
@@ -209,12 +244,12 @@ def myopen(request):
         raise_from(URLError(request.full_url),e)
 
     # if isinstance(dest,str):
-    #     try: stat = os.stat(dest)
-    #     except OSError: pass
-    #     else:
-    #         if not isinstance(request,Request):
-    #             request = Request(request)
-    #         request.add_header('If-Modified-Since',email.utils.formatdate(stat.st_mtime))
+    #	 try: stat = os.stat(dest)
+    #	 except OSError: pass
+    #	 else:
+    #		 if not isinstance(request,Request):
+    #			 request = Request(request)
+    #		 request.add_header('If-Modified-Since',email.utils.formatdate(stat.st_mtime))
     
 def myretrieve(request,dest):
     with myopen(request) as inp:
