@@ -17,6 +17,8 @@ import re
 
 import http.client
 
+from six import raise_from
+
 print('bou',time.time()-start)
 sys.stdout.flush()
 oj = os.path.join
@@ -190,7 +192,7 @@ def myopen(request):
             print(e.read())
         raise
     except urllib.error.URLError as e:
-        raise URLError(request.full_url) from e
+        raise_from(URLError(request.full_url),e)
 
     # if isinstance(dest,str):
     #     try: stat = os.stat(dest)
