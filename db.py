@@ -15,6 +15,7 @@ place = os.path.dirname(__file__)
     
 @threadify
 class DBProxy:
+    ProgrammingError = pg.SQLError
     c = None
     def __init__(self):
         self.reopen()	    
@@ -78,7 +79,9 @@ class DBProxy:
     # either returns {name=statement...} or [statement...] depending on file format...
     @export
     def source(self, path,namedStatements=True):
-        with open(os.path.join(place,path)) as inp:
+        arg = open(os.path.join(place,path))
+        with arg as inp:
+
             if namedStatements:
                 return dict(sqlparse.parse(inp))
             stmts = []

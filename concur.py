@@ -19,7 +19,7 @@ class RemoteCaller:
         return self.thread.schedule(self.f,a,kw,self.wait)
 
 class NoError: pass
-    
+
 class Returner:
     value = None
     err = NoError
@@ -57,14 +57,19 @@ class Work:
 
 class Thread(threading.Thread):
     def __init__(self,maxsize=0):
-        super().__init__()		
+        super().__init__()
+        self.setDaemon(True)
         self.queue = queue.Queue(maxsize)
     def run(self):
+        print('runnnn')
         try:
             self.runfoo()
         except:
             import traceback
             traceback.print_exc()
+            raise
+        finally:
+            print('foobarbauaeusnth')
     def runfoo(self):
         while True:
             w = self.queue.get()
@@ -72,12 +77,18 @@ class Thread(threading.Thread):
             if w is Terminator: break
             try:
                 if w.returner:
+                    print('start',w.f)
                     ret = w.f(*w.a,**w.kw)
+                    print('end')
                     w.returner.set(ret)
                 else:
                     assert w.f(*w.a,**w.kw) is None,str(f)+" shouldn't return a value!"
             except:
+                print('derpaderp')
+                import traceback
+                traceback.print_exc()
                 w.returner.throw(sys.exc_info())
+                raise # shouldn't do this
     def schedule(self,f,a,kw,returning):
         if returning:
             returner = Returner()
@@ -88,7 +99,7 @@ class Thread(threading.Thread):
     def finish(self):
         self.queue.put(Terminator)
         self.join()
-            
+
 def threadify(k):
     thread = Thread(100)
     k.finish = thread.finish
@@ -135,7 +146,7 @@ def test():
     def elapsed():
         e = time.time()-start
         return int(e*10)/10
-    
+
     b = StupidBlocker()
     bar = b.foo()
     print(elapsed(),'foo',bar)
@@ -148,4 +159,3 @@ def test():
 
 if __name__ == '__main__':
     test()
-    

@@ -8,14 +8,25 @@ from io import StringIO
 import gzip,zlib
 import sys
 import os,tempfile
-import urllib.request
-Request = urllib.request.Request
+try:
+    import urllib.request as urllib
+    import urllib.parse as urlparse
+    import urllib.error as urlerror
+except ImportError:
+    import urllib2 as urllib
+    urlerror = urllib
+    import urlparse	
+Request = urllib.Request
+
+try:
+    import http.client as http
+except ImportError:
+    import httplib as http
+
 import pickle
 import shutil
 import glob
 import re
-
-import http.client
 
 from six import raise_from
 
@@ -25,7 +36,7 @@ oj = os.path.join
 
 isPypy = hasattr(pickle.Pickler,'dispatch')
 
-proxy = urllib.request.ProxyHandler({"http": "http://127.0.0.1:8123"})
+proxy = urllib.ProxyHandler({"http": "http://127.0.0.1:8123"})
 handlers = [proxy]
 
 space = re.compile('[ \t]+')
@@ -49,7 +60,10 @@ else:
 if not 'skipcookies' in os.environ:
     # this can take a while...
 
-    import http.cookiejar
+    try:
+        import http.cookiejar as cookiejar
+    except ImportError:
+        import cookielib as cookiejar
     cookiefile = oj(top,"temp","cookies.pickle")
     try:
         with open(cookiefile,'rb') as inp:
@@ -57,8 +71,8 @@ if not 'skipcookies' in os.environ:
         if isPypy:
             jar._cookies_lock = _thread.RLock()
     except (IOError,AttributeError):
-        jar = http.cookiejar.CookieJar()
-    handlers.append(urllib.request.HTTPCookieProcessor(jar))
+        jar = cookiejar.CookieJar()
+    handlers.append(urllib.HTTPCookieProcessor(jar))
     
     import sqlite3
     import json
@@ -140,8 +154,8 @@ if not 'skipcookies' in os.environ:
         except OSError: pass
 
 
-class HeaderWatcher(urllib.request.HTTPHandler):
-    class Client(http.client.HTTPConnection):
+class HeaderWatcher(urllib.HTTPHandler):
+    class Client(http.HTTPConnection):
         def request(self,method,selector,data,headers):
             print('sending headers',headers)
             super().request(method,selector,data,headers)
@@ -150,11 +164,11 @@ class HeaderWatcher(urllib.request.HTTPHandler):
 
 handlers.append(HeaderWatcher())
 
-opener = urllib.request.build_opener(*handlers)
+opener = urllib.build_opener(*handlers)
 opener.addheaders = [
         ('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0'),
         ('Accept-Encoding', 'gzip,deflate')]
-urllib.request.install_opener(opener)
+urllib.install_opener(opener)
 
 class URLError(Exception): 
     def __str__(self):
@@ -167,10 +181,10 @@ def myopen(request):
     try:
         request.full_url.encode('ascii')
     except UnicodeEncodeError as e:
-        url = list(urllib.parse.urlparse(request.full_url))
+        url = list(urlparse.urlparse(request.full_url))
         for i in range(2,len(url)):
-            url[i] = urllib.parse.quote(url[i],safe="/&=?+")
-        request.full_url = urllib.parse.urlunparse(url)
+            url[i] = urlparse.quote(url[i],safe="/&=?+")
+        request.full_url = urlparse.urlunparse(url)
     print('requesting',request.full_url)
     try:
         with closing(opener.open(request)) as inp:
@@ -186,12 +200,12 @@ def myopen(request):
                 inp = StringIO(data)
             inp.headers = headers
             yield inp
-    except urllib.error.HTTPError as e:
+    except urlerror.HTTPError as e:
         if e.code == 503:
             print('head',e.headers)
             print(e.read())
         raise
-    except urllib.error.URLError as e:
+    except urlerror.URLError as e:
         raise_from(URLError(request.full_url),e)
 
     # if isinstance(dest,str):
