@@ -3,6 +3,8 @@ try:
     pgi.install_as_gi()
 except ImportError: pass
 import importlib
+import gi
+gi.require_version('Gtk', '3.0')
 import gi.repository
 
 class mygi(type(gi.repository)):

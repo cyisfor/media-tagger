@@ -1,4 +1,6 @@
 import queue,threading
+from six import raise_from
+import sys
 
 class Terminator: pass
 
@@ -8,17 +10,27 @@ class RemoteCaller:
         self.thread = thread
         self.wait = wait
     def __get__(self,obj,klass):
+        if threading.current_thread() == self.thread:
+            return self.f.__get__(obj,klass)
         return lambda *a,**kw: self.fuckit((obj,)+a,kw)
     def __call__(self,*a,**kw):
         return self.fuckit(a,kw)
     def fuckit(self,a,kw):
         return self.thread.schedule(self.f,a,kw,self.wait)
 
+class NoError: pass
+    
 class Returner:
     value = None
+    err = NoError
     yay = False
     def __init__(self):
         self.condition = threading.Condition()
+    def throw(self,err):
+        self.err = err
+        with self.condition:
+            self.yay = True
+            self.condition.notify_all()
     def set(self,value):
         self.value = value
         with self.condition:
@@ -28,6 +40,9 @@ class Returner:
         with self.condition:
             while not self.yay:
                 self.condition.wait()
+        if self.err is not NoError:
+            t,e,tb = self.err
+            raise_from(RuntimeError("returning"),e)
         return self.value
 
 class Work:
@@ -45,15 +60,24 @@ class Thread(threading.Thread):
         super().__init__()		
         self.queue = queue.Queue(maxsize)
     def run(self):
+        try:
+            self.runfoo()
+        except:
+            import traceback
+            traceback.print_exc()
+    def runfoo(self):
         while True:
             w = self.queue.get()
             print('got',w)
             if w is Terminator: break
-            if w.returner:
-                ret = w.f(*w.a,**w.kw)
-                w.returner.set(ret)
-            else:
-                assert w.f(*w.a,**w.kw) is None,str(f)+" shouldn't return a value!"
+            try:
+                if w.returner:
+                    ret = w.f(*w.a,**w.kw)
+                    w.returner.set(ret)
+                else:
+                    assert w.f(*w.a,**w.kw) is None,str(f)+" shouldn't return a value!"
+            except:
+                w.returner.throw(sys.exc_info())
     def schedule(self,f,a,kw,returning):
         if returning:
             returner = Returner()

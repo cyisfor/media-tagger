@@ -1,4 +1,4 @@
-import concur
+from concur import threadify, export
 
 import sqlparse
 
@@ -6,29 +6,33 @@ import sys,os
 sys.path.insert(0,os.path.expanduser("/extra/user/code/postgresql-python"))
 import postgresql as pg
 from contextlib import contextmanager
-from itertools import count
-
-from threading import local
+from itertools import count, chain
 
 ProgrammingError = pg.SQLError
 
 tempctr = count(1)
-
+place = os.path.dirname(__file__)
+    
 @threadify
 class DBProxy:
     c = None
+    def __init__(self):
+        self.reopen()	    
     @export
     def execute(self,*a,**kw):
         if not hasattr(self,'c'):
-            reopen()
+            self.reopen()
         return self.c.execute(*a,**kw)
     @export
     def retransaction(self,rollback=False):
         return pg.retransaction(self.c,rollback)
+    @export
     def transaction(self):
         return pg.transaction(self.c)
+    @export
     def saved(self):
         return pg.saved(self.c)
+    @export
     @contextmanager
     def temporaryTable(self, columns,notSoTemp=False):
         name = "temptable{}".format(tempctr.__next__())
@@ -52,17 +56,18 @@ class DBProxy:
         self.c.verbose = False
         #self.c.out = open('/tmp/self.log','at')
         password = None
-    reopen()
-    
+    @export
     def vsetup(self, *stmts):
         for stmt in stmts:
             execute(stmt)
-    
-    def setup(self, *stmts):
+    @export
+    def setup(self, *stmts, source=False, named=True):
+        if source:
+            stmts = chain.from_iterable((self.source(stmt,named) for stmt in stmts))
         #execute("COMMIT")
         for stmt in stmts:
             try:
-                execute(stmt)
+                self.execute(stmt)
             except ProgrammingError as e:
                 if self.c.verbose:
                     sys.stdout.write(stmt)
@@ -70,9 +75,8 @@ class DBProxy:
                     sys.stdout.write(e.info['message'].decode('utf-8'))
                     print('')
     
-    place = os.path.dirname(__file__)
-    
     # either returns {name=statement...} or [statement...] depending on file format...
+    @export
     def source(self, path,namedStatements=True):
         with open(os.path.join(place,path)) as inp:
             if namedStatements:
