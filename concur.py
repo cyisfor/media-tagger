@@ -7,8 +7,12 @@ class RemoteCaller:
         self.f = f
         self.thread = thread
         self.wait = wait
+    def __get__(self,obj,klass):
+        return lambda *a,**kw: self.fuckit((obj,)+a,kw)
     def __call__(self,*a,**kw):
-        self.thread.schedule(self.f,a,kw,self.wait)
+        return self.fuckit(a,kw)
+    def fuckit(self,a,kw):
+        return self.thread.schedule(self.f,a,kw,self.wait)
 
 class Returner:
     value = None
@@ -33,13 +37,17 @@ class Work:
         self.a = a
         self.kw = kw
         self.returner = returner
+    def __repr__(self):
+        return 'worker for '+repr(self.f)
 
 class Thread(threading.Thread):
     def __init__(self,maxsize=0):
+        super().__init__()		
         self.queue = queue.Queue(maxsize)
     def run(self):
         while True:
             w = self.queue.get()
+            print('got',w)
             if w is Terminator: break
             if w.returner:
                 ret = w.f(*w.a,**w.kw)
@@ -52,7 +60,7 @@ class Thread(threading.Thread):
             self.queue.put(Work(f,a,kw,returner))
             return returner.get()
         else:
-            self.queue.put(Work(f,a,kw,None))
+            self.queue.put(Work(f,a,kw,None),block=False)
     def finish(self):
         self.queue.put(Terminator)
         self.join()
@@ -63,14 +71,18 @@ def threadify(k):
     for n in dir(k):
         f = getattr(k,n)
         if hasattr(f,'threadexport'):
-            setattr(k,n,RemoteCaller(thread,f),hasattr(f,'threadwait'))
+            print(f,hasattr(f,'threadwait'))
+            setattr(k,n,RemoteCaller(thread,f,hasattr(f,'threadwait')))
+    thread.start()
+    return k
 
 def export(wait=True):
     # wait might just be a function so we can do implied @export()
     if wait is True or wait is False:
      def deco(f):
          f.threadexport = True
-         f.threadwait = wait
+         if wait:
+             f.threadwait = True
          return f
      return deco
     else:
@@ -85,25 +97,28 @@ def test():
     class StupidBlocker:
         @export
         def foo(self):
-            time.sleep(3)
+            time.sleep(1)
             return 'bar'
         @export(wait=False)
         def foo2(self):
-            time.sleep(3)
+            time.sleep(1)
             print("can't return a bar")
         def foo3(self):
-            time.sleep(3)
+            time.sleep(1)
             return 'bar3'
 
     start = time.time()
     def elapsed():
         e = time.time()-start
         return int(e*10)/10
+    
     b = StupidBlocker()
-    print(elapsed(),'foo',b.foo())
-    print(elapsed(),'foo2',b.foo2())
-    print(elapsed(),'foo3',b.foo3())
-    print(elapsed(),'finishing...')
+    bar = b.foo()
+    print(elapsed(),'foo',bar)
+    bar = b.foo2()
+    print(elapsed(),'foo2',bar)
+    bar = b.foo3()
+    print(elapsed(),'foo3',bar)
     b.finish()
     print(elapsed(),'b done')
 
