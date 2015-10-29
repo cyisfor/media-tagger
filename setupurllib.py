@@ -29,39 +29,7 @@ import glob
 import re
 
 from six import raise_from
-
-
-def _gettextwriter(out=None, encoding='utf-8'):
-    if out is None:
-        import sys
-        out = sys.stdout
-
-    if isinstance(out, io.RawIOBase):
-        buffer = io.BufferedIOBase(out)
-        # Keep the original file open when the TextIOWrapper is
-        # destroyed
-        buffer.close = lambda: None
-    else:
-        # This is to handle passed objects that aren't in the
-        # IOBase hierarchy, but just have a write method
-        buffer = io.BufferedIOBase()
-        buffer.writable = lambda: True
-        buffer.write = out.write
-        try:
-            # TextIOWrapper uses this methods to determine
-            # if BOM (for UTF-16, etc) should be added
-            buffer.seekable = out.seekable
-            buffer.tell = out.tell
-        except AttributeError:
-            pass
-    # wrap a binary writer with TextIOWrapper
-    class UnbufferedTextIOWrapper(io.TextIOWrapper):
-        def write(self, s):
-            super(UnbufferedTextIOWrapper, self).write(s)
-            self.flush()
-    return UnbufferedTextIOWrapper(buffer, encoding=encoding,
-                                   errors='xmlcharrefreplace',
-                                   newline='\n')
+from mysix import textreader
 
 print('bou',time.time()-start)
 sys.stdout.flush()
@@ -123,7 +91,7 @@ if not 'skipcookies' in os.environ:
     def lineProcessor(f):
         @fileProcessor
         def wrapper(path):
-            with _gettextwriter(open(path,'rb')) as inp:
+            with textreader(open(path,'rb')) as inp:
                 for line in inp:
                     c = f(line)
                     if c:
