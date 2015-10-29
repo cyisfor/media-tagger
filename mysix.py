@@ -13,6 +13,7 @@ def textreader(inp=None, encoding='utf-8'):
         buffer = io.BufferedIOBase()
         buffer.readable = lambda: True
         buffer.read = inp.read
+        buffer.read1 = inp.read
         try:
             # TextIOWrapper uses this methods to determine
             # if BOM (for UTF-16, etc) should be added

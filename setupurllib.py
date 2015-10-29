@@ -23,7 +23,6 @@ try:
 except ImportError:
     import httplib as http
 
-import pickle
 import shutil
 import glob
 import re
@@ -35,31 +34,11 @@ print('bou',time.time()-start)
 sys.stdout.flush()
 oj = os.path.join
 
-isPypy = hasattr(pickle.Pickler,'dispatch')
-
 proxy = urllib.ProxyHandler({"http": "http://127.0.0.1:8123"})
 handlers = [proxy]
 
 space = re.compile('[ \t]+')
 
-if isPypy:
-    try:
-        from threading import _CRLock as RLock	
-        import copyreg
-        import struct
-        class DerpLock: pass
-        class MyPickler(pickle.Pickler):
-            def save_global(self,obj,name=None,pack=struct.pack):
-                if isinstance(obj,_thread.RLock):
-                    obj = DerpLock()
-                if obj is _thread.RLock:
-                    obj = DerpLock
-                super().save_global(obj,name,pack)
-            pickle.Pickler.dispatch[type] = save_global
-        copyreg.pickle(DerpLock,lambda lock: '', _thread.RLock)
-    except ImportError: pass
-else:
-    MyPickler = pickle.Pickler
 if not 'skipcookies' in os.environ:
     # this can take a while...
 
@@ -67,16 +46,28 @@ if not 'skipcookies' in os.environ:
         import http.cookiejar as cookiejar
     except ImportError:
         import cookielib as cookiejar
-    cookiefile = oj(top,"temp","cookies.pickle")
-    try:
-        with open(cookiefile,'rb') as inp:
-            jar = pickle.load(inp)
-        if isPypy:
-            jar._cookies_lock = _thread.RLock()
-    except (IOError,AttributeError,ValueError):
-        jar = cookiejar.CookieJar()
+        
+    jar = cookiejar.CookieJar()
     handlers.append(urllib.HTTPCookieProcessor(jar))
-    
+    fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rest, rfc2109'.split(',')
+    fields = [f.strip() for f in fields]
+    def typefield():
+        for f in fields:
+            if f in {'port_specified','domain_specified','domain_initial_dot','path_specified','discard'}:
+                yield f + ' BOOLEAN';
+            else:
+                yield f + ' TEXT';
+            
+    with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
+        db.execute('CREATE TABLE IF NOT EXISTS cookies ('+',\n'.join(typefield())+'\n)')
+        with closing(db.cursor()) as c:
+            c.execute('SELECT '+','.join(fields)+' FROM cookies');
+            for row in c:
+                jar.set_cookie(Cookie(*row))
+        for cookie in jar:
+            db.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
+                       ','.join('?' for f in fields) + ')',
+                       (getattr(cookie,f) for f in fields))	
     import sqlite3
     import json
         
@@ -114,7 +105,7 @@ if not 'skipcookies' in os.environ:
     @lineProcessor
     def get_text_cookies(line):
         host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-        return http.cookiejar.Cookie(
+        return cookiejar.Cookie(
             0, name, value,
             None, False,
             host, host.startswith('.'), host.startswith('.'),
@@ -129,7 +120,7 @@ if not 'skipcookies' in os.environ:
             host = c['host']
         except KeyError:
             return
-        return http.cookiejar.Cookie(
+        return cookiejar.Cookie(
             0, c['name'], c['value'],
             None, False,
             host, host.startswith('.'), host.startswith('.'),
@@ -147,15 +138,11 @@ if not 'skipcookies' in os.environ:
     get_text_cookies("/extra/user/tmp/cookies.txt")	
     get_json_cookies("/extra/user/tmp/cookies.jsons")
 
-    with tempfile.NamedTemporaryFile(dir=oj(top,"temp")) as out:
-        pickler = MyPickler(out)
-        pickler.dump(jar)
-        if os.path.exists(cookiefile):
-            os.unlink(cookiefile)
-        os.rename(out.name,cookiefile)
-        try: out.close()
-        except OSError: pass
-
+    with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as out:
+        for cookie in jar:
+            db.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
+                       ','.join('?' for f in fields),
+                       (getattr(cookie,f) for f in fields))
 
 class HeaderWatcher(urllib.HTTPHandler):
     class Client(http.HTTPConnection):
