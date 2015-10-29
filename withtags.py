@@ -64,10 +64,10 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
     if not (tags.posi or tags.nega):
         where = None
     elif tags.posi:
-        where = Intersects('neighbors',
-                          array(Select('tags','wanted')))
+        where = Group(Select(EVERY(Intersects('neighbors','tags')),'wanted'))
+
         if tags.nega:
-            negaWanted.where = NOT(IN('id',Select('tags','wanted')))
+            negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
             where = AND(where,negaClause)
     elif tags.nega:
         # only negative tags

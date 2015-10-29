@@ -201,7 +201,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
     def respond(self):        
         if self.ip in BOTS or self.path == '/art/bots/':
             name,head,headwbody = botkilla.select(self.date_time_string(),self.ip)
-            print(name,self.ip,self.path,file=self.botlog)
+            self.botlog.write(' '.join(name,self.ip,self.path))
             self.botlog.flush()
             if self.method.lower() == 'head':
                 return self.send_blob(head)
