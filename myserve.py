@@ -24,8 +24,6 @@ import uploader
 import tagfilter
 from dimensions import thumbnailPageSize
 
-from setupurllib import isPypy
-
 from session import Session
 
 import pages,jsony

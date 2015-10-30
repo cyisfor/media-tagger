@@ -1,4 +1,7 @@
-import queue,threading
+try: import queue
+except:
+    import Queue as queue
+import threading
 from six import raise_from
 import sys
 
@@ -57,7 +60,7 @@ class Work:
 
 class Thread(threading.Thread):
     def __init__(self,maxsize=0):
-        super().__init__()
+        super(Thread,self).__init__()
         self.setDaemon(True)
         self.queue = queue.Queue(maxsize)
     def run(self):
@@ -101,6 +104,7 @@ class Thread(threading.Thread):
         self.join()
 
 def threadify(k):
+    return k # sigh
     thread = Thread(100)
     k.finish = thread.finish
     for n in dir(k):

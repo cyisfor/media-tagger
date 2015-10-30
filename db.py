@@ -62,9 +62,9 @@ class DBProxy:
         for stmt in stmts:
             execute(stmt)
     @export
-    def setup(self, *stmts, source=False, named=True):
-        if source:
-            stmts = chain.from_iterable((self.source(stmt,named) for stmt in stmts))
+    def setup(self, *stmts, **kw):
+        if kw.get('source'):
+            stmts = chain.from_iterable((self.source(stmt,kw.get('named',True)) for stmt in stmts))
         #execute("COMMIT")
         for stmt in stmts:
             try:

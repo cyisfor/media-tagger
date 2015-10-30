@@ -3,7 +3,8 @@ from db import vsetup,saved
 import db
 from redirect import Redirect
 
-from urllib.error import HTTPError as Error
+from setupurllib import urlerror
+Error = urlerror.HTTPError
 from functools import wraps
 
 version = Versioner('comic')

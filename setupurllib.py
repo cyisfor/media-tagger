@@ -49,27 +49,32 @@ if not 'skipcookies' in os.environ:
         
     jar = cookiejar.CookieJar()
     handlers.append(urllib.HTTPCookieProcessor(jar))
-    fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rest, rfc2109'.split(',')
+    fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
     fields = [f.strip() for f in fields]
     def typefield():
         for f in fields:
-            if f in {'port_specified','domain_specified','domain_initial_dot','path_specified','discard'}:
+            if f in {'port_specified',
+                     'domain_specified',
+                     'domain_initial_dot',
+                     'path_specified',
+                     'discard'}:
                 yield f + ' BOOLEAN';
             else:
                 yield f + ' TEXT';
-            
+
+    import sqlite3
+    import json
+                
     with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
         db.execute('CREATE TABLE IF NOT EXISTS cookies ('+',\n'.join(typefield())+'\n)')
         with closing(db.cursor()) as c:
             c.execute('SELECT '+','.join(fields)+' FROM cookies');
             for row in c:
                 jar.set_cookie(Cookie(*row))
-        for cookie in jar:
-            db.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
-                       ','.join('?' for f in fields) + ')',
-                       (getattr(cookie,f) for f in fields))	
-    import sqlite3
-    import json
+            for cookie in jar:
+                c.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
+                           ','.join('?' for f in fields) + ')',
+                          tuple(getattr(cookie,f) for f in fields))	
         
     def fileProcessor(f):
         def wrapper(path):
@@ -138,11 +143,13 @@ if not 'skipcookies' in os.environ:
     get_text_cookies("/extra/user/tmp/cookies.txt")	
     get_json_cookies("/extra/user/tmp/cookies.jsons")
 
-    with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as out:
+    with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
         for cookie in jar:
-            db.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
-                       ','.join('?' for f in fields),
-                       (getattr(cookie,f) for f in fields))
+            stmt = 'INSERT INTO cookies ('+','.join(fields)+') VALUES ('+ ','.join('?' for f in fields)+')'
+            args = tuple(getattr(cookie,f) for f in fields)
+            #print(stmt,tuple(enumerate(args)))
+            db.execute(stmt,args)
+                       
 
 class HeaderWatcher(urllib.HTTPHandler):
     class Client(http.HTTPConnection):
