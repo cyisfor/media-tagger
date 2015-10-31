@@ -5,34 +5,51 @@ complextagindex {
 CREATE INDEX bycomplex ON tags(complexity)
 }
 implications {
-CREATE OR REPLACE FUNCTION implications(_tag bigint, _returned int default 0, _depth int default 0) RETURNS SETOF bigint AS $$
+CREATE OR REPLACE FUNCTION implications(_tag bigint, _returned int, _depth int) RETURNS int AS $$
 DECLARE
-_complexity int;
 _neighbor bigint;
 _count int default 0;
 BEGIN
-    IF _returned > 100 THEN
-       RETURN;
+    IF _depth > 2 THEN
+       RETURN _count;
     END IF;
-    --raise notice 'implications % % %',_tag,_returned,_depth;
-    SELECT complexity INTO _complexity FROM tags WHERE id = _tag;
-    IF FOUND THEN     
-       --raise notice 'found % % % %',(select name from tags where id = _tag),_complexity,_depth,_returned;
-       RETURN NEXT _tag;
-       _count := _count + 1;       
-       FOR _tag IN SELECT implications(
-                tags.id,
-                _returned + _count,
-                1 + _depth) 
-           FROM tags
-                INNER JOIN things ON tags.id = things.id
-                WHERE neighbors @> ARRAY[_tag]
-                AND tags.complexity >  _complexity
-       LOOP
-               RETURN NEXT _tag;
-               _count := _count + 1;
-       END LOOP;
-     END IF;
+	IF _returned > 100 THEN
+	   RETURN _count;
+	END IF;
+    INSERT INTO impresult (tag) VALUES (_tag);
+	RAISE NOTICE 'found tag %s',(select name from tags where id = _tag);
+    _count := _count + 1;
+	_count := sum(implications(
+             other.id,
+             _returned + _count,
+             1 + _depth))
+        FROM tags inner join things on things.id = tags.id , tags other WHERE
+			 tags.id = _tag
+			 AND other.id = ANY(things.neighbors)
+             AND tags.complexity < other.complexity;
+	RETURN _count;
+END
+$$
+LANGUAGE 'plpgsql'
+}
+implicationsderp {
+CREATE OR REPLACE FUNCTION implications(_tag bigint) RETURNS SETOF bigint AS $$
+DECLARE
+_dest text;
+BEGIN
+	_dest := 'implications' || _tag;
+	BEGIN
+		EXECUTE format('CREATE TEMPORARY TABLE %I (tag BIGINT)',_dest);
+		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
+		DELETE FROM impresult;
+		PERFORM implications( _tag, 0, 0);
+		EXECUTE format('INSERT INTO %I SELECT DISTINCT tag FROM impresult',_dest);
+		DROP TABLE impresult;
+	EXCEPTION
+		WHEN duplicate_table THEN
+			 RAISE NOTICE 'yay already have';
+	END;
+	RETURN QUERY EXECUTE format('SELECT tag FROM %I',_dest);
 END
 $$
 LANGUAGE 'plpgsql'

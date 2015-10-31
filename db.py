@@ -30,9 +30,9 @@ class DBProxy:
     @export
     def transaction(self):
         return pg.transaction(self.c)
-    @export
-    def saved(self):
-        return pg.saved(self.c)
+    # @export
+    # def saved(self):
+    # 	return pg.saved(self.c)
     @export
     @contextmanager
     def temporaryTable(self, columns,notSoTemp=False):
