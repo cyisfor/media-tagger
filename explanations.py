@@ -1,11 +1,15 @@
-from versions import versioner
+from versions import Versioner
 import db
 version = Versioner('explanations')
 
 @version(1)
 def _():
-    db.vsetup(*db.source('sql/explanations.sql'))
+    stmts = db.source('sql/explanations.sql',namedStatements=False)
+    print(stmts)
+    db.vsetup(*stmts)
+
+version.setup()
 
 def explain(id):
-    return db.execute('SELECT x,y,r,text FROM explanations WHERE image = $1',
+    return db.execute('SELECT top,derpleft,w,h,script FROM explanations WHERE image = $1',
                       (id,))

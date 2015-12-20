@@ -1,5 +1,6 @@
 import process
 from note import note
+import explanations
 
 from schlorp import schlorp
 
@@ -206,10 +207,10 @@ embed = makeE('embed')
 
 def makeStyle(s):
     res = ''
-    for selector,props in s.items():
+    for selector,props in s:
         res += selector + '{\n';
         for n,v in props.items():
-            res += '\t'+n+': '+v+'\n'
+            res += '\t'+n+': '+v+';\n'
         res += '}\n'
     return d.style(res,type='text/css')
 
@@ -241,13 +242,13 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 
     if type.startswith('text'):
         raise Return((fid,d.pre(thing),thing))
-    if type.startswith('image'):		
+    if type.startswith('image'):
         if doScale:
             height = width = None # already resized the pixels
         if resized:
-            raise Return((fid,d.img(class_='wid',src=resized,alt='Still resizing...',**maybemap),thing))
+            raise Return((fid,d.img(class_='wid',src=resized,alt='Still resizing...'),thing))
         else:
-            raise Return((fid,d.img(class_='wid',src=thing,style=style,**maybemap),thing))
+            raise Return((fid,d.img(class_='wid',src=thing,style=style),thing))
     # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
@@ -344,37 +345,39 @@ def page(info,path,params):
             Links.prev = pageURL(prev)+unparseQuery()
 
         style = [
-            '#img exp': {
-                            'visibility': 'hidden',
+            ('#img .exp', {
                             'position': 'absolute',
-                            'display': 'block',
-                },
-            '#img exp:hover': {
-                            'visibility': 'visible',				
-                }]
-                
+                }),
+            ('#img .exp div', {
+                'visibility': 'hidden',
+                }),
+            ('#img .exp:hover div', {
+                            'visibility': 'visible',
+                })]
+            
+
         def getareas():
             for i,(top,left,w,h,text) in enumerate(explanations.explain(id)):
-                style.append(
-                    {id: {
-                            'top': top,
-                            'left': left,
-                            'width': w,
-                            'height': h,
-                        }})
+                style.append(('#i'+str(i), {
+                    'top': top,
+                    'left': left,
+                    'width': w,
+                    'height': h,
+                }))
 
-                yield d.div(class_='exp',
-                            id=id)
+                yield d.div(d.div(text),
+                            class_='exp',
+                            id='i'+str(i))
 
         areas = tuple(getareas())
         if areas:
             imgmap = (makeStyle(style),)+areas
         else:
             imgmap = None
-            
+
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(link,id='mediumu',href=thing),
+                d.div(d.a(link,id='mediumu',href=thing),
                         imgmap,id='img'),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tail)

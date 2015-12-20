@@ -60,7 +60,7 @@ class DBProxy:
     @export
     def vsetup(self, *stmts):
         for stmt in stmts:
-            execute(stmt)
+            self.execute(stmt)
     @export
     def setup(self, *stmts, **kw):
         if kw.get('source'):
