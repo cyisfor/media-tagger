@@ -345,6 +345,10 @@ def page(info,path,params):
             Links.prev = pageURL(prev)+unparseQuery()
 
         style = [
+            ('#img', {
+                'width': str(width)+'px',
+                'height': str(height)+'px',
+                }),
             ('#img .exp', {
                             'position': 'absolute',
                 }),
@@ -354,7 +358,6 @@ def page(info,path,params):
             ('#img .exp:hover div', {
                             'visibility': 'visible',
                 })]
-            
 
         def getareas():
             for i,(top,left,w,h,text) in enumerate(explanations.explain(id)):
@@ -369,16 +372,14 @@ def page(info,path,params):
                             class_='exp',
                             id='i'+str(i))
 
+        thing = d.a(link,id='mediumu',href=thing)
         areas = tuple(getareas())
         if areas:
             imgmap = (makeStyle(style),)+areas
-        else:
-            imgmap = None
-
+            thing = d.div(thing,id='img',*imgmap)
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.div(d.a(link,id='mediumu',href=thing),
-                        imgmap,id='img'),
+                                        d.div(thing),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tail)
         raise Return(page)

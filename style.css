@@ -1,5 +1,41 @@
+body {
+	text-align: center;
+}
+div.t {
+    float: left;
+}
+div.clear {
+    overflow: auto;
+    width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+    clear: both;
+}
+/*
+table {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+table.info td {
+	text-align: left;
+}
+
+div.thumb { 
+	display: inline;
+}
+*/
+img.wid {
+	max-width: 100%;
+}
+
+#img {
+	margin: auto;
+	position: relative;
+}
+
 #img .exp div {
 	padding: 1em;
-	background-color: rgba(224,224,255,0.5);
+	background-color: rgba(224,224,255,0.8);
 	font-weight: bold;
 }
