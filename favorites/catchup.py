@@ -51,6 +51,8 @@ class Catchup(Process):
             if e.getcode() == 503:
                 print('site is bogged down! delaying a while')
                 delay(uri,'1 minute')
+            print('megafail error',e.getcode())
+            megafail(uri)
         except:
             print("fail",uri)
             fail(uri)

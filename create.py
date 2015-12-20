@@ -171,7 +171,7 @@ def getanId(sources,uniqueSources,download,name):
             md5 = MD5()
             shutil.copyfileobj(data,writer(md5.update))
             md5 = md5.hexdigest()
-        with db.saved():
+        with db.transaction():
             id = db.execute("INSERT INTO things DEFAULT VALUES RETURNING id")
             id = id[0][0]
             image = None

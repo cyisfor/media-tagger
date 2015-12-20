@@ -1,5 +1,5 @@
 from versions import Versioner
-from db import vsetup,saved
+from db import vsetup,transaction
 import db
 from redirect import Redirect
 
@@ -53,7 +53,7 @@ version.setup()
 def withC(f):
     @wraps(f)
     def wrapper(*a,**kw):
-        with saved():
+        with transaction():
             f(*a,**kw)
     return wrapper
 

@@ -204,6 +204,15 @@ video = makeE('video')
 source = makeE('source')
 embed = makeE('embed')
 
+def makeStyle(s):
+    res = ''
+    for selector,props in s.items():
+        res += selector + '{\n';
+        for n,v in props.items():
+            res += '\t'+n+': '+v+'\n'
+        res += '}\n'
+    return d.style(res,type='text/css')
+
 @gen.coroutine
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     isImage = None
@@ -232,13 +241,13 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 
     if type.startswith('text'):
         raise Return((fid,d.pre(thing),thing))
-    if type.startswith('image'):
+    if type.startswith('image'):		
         if doScale:
             height = width = None # already resized the pixels
         if resized:
-            raise Return((fid,d.img(class_='wid',src=resized,alt='Still resizing...'),thing))
+            raise Return((fid,d.img(class_='wid',src=resized,alt='Still resizing...',**maybemap),thing))
         else:
-            raise Return((fid,d.img(class_='wid',src=thing,style=style),thing))
+            raise Return((fid,d.img(class_='wid',src=thing,style=style,**maybemap),thing))
     # can't scale videos, so just adjust their width/height in CSS
     wrapper = None
     if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
@@ -333,9 +342,40 @@ def page(info,path,params):
             Links.next = pageURL(next)+unparseQuery()
         if prev and not Links.prev:
             Links.prev = pageURL(prev)+unparseQuery()
+
+        style = [
+            '#img exp': {
+                            'visibility': 'hidden',
+                            'position': 'absolute',
+                            'display': 'block',
+                },
+            '#img exp:hover': {
+                            'visibility': 'visible',				
+                }]
+                
+        def getareas():
+            for i,(top,left,w,h,text) in enumerate(explanations.explain(id)):
+                style.append(
+                    {id: {
+                            'top': top,
+                            'left': left,
+                            'width': w,
+                            'height': h,
+                        }})
+
+                yield d.div(class_='exp',
+                            id=id)
+
+        areas = tuple(getareas())
+        if areas:
+            imgmap = (makeStyle(style),)+areas
+        else:
+            imgmap = None
+            
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                d.p(d.a(link,id='mediumu',href=thing)),
+                d.p(d.a(link,id='mediumu',href=thing),
+                        imgmap,id='img'),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tail)
         raise Return(page)

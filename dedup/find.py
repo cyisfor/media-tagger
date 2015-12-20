@@ -303,7 +303,7 @@ def answer(e):
 
 def cleanup(e):
     win.hide()
-    idle_add(lambda e: loop.quit())
+    idle_add(lambda: loop.quit())
 
 win.connect('destroy',cleanup)
 win.show_all()
