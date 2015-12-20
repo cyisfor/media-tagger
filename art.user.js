@@ -28,9 +28,63 @@ document.addEventListener('DOMContentLoaded',function() {
 	selection.style.position = 'absolute';
 	var popup = document.createElement('div');
 	popup.style.display = 'none';
+	popup.style.fontFamily = 'mono';
+	popup.style.textAlign='left';
 	popup.style.backgroundColor = 'white';
 
 	var img = document.getElementById('img');
+
+	var text = document.createElement('input');
+	text.setAttribute('type','text');
+	img.parentNode.insertBefore(text,img.nextSibling);
+
+	function updatePopup() {
+		while(popup.firstChild) {
+			popup.removeChild(popup.firstChild);
+		}
+		function p() {
+			var e = document.createElement('p');
+			var s = '';
+			for(var i=0;i<arguments.length;++i) {
+				s += arguments[i];
+			}
+			e.appendChild(document.createTextNode(s));
+			popup.appendChild(e);
+		}
+		function q(s) {
+			return "E'"+s.replace("'","\\'")+"'";
+		}
+		var ups;
+		if(text.value != "") {
+			ups = ", script = '"+text.value+"' ";
+		} else {
+			ups = " ";
+		}
+		var a = document.location.pathname.split('/');
+		var id = a[a.length-2];
+		p("UPDATE explanations SET ",
+		  "top = '",selection.style.top,"',",
+		  "derpleft = '",selection.style.left,"',",
+		  "w = '",selection.style.width,"',",
+		  "h = '",selection.style.height,"'",
+		  ups,
+		  "WHERE id = x'",id,"'::int;");
+		if(text.value != "") {
+			p("INSERT INTO explanations (image,top,derpleft,w,h,script)",
+			  "VALUES (x'",id,"'::int,",
+			  q(selection.style.top),", ",
+			  q(selection.style.left),", ",
+			  q(selection.style.width),", ",
+			  q(selection.style.height),", ",
+			  q(text.value,true),
+			  ") RETURNING id;");
+		}
+	}
+
+	text.addEventListener('change',function(e) {
+		updatePopup();
+	},true);
+	
 	function toPercent(n,d) {
 		return Math.round(n*10000/d)/100.0 + '%';
 	}
@@ -43,9 +97,10 @@ document.addEventListener('DOMContentLoaded',function() {
 		if(selection.finished) {
 			selection.style.display = 'none';
 			selection.finished = false;
+			selection.started = false;
 			status.style.backgroundColor = '#f22';
 			popup.style.display = 'none';
-			return;
+			// return; no, this is annoying
 		}
 		var x = e.clientX - img.offsetLeft;
 		var y = e.clientY - img.offsetTop;
@@ -60,7 +115,6 @@ document.addEventListener('DOMContentLoaded',function() {
 		} else {
 			status.style.backgroundColor = '#2f2';
 			selection.finished = true;
-			selection.started = false;
 			var w = x - selection.left;
 			var h = y - selection.top;
 			selection.style.width = toPercent(w,img.clientWidth);
@@ -69,35 +123,7 @@ document.addEventListener('DOMContentLoaded',function() {
 			popup.style.position = 'fixed';
 			popup.style.left = '25%';
 			popup.style.top = '25%';
-			while(popup.firstChild) {
-				popup.removeChild(popup.firstChild);
-			}
-			function p() {
-				var e = document.createElement('p');
-				var s = '';
-				for(var i=0;i<arguments.length;++i) {
-					s += arguments[i];
-				}
-				e.appendChild(document.createTextNode(s));
-				popup.appendChild(e);
-			}
-			function q(s) {
-				return "'"+s+"', ";
-			}
-			p("UPDATE explanations SET ",
-			  "top = '",selection.style.top,"',",
-			  "derpleft = '",selection.style.left,"',",
-			  "w = '",selection.style.width,"',",
-			  "h = '",selection.style.height,"' ",
-			  "WHERE id = ");
-			var a = document.location.pathname.split('/');
-			p("INSERT INTO explanations (image,top,derpleft,w,h,script)",
-			  "VALUES (x'",a[a.length-2],"'::int,",
-			  q(selection.style.top),
-			  q(selection.style.left),
-			  q(selection.style.width),
-			  q(selection.style.height),
-			  "'");
+			updatePopup();
 			popup.style.display = 'block';
 		}
 	},true);

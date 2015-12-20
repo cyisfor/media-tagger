@@ -360,17 +360,17 @@ def page(info,path,params):
                 })]
 
         def getareas():
-            for i,(id,top,left,w,h,text) in enumerate(explanations.explain(id)):
+            for i,(aid,top,left,w,h,text) in enumerate(explanations.explain(id)):
                 style.append(('#i'+str(i), {
                     'top': top,
                     'left': left,
                     'width': w,
                     'height': h,
-                    'title': id,
                 }))
 
                 yield d.div(d.div(text),
                             class_='exp',
+                            title=aid,
                             id='i'+str(i))
 
         thing = d.a(link,id='mediumu',href=thing)
@@ -378,6 +378,8 @@ def page(info,path,params):
         if areas:
             imgmap = (makeStyle(style),)+areas
             thing = d.div(thing,id='img',*imgmap)
+        else:
+            thing = d.div(thing,id='img')
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                                         d.div(thing),

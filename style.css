@@ -35,7 +35,7 @@ img.wid {
 }
 
 #img .exp div {
-	padding: 1em;
+	padding: 1px;
 	background-color: rgba(224,224,255,0.8);
 	font-weight: bold;
 }

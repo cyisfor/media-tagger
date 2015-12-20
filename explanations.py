@@ -11,5 +11,5 @@ def _():
 version.setup()
 
 def explain(id):
-    return db.execute('SELECT top,derpleft,w,h,script FROM explanations WHERE image = $1',
+    return db.execute('SELECT id,top,derpleft,w,h,script FROM explanations WHERE image = $1',
                       (id,))
