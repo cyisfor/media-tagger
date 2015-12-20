@@ -360,12 +360,13 @@ def page(info,path,params):
                 })]
 
         def getareas():
-            for i,(top,left,w,h,text) in enumerate(explanations.explain(id)):
+            for i,(id,top,left,w,h,text) in enumerate(explanations.explain(id)):
                 style.append(('#i'+str(i), {
                     'top': top,
                     'left': left,
                     'width': w,
                     'height': h,
+                    'title': id,
                 }))
 
                 yield d.div(d.div(text),
