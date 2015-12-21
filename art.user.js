@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded',function() {
 	status.appendChild(status.content);
 	status.style.display = 'none';
 	status.style.backgroundColor='#f22';
-	status.style.position = 'absolute';
+	status.style.position = 'fixed';
 	status.style.top = '1%';
 	status.style.left = '1%';
 	var selection = document.createElement('div');
@@ -52,31 +52,34 @@ document.addEventListener('DOMContentLoaded',function() {
 			popup.appendChild(e);
 		}
 		function q(s) {
-			return "E'"+s.replace("'","\\'")+"'";
+			if (s.indexOf("'")>=0) {
+				return "E'"+s.replace("'","\\'")+"'";
+			}
+			return "'"+s+"'";
 		}
 		var ups;
 		if(text.value != "") {
-			ups = ", script = '"+text.value+"' ";
+			ups = ", script = "+q(text.value.trim());
 		} else {
-			ups = " ";
+			ups = "";
 		}
 		var a = document.location.pathname.split('/');
 		var id = a[a.length-2];
 		p("UPDATE explanations SET ",
-		  "top = '",selection.style.top,"',",
-		  "derpleft = '",selection.style.left,"',",
-		  "w = '",selection.style.width,"',",
-		  "h = '",selection.style.height,"'",
+		  "top = ",q(selection.style.top),",",
+		  "derpleft = ",q(selection.style.left),",",
+		  "w = ",q(selection.style.width),",",
+		  "h = ",q(selection.style.height),
 		  ups,
-		  "WHERE id = x'",id,"'::int;");
+		  " WHERE id = ");
 		if(text.value != "") {
 			p("INSERT INTO explanations (image,top,derpleft,w,h,script)",
-			  "VALUES (x'",id,"'::int,",
+			  " VALUES (x'",id,"'::int,",
 			  q(selection.style.top),", ",
 			  q(selection.style.left),", ",
 			  q(selection.style.width),", ",
 			  q(selection.style.height),", ",
-			  q(text.value,true),
+			  q(text.value.trim(),true),
 			  ") RETURNING id;");
 		}
 	}
@@ -102,8 +105,8 @@ document.addEventListener('DOMContentLoaded',function() {
 			popup.style.display = 'none';
 			// return; no, this is annoying
 		}
-		var x = e.clientX - img.offsetLeft;
-		var y = e.clientY - img.offsetTop;
+		var x = e.clientX - img.offsetLeft + window.pageXOffset;
+		var y = e.clientY - img.offsetTop + window.pageYOffset;
 
 		if(!selection.started) {
 			status.style.backgroundColor = '#ff2';
@@ -122,7 +125,7 @@ document.addEventListener('DOMContentLoaded',function() {
 			selection.style.display = 'block';
 			popup.style.position = 'fixed';
 			popup.style.left = '25%';
-			popup.style.top = '25%';
+			popup.style.bottom = '10%';
 			updatePopup();
 			popup.style.display = 'block';
 		}
@@ -134,8 +137,8 @@ document.addEventListener('DOMContentLoaded',function() {
 	},false);
 	img.addEventListener('mousemove',function(e) {
 		status.style.display = 'inline';
-		var left = (e.clientX-img.offsetLeft);
-		var top = (e.clientY-img.offsetTop);
+		var left = (e.clientX-img.offsetLeft+window.pageXOffset);
+		var top = (e.clientY-img.offsetTop+window.pageYOffset);
 		var w = img.clientWidth;
 		var h = img.clientHeight;
 		if(save.left) {

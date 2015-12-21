@@ -297,6 +297,29 @@ def resized(info,path,params):
 
 tagsModule = tags # sigh
 
+def checkExplain(id,thing):
+    def getareas():
+            for i,(aid,top,left,w,h,text) in enumerate(explanations.explain(id)):
+                style.append(('#i'+str(i), {
+                    'top': top,
+                    'left': left,
+                    'width': w,
+                    'height': h,
+                }))
+
+                yield d.div(d.div(text),
+                            class_='exp',
+                            title=aid,
+                            id='i'+str(i))
+
+        thing = d.a(link,id='mediumu',href=thing)
+        areas = tuple(getareas())
+        if areas:
+            imgmap = (makeStyle(style),)+areas
+            return d.div(thing,id='img',*imgmap)
+        else:
+            return d.div(thing,id='img')
+
 @gen.coroutine
 def page(info,path,params):
     if Session.head:
@@ -359,27 +382,7 @@ def page(info,path,params):
                             'visibility': 'visible',
                 })]
 
-        def getareas():
-            for i,(aid,top,left,w,h,text) in enumerate(explanations.explain(id)):
-                style.append(('#i'+str(i), {
-                    'top': top,
-                    'left': left,
-                    'width': w,
-                    'height': h,
-                }))
-
-                yield d.div(d.div(text),
-                            class_='exp',
-                            title=aid,
-                            id='i'+str(i))
-
-        thing = d.a(link,id='mediumu',href=thing)
-        areas = tuple(getareas())
-        if areas:
-            imgmap = (makeStyle(style),)+areas
-            thing = d.div(thing,id='img',*imgmap)
-        else:
-            thing = d.div(thing,id='img')
+        thing = checkExplain(id,thing)
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                                         d.div(thing),
@@ -726,7 +729,7 @@ def showComicPage(path):
         doScale = User.rescaleImages and size >= maxSize
         fid,link,thing = yield makeLink(medium,typ,name,
                 doScale,style='width: 100%')
-
+        thing = checkExplain(thing)
         page = makePage("{:x} page ".format(which)+title,
                 d.p(d.a(link,href=Links.next)),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
