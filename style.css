@@ -39,3 +39,11 @@ img.wid {
 	background-color: rgba(224,224,255,0.8);
 	font-weight: bold;
 }
+
+#desc {
+	display: inline-block;
+	padding-left: 1em;
+	padding-right: 1em;
+	border: thin solid black;
+	background: #eee;
+}

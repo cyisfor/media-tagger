@@ -25,6 +25,7 @@ import db
 from redirect import Redirect
 import filedb
 
+import re
 import json
 from urllib.parse import quote as derp, urljoin
 import time
@@ -335,6 +336,14 @@ def checkExplain(id,link,width,height,thing):
     else:
         return d.div(link,id='img')
 
+lines = re.compile('[ \t]*\n+\s*')
+    
+def maybeDesc(id):
+    blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
+    if blurb:
+        return d.div([d.p(p) for p in lines.split(blurb[0][0])],id='desc')
+    return None
+    
 @gen.coroutine
 def page(info,path,params):
     if Session.head:
@@ -371,6 +380,8 @@ def page(info,path,params):
         def comicURL(id):
             return '/art/~comic/{:x}/'.format(id)
         comic, title, prev, next = comic
+        Links.next = next
+        Links.prev = prev;
         tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
     if comic:
         updateComic(comic)
@@ -386,8 +397,9 @@ def page(info,path,params):
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
                                         d.div(link),
-                d.p(d.a('Info',href=place+"/~info/"+fid)),
-                tail)
+                        maybeDesc(id),
+                        d.p(d.a('Info',href=place+"/~info/"+fid)),
+                        tail)
         raise Return(page)
 
 def stringize(key):
@@ -729,9 +741,10 @@ def showComicPage(path):
         doScale = User.rescaleImages and size >= maxSize
         fid,link,thing = yield makeLink(medium,typ,name,
                 doScale,style='width: 100%')
-        link = checkExplain(medium,link,width,height,thing)
+        link = checkExplain(medium,link,width,height,Links.next)
         page = makePage("{:x} page ".format(which)+title,
-                d.p(d.a(thing,href=Links.next)),
+                d.div(link),
+        maybeDesc(medium),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),

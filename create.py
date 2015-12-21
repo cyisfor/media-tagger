@@ -247,7 +247,6 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         while True:
             try:
                 result = g.send(result)
-                print('doop',result)
             except StopIteration:
                 assert result,(sources,uniqueSources,download,name)
                 break
@@ -255,7 +254,8 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
                 result = ret.value
                 break
         id,wasCreated = result
-        note('got id',id,wasCreated)
+        print('got id',hex(id),wasCreated)
+        #note('got id',id,wasCreated)
         if not wasCreated:
              note("Old medium with id {:x}".format(id))
     note("update")
