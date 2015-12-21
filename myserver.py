@@ -3,6 +3,8 @@ import coro
 
 from derp import printStack
 
+import six
+
 from tornado import httputil, gen, concurrent, iostream, util
 from tornado.concurrent import is_future
 from tornado.ioloop import TimeoutError
@@ -244,7 +246,7 @@ class ResponseHandler(object):
         raise Redirect(self,location,code,message)
     ip = None
     def recordAccess(self):
-        print(json.dumps((
+        self.log.write(json.dumps((
             self.ip or self.conn.address[0],
             self.method,
             self.code,
@@ -252,7 +254,7 @@ class ResponseHandler(object):
             self.written,
             self.agent,
             self.referrer,            
-            time.time())),file=self.log)
+            time.time()))+"\n")
     def received_headers(self): pass
     agent = None
     referrer = None
@@ -430,7 +432,7 @@ class ConnectionHandler(HTTP1Connection):
             raise iostream.StreamClosedError
         except Exception as e:
             note('derp???',e)
-            raise RuntimeException('uh') from e
+            six.raise_from(RuntimeException('uh'), e)
         note('setting request',derpid(self),start_line)
         self.request = self.requestFactory(self, self.stream, start_line)
         headers = yield maybeTimeout(self.stream, self.header_timeout, self.read_headers())

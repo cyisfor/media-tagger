@@ -1,3 +1,17 @@
+
+import fixprint
+
+from dimensions import thumbnailPageSize,thumbnailRowSize
+
+import comic
+from user import User,dtags as defaultTags
+from session import Session
+import tags
+import context
+import db
+from redirect import Redirect
+import filedb
+
 import process
 from note import note
 import explanations
@@ -12,18 +26,11 @@ from itertools import count
 from tornado import gen
 from tornado.gen import Return
 
-import fixprint
-
-from dimensions import thumbnailPageSize,thumbnailRowSize
-
-import comic
-from user import User,dtags as defaultTags
-from session import Session
-import tags
-import context
-import db
-from redirect import Redirect
-import filedb
+try:
+    from import numpy import mean
+except ImportError:
+    def mean(l):
+        return sum(l) / len(l)
 
 import re
 import json
@@ -341,7 +348,11 @@ lines = re.compile('[ \t]*\n+\s*')
 def maybeDesc(id):
     blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
     if blurb:
-        return d.div([d.p(p) for p in lines.split(blurb[0][0])],id='desc')
+        lines = linepat.split(blurb[0][0])
+        avglen = mean(len(line) for line in lines)
+        return d.div([d.p(p) for p in lines],
+                     style='width: {}ex'.format(avglen),
+                     id='desc')
     return None
     
 @gen.coroutine
@@ -380,9 +391,11 @@ def page(info,path,params):
         def comicURL(id):
             return '/art/~comic/{:x}/'.format(id)
         comic, title, prev, next = comic
-        Links.next = next
-        Links.prev = prev;
-        tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=pageURL(prev)) if prev else None,d.a('>>',href=pageURL(next)) if next else None))
+        if next:
+            Links.next = pageURL(next)
+        if prev:
+            Links.prev = pageURL(prev);
+        tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=Links.prev) if prev else None,d.a('>>',href=Links.next) if next else None))
     if comic:
         updateComic(comic)
     if tags:
