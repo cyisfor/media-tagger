@@ -297,28 +297,43 @@ def resized(info,path,params):
 
 tagsModule = tags # sigh
 
-def checkExplain(id,thing):
+def checkExplain(id,link,width,height,thing):
+    style = [
+            ('#img', {
+                'width': str(width)+'px',
+                'height': str(height)+'px',
+                }),
+            ('#img .exp', {
+                            'position': 'absolute',
+                }),
+            ('#img .exp div', {
+                'visibility': 'hidden',
+                }),
+            ('#img .exp:hover div', {
+                            'visibility': 'visible',
+                })]
+
     def getareas():
-            for i,(aid,top,left,w,h,text) in enumerate(explanations.explain(id)):
-                style.append(('#i'+str(i), {
-                    'top': top,
-                    'left': left,
-                    'width': w,
-                    'height': h,
-                }))
+        for i,(aid,top,left,w,h,text) in enumerate(explanations.explain(id)):
+            style.append(('#i'+str(i), {
+                'top': top,
+                'left': left,
+                'width': w,
+                'height': h,
+            }))
 
-                yield d.div(d.div(text),
-                            class_='exp',
-                            title=aid,
-                            id='i'+str(i))
+            yield d.div(d.div(text),
+                        class_='exp',
+                        title=aid,
+                        id='i'+str(i))
 
-        thing = d.a(link,id='mediumu',href=thing)
-        areas = tuple(getareas())
-        if areas:
-            imgmap = (makeStyle(style),)+areas
-            return d.div(thing,id='img',*imgmap)
-        else:
-            return d.div(thing,id='img')
+    link = d.a(link,id='mediumu',href=thing)
+    areas = tuple(getareas())
+    if areas:
+        imgmap = (makeStyle(style),)+areas
+        return d.div(link,id='img',*imgmap)
+    else:
+        return d.div(link,id='img')
 
 @gen.coroutine
 def page(info,path,params):
@@ -367,25 +382,10 @@ def page(info,path,params):
         if prev and not Links.prev:
             Links.prev = pageURL(prev)+unparseQuery()
 
-        style = [
-            ('#img', {
-                'width': str(width)+'px',
-                'height': str(height)+'px',
-                }),
-            ('#img .exp', {
-                            'position': 'absolute',
-                }),
-            ('#img .exp div', {
-                'visibility': 'hidden',
-                }),
-            ('#img .exp:hover div', {
-                            'visibility': 'visible',
-                })]
-
-        thing = checkExplain(id,thing)
+        link = checkExplain(id,link,width,height,thing)
         page = makePage("Page info for "+fid,
                 comment("Tags: "+boorutags),
-                                        d.div(thing),
+                                        d.div(link),
                 d.p(d.a('Info',href=place+"/~info/"+fid)),
                 tail)
         raise Return(page)
@@ -729,13 +729,13 @@ def showComicPage(path):
         doScale = User.rescaleImages and size >= maxSize
         fid,link,thing = yield makeLink(medium,typ,name,
                 doScale,style='width: 100%')
-        thing = checkExplain(thing)
+        link = checkExplain(medium,link,width,height,thing)
         page = makePage("{:x} page ".format(which)+title,
-                d.p(d.a(link,href=Links.next)),
+                d.p(d.a(thing,href=Links.next)),
                 d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
                     d.a("Index",href=".."),
                     (d.a(" Next",href=Links.next)if Links.next else '')),
-                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=thing)) if doScale else None),
+                d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=link)) if doScale else None),
                         d.p("Tags: ",", ".join(tags)))
         raise Return(page)
 
