@@ -27,10 +27,15 @@ from tornado import gen
 from tornado.gen import Return
 
 try:
-    from import numpy import mean
+    from numpy import mean
 except ImportError:
     def mean(l):
-        return sum(l) / len(l)
+        i = 0
+        s = 0
+        for n in l:
+            i += 1
+            s += n
+        return s / i
 
 import re
 import json
@@ -144,7 +149,8 @@ def makeLinks(info,linkfor=None):
         i = next(counter)
         if i%thumbnailRowSize==0:
             if row:
-                rows.append(row)
+                #rows.append(row)
+                rows.append((tuple(row)+(d.br(),)))
             row = []
         tags = [str(tag) for tag in tags]
         if type == 'application/x-shockwave-flash':
@@ -157,7 +163,7 @@ def makeLinks(info,linkfor=None):
         if name is None:
             name = fixName(id,type)
         #row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-        row.append((d.a(d.img(src=src,title=' '+name+' '),href=link),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
+        row.append((d.a(d.img(src=src,title=' '+name+' '),href=link,class_='thumb'),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
     if row: rows.append((tuple(row)+(d.br(),)))
     Session.refresh = not allexists
     raise Return(rows)
@@ -331,9 +337,9 @@ def checkExplain(id,link,width,height,thing):
             }))
 
             yield d.div(d.div(text),
-                        class_='exp',
-                        title=aid,
-                        id='i'+str(i))
+                        {'class': 'exp',
+                         'id': 'i'+str(i),
+                         'data-id':aid})
 
     link = d.a(link,id='mediumu',href=thing)
     areas = tuple(getareas())
@@ -343,15 +349,15 @@ def checkExplain(id,link,width,height,thing):
     else:
         return d.div(link,id='img')
 
-lines = re.compile('[ \t]*\n+\s*')
+linepat = re.compile('[ \t]*\n+\s*')
     
 def maybeDesc(id):
     blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
     if blurb:
         lines = linepat.split(blurb[0][0])
-        avglen = mean(len(line) for line in lines)
+        avglen = min(120,max(40,mean(len(line) for line in lines)))
         return d.div([d.p(p) for p in lines],
-                     style='width: {}ex'.format(avglen),
+                     style='width: {}em'.format(avglen/2),
                      id='desc')
     return None
     
@@ -509,7 +515,7 @@ def media(url,query,offset,info,related,basic):
         page = makePage("Media "+str(basic),
                 d.p("You are ",d.a(User.ident,href=place+"/~user")),
                 #d.table(makeLinks(info)),
-                        links if links else '',
+                        d.div(links,id='thumbs') if links else '',
                 (d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
                 (d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))

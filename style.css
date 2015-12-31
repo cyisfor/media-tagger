@@ -46,4 +46,14 @@ img.wid {
 	padding-right: 1em;
 	border: thin solid black;
 	background: #eee;
+	text-align: justify;
+}
+
+div#thumbs {
+	width: 100vw;
+}
+
+a.thumb img {
+	width: 11.25vw;
+	white-space: nowrap;
 }

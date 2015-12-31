@@ -45,8 +45,8 @@ if __name__ == '__main__':
                 print("poked")
             print('Ready to parse')
             win = ui.get_object("top")
-            def seriouslyQuit(*a):
-                print("Gettin' outta here!")
+            def seriouslyQuit(win,e):
+                print("Gettin' outta here!",e.button,dir(e.button))
                 Gtk.main_quit()
                 catchup.terminate()
                 raise SystemExit

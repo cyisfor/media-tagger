@@ -1,2 +1,2 @@
-thumbnailRowSize = 6
+thumbnailRowSize = 8
 thumbnailPageSize = thumbnailRowSize * 4

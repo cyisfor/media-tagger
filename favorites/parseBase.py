@@ -105,7 +105,6 @@ def parse(primarySource):
                     setattr(doc,'url',primarySource)
                     results = handlers['extract'](doc)
                 for thing in results:
-                    pprint(('results',thing))
                     if isinstance(thing,Tag):
                         tags.append(thing)
                     elif isinstance(thing,Media):

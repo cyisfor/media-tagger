@@ -10,7 +10,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define SIDE 150
+#define SIDE 190
 
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))

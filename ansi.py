@@ -5,7 +5,7 @@ derpbold = bold
 reset = CSI+b'0m'
 
 def makecolor(i):
-    return CSI+bytes(str(i+30))+b'm'
+    return CSI+str(i+30).encode()+b'm'
 
 colors = dict((v,makecolor(i)) for i,v in enumerate([
     'black',
