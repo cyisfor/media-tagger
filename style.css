@@ -51,9 +51,32 @@ img.wid {
 
 div#thumbs {
 	width: 100vw;
+	clear: both;
+	overflow: auto;
+	margin: auto;
 }
 
-a.thumb img {
-	width: 11.25vw;
+.thumb img {
+	width: 11.5vw;
 	white-space: nowrap;
 }
+
+.thumb {
+	position: relative;
+	display: inline-block;
+}
+
+.thumb span.taghi {
+	position: absolute;
+	left: 9vw;
+	top: 9vw;
+	width: 1vw;
+	background-color: rgba(200,100,255,0.3);
+	display: none;
+}
+
+.thumb:hover span.taghi {
+	display: inline;
+}
+
+

@@ -125,7 +125,7 @@ BOTS = {
     'fce3:14aa:64d0:f72a:cb3f:6c04:3943:ffb6',
     'fcd9:8810:bb91:fd19:ddae:5c59:6df5:949e',
     'fc46:a72b:9577:4fdf:236d:3665:ee6a:3dcd',
-#    'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c' # heh
+#	'fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c' # heh
 }
 
 class Handler(FormCollector,myserver.ResponseHandler):
@@ -196,7 +196,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         note(self.form)
         raise Redirect(process(mode,parsed,self.form,None))
     botlog = open(oj(filedb.top,'bot.log'),'at')
-    def respond(self):        
+    def respond(self):		
         if self.ip in BOTS or self.path == '/art/bots/':
             name,head,headwbody = botkilla.select(self.date_time_string(),self.ip)
             self.botlog.write(' '.join(name,self.ip,self.path))
@@ -231,15 +231,15 @@ class Handler(FormCollector,myserver.ResponseHandler):
         Session.handler = self
         # meh
         # if self.path == '/art/~style':
-        #     self.send_status(200,"Rainbow Dash")
-        #     self.send_header('Content-Type',"text/css")
-        #     self.send_header('Last-Modified',self.started)
-        #     if Session.head:
-        #         self.set_length(0)                    
-        #     else:
-        #         self.set_length(len(pages.style))
-        #         self.write(pages.style)
-        #     return            
+        #	 self.send_status(200,"Rainbow Dash")
+        #	 self.send_header('Content-Type',"text/css")
+        #	 self.send_header('Last-Modified',self.started)
+        #	 if Session.head:
+        #		 self.set_length(0)					
+        #	 else:
+        #		 self.set_length(len(pages.style))
+        #		 self.write(pages.style)
+        #	 return			
         
         json,path,pathurl,params = parsePath(self.path)
         Session.params = params
@@ -294,8 +294,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
             def getPage():
                 if 'q' in params:
                     try:
-                        ident,name,ctype,ignoretags = next(withtags.searchForTags(tags,offset=o,limit=1))
-                    except StopIteration:                        
+                        ident,name,ctype,ignoretags = next(withtags.searchForTags(
+                            tags,
+                            offset=o,
+                            limit=1))
+                    except StopIteration:						
                         if json:
                             return []
                         else:
@@ -319,10 +322,22 @@ class Handler(FormCollector,myserver.ResponseHandler):
                     else:
                         offset = 0
                         
-                    return gen.maybe_future(disp.media(pathurl,params,o,
-                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize),
-                            withtags.searchForTags(tags,offset=offset,limit=thumbnailPageSize,wantRelated=True),basic))
-            page = yield getPage()
+                    return gen.maybe_future(disp.media(
+                        pathurl,
+                        params,
+                        o,
+                        withtags.searchForTags(
+                            tags,
+                            offset=offset,
+                            limit=thumbnailPageSize),
+                        withtags.searchForTags(
+                            tags,
+                            offset=offset,
+                            limit=thumbnailPageSize,
+                            wantRelated=True),
+                        basic))
+            with disp.Links:
+                page = yield getPage()
         if json:
             Session.type = 'application/json'
             page = jsony.encode(page)
@@ -331,9 +346,13 @@ class Handler(FormCollector,myserver.ResponseHandler):
             page = str(page)
         page = page.encode('utf-8') + b'\n'
         self.send_status(200,"Okie Dokie Loki")
-        self.send_header('Content-Type',Session.type if Session.type else 'application/json; charset=utf-8' if json else 'text/html; charset=utf-8')
+        self.send_header('Content-Type',
+                         Session.type if Session.type else
+                         'application/json; charset=utf-8' if json else
+                         'text/html; charset=utf-8')
         if Session.modified:
-            self.send_header('Last-Modified',self.date_time_string(float(Session.modified)))        
+            self.send_header('Last-Modified',
+                             self.date_time_string(float(Session.modified)))		
         if Session.head:
             self.set_length(0)
         else:

@@ -163,7 +163,13 @@ def makeLinks(info,linkfor=None):
         if name is None:
             name = fixName(id,type)
         #row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-        row.append((d.a(d.img(src=src,title=' '+name+' '),href=link,class_='thumb'),d.sup('(i)',title=wrappit(', '.join(tags)) if tags else '',href=link)))
+        taginfo = d.span('(i)',title=wrappit(', '.join(tags)
+                                           if tags else ''),
+                         href=link,
+                         class_='taghi')
+        link = d.a(d.img(src=src,title=' '+name+' '),href=link)
+        row.append(d.div(link,taginfo,class_='thumb'))
+                    
     if row: rows.append((tuple(row)+(d.br(),)))
     Session.refresh = not allexists
     raise Return(rows)
