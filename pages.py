@@ -408,11 +408,11 @@ def page(info,path,params):
         if prev:
             Links.prev = pageURL(prev);
         tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=Links.prev) if prev else None,d.a('>>',href=Links.next) if next else None))
-    if comic:
-        updateComic(comic)
-    if tags:
-        tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
     with Links:
+        if comic:
+            updateComic(comic)
+        if tags:
+            tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
         if next and not Links.next:
             Links.next = pageURL(next)+unparseQuery()
         if prev and not Links.prev:

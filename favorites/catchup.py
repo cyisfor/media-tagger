@@ -39,6 +39,7 @@ class Catchup(Process):
                     win(uri)
                     break
                 except urllib.error.URLError as e:
+                    print(e.headers)
                     print(e.getcode(),e.reason,e.geturl())
                     if e.getcode() == 404: raise ParseError('Not found')
                     time.sleep(3)
@@ -53,8 +54,14 @@ class Catchup(Process):
                 delay(uri,'1 minute')
             print('megafail error',e.getcode())
             megafail(uri)
-        except:
-            print("fail",uri)
+        except urllib.error.HTTPError as e:
+            if e.code == 400:
+                print('uhm, forbid?')
+            print(e,dir(e))
+            raise SystemExit(23)
+        except Exception as e:
+            print("fail",uri,e)
+            raise SystemExit(23)
             fail(uri)
             if not ah:
                 import traceback,sys

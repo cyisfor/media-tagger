@@ -11,9 +11,14 @@ def mystrip(s,chars):
 
 notags = re.compile('([0-9]+).*(\\..*)')
 
+def fixCloudflareIdiocy(url):
+    # cloudflare says 400 bad request, if there are urlencoded parentheses in a url
+    url = url.replace('%28','').replace('%29','')
+    return url
+
 def extract(doc):
     gotImage = False
-    for taglist in doc.findAll('div',{'class': 'tagsauce'}):    
+    for taglist in doc.findAll('div',{'class': 'tagsauce'}):	
         for tag in taglist.findAll('span'):
             if not 'tag' in tag.get('class',()): continue
             namespace = tag.get('data-tag-namespace')
@@ -36,7 +41,7 @@ def extract(doc):
             continue
         if 'nofollow' in rel and a.contents[0].strip and a.contents[0].strip().lower()=='download':
             href = a.get('href')
-            yield Image(href)
+            yield Image(fixCloudflareIdiocy(href))
             foundImage = True
     if not foundImage:
         imgr = doc.find('div',id='image_target')
@@ -45,7 +50,7 @@ def extract(doc):
             with open('/tmp/derp.html','wt') as out:
                 out.write(doc.prettify())
             raise RuntimeError('derp')
-        yield Image(imgr.getAttribute('data-download-uri'))
+        yield Image(fixCloudflareIdiocy(imgr.getAttribute('data-download-uri')))
 
 def normalize(url):
     u = urllib.parse.urlparse(url)
@@ -63,6 +68,7 @@ def normalize(url):
 
     if path.startswith('/images/'):
         path = path[len('/images'):]
+        
     url = urllib.parse.urlunparse(('https',host,path,None,None,None))
     #raise SystemExit('okay',url)
     return url

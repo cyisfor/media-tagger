@@ -90,38 +90,40 @@ def main():
         #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
         #print(implied.union(discovered))
         path = path.encode('utf-8')
-        bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
-        if bad[0][0] != 0: continue
-        idnum = None
-        source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
-        try:
-            with db.transaction():
-                if source:
-                    if not recheck: #(officialTags or recheck):
-                        #print("Not rechecking existing file")
-                        continue
-                    source = source[0][0]
-                    idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
-                    if idnum:
-                        idnum,hash = idnum[0]
-                else:
-                    source = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
-                    db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
-                if not idnum:
-                    with open(path,'rb') as inp:
-                        hash = create.mediaHash(inp)
-                    idnum = db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
-                    if idnum: idnum = idnum[0][0]
-                    print("Hasho",idnum)
-                try: discovered,name = discover(path)
-                except ImportError: continue
+        
+def impmort(path):
+    bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
+    if bad[0][0] != 0: continue
+    idnum = None
+    source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
+    try:
+        with db.transaction():
+            if source:
+                if not recheck: #(officialTags or recheck):
+                    #print("Not rechecking existing file")
+                    continue
+                source = source[0][0]
+                idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
                 if idnum:
-                    print("Adding saource",idnum,source)
-                    create.update(idnum,(create.Source(source),),implied.union(discovered),name)
-                else:
-                    print("importing",path,discovered)
-                    create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
-        except create.NoGood: 
-            db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
-    
+                    idnum,hash = idnum[0]
+            else:
+                source = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
+                db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
+            if not idnum:
+                with open(path,'rb') as inp:
+                    hash = create.mediaHash(inp)
+                idnum = db.execute("SELECT id FROM media WHERE hash = $1",(hash,))
+                if idnum: idnum = idnum[0][0]
+                print("Hasho",idnum)
+            try: discovered,name = discover(path)
+            except ImportError: continue
+            if idnum:
+                print("Adding saource",idnum,source)
+                create.update(idnum,(create.Source(source),),implied.union(discovered),name)
+            else:
+                print("importing",path,discovered)
+                create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
+    except create.NoGood: 
+        db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
+
 if __name__ == '__main__': main()
