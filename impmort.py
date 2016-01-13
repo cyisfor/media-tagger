@@ -15,11 +15,6 @@ import shutil
 import datetime
 import sys,os
 
-implied = set()
-for tag in os.environ['tags'].split(','):
-    tag = tag.strip()
-    implied.add(tag)
-
 def mysplit(s,cs):
     pending = ''
     for c in s:
@@ -70,7 +65,6 @@ def discover(path):
     return discovered,name
 
 def main():
-
     cod = codecs.lookup('utf-8')
 
     try:
@@ -84,16 +78,21 @@ def main():
         if skipping: 
             if path == 'path at which to restart changes':
                 skipping = False
-            continue    
+            continue	
         #bpath,length = cod.encode(path,'surrogateescape')
         #if length!=len(path):
-        #    raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
+        #	raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
         #print(implied.union(discovered))
         path = path.encode('utf-8')
-        
-def impmort(path):
+        impmort(path)
+def impmort(path,implied=None):
+    if implied is None:
+        implied = set()
+        for tag in os.environ['tags'].split(','):
+            tag = tag.strip()
+            implied.add(tag)
     bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
-    if bad[0][0] != 0: continue
+    if bad[0][0] != 0: return
     idnum = None
     source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
     try:
@@ -101,7 +100,7 @@ def impmort(path):
             if source:
                 if not recheck: #(officialTags or recheck):
                     #print("Not rechecking existing file")
-                    continue
+                    return
                 source = source[0][0]
                 idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
                 if idnum:
@@ -116,7 +115,7 @@ def impmort(path):
                 if idnum: idnum = idnum[0][0]
                 print("Hasho",idnum)
             try: discovered,name = discover(path)
-            except ImportError: continue
+            except ImportError: return
             if idnum:
                 print("Adding saource",idnum,source)
                 create.update(idnum,(create.Source(source),),implied.union(discovered),name)
