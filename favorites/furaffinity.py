@@ -1,3 +1,4 @@
+from .parseBase import ParseError
 from .things import *
 import re
 import urllib.parse
@@ -22,7 +23,7 @@ def extract(doc):
             yield Tag(None,m.group(1).lower())
     auth = doc.findAll('td',{'class':'cat'})
     if not auth or len(auth) < 2:
-        raise RuntimeError("No author on furaffinity?")
+        raise ParseError("No author on furaffinity?")
     auth = auth[1]
     for a in auth.findAll('a'):
         href = a.get('href')
