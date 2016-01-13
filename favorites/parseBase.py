@@ -75,10 +75,10 @@ def parse(primarySource):
                 headers = inp.headers
                 if 'json' in handlers:
                     if not headers.get('Content-Type').startswith('application/json'):
-                        raise RuntimeError(primarySource,'not json')
+                        raise ParseError(primarySource,'not json')
                 else:
                     if not headers.get('Content-Type').startswith('text/html'):
-                        raise RuntimeError(primarySource,"not html")                                                    
+                        raise ParseError(primarySource,"not html")                                                    
                 doc = inp.read()
             medias = []
             def generalize(tag):

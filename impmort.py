@@ -66,7 +66,10 @@ def discover(path):
 
 def main():
     cod = codecs.lookup('utf-8')
-
+    implied = set()
+    for tag in os.environ['tags'].split(','):
+        tag = tag.strip()
+        implied.add(tag)
     try:
         db.execute("CREATE TABLE badfiles (path TEXT PRIMARY KEY)")
     except: pass
@@ -84,13 +87,8 @@ def main():
         #	raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
         #print(implied.union(discovered))
         path = path.encode('utf-8')
-        impmort(path)
-def impmort(path,implied=None):
-    if implied is None:
-        implied = set()
-        for tag in os.environ['tags'].split(','):
-            tag = tag.strip()
-            implied.add(tag)
+        impmort(path,implied)
+def impmort(path,implied):
     bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
     if bad[0][0] != 0: return
     idnum = None

@@ -1,25 +1,25 @@
 # ugh... so many dead links, thanks a lot postgresql arrays
 import db,os
-from favorites.parseBase import parse
+from favorites.parseBase import parse,ParseError
+from favorites import parsers # meh, this is a bad code
 from impmort import impmort
+import urllib.error
 
 def setup():
     # some sources have no media... good sources have it
-    db.execute('''CREATE TABLE goodsources AS SELECT distinct unnest(sources) as id FROM media INTERSECT SELECT DISTINCT id FROM sources''')
+    db.execute('''CREATE TEMPORARY TABLE goodsources AS SELECT distinct unnest(sources) as id FROM media INTERSECT SELECT DISTINCT id FROM sources''')
     # some media have nonexistent sources...
-    db.execute('''CREATE TABLE badsources AS SELECT distinct unnest(sources) as id FROM media EXCEPT SELECT DISTINCT id FROM goodsources''')
-with db.transaction():
+    db.execute('''CREATE TEMPORARY TABLE badsources AS SELECT distinct unnest(sources) as id FROM media EXCEPT SELECT DISTINCT id FROM goodsources''')
+    db.execute('''CREATE TABLE sourceProblems (id INTEGER PRIMARY KEY REFERENCES sources(id), problem TEXT)''')
+
+def main():
     setup()
     print('got em yay')
 
     from orm import Select,With,AS,Limit,OuterJoin
 
-    stmt = Select('filesources.id,filesources.path,urisources.uri',
-                  # wow, a genuine full join
-                  'filesources,urisources',
-                  '''filesources.id in (select id from thingy) 
-                  or urisources.id in (select id from thingy)''')
-    stmt = Limit(stmt,limit=10)
+    stmt = Select('id,(select path from filesources where id = thingy.id),(select uri from urisources where id=thingy.id) from thingy')
+    #stmt = Limit(stmt,limit=10)
 
     stmt = With(
         stmt,
@@ -34,12 +34,20 @@ with db.transaction():
     print(stmt)
 
     for id,path,uri in db.execute(stmt):
+        print('---------------')
+        print(id,path,uri)
         if path and os.path.exists(path):
             print('found path',path)
-            impmort(path)
+            impmort(path,{'laptop'})
         elif uri:
             print('uri',uri)
-            parse(uri)
+            try:
+                parse(uri)
+            except ParseError as e:
+                problem(str(e))
+            except urllib.error.HTTPError as e:
+                problem(str(e))
         else:
-            print('bad source',id,path,uri)
-            raise RuntimeError()
+            problem('bad source {} {}'.format(path,uri))
+if __name__ == '__main__':
+    main()
