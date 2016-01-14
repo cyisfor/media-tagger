@@ -22,8 +22,11 @@ def _():
 
 @version(2)
 def _():
+    # batch clearing of neighbors for deleting
     db.setup(
-            '''CREATE TABLE IF NOT EXISTS badNeighbors (id bigint PRIMARY KEY)''',
+            '''CREATE TABLE IF NOT EXISTS doomed (
+            id bigint PRIMARY KEY REFERENCES things(id) ON DELETE CASCADE)
+            ''',
             '''ALTER TABLE blacklist ADD COLUMN oldmedium bigint UNIQUE''',
             '''ALTER TABLE dupes ADD COLUMN oldmedium bigint UNIQUE''')
 
@@ -36,6 +39,15 @@ def done(s=None):
     print(s)
 
 
+def commitDoomed():
+    start("tediously clearing neighbors")
+    # it's way less lag if we break this hella up
+    db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT id FROM doomed) WHERE neighbors && array(SELECT id FROM doomed)')
+    done()
+    db.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
+    db.execute("DELETE FROM things WHERE id = $1",(bad,))
+
+
 def dbdelete(good,bad,reason,inferior):
     print("deleting {:x}".format(bad),'dupe' if good else reason)
     # the old LEFT OUTER JOIN trick to skip duplicate rows
@@ -44,16 +56,7 @@ def dbdelete(good,bad,reason,inferior):
         db.execute("INSERT INTO dupes (oldmedium,medium,hash,inferior) SELECT $2, $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
     else:
         db.execute("INSERT INTO blacklist (oldmedium,hash,reason) SELECT $2,media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
-    start("tediously clearing neighbors")
-    # it's way less lag if we break this hella up
-    for id, in db.execute('SELECT id FROM things WHERE neighbors @> ARRAY[$1::bigint]',(bad,)):
-        db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE id = $1',(id,))
-        sys.stdout.write('.')
-        sys.stdout.flush()
-    #db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) where neighbors @> ARRAY[$1]",(bad,))
-    done()
-    db.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
-    db.execute("DELETE FROM things WHERE id = $1",(bad,))
+    db.execute('INSERT INTO doomed (id) VALUES ($1)',(bad,))
 
 
 def filedelete(bad):

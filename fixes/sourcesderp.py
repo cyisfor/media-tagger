@@ -68,13 +68,13 @@ def main():
                 if os.path.exists(path):
                     impmort(path,{'laptop','special:recovery'})
                 else:
-                    problem(id,'bad file: uri')
+                    id = problem(id,'bad file: uri')
             else:
                 note.green('uri',uri)
                 try:
                     norm = normalize(uri)
                     if uri != norm:
-                        problem(id,'denormalized uri: {}'.format(norm))
+                        id = problem(id,'denormalized uri: {}'.format(norm))
                         newid = db.execute('SELECT id FROM urisources where uri = $1',(norm,))
                         if newid:
                             id = newid[0][0]
@@ -82,14 +82,14 @@ def main():
                             id = None							
                     parse(norm)
                 except ParseError as e:
-                    problem(id,str(e))
+                    id = problem(id,str(e))
                 except urllib.error.HTTPError as e:
-                    problem(id,str(e))
+                    id = problem(id,str(e))
                 except http.client.RemoteDisconnected as e:
-                    problem(id,str(e))
+                    id = problem(id,str(e))
         elif path:
-            problem(id,'bad path')
+            id = problem(id,'bad path')
         else:
-            problem(id,'no path, and a bad uri')
+            id = problem(id,'no path, and a bad uri')
 if __name__ == '__main__':
     main()

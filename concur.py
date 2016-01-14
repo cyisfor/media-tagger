@@ -1,3 +1,7 @@
+from tornado.ioloop import IOLoop
+
+ioloop = IOLoop.instance()
+
 try: import queue
 except:
     import Queue as queue
@@ -5,48 +9,28 @@ import threading
 from six import raise_from
 import sys
 
+iolock = threading.RLock()
+
 class Terminator: pass
 
 class RemoteCaller:
-    def __init__(self,thread,f,wait=False):
-        self.f = f
+    def __init__(self,thread,func):
+        self.func = func
         self.thread = thread
-        self.wait = wait
     def __get__(self,obj,klass):
         if threading.current_thread() == self.thread:
-            return self.f.__get__(obj,klass)
+            return self.func.__get__(obj,klass)
         return lambda *a,**kw: self.fuckit((obj,)+a,kw)
     def __call__(self,*a,**kw):
         return self.fuckit(a,kw)
     def fuckit(self,a,kw):
-        return self.thread.schedule(self.f,a,kw,self.wait)
+        return self.thread.schedule(self.func,a,kw)
 
-class NoError: pass
-
-class Returner:
-    value = None
-    err = NoError
-    yay = False
-    def __init__(self):
-        self.condition = threading.Condition()
-    def throw(self,err):
-        self.err = err
-        with self.condition:
-            self.yay = True
-            self.condition.notify_all()
-    def set(self,value):
-        self.value = value
-        with self.condition:
-            self.yay = True
-            self.condition.notify_all()
-    def get(self):
-        with self.condition:
-            while not self.yay:
-                self.condition.wait()
-        if self.err is not NoError:
-            t,e,tb = self.err
-            raise_from(RuntimeError("returning"),e)
-        return self.value
+class Returner(Future):
+    def set_exception(self,err):
+        ioloop.add_callback(super().set_exception,err)
+    def set_result(self,value):
+        ioloop.add_callback(super().set_result,err)
 
 class Work:
     ticket = 0
@@ -83,22 +67,22 @@ class Thread(threading.Thread):
                     print('start',w.f)
                     ret = w.f(*w.a,**w.kw)
                     print('end')
-                    w.returner.set(ret)
+                    w.returner.set_result(ret)
                 else:
                     assert w.f(*w.a,**w.kw) is None,str(f)+" shouldn't return a value!"
             except:
                 print('derpaderp')
                 import traceback
                 traceback.print_exc()
-                w.returner.throw(sys.exc_info())
+                w.returner.set_exc_info(sys.exc_info())
                 raise # shouldn't do this
-    def schedule(self,f,a,kw,returning):
+    def schedule(self,f,a,kw):
         if returning:
             returner = Returner()
             self.queue.put(Work(f,a,kw,returner))
-            return returner.get()
+            return returner
         else:
-            self.queue.put(Work(f,a,kw,None),block=False)
+            self.queue.put(Work(f,a,kw,None))
     def finish(self):
         self.queue.put(Terminator)
         self.join()
@@ -110,25 +94,13 @@ def threadify(k):
     for n in dir(k):
         f = getattr(k,n)
         if hasattr(f,'threadexport'):
-            print(f,hasattr(f,'threadwait'))
-            setattr(k,n,RemoteCaller(thread,f,hasattr(f,'threadwait')))
+            setattr(k,n,RemoteCaller(thread,f))
     thread.start()
     return k
 
-def export(wait=True):
-    # wait might just be a function so we can do implied @export()
-    if wait is True or wait is False:
-     def deco(f):
-         f.threadexport = True
-         if wait:
-             f.threadwait = True
-         return f
-     return deco
-    else:
-        f = wait
-        f.threadexport = True
-        f.threadwait = True
-        return f
+def export(f):
+    f.threadexport = True
+    return f
 
 def test():
     import time
@@ -138,7 +110,7 @@ def test():
         def foo(self):
             time.sleep(1)
             return 'bar'
-        @export(wait=False)
+        @export
         def foo2(self):
             time.sleep(1)
             print("can't return a bar")
@@ -151,15 +123,20 @@ def test():
         e = time.time()-start
         return int(e*10)/10
 
-    b = StupidBlocker()
-    bar = b.foo()
-    print(elapsed(),'foo',bar)
-    bar = b.foo2()
-    print(elapsed(),'foo2',bar)
-    bar = b.foo3()
-    print(elapsed(),'foo3',bar)
-    b.finish()
-    print(elapsed(),'b done')
-
+    @gen
+    def coro():
+        b = StupidBlocker()
+        bar = b.foo()
+        print(elapsed(),'foo',bar)
+        bar = yield bar
+        print(elapsed(),'foo',bar)
+        bar = yield b.foo2()
+        print(elapsed(),'foo2',bar)
+        bar = b.foo3()
+        print(elapsed(),'foo3',bar)
+        b.finish()
+        print(elapsed(),'b done')
+    coro()
+    ioloop.start()
 if __name__ == '__main__':
     test()
