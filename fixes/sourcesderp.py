@@ -6,6 +6,7 @@ from favorites import parsers # meh, this is a bad code
 from impmort import impmort
 import urllib.error
 import http.client
+from imagecheck import NoGood
 
 def setup():
     # some sources have no media... good sources have it
@@ -81,11 +82,14 @@ def main():
                         else:
                             id = None							
                     parse(norm)
+                    #recalculate()
                 except ParseError as e:
                     id = problem(id,str(e))
                 except urllib.error.HTTPError as e:
                     id = problem(id,str(e))
                 except http.client.RemoteDisconnected as e:
+                    id = problem(id,str(e))
+                except NoGood as e:
                     id = problem(id,str(e))
         elif path:
             id = problem(id,'bad path')

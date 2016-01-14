@@ -70,12 +70,15 @@ def gotURL(url):
     print("Trying {}".format(url))
     sys.stdout.flush()
     from favorites.parseBase import parse,normalize,ParseError
-    try: m = parse(normalize(url))
+    try:
+        m = parse(normalize(url))
+        assert(m)
     except ParseError:
         try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
         except ValueError:
             print('nope')
             return
+    print('ok m is',m)
     yield foreground
     c = centry.get_text()
     if c:
@@ -83,6 +86,7 @@ def gotURL(url):
     else:
         yield background
         import db
+        print('m is still',m)
         c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1',(m,))
         if len(c)==1:
             c = c[0]

@@ -258,6 +258,7 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
         #note('got id',id,wasCreated)
         if not wasCreated:
              note("Old medium with id {:x}".format(id))
+             #input()
     note("update")
     update(id,sources,tags,name)
     yield id,wasCreated

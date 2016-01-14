@@ -18,11 +18,11 @@ class DBProxy:
     ProgrammingError = pg.SQLError
     c = None
     def __init__(self):
-        self._reopen()	    
+        self.reopen()	    
     @export
     def execute(self,*a,**kw):
         if not hasattr(self,'c'):
-            self._reopen()
+            self.reopen()
         return self.c.execute(*a,**kw)
     @export
     def retransaction(self,rollback=False):
@@ -46,8 +46,9 @@ class DBProxy:
             yield name
         finally:
             execute("DROP TABLE "+name)
-    
-    def _reopen(self):
+
+    @export
+    def reopen(self):
         try:
             with open("passwd") as inp:
                 password = inp.read()
