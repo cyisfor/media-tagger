@@ -31,8 +31,8 @@ class RemoteCaller:
 class Returner(Future):
     def set_exception(self,err):
         ioloop.add_callback(super().set_exception,err)
-    def set_result(self,value):
-        ioloop.add_callback(super().set_result,err)
+    def set_result(self,result):
+        ioloop.add_callback(super().set_result,result)
 
 class Work:
     ticket = 0
@@ -58,26 +58,20 @@ class Thread(threading.Thread):
             traceback.print_exc()
             raise
         finally:
-            print('foobarbauaeusnth')
+            print('thread shutting down')
     def runfoo(self):
         while True:
             w = self.queue.get()
-            print('got',w)
             if w is Terminator: break
             try:
                 if w.returner:
-                    print('start',w.f)
                     ret = w.f(*w.a,**w.kw)
-                    print('end')
                     w.returner.set_result(ret)
                 else:
                     assert w.f(*w.a,**w.kw) is None,str(f)+" shouldn't return a value!"
             except:
-                print('derpaderp')
-                import traceback
-                traceback.print_exc()
                 w.returner.set_exc_info(sys.exc_info())
-                raise # shouldn't do this
+                continue
     def schedule(self,f,a,kw,returning=True):
         if returning:
             returner = Returner()
@@ -95,10 +89,7 @@ def threadify(k):
     for n in dir(k):
         f = getattr(k,n)
         if hasattr(f,'threadexport'):
-            print('boop',n)
             setattr(k,n,RemoteCaller(thread,f,f.threadreturning))
-        else:
-            print('aww',f)
     thread.start()
     return k
 
@@ -144,14 +135,23 @@ def test():
         b = StupidBlocker()
         bar = b.foo()
         print(elapsed(),'foo',bar,'(0 elapsed)')
+        # no time elapses until you wait on the future!
         bar = yield bar
         print(elapsed(),'foo',bar,'(1 elapsed)')
         bar = b.foo2()
         print(elapsed(),'foo2',bar,'(still 1 elapsed)')
-        bar = b.foo3()
-        print(elapsed(),'foo3',bar,'(2 elapsed)')
+        # functions that don't return (returning=False) return None, not a future
         b.finish()
         print(elapsed(),'b done','(about 2 elapsed)')
+        # however, it will wait until all functions are done before finishing
+        
+        bar = b.foo3()
+        print(elapsed(),'foo3',bar,'(2 elapsed)')
+        # normal functions are just that, not in the thread
+        # XXX: could error out if called not from within the thread?
+        # boo, that's C++ style encapsulation.
+
+        ioloop.stop()
     coro()
     ioloop.start()
 if __name__ == '__main__':
