@@ -44,6 +44,12 @@ def refcounting():
         time.sleep(end-start)
     db.execute('SELECT refcountingfinish()')
 
+@version(2)
+def qualifiedSources():
+    print('Differentiating sources that provide tags, and sources that uniquely identify media')
+    db.setup('''ALTER TABLE sources ADD COLUMN hasTags boolean default FALSE NOT NULL''',
+             '''ALTER TABLE sources ADD COLUMN uniquelyIdentifies boolean default TRUE''')
+
 version.setup()
 
 class writer:
@@ -59,7 +65,7 @@ def mediaHash(data):
     digest = digest.decode().rstrip('=')
     return digest
 
-def sourceId(source):
+def sourceId(source,unique=True,hasTags=False):
     assert source is not None
     assert not isinstance(source,int)
     if source == '': return None
@@ -69,7 +75,7 @@ def sourceId(source):
         if id:
             return id[0][0]
         else:
-            id = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")
+            id = db.execute("INSERT INTO sources (hasTags,uniquelyIdentifies) VALUES ($1,$2) RETURNING id",(hasTags,unique))
             id = id[0][0]
             db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2) RETURNING id",(id,source))
         return id
@@ -115,14 +121,15 @@ class Source:
         if self.id:
             return self.id == other.id
         return self.uri == other.uri
-    def __init__(self,uri):
+    def __init__(self,uri,hasTags=False):
+        self.hasTags = hasTags
         if isinstance(uri,int):
             self.id = uri
         else: 
             self.uri = uri
     def lookup(self):
         if self.id is None:
-            self.id = sourceId(self.uri)
+            self.id = sourceId(self.uri,self.hasTags)
         return self.id
 
 @processLocked("creating")
@@ -231,15 +238,15 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
             name = name[0]
     uniqueSources = set()
     if media and '://' in media:
-        media = Source(media)
+        media = Source(media,hasTags=False)
         uniqueSources.add(media)
     if primarySource and isinstance(primarySource,int) or '://' in primarySource:
-        primarySource = Source(primarySource)
+        primarySource = Source(primarySource,hasTags=True)
         uniqueSources.add(primarySource)
     if not uniqueSources:
         raise RuntimeError("No unique sources in this attempt to create?")
     note('name is',name)
-    otherSources = set(Source(source) for source in otherSources)
+    otherSources = set(Source(source,isUnique=False) for source in otherSources)
     sources = uniqueSources.union(otherSources)
     with db.transaction():
         g = getanId(sources,uniqueSources,download,name)
@@ -255,7 +262,6 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
                 break
         id,wasCreated = result
         print('got id',hex(id),wasCreated)
-        #note('got id',id,wasCreated)
         if not wasCreated:
              note("Old medium with id {:x}".format(id))
              #input()

@@ -1,5 +1,5 @@
 import db
-from version import Versioner
+from versions import Versioner
 import filedb
 
 from itertools import count
@@ -27,9 +27,11 @@ def _():
             '''CREATE TABLE IF NOT EXISTS doomed (
             id bigint PRIMARY KEY REFERENCES things(id) ON DELETE CASCADE)
             ''',
-            '''ALTER TABLE blacklist ADD COLUMN oldmedium bigint UNIQUE''',
-            '''ALTER TABLE dupes ADD COLUMN oldmedium bigint UNIQUE''')
+            '''ALTER TABLE blacklist ADD COLUMN oldmedium bigint''',
+            '''ALTER TABLE dupes ADD COLUMN oldmedium bigint''')
 
+version.setup()
+    
 def start(s):
     sys.stdout.write(s+'...')
     sys.stdout.flush()

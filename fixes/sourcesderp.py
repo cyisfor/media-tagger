@@ -21,8 +21,8 @@ def recalculate():
     note.red('calibrating')
     db.execute('DROP TABLE goodsources')
     setup()
-    
-    
+
+
 def main():
     recalculate()
     setup()
@@ -30,7 +30,7 @@ def main():
 
     from orm import Select,With,AS,Limit,OuterJoin
 
-    stmt = Select('id,(select path from filesources where id = thingy.id),(select uri from urisources where id=thingy.id) from thingy')
+    stmt = Select('id,hasTags,uniquelyIdentifies,(select path from filesources where id = thingy.id),(select uri from urisources where id=thingy.id) from thingy')
     #stmt = Limit(stmt,limit=10)
 
     stmt = With(
@@ -53,8 +53,8 @@ def main():
         if ident is None: return
         db.execute('INSERT INTO sourceProblems (id,problem) VALUES ($1,$2)',
                    (ident,s))
-    
-    for id,path,uri in db.execute(stmt):
+
+    for id,hasTags,uniquelyIdentifies,path,uri in db.execute(stmt):
         print('---------------')
         note.blue(id)
         note.blue(path,uri)
@@ -80,8 +80,13 @@ def main():
                         if newid:
                             id = newid[0][0]
                         else:
-                            id = None							
-                    parse(norm)
+                            id = None
+                    if hasTags and uniquelyIdentifies:
+                        parse(norm)
+                    elif not uniquelyIdentifies:
+                        id = problem(id,'not a unique source')
+                    else:
+                        id = problem(id,'no tags at this one')
                     #recalculate()
                 except ParseError as e:
                     id = problem(id,str(e))

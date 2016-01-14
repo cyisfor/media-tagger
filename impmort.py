@@ -104,7 +104,7 @@ def impmort(path,implied):
                 if idnum:
                     idnum,hash = idnum[0]
             else:
-                source = db.execute("INSERT INTO sources DEFAULT VALUES RETURNING id")[0][0]
+                source = db.execute("INSERT INTO sources (hasTags) VALUES (TRUE) RETURNING id")[0][0]
                 db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
             if not idnum:
                 with open(path,'rb') as inp:
@@ -115,11 +115,19 @@ def impmort(path,implied):
             try: discovered,name = discover(path)
             except ImportError: return
             if idnum:
-                print("Adding saource",idnum,source)
-                create.update(idnum,(create.Source(source),),implied.union(discovered),name)
+                note("Adding source",idnum,source)
+                create.update(idnum,
+                              (create.Source(source,hasTags=True),),
+                              implied.union(discovered),
+                              name)
             else:
                 print("importing",path,discovered)
-                create.internet(create.copyMe(path),path.decode('utf-8'),implied.union(discovered),source,(),name=name)
+                create.internet(create.copyMe(path),
+                                path.decode('utf-8'),
+                                implied.union(discovered),
+                                source,
+                                (),
+                                name=name)
     except create.NoGood: 
         db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
 
