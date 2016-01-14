@@ -20,7 +20,6 @@ def merge(dest,source,inferior=True):
                 (dest,source))
         # created/modified not unique, so can just smash them through
 
-        print('updatan')
         db.execute("UPDATE media SET sources = NULL WHERE id = $1",(source,)) 
         # don't delete the sources, they pass to the dest!
 

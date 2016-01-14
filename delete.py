@@ -1,19 +1,31 @@
 import db
+from version import Versioner
 import filedb
 
 from itertools import count
 import sys,os
 
-db.setup('''CREATE TABLE blacklist(
+version = Versioner('delete')
+
+@version(1)
+def _():
+    db.setup('''CREATE TABLE blacklist(
         id SERIAL PRIMARY KEY,
         hash character varying(28) UNIQUE,
         reason TEXT)''',
-        '''CREATE TABLE dupes(
+             '''CREATE TABLE dupes(
         id SERIAL PRIMARY KEY,
         medium bigint REFERENCES media(id),
         hash character varying(28) UNIQUE,
         inferior BOOLEAN DEFAULT FALSE,
         UNIQUE(medium,hash))''')
+
+@version(2)
+def _():
+    db.setup(
+            '''CREATE TABLE IF NOT EXISTS badNeighbors (id bigint PRIMARY KEY)''',
+            '''ALTER TABLE blacklist ADD COLUMN oldmedium bigint UNIQUE''',
+            '''ALTER TABLE dupes ADD COLUMN oldmedium bigint UNIQUE''')
 
 def start(s):
     sys.stdout.write(s+'...')
@@ -29,9 +41,9 @@ def dbdelete(good,bad,reason,inferior):
     # the old LEFT OUTER JOIN trick to skip duplicate rows
     if good:
         # XXX: this is bad and I feel bad...
-        db.execute("INSERT INTO dupes (medium,hash,inferior) SELECT $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
+        db.execute("INSERT INTO dupes (oldmedium,medium,hash,inferior) SELECT $2, $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
     else:
-        db.execute("INSERT INTO blacklist (hash,reason) SELECT media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
+        db.execute("INSERT INTO blacklist (oldmedium,hash,reason) SELECT $2,media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
     start("tediously clearing neighbors")
     # it's way less lag if we break this hella up
     for id, in db.execute('SELECT id FROM things WHERE neighbors @> ARRAY[$1::bigint]',(bad,)):

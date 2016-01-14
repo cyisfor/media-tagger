@@ -1,4 +1,5 @@
 from .things import Image,Tag,Source
+from .parseBase import ParseError
 import os
 import re
 from contextlib import closing
@@ -41,7 +42,8 @@ def extract(doc):
             yield Image(sneaky)
             yield Source(sneaky)
             break
-    assert foundImage
+    if not foundImage:
+        raise ParseError('flickr is evil')
     tags = doc.find('ul',id='thetags')
     if tags:
         for tag in tags.findAll('a'):

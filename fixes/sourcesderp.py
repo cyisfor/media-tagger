@@ -1,9 +1,11 @@
 # ugh... so many dead links, thanks a lot postgresql arrays
-import db,os
-from favorites.parseBase import parse,ParseError
+import note
+import db,os,time
+from favorites.parseBase import parse,ParseError,normalize
 from favorites import parsers # meh, this is a bad code
 from impmort import impmort
 import urllib.error
+import http.client
 
 def setup():
     # some sources have no media... good sources have it
@@ -14,9 +16,16 @@ def setup():
         db.execute('''CREATE TABLE badsources AS SELECT distinct unnest(sources) as id FROM media EXCEPT SELECT DISTINCT id FROM goodsources''')
     db.execute('''CREATE TABLE IF NOT EXISTS sourceProblems (id INTEGER PRIMARY KEY REFERENCES sources(id), problem TEXT)''')
 
-def main():
+def recalculate():
+    note.red('calibrating')
+    db.execute('DROP TABLE goodsources')
     setup()
-    print('got em yay')
+    
+    
+def main():
+    recalculate()
+    setup()
+    note.magenta('got em yay')
 
     from orm import Select,With,AS,Limit,OuterJoin
 
@@ -36,35 +45,47 @@ def main():
                        'goodsources.id IS NULL AND sourceProblems.id IS NULL')))
 
     stmt = stmt.sql()
-    print(stmt)
+    note.blue(stmt)
 
     def problem(ident,s):
+        note.alarm('+++',ident,s)
+        if ident is None: return
         db.execute('INSERT INTO sourceProblems (id,problem) VALUES ($1,$2)',
                    (ident,s))
     
     for id,path,uri in db.execute(stmt):
         print('---------------')
-        print(hex(id))
-        print(path,uri)
-        input()
+        note.blue(id)
+        note.blue(path,uri)
+        time.sleep(1)#input()
         if path and os.path.exists(path):
-            print('found path',path)
+            note.green('found path',path)
             impmort(path,{'laptop','special:recovery'})
         elif uri:
             if uri.startswith('file://'):
                 path = uri[len('file://'):]
-                print('uri path',path)
+                note.green('uri path',path)
                 if os.path.exists(path):
                     impmort(path,{'laptop','special:recovery'})
                 else:
                     problem(id,'bad file: uri')
             else:
-                print('uri',uri)
+                note.green('uri',uri)
                 try:
-                    parse(uri)
+                    norm = normalize(uri)
+                    if uri != norm:
+                        problem(id,'denormalized uri: {}'.format(norm))
+                        newid = db.execute('SELECT id FROM urisources where uri = $1',(norm,))
+                        if newid:
+                            id = newid[0][0]
+                        else:
+                            id = None							
+                    parse(norm)
                 except ParseError as e:
                     problem(id,str(e))
                 except urllib.error.HTTPError as e:
+                    problem(id,str(e))
+                except http.client.RemoteDisconnected as e:
                     problem(id,str(e))
         elif path:
             problem(id,'bad path')
