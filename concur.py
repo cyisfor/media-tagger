@@ -1,4 +1,5 @@
 from tornado.ioloop import IOLoop
+from tornado.concurrent import Future
 
 ioloop = IOLoop.instance()
 
@@ -14,9 +15,10 @@ iolock = threading.RLock()
 class Terminator: pass
 
 class RemoteCaller:
-    def __init__(self,thread,func):
+    def __init__(self,thread,func,returning):
         self.func = func
         self.thread = thread
+        self.returning = returning
     def __get__(self,obj,klass):
         if threading.current_thread() == self.thread:
             return self.func.__get__(obj,klass)
@@ -24,7 +26,7 @@ class RemoteCaller:
     def __call__(self,*a,**kw):
         return self.fuckit(a,kw)
     def fuckit(self,a,kw):
-        return self.thread.schedule(self.func,a,kw)
+        return self.thread.schedule(self.func,a,kw,self.returning)
 
 class Returner(Future):
     def set_exception(self,err):
@@ -76,7 +78,7 @@ class Thread(threading.Thread):
                 traceback.print_exc()
                 w.returner.set_exc_info(sys.exc_info())
                 raise # shouldn't do this
-    def schedule(self,f,a,kw):
+    def schedule(self,f,a,kw,returning=True):
         if returning:
             returner = Returner()
             self.queue.put(Work(f,a,kw,returner))
@@ -88,18 +90,29 @@ class Thread(threading.Thread):
         self.join()
 
 def threadify(k):
-    return k # sigh
     thread = Thread(100)
     k.finish = thread.finish
     for n in dir(k):
         f = getattr(k,n)
         if hasattr(f,'threadexport'):
-            setattr(k,n,RemoteCaller(thread,f))
+            print('boop',n)
+            setattr(k,n,RemoteCaller(thread,f,f.threadreturning))
+        else:
+            print('aww',f)
     thread.start()
     return k
 
-def export(f):
-    f.threadexport = True
+def export(returning=True):
+    if returning is True or returning is False:
+        def deco(f):
+            f.threadreturning = returning
+            f.threadexport = True
+            return f
+        return deco
+    # allow implied returning
+    f = returning
+    f.threadreturning = True
+    f.threadexport = False
     return f
 
 def test():
@@ -109,13 +122,15 @@ def test():
         @export
         def foo(self):
             time.sleep(1)
+            print('foo!')
             return 'bar'
-        @export
+        @export(returning=False)
         def foo2(self):
             time.sleep(1)
-            print("can't return a bar")
+            print("foo2 can't return a bar")
         def foo3(self):
             time.sleep(1)
+            print('foo3!')
             return 'bar3'
 
     start = time.time()
@@ -123,19 +138,20 @@ def test():
         e = time.time()-start
         return int(e*10)/10
 
-    @gen
+    from tornado.gen import coroutine
+    @coroutine
     def coro():
         b = StupidBlocker()
         bar = b.foo()
-        print(elapsed(),'foo',bar)
+        print(elapsed(),'foo',bar,'(0 elapsed)')
         bar = yield bar
-        print(elapsed(),'foo',bar)
-        bar = yield b.foo2()
-        print(elapsed(),'foo2',bar)
+        print(elapsed(),'foo',bar,'(1 elapsed)')
+        bar = b.foo2()
+        print(elapsed(),'foo2',bar,'(still 1 elapsed)')
         bar = b.foo3()
-        print(elapsed(),'foo3',bar)
+        print(elapsed(),'foo3',bar,'(2 elapsed)')
         b.finish()
-        print(elapsed(),'b done')
+        print(elapsed(),'b done','(about 2 elapsed)')
     coro()
     ioloop.start()
 if __name__ == '__main__':

@@ -42,11 +42,13 @@ def done(s=None):
 def commitDoomed():
     start("tediously clearing neighbors")
     # it's way less lag if we break this hella up
-    db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT id FROM doomed) WHERE neighbors && array(SELECT id FROM doomed)')
+    with db.transaction():
+        db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT id FROM doomed) WHERE neighbors && array(SELECT id FROM doomed)')
+        db.execute("DELETE FROM sources USING media WHERE media.id in (select id from doomed) AND sources.id = ANY(media.sources)")
+        db.execute("DELETE FROM things WHERE id in (select id from doomed)")
     done()
-    db.execute("DELETE FROM sources USING media WHERE media.id = $1 AND sources.id = ANY(media.sources)",(bad,))
-    db.execute("DELETE FROM things WHERE id = $1",(bad,))
 
+commitDoomed()
 
 def dbdelete(good,bad,reason,inferior):
     print("deleting {:x}".format(bad),'dupe' if good else reason)
