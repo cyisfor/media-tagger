@@ -1,4 +1,4 @@
-from concur import threadify, export
+def export(f): return f # meh
 
 import sqlparse
 
@@ -13,7 +13,7 @@ ProgrammingError = pg.SQLError
 tempctr = count(1)
 place = os.path.dirname(__file__)
     
-@threadify
+# @threadify
 class DBProxy:
     ProgrammingError = pg.SQLError
     c = None
