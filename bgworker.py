@@ -10,14 +10,14 @@ def makeWorker(init,foreground):
         bgqueue.put(True)
         while True:
             try:
-                try: g,backToforeground = result
+                try: g,backToForeground = result
                 except ValueError:
                     # eh, just a function, will do its own foregrounding
                     result()
                     continue
                 for mode in g:
                     if mode is foreground:
-                        GLib.idle_add(backToforeground)
+                        foreground(backToForeground)
                         return
             except:
                 import traceback
@@ -28,10 +28,10 @@ def makeWorker(init,foreground):
     def dually(f):
         def wrapper(*a,**kw):
             g = f(*a,**kw)
-            def inGUI():
+            def inForeground():
                 for mode in g:
                     if mode is background:
-                        bgqueue.push(g,inGUI)
+                        bgqueue.push(g,inForeground)
                         return
             inGUI()
     return dually,background

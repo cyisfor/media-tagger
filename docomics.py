@@ -1,5 +1,16 @@
 #!/usr/bin/python3
-from bgworker import background,foreground,dually
+from bgworker import makeWorker
+
+from mygi import GLib
+
+foreground = GLib.idle_add
+
+def initBG():
+    import comic,db
+    from favorites.parseBase import parse, ParseError, normalize
+    import favorites.parsers # side effects galore!
+
+dually,background = makeWorker(initBG,foreground)
 
 import gtkclipboardy as clipboardy
 from mygi import Gtk,Gdk,GObject
@@ -52,64 +63,62 @@ def getinfo(next):
     window.connect('destroy',herp)
     window.show_all()
             
+@dually
 def gotURL(url):
     url = url.strip()
-    @dually
-    def _():
+    yield background
+    print("Trying {}".format(url))
+    sys.stdout.flush()
+    from favorites.parseBase import parse,normalize,ParseError
+    try: m = parse(normalize(url))
+    except ParseError:
+        try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
+        except ValueError:
+            print('nope')
+            return
+    yield foreground
+    c = centry.get_text()
+    if c:
+        c = int(c,0x10)
+    else:
         yield background
-        print("Trying {}".format(url))
-        sys.stdout.flush()
-        from favorites.parseBase import parse,normalize,ParseError
-        try: m = parse(normalize(url))
-        except ParseError:
-            try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-            except ValueError:
-                print('nope')
-                return
+        import db
+        c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1',(m,))
+        if len(c)==1:
+            c = c[0]
+            c,w = c
+            yield foreground
+            centry.set_text('{:x}'.format(c))
+            wentry.set_text('{:x}'.format(w+1))
+            return
+        else:
+            # still in bg
+            c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
+        yield foreground # -> gui
+        centry.set_text('{:x}'.format(c))
+    if w is None:
         yield foreground
-        c = centry.get_text()
-        if c:
-            c = int(c,0x10)
+        w = wentry.get_text()
+        if w:
+            w = int(w,0x10)
         else:
             yield background
-            import db
-            c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1',(m,))
-            if len(c)==1:
-                c = c[0]
-                c,w = c
-                yield foreground
-                centry.set_text('{:x}'.format(c))
-                wentry.set_text('{:x}'.format(w+1))
-                return
+            w = db.execute('SELECT MAX(which)+1 FROM comicpage WHERE comic = $1',(c,))
+            if w[0][0]:
+                w = w[0][0]
             else:
-                # still in bg
-                c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
-            yield foreground # -> gui
-            centry.set_text('{:x}'.format(c))
-        if w is None:
+                w = 0
             yield foreground
-            w = wentry.get_text()
-            if w:
-                w = int(w,0x10)
-            else:
-                yield background
-                w = db.execute('SELECT MAX(which)+1 FROM comicpage WHERE comic = $1',(c,))
-                if w[0][0]:
-                    w = w[0][0]
-                else:
-                    w = 0
-                yield foreground
-                try:
-                    wentry.set_text('{:x}'.format(w))
-                except TypeError:
-                    print(repr(w))
-                    raise
-    @dually
+            try:
+                wentry.set_text('{:x}'.format(w))
+            except TypeError:
+                print(repr(w))
+                raise
     def gotcomic(title,description,source,tags):
         import comic
         comic.findMedium(c,w,m)
-        yield foreground
-        wentry.set_text("{:x}".format(w+1))
+        foreground(lambda: wentry.set_text("{:x}".format(w+1)))
+        
     yield background
     import comic
     comic.findInfo(c,
