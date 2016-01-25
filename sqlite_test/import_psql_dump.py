@@ -3,6 +3,7 @@ import db # postgresql
 from contextlib import contextmanager
 
 derp = sqlite3.connect("pics.sqlite")
+derp.execute('PRAGMA foreign_keys = ON')
 
 @contextmanager
 def cursor():
@@ -26,44 +27,17 @@ def setup():
         with cursor() as c:
             try: c.executescript(inp.read())
             except sqlite3.OperationalError: pass
-        
-for row in db.execute('SELECT '+','.join(media)' FROM media ORDER BY id DESC LIMIT ?',(50,)):
-    print(row)
-    break
-        
-for i,line in enumerate(sys.stdin):
-    if i % 0x1000 == 0:
-        print('commit')
-        derp.commit()
-        db = derp.cursor()
-    if mode == findMedia:
-        if line.startswith('----'): mode = media
-    elif mode == findTags:
-        if line.startswith('----'): mode = tags
-    elif mode == findConns:
-        if line.startswith('----'): mode = connections	
-    elif mode == media:
-        if line[0] == '(':
-            mode = findTags
-            continue
-        fields = ('id','name','created','hash','added','size','type','md5','thumbnailed','modified','phashfail','phash')
-        record = [s.strip() for s in line.split(' | ')]
-        record[9:] = record[10:] # sources
-        
-        db.execute("INSERT INTO media (" + ', '.join(fields) + ") VALUES ("+', '.join('?' for f in fields)+")",record)
-    elif mode == tags:
-        if line[0] == '(':
-            mode = findConns
-            continue
-        id, name = [s.strip() for s in line.split(' | ')]
-        if not name: continue
-        print('?',id,name)
-        try: db.execute("INSERT OR REPLACE INTO tags (id,name) VALUES (?,?)",(id,name))
-        except sqlite3.IntegrityError:
-            print('tag',name,'failed')
-            raise
-    elif mode == connections:
-        if line[0] == '(':
-            break
-        media, tag = [s.strip() for s in line.split(' | ')]
-        db.execute("INSERT OR REPLACE INTO media_tags (medium,tag) VALUES(?,?)",(media,tag))
+
+with derp, cursor() as c:
+    for row in db.execute('SELECT '+','.join(media)+' FROM media ORDER BY id DESC LIMIT $1',(50,)):
+        medium = row[0]
+        print('medium',medium)
+        c.execute('INSERT INTO media ('+','.join(media)+') VALUES ('+','.join('?' for v in media)')',row)
+        neighb = db.execute('SELECT id,name FROM tags WHERE id IN(SELECT unnest(neighbors) FROM things WHERE id = $1)',(medium,))
+        for tag,name in neighb:
+            print('  tag',name)
+            if not hash(name) in tags:
+                c.execute('INSERT INTO tags (id,name) VALUES (?,?)',(tag,name))
+                tags.add(hash(name))
+            c.execute('INSERT INTO media_tags (medium,tag) VALUES (?,?)',
+                      (medium,tag))
