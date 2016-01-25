@@ -7,12 +7,12 @@ CREATE TABLE media (
     size INTEGER NOT NULL,
     type TEXT NOT NULL,
     md5 BLOB NOT NULL,
-    thumbnailed DATETIME NOT NULL,
+    thumbnailed DATETIME,
 --    sources integer[],
     modified DATETIME NOT NULL,
-    derphash BLOB NOT NULL,
+    derphash BLOB,
     phashfail NUMERIC DEFAULT FALSE NOT NULL,
-    phash NUMERIC NOT NULL
+    phash NUMERIC
 );
 
 CREATE TABLE sources (

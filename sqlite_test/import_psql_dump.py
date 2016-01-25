@@ -57,7 +57,9 @@ def domedia(c,off):
                     if uri:
                         uri = uri[0][0]
                         c.execute('INSERT INTO sources (medium,schema,uri) VALUES (?,?,?)',
-                                  (medium,1 if uri.startswith('https:') else 0, uri))
+                                  (medium,
+                                   (1 if uri.startswith('https:') else 0),
+                                   uri))
         if not tags: continue
         for tag in tags:
             c.execute('SELECT id FROM tags WHERE id = ?',(tag,))
@@ -76,7 +78,7 @@ def domedia(c,off):
         raise SystemExit
     
 with derp, cursor() as c:
-    for off in count(0):
+    for off in count(18):
         print('page',off)
         domedia(c,off)
         

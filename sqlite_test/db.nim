@@ -24,14 +24,13 @@ template `++`(n: expr): expr {.immediate.} =
   n = n + 1
   n
 
-proc bindQuery(st: CheckStmt, posi: seq[string],nega: seq[string], limit: int, offset: int) =
+proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
   var which = 0
   for tag in posi:
     st.Bind(++which,tag)
   for tag in nega:
-    st.Bind(++which,tag)   
-  st.Bind(++which,limit)
-  st.Bind(++which,offset)
+    st.Bind(++which,tag)
+  return which
   
 proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
   result = @[]
@@ -42,7 +41,10 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
   query = query & " OFFSET ?"
 
   withPrep(st,conn,query):
-    bindQuery(st,posi,nega,limit,offset)
+    let threshold = 0
+    var which = bindTags(st,posi,nega)
+    st.Bind(++which,limit)
+    st.Bind(++which,offset)
     for _ in st.foreach():
       var medium: int = column_int(st,0)
       var title: string = column(st,1)
@@ -61,10 +63,18 @@ proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq
   if posi == nil and nega == nil:
     query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
   else:
-    query = "SELECT (select name from tags where id = tag),count(medium) AS num FROM media_tags WHERE medium IN (" & makeQuery(posi,nega) & ") GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+    query = "SELECT (select name from tags where id = tag) AS tag,count(medium) AS num FROM media_tags"
+    if posi.len > 0 or nega.len > 0:
+      query = query & "WHERE medium IN (" & makeQuery(posi,nega) & ")"
+    query = "SELECT tag,num FROM (" & query & ") AS derp"
+    query = query & " WHERE num > ? GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
   result = @[]
   withPrep(st,conn,query):
-    bindQuery(st,posi,nega,limit,offset)
+    let threshold = 4
+    var which = bindTags(st,posi,nega)
+    st.Bind(++which,threshold)
+    st.Bind(++which,limit)
+    st.Bind(++which,offset)
     for _ in st.foreach():
       var tag = column(st,0)
       var count = column_int(st,1)
