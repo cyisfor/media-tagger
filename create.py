@@ -65,7 +65,7 @@ def mediaHash(data):
     digest = digest.decode().rstrip('=')
     return digest
 
-def sourceId(source,unique=True,hasTags=False):
+def sourceId(source,isUnique=True,hasTags=False):
     assert source is not None
     assert not isinstance(source,int)
     if source == '': return None
@@ -75,7 +75,7 @@ def sourceId(source,unique=True,hasTags=False):
         if id:
             return id[0][0]
         else:
-            id = db.execute("INSERT INTO sources (hasTags,uniquelyIdentifies) VALUES ($1,$2) RETURNING id",(hasTags,unique))
+            id = db.execute("INSERT INTO sources (hasTags,uniquelyIdentifies) VALUES ($1,$2) RETURNING id",(hasTags,isUnique))
             id = id[0][0]
             db.execute("INSERT INTO urisources (id,uri) VALUES ($1,$2) RETURNING id",(id,source))
         return id
@@ -121,15 +121,16 @@ class Source:
         if self.id:
             return self.id == other.id
         return self.uri == other.uri
-    def __init__(self,uri,hasTags=False):
+    def __init__(self,uri,isUnique=True,hasTags=False):
         self.hasTags = hasTags
+        self.isUnique = isUnique
         if isinstance(uri,int):
             self.id = uri
         else: 
             self.uri = uri
     def lookup(self):
         if self.id is None:
-            self.id = sourceId(self.uri,self.hasTags)
+            self.id = sourceId(self.uri,self.isUnique,self.hasTags)
         return self.id
 
 @processLocked("creating")

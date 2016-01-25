@@ -36,7 +36,7 @@ def main():
     stmt = With(
         stmt,
         thingy=((),
-                Select('sources.id',
+                Select('sources.id,hasTags,uniquelyIdentifies',
                        OuterJoin(
                            OuterJoin('sources',
                                      'goodsources',

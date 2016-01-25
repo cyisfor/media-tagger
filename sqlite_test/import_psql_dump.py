@@ -1,19 +1,36 @@
 import sys,sqlite3
-
-findMedia,media,findTags,tags,findConns,connections = range(6)
+import db # postgresql
+from contextlib import contextmanager
 
 derp = sqlite3.connect("pics.sqlite")
-db = derp.cursor()
 
-with open('schema.sql',encoding='utf-8') as inp:
-    try: db.executescript(inp.read())
-    except sqlite3.OperationalError: pass
+@contextmanager
+def cursor():
+    try:
+        c = derp.cursor()
+        yield c
+    except:
+        derp.rollback()
+        raise
+    finally:
+        if c:
+            c.close()	
+    derp.commit()
 
-derp.commit()
-db = derp.cursor()
-    
-mode = findMedia
+media = ('id','name',
+         'hash', 'created', 'added', 'size', 'type', 'md5',
+         'thumbnailed', 'sources', 'modified', 'phashfail', 'phash')
 
+def setup():
+    with open('schema.sql',encoding='utf-8') as inp:
+        with cursor() as c:
+            try: c.executescript(inp.read())
+            except sqlite3.OperationalError: pass
+        
+for row in db.execute('SELECT '+','.join(media)' FROM media ORDER BY id DESC LIMIT ?',(50,)):
+    print(row)
+    break
+        
 for i,line in enumerate(sys.stdin):
     if i % 0x1000 == 0:
         print('commit')
@@ -24,7 +41,7 @@ for i,line in enumerate(sys.stdin):
     elif mode == findTags:
         if line.startswith('----'): mode = tags
     elif mode == findConns:
-        if line.startswith('----'): mode = connections    
+        if line.startswith('----'): mode = connections	
     elif mode == media:
         if line[0] == '(':
             mode = findTags

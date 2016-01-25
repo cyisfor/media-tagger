@@ -1,4 +1,5 @@
 from .things import *
+from .parseBase import ParseError
 import re
 import urllib.parse
 
@@ -21,7 +22,7 @@ def extract(doc):
                 else:
                     break
         else:
-            raise RuntimeError("Can't find an image...",doc)
+            raise ParseError("Can't find an image")
     for tag in doc.findAll('a',{'class': 'sf-tag'}):
         href = tag.get('href')
         if href and 'search=%23' in href:
