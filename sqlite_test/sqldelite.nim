@@ -27,11 +27,11 @@ proc check(st: CheckStmt, res: cint) {.inline.} =
   check(st.db,res)
 
 proc Bind*(st: CheckStmt, idx: int, val: int) =
-  echo("bindint",idx)
+  echo("bindint ",idx," ",val)
   st.check(bind_int(st.st,idx.cint,val.cint))
 
 proc Bind*(st: CheckStmt, idx: int, val: string) =
-  echo("bindstr",idx)
+  echo("bindstr ",idx," ",val)
   st.check(bind_text(st.st,idx.cint,val, val.len.cint, nil))
 
 proc step*(st: CheckStmt) =
@@ -77,7 +77,7 @@ template withPrep*(st, derpdb, sql: expr, actions: stmt): stmt {.immediate.} =
   var st: CheckStmt
   var ssql = sql
   st.db = derpdb
-  echo("b4 ",ssql)
+  echo("statement\n",ssql)
   var res = prepare_v2(st.db,ssql,ssql.len.cint,st.st,nil)
   echo("result ",res,"==",SQLITE_OK,st.st==nil)
   derpdb.check(res)

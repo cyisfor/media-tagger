@@ -1,30 +1,17 @@
 import sqldelite,strutils
 
-template `++`(n: expr): expr {.immediate.} =
-  n = n + 1
-  n
-
-const onequery = "SELECT medium FROM media_tags WHERE"
+const onequery = "SELECT medium FROM media_tags WHERE "
 
 var conn: CheckDB
 
 open("pics.sqlite",conn)
 
-proc checkTags(nega: bool, len: int): string =
+proc equalOrInTags(len: int): string =
   result = ""
-  i = 0
-  while i < len:
-    if result != "":
-      # note: AND won't work b/c only match on one row of media_tag
-      # not aggregated yet, until HAVING
-      result = result & " OR ";
-    if nega:
-      result = result & "tag < (SELECT id FROM tags WHERE name = ?" & $i & ")\n";
-      result = result & " OR ";
-      result = result & "tag > (SELECT id FROM tags WHERE name = ?" & $i & ")\n";
-    else:
-      result = result & "tag = (SELECT id FROM tags WHERE name = ?" & $i & ")\n";
-    i = i + 1
+  if len == 1:
+    result = result & "tag = (SELECT id FROM tags WHERE name = ?)\n";
+  else:
+    result = result & "IN (SELECT id FROM tags WHERE name IN (" & repeat("?,",len-1) & "?)\n"
 
 proc makeQuery(posi: seq[string],nega: seq[string]): string =
   result = ""
@@ -33,13 +20,17 @@ proc makeQuery(posi: seq[string],nega: seq[string]): string =
       result = "SELECT medium FROM media_tags"
     else:
       # sigh
-      result = "SELECT medium FROM media_tags WHERE" & checkTags(true,nega.len)
+      result = "SELECT medium FROM media_tags WHERE NOT tag " & equalOrInTags(nega.len)    
   else:
-    result = onequery & checkTags(false,posi.len) &
+    result = onequery & equalOrInTags(posi.len) &
       " GROUP BY medium" &
       " HAVING(count(medium)==?)"
     if nega.len > 0:
-      result = result & " EXCEPT\n" & onequery & checkTags(true,nega.len)
+      result = result & " EXCEPT\n" & onequery & equalOrInTags(nega.len)
+
+template `++`(n: expr): expr {.immediate.} =
+  n = n + 1
+  n
 
 proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
   var which = 0
@@ -85,8 +76,7 @@ proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq
     query = "SELECT (select name from tags where id = tag) AS tag,count(media_tags.medium) AS num FROM media_tags"
     if posi.len > 0 or nega.len > 0:
       query = query & " INNER JOIN (" & makeQuery(posi,nega) & ") AS med ON med.medium = media_tags.medium"
-    query = "SELECT tag,num FROM (" & query & ") AS derp"
-    query = query & " WHERE num > ? GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+    query = query & "GROUP BY tag HAVING num > ? ORDER BY num DESC LIMIT ? OFFSET ?"
   result = @[]
   withPrep(st,conn,query):
     let threshold = 4
