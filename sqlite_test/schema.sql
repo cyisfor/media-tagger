@@ -1,28 +1,28 @@
 CREATE TABLE media (
     id INTEGER PRIMARY KEY,
     name TEXT,
-    hash BLOB,
-    created DATETIME,
-    added DATETIME,
-    size INTEGER,
-    type TEXT,
-    md5 BLOB,
-    thumbnailed DATETIME,
+    hash BLOB NOT NULL,
+    created DATETIME NOT NULL,
+    added DATETIME NOT NULL,
+    size INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    md5 BLOB NOT NULL,
+    thumbnailed DATETIME NOT NULL,
 --    sources integer[],
-    modified DATETIME,
-    derphash BLOB,
-    phashfail NUMERIC DEFAULT FALSE,
-    phash NUMERIC
+    modified DATETIME NOT NULL,
+    derphash BLOB NOT NULL,
+    phashfail NUMERIC DEFAULT FALSE NOT NULL,
+    phash NUMERIC NOT NULL
 );
 
 CREATE TABLE sources (
   id INTEGER PRIMARY KEY,
-  medium INTEGER REFERENCES media(id),
+  medium INTEGER REFERENCES media(id) ON DELETE CASCADE NOT NULL,
   -- 0 = http(s)://
   -- 1 = file://
   -- 2 = ftp://?
   -- 3 = freenet:??
-  schema INTEGER DEFAULT 0,
+  schema INTEGER DEFAULT 0 NOT NULL,
   uri TEXT);
 
 CREATE TABLE tags (
