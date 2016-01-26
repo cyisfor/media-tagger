@@ -127,7 +127,7 @@ class Finder:
             self.source, self.dest = self.dest, self.source
     def nodupe(self,then=None):
         print('nadupe',hex(self.dest),hex(self.source))
-        if self.dest > self.source:
+        if self.dest < self.source:
             a = self.source
             b = self.dest
         else:

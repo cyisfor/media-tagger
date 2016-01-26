@@ -1,4 +1,5 @@
 from .things import *
+from .parseBase import ParseError
 import re
 import urllib.parse
 
@@ -32,7 +33,7 @@ def extract(doc):
             yield Image(href)
             image = True
     if not image:
-        raise RuntimeError("Couldn't find image")
+        raise ParseError("Couldn't find image")
     div = doc.find('div',{'class': lambda e: e and 'tags' in e})
     tags = False
     for a in div.findAll('a'):
