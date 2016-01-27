@@ -27,10 +27,6 @@ proc makeQuery(posi: seq[string],nega: seq[string]): string =
     if nega.len > 0:
       result = result & " EXCEPT\n" & onequery & equalOrInTags(nega.len)
 
-template `++`(n: expr): expr {.immediate.} =
-  n = n + 1
-  n
-
 proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
   var which = 0
   if posi.len > 0:

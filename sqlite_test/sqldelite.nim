@@ -100,9 +100,6 @@ proc finalize*(st: CheckStmt) =
   st.db.statements.del(st.sql)
   check(st.db,finalize(st.st))
 
-proc `=destroy`(st: var CheckStmt) =
-  st.finalize()
-  
 proc begin*(db: CheckDB): CheckStmt =
   return prepare(db,"BEGIN")
 proc commit*(db: CheckDB): CheckStmt =
@@ -138,5 +135,5 @@ proc getValue*(st: CheckStmt): int64 =
 proc getValue*(db: CheckDB, sql: string): int64 =
   return prepare(db,sql).getValue()
 
-proc last_insert_rowid(db: CheckDB): int64 =
+proc last_insert_rowid*(db: CheckDB): int64 =
   return last_insert_rowid(db.db)

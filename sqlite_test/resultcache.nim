@@ -1,15 +1,17 @@
-from dbconn import prepare
+from dbconn import prepare,exec
+from sqldelite import Bind
+from strutils import repeat
 
-exec("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
+exec("""CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
 limit INTEGER,
-offset INTEGER)")
+offset INTEGER)""")
 
-exec("CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
+exec("""CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
   result NOT NULL REFERENCES results(id) ON DELETE CASCADE ON UPDATE CASCADE,
   tag INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
-UNIQUE(result,tag))")
+UNIQUE(result,tag))""")
 
-exec("CREATE INDEX resultsByTag ON results_tags(tag)")
+exec("CREATE INDEX IF NOT EXISTS resultsByTag ON results_tags(tag)")
 
 proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
   var s = "SELECT id FROM results WHERE limit = ? AND offset = ?"
@@ -20,8 +22,8 @@ proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
     if tags.len == 1:
       s = s & "= ?"
     else:
-      s = s & "IN (" & repeat("?,",tags.len-1) & "?)";
-    s = s & " GROUP BY result HAVING count()==?)")
+      s = s & "IN (" & repeat("?,",tags.len-1) & "?)"
+    s = s & " GROUP BY result HAVING count()==?)"
   var st = prepare(s)
   var which = 0
   st.Bind(++which,limit)
@@ -55,24 +57,29 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
   select.get()
   return select
 
-proc doExpire(select: CheckStmt, tags: seq[int64]) =
+proc doExpire(s: string, tags: seq[int64]) =
+  var select = prepare(s)
+  var delete = prepare("DELETE FROM results WHERE id IN (" & s & ")");
   var which = 0
   for tag in tags:
     select.Bind(++which,tag)
+    delete.Bind(which,tag)
   select.Bind(++which,tags.len)
+  delete.Bind(which,tags.len)
   try: select.get()
   except: return
   for _ in select.foreach():
-    var name = select.column_int;
-    prepare("DROP TABLE resultcache." & $name).step()
+    var result = select.column_int();    
+    exec("DROP TABLE resultcache." & $result)
+  delete.step()
 
 proc expire*(tags: seq[int64]) =
   # limit and offset don't matter, since the results shift
   var s = "SELECT result FROM results_tags WHERE tag ";
   if tags.len == 1:
     s = s & "= ?";
-    doExpire(prepare(s),tags)
+    doExpire(s,tags)
   else:
     s = s & "IN (" & repeat("?,",tags.len-1) & "?)";
-    doExpire(prepare(s),tags);
+    doExpire(s,tags);
     
