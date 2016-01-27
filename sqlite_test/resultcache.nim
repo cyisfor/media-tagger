@@ -1,30 +1,61 @@
 from dbconn import prepare
 
-prepare("CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
-  result INTEGER NOT NULL,
-  tag INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  UNIQUE(result,tag))").step()
+exec("CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
+limit INTEGER,
+offset INTEGER)")
 
-proc cache*(sql: string, tags: seq[int]): CheckStmt =
-  var name = hash(tags);
-  var select = prepare("SELECT * FROM resultcache." & name);
+exec("CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
+  result NOT NULL REFERENCES results(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  tag INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
+UNIQUE(result,tag))")
+
+exec("CREATE INDEX resultsByTag ON results_tags(tag)")
+
+proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
+  var s = "SELECT id FROM results WHERE limit = ? AND offset = ?"
+  if tags.len == 0:
+    s = s & "AND NOT id IN (select result from results_tags)"
+  else:
+    s = s & "AND id IN (SELECT result FROM results_tags WHERE tag ";
+    if tags.len == 1:
+      s = s & "= ?"
+    else:
+      s = s & "IN (" & repeat("?,",tags.len-1) & "?)";
+    s = s & " GROUP BY result HAVING count()==?)")
+  var st = prepare(s)
+  var which = 0
+  st.Bind(++which,limit)
+  st.Bind(++which,offset)
+  for tag in tags:
+    st.Bind(++which,tag)
+  st.Bind(++which,tags.len)
+  return st.getValue()
+
+proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
+  var name = findResults(tags,limit,offset));
   try:
-    select.get()
+    var select = prepare("SELECT * FROM resultcache.r" & $name)
+    select.step()
     return select
-  except NoResults:
-    select.reset()
+  except NoResults: discard
   withTransaction(db):
-    var insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
-    insert.Bind(1,name)
+    var insert = prepare("INSERT INTO results (limit,offset) VALUES (?,?)")
+    insert.Bind(1,limit)
+    insert.Bind(2,offset)
+    insert.step()
+    var result = last_insert_rowid()
+    insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
+    insert.Bind(1,result)
     for tag in tags:
       insert.Bind(2,tag)
       insert.step()
-    var create = prepare("CREATE TABLE AS resultcache." & name & " " & sql);
+      insert.reset()
+    var create = prepare("CREATE TABLE AS resultcache.r" & $result & " " & sql);
     create.step()
-  select.step()
+  select.get()
   return select
 
-proc doExpire(select: CheckStmt, tags: seq[int]) =
+proc doExpire(select: CheckStmt, tags: seq[int64]) =
   var which = 0
   for tag in tags:
     select.Bind(++which,tag)
@@ -35,7 +66,8 @@ proc doExpire(select: CheckStmt, tags: seq[int]) =
     var name = select.column_int;
     prepare("DROP TABLE resultcache." & $name).step()
 
-proc expire*(tags: seq[int]) =
+proc expire*(tags: seq[int64]) =
+  # limit and offset don't matter, since the results shift
   var s = "SELECT result FROM results_tags WHERE tag ";
   if tags.len == 1:
     s = s & "= ?";

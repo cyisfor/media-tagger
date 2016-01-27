@@ -43,7 +43,8 @@ proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
 
 var derpS = prepare("SELECT id FROM tags WHERE name = ?")
 var derpI = prepare("INSERT INTO tags (name) VALUES (?)")
-proc findTag(name: string): int =
+
+proc findTag*(name: string): int =
   derpS.Bind(1,name)
   try:
     return derpS.getValue()
@@ -55,11 +56,13 @@ proc findTag(name: string): int =
     derpS.reset()
     derpI.reset() # ehhh
 
-
+proc findTags(tags seq[string]): seq[int] =
+  result = newSeq[int](tags.len)
+  for i in 0..tags.len:
+    result[i] = findTag(tags[i])
+    
 proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
-  var ipo = newSeq[int](posi.len)
-  for i in 0..posi.len:
-    ipo[i] = 
+  return list(findTags(posi),findTags(nega), limit, offset)
 
 proc list*(posi: seq[int],nega: seq[int], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
   result = @[]
@@ -69,7 +72,7 @@ proc list*(posi: seq[int],nega: seq[int], limit: int, offset: int): seq[tuple[me
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
 
-  var st = resultcache.cache(query,concat(posi,nega))
+  var st = resultcache.cache(query,concat(posi,nega),limit,offset)
   let threshold = 0
   var which = bindTags(st,posi,nega)
   st.Bind(++which,limit)

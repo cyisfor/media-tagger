@@ -99,6 +99,9 @@ proc close*(db: CheckDB) =
 proc finalize*(st: CheckStmt) =
   st.db.statements.del(st.sql)
   check(st.db,finalize(st.st))
+
+proc `=destroy`(st: var CheckStmt) =
+  st.finalize()
   
 proc begin*(db: CheckDB): CheckStmt =
   return prepare(db,"BEGIN")
