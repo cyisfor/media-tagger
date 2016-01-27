@@ -1,13 +1,9 @@
-import sqldelite,strutils
+import strutils
+from sqldelite import column_int, column
+from dbconn import prepare, last_insert_rowid
+from resultcache import nil
 
 const onequery = "SELECT medium FROM media_tags WHERE tag "
-
-var conn: CheckDB
-
-open("pics.sqlite",conn)
-
-proc prepare*(sql: string): CheckStmt =
-  return prepare(conn,sql)
 
 proc equalOrInTags(len: int): string =
   result = ""
@@ -45,7 +41,27 @@ proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
     st.Bind(++which,tag)
   return which
 
+var derpS = prepare("SELECT id FROM tags WHERE name = ?")
+var derpI = prepare("INSERT INTO tags (name) VALUES (?)")
+proc findTag(name: string): int =
+  derpS.Bind(1,name)
+  try:
+    return derpS.getValue()
+  except NoResults:
+    derpI.Bind(1, name)
+    derpI.step()
+    return last_insert_rowid()
+  finally:
+    derpS.reset()
+    derpI.reset() # ehhh
+
+
 proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
+  var ipo = newSeq[int](posi.len)
+  for i in 0..posi.len:
+    ipo[i] = 
+
+proc list*(posi: seq[int],nega: seq[int], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
   result = @[]
   var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id GROUP BY media.id"
   echo("query ",query)
@@ -53,7 +69,7 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
 
-  var st = prepare(conn,query)
+  var st = resultcache.cache(query,concat(posi,nega))
   let threshold = 0
   var which = bindTags(st,posi,nega)
   st.Bind(++which,limit)
@@ -63,7 +79,7 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
     var title: string = column(st,1)
     add(result,(medium: medium, title: title))
 
-var pageStatement = prepare(conn,"SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?")
+var pageStatement = prepare("SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?")
     
 proc page*(id: int): (string,string,string) =
     echo("IDE ",id)
@@ -81,7 +97,7 @@ proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int]] =
     var count = column_int(st,1)
     add(result,(tag: tag, count: count))
 
-var relst = prepare(conn,"SELECT name,(select count() from media_tags where tag = tags.id) as num from tags order by num DESC LIMIT ? OFFSET ?")
+var relst = prepare("SELECT name,(select count() from media_tags where tag = tags.id) as num from tags order by num DESC LIMIT ? OFFSET ?")
     
 proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
   var query: string
@@ -96,7 +112,7 @@ proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq
     query = query & " INNER JOIN (" & makeQuery(posi,nega) & ") AS med ON med.medium = media_tags.medium"
     query = query & " GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
     
-  var st = prepare(conn,query)
+  var st = prepare(query)
   var which = bindTags(st,posi,nega)
   st.Bind(++which,limit)
   st.Bind(++which,offset)

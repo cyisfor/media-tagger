@@ -1,10 +1,9 @@
-import db
+from dbconn import prepare
 
 prepare("CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
   result INTEGER NOT NULL,
   tag INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  UNIQUE(result,tag)
-  ").step()
+  UNIQUE(result,tag))").step()
 
 proc cache*(sql: string, tags: seq[int]): CheckStmt =
   var name = hash(tags);

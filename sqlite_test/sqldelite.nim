@@ -69,8 +69,8 @@ proc column*(st: CheckStmt, idx: int): string =
     raise DBError(msg: "No column at index $1" % [$idx], index: idx, columns: column_count(st.st))
   return $res
 
-proc column_int*(st: CheckStmt, idx: int): int =
-  return column_int(st.st,idx.cint)
+proc column_int*(st: CheckStmt, idx: int): int64 =
+  return column_int64(st.st,idx.cint)
 
 proc open*(location: string, db: var CheckDB) =
   new(db)
@@ -122,7 +122,7 @@ template withTransaction*(db: expr, actions: stmt) =
 proc exec*(db: CheckDB, sql: string) =
   db.check(step(prepare(db,sql).st))
 
-proc getValue*(st: CheckStmt): int =
+proc getValue*(st: CheckStmt): int64 =
   assert(1==column_count(st.st))
   defer: st.db.check(reset(st.st))
   var res = step(st.st)
@@ -132,7 +132,8 @@ proc getValue*(st: CheckStmt): int =
     else:
       raise DBError(msg:"Didn't return a single row",res:res)
 
-proc getValue*(db: CheckDB, sql: string): int =
+proc getValue*(db: CheckDB, sql: string): int64 =
   return prepare(db,sql).getValue()
 
-template preparing(
+proc last_insert_rowid(db: CheckDB): int64 =
+  return last_insert_rowid(db.db)
