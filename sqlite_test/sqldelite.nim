@@ -1,12 +1,14 @@
 import sqlite3
 import strutils
+import tables
 
 #proc createFunction*(c: PSqlite3, name: string, nArg: int, fnc: Tcreate_function_func_func) =
 #  create_function(c,name,nArg,SQLITE_UTF8,nil,fnc,nil,nil);
 
 type
-  CheckDB* = PSqlite3
-    statements: Table[string,ref CheckStmt]    
+  CheckDB* = ref object
+    db: PSqlite3
+    statements: Table[string,CheckStmt]    
   CheckStmt* = object
     db: CheckDB
     st: PStmt
@@ -24,7 +26,7 @@ proc check(db: CheckDB, res: cint) =
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
       return
     else:
-      raise DBError(msg: $db.errmsg())
+      raise DBError(msg: $db.db.errmsg())
 
 proc check(st: CheckStmt, res: cint) {.inline.} =
   check(st.db,res)
@@ -71,9 +73,10 @@ proc column_int*(st: CheckStmt, idx: int): int =
   return column_int(st.st,idx.cint)
 
 proc open*(location: string, db: var CheckDB) =
-  var res = sqlite3.open(location,db.PSqlite3)
-  assert(db != nil)
-  db.statements = initTable[string,ref CheckStmt]()
+  new(db)
+  var res = sqlite3.open(location,db.db)
+  assert(db.db != nil)
+  db.statements = initTable[string,CheckStmt]()
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
@@ -83,19 +86,19 @@ proc prepare*(db: CheckDB, sql: string): CheckStmt =
   db.statements[sql] = result
   result.db = db
   result.sql = sql
-  var res = prepare_v2(result.db,
-                       ssql,ssql.len.cint,
+  var res = prepare_v2(db.db,
+                       sql,sql.len.cint,
                        result.st,nil)
   db.check(res)
 
 proc close*(db: CheckDB) =
   for st in db.statements.values():
     check(st,finalize(st.st))
-  close(db.db)
+  check(db, close(db.db))
 
 proc finalize*(st: CheckStmt) =
   st.db.statements.del(st.sql)
-  finalize(st.st)
+  check(st.db,finalize(st.st))
   
 proc begin*(db: CheckDB): CheckStmt =
   return prepare(db,"BEGIN")
@@ -131,3 +134,5 @@ proc getValue*(st: CheckStmt): int =
 
 proc getValue*(db: CheckDB, sql: string): int =
   return prepare(db,sql).getValue()
+
+template preparing(

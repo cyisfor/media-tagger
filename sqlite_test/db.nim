@@ -6,6 +6,9 @@ var conn: CheckDB
 
 open("pics.sqlite",conn)
 
+proc prepare*(sql: string): CheckStmt =
+  return prepare(conn,sql)
+
 proc equalOrInTags(len: int): string =
   result = ""
   if len == 1:
