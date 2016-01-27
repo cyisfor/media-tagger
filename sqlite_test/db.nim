@@ -50,23 +50,26 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
 
-  withPrep(st,conn,query):
-    let threshold = 0
-    var which = bindTags(st,posi,nega)
-    st.Bind(++which,limit)
-    st.Bind(++which,offset)
-    for _ in st.foreach():
-      var medium: int = column_int(st,0)
-      var title: string = column(st,1)
-      add(result,(medium: medium, title: title))
+  var st = prepare(conn,query)
+  let threshold = 0
+  var which = bindTags(st,posi,nega)
+  st.Bind(++which,limit)
+  st.Bind(++which,offset)
+  for _ in st.foreach():
+    var medium: int = column_int(st,0)
+    var title: string = column(st,1)
+    add(result,(medium: medium, title: title))
 
+var pageStatement = prepare(conn,"SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?")
+    
 proc page*(id: int): (string,string,string) =
-  withPrep(st,conn,"SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?"):
     echo("IDE ",id)
-    st.Bind(1,", ")
-    st.Bind(2,id)
-    st.get()
-    return (column(st,0),column(st,1),column(st,2))
+    pageStatement.Bind(1,", ")
+    pageStatement.Bind(2,id)
+    pageStatement.get()
+    return (column(pageStatement,0),
+            column(pageStatement,1),
+            column(pageStatement,2))
 
 proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int]] =
   result = @[]
@@ -75,22 +78,23 @@ proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int]] =
     var count = column_int(st,1)
     add(result,(tag: tag, count: count))
 
+var relst = prepare(conn,"SELECT name,(select count() from media_tags where tag = tags.id) as num from tags order by num DESC LIMIT ? OFFSET ?")
+    
 proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
   var query: string
   if posi.len == 0:
     # too expensive to try related tags for only negative tags
-    withPrep(st,conn,"SELECT name,(select count() from media_tags where tag = tags.id) as num from tags order by num DESC LIMIT ? OFFSET ?"):
-      st.Bind(1,limit)
-      st.Bind(2,offset)
-      return getRelated(st)
-  else:
-    query = "SELECT (select name from tags where id = tag) AS tag,count() AS num FROM media_tags"
-    if posi.len > 0 or nega.len > 0:
-      query = query & " INNER JOIN (" & makeQuery(posi,nega) & ") AS med ON med.medium = media_tags.medium"
-    query = query & " GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+    relst.Bind(1,limit)
+    relst.Bind(2,offset)
+    return getRelated(relst)
 
-    withPrep(st,conn,query):
-      var which = bindTags(st,posi,nega)
-      st.Bind(++which,limit)
-      st.Bind(++which,offset)
-      return getRelated(st)
+  query = "SELECT (select name from tags where id = tag) AS tag,count() AS num FROM media_tags"
+  if posi.len > 0 or nega.len > 0:
+    query = query & " INNER JOIN (" & makeQuery(posi,nega) & ") AS med ON med.medium = media_tags.medium"
+    query = query & " GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
+    
+  var st = prepare(conn,query)
+  var which = bindTags(st,posi,nega)
+  st.Bind(++which,limit)
+  st.Bind(++which,offset)
+  return getRelated(st)

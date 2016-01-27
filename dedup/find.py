@@ -123,11 +123,11 @@ class Finder:
             print('oops')
             idle_add(self.next)
             return
-        if self.source < self.dest:
+        if self.source > self.dest:
             self.source, self.dest = self.dest, self.source
     def nodupe(self,then=None):
         print('nadupe',hex(self.dest),hex(self.source))
-        if self.dest < self.source:
+        if self.dest > self.source:
             a = self.source
             b = self.dest
         else:

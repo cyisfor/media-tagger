@@ -4,10 +4,13 @@ import strutils
 #proc createFunction*(c: PSqlite3, name: string, nArg: int, fnc: Tcreate_function_func_func) =
 #  create_function(c,name,nArg,SQLITE_UTF8,nil,fnc,nil,nil);
 
-type CheckDB* = PSqlite3
-type CheckStmt* = object
-  db: CheckDB
-  st: PStmt
+type
+  CheckDB* = PSqlite3
+    statements: Table[string,ref CheckStmt]    
+  CheckStmt* = object
+    db: CheckDB
+    st: PStmt
+    sql: string
 
 type DBError* = ref object of SystemError
   res: cint
@@ -70,37 +73,51 @@ proc column_int*(st: CheckStmt, idx: int): int =
 proc open*(location: string, db: var CheckDB) =
   var res = sqlite3.open(location,db.PSqlite3)
   assert(db != nil)
+  db.statements = initTable[string,ref CheckStmt]()
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
-template withPrep*(st, derpdb, sql: expr, actions: stmt): stmt {.immediate.} =
-  var st: CheckStmt
-  var ssql = sql
-  st.db = derpdb
-  echo("statement\n",ssql)
-  var res = prepare_v2(st.db,ssql,ssql.len.cint,st.st,nil)
-  echo("result ",res,"==",SQLITE_OK,st.st==nil)
-  derpdb.check(res)
+proc prepare*(db: CheckDB, sql: string): CheckStmt =
+  if db.statements.contains(sql):
+    return db.statements[sql]
+  db.statements[sql] = result
+  result.db = db
+  result.sql = sql
+  var res = prepare_v2(result.db,
+                       ssql,ssql.len.cint,
+                       result.st,nil)
+  db.check(res)
+
+proc close*(db: CheckDB) =
+  for st in db.statements.values():
+    check(st,finalize(st.st))
+  close(db.db)
+
+proc finalize*(st: CheckStmt) =
+  st.db.statements.del(st.sql)
+  finalize(st.st)
+  
+proc begin*(db: CheckDB): CheckStmt =
+  return prepare(db,"BEGIN")
+proc commit*(db: CheckDB): CheckStmt =
+  return prepare(db,"COMMIT")
+proc rollback*(db: CheckDB): CheckStmt =
+  return prepare(db,"ROLLBACK")
+    
+template withTransaction*(db: expr, actions: stmt) =
+  var begin = prepare(db,"BEGIN")
+  var commit = prepare(db,"COMMIT")
+  var rollback = prepare(db,"ROLLBACK")
+  begin.step()
   try:
     actions
-  finally:
-    check(st,finalize(st.st))  
-
-template withTransaction*(db: expr, actions: stmt) =
-  withPrep(begin,db,"BEGIN"):
-    withPrep(commit,db,"COMMIT"):
-      withPrep(rollback,db,"ROLLBACK"):
-        begin.step()
-        try:
-          actions
-          commit.step()
-        except:
-          rollback.step()
-          raise
+  except:
+    rollback.step()
+    raise
+  commit.step()
 
 proc exec*(db: CheckDB, sql: string) =
-  withPrep(st,db,sql):
-    db.check(step(st.st))
+  db.check(step(prepare(db,sql).st))
 
 proc getValue*(st: CheckStmt): int =
   assert(1==column_count(st.st))
@@ -113,5 +130,4 @@ proc getValue*(st: CheckStmt): int =
       raise DBError(msg:"Didn't return a single row",res:res)
 
 proc getValue*(db: CheckDB, sql: string): int =
-  withPrep(st,db,sql):
-    return st.getValue()
+  return prepare(db,sql).getValue()
