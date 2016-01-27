@@ -35,6 +35,9 @@ proc Bind*(st: CheckStmt, idx: int, val: int) =
   echo("bindint ",idx," ",val)
   st.check(bind_int(st.st,idx.cint,val.cint))
 
+proc Bind*(st: CheckStmt, idx: int, val: int64) =
+  st.check(bind_int64(st.st,idx.cint,val.cint))
+  
 proc Bind*(st: CheckStmt, idx: int, val: string) =
   echo("bindstr ",idx," ",val)
   st.check(bind_text(st.st,idx.cint,val, val.len.cint, nil))

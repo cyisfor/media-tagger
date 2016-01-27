@@ -1,5 +1,8 @@
-from dbconn import prepare,exec
-from sqldelite import Bind
+from herpaderp import `++`
+
+from dbconn import prepare,exec,last_insert_rowid,conn
+from sqldelite import Bind,getValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int
+
 from strutils import repeat
 
 exec("""CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
@@ -34,25 +37,25 @@ proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
   return st.getValue()
 
 proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
-  var name = findResults(tags,limit,offset));
+  var name = findResults(tags,limit,offset)
+  var select = prepare("SELECT * FROM resultcache.r" & $name)
   try:
-    var select = prepare("SELECT * FROM resultcache.r" & $name)
     select.step()
     return select
   except NoResults: discard
-  withTransaction(db):
+  withTransaction(conn):
     var insert = prepare("INSERT INTO results (limit,offset) VALUES (?,?)")
     insert.Bind(1,limit)
     insert.Bind(2,offset)
     insert.step()
-    var result = last_insert_rowid()
-    insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
-    insert.Bind(1,result)
+    var rederp = last_insert_rowid()
+    insert = prepare("INSERT INTO results_tags (rederp,tag) VALUES (?,?)")
+    insert.Bind(1,rederp)
     for tag in tags:
       insert.Bind(2,tag)
       insert.step()
       insert.reset()
-    var create = prepare("CREATE TABLE AS resultcache.r" & $result & " " & sql);
+    var create = prepare("CREATE TABLE AS resultcache.r" & $rederp & " " & sql);
     create.step()
   select.get()
   return select
@@ -69,7 +72,7 @@ proc doExpire(s: string, tags: seq[int64]) =
   try: select.get()
   except: return
   for _ in select.foreach():
-    var result = select.column_int();    
+    var result = select.column_int(1);
     exec("DROP TABLE resultcache." & $result)
   delete.step()
 
@@ -82,4 +85,3 @@ proc expire*(tags: seq[int64]) =
   else:
     s = s & "IN (" & repeat("?,",tags.len-1) & "?)";
     doExpire(s,tags);
-    

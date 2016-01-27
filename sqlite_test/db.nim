@@ -1,5 +1,6 @@
+from herpaderp import `++`
 import strutils
-from sqldelite import column_int, column
+from sqldelite import column_int, column, CheckStmt, Bind, getValue, NoResults, step
 from dbconn import prepare, last_insert_rowid
 from resultcache import nil
 
@@ -8,11 +9,11 @@ const onequery = "SELECT medium FROM media_tags WHERE tag "
 proc equalOrInTags(len: int): string =
   result = ""
   if len == 1:
-    result = result & "= (SELECT id FROM tags WHERE name = ?)\n";
+    result = result & "= ?\n";
   else:
-    result = result & "IN (SELECT id FROM tags WHERE name IN (" & repeat("?,",len-1) & "?))\n"
+    result = result & "IN (" & repeat("?,",len-1) & "?)\n"
 
-proc makeQuery(posi: seq[string],nega: seq[string]): string =
+proc makeQuery(posi: seq[int64],nega: seq[int64]): string =
   result = ""
   if posi.len == 0:
     if nega.len == 0:
@@ -40,7 +41,7 @@ proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
 var derpS = prepare("SELECT id FROM tags WHERE name = ?")
 var derpI = prepare("INSERT INTO tags (name) VALUES (?)")
 
-proc findTag*(name: string): int =
+proc findTag*(name: string): int64 =
   derpS.Bind(1,name)
   try:
     return derpS.getValue()
@@ -52,15 +53,12 @@ proc findTag*(name: string): int =
     derpS.reset()
     derpI.reset() # ehhh
 
-proc findTags(tags seq[string]): seq[int] =
-  result = newSeq[int](tags.len)
+proc findTags(tags: seq[string]): seq[int64] =
+  result = newSeq[int64](tags.len)
   for i in 0..tags.len:
     result[i] = findTag(tags[i])
     
-proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
-  return list(findTags(posi),findTags(nega), limit, offset)
-
-proc list*(posi: seq[int],nega: seq[int], limit: int, offset: int): seq[tuple[medium: int,title: string]] =
+proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
   result = @[]
   var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id GROUP BY media.id"
   echo("query ",query)
@@ -74,10 +72,13 @@ proc list*(posi: seq[int],nega: seq[int], limit: int, offset: int): seq[tuple[me
   st.Bind(++which,limit)
   st.Bind(++which,offset)
   for _ in st.foreach():
-    var medium: int = column_int(st,0)
+    var medium: int64 = column_int(st,0)
     var title: string = column(st,1)
     add(result,(medium: medium, title: title))
 
+proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
+  return list(findTags(posi),findTags(nega), limit, offset)
+    
 var pageStatement = prepare("SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?")
     
 proc page*(id: int): (string,string,string) =

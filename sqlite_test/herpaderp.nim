@@ -1,3 +1,3 @@
-template `++*`(n: expr): expr {.immediate.} =
+template `++`*(n: expr): expr {.immediate.} =
   n = n + 1
   n
