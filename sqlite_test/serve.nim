@@ -106,7 +106,7 @@ proc handle(req: Request) {.async.} =
       test.done()
     except:
       echo("DERRRRP ",getCurrentExceptionMsg())
-      raise
+      return
     for medium,title in items(herp):
       await sendChunk(req.client,format("""{<a href="/art/~page/$1">
       <img title="$2" src="/thumb/$1">

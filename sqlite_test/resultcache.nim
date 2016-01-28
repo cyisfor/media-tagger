@@ -41,7 +41,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
   echo("CACHE ",tags)
   var name = findResults(tags,limit,offset)
   if name.ok:
-    var select = prepare("SELECT * FROM resultcache.r" & $name)
+    var select = prepare("SELECT * FROM resultcache.r" & $name.value)
     try:
       select.step()
       return select
@@ -52,7 +52,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
     insert.Bind(2,offset)
     insert.step()
     var rederp = last_insert_rowid()
-    insert = prepare("INSERT INTO results_tags (rederp,tag) VALUES (?,?)")
+    insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
     insert.Bind(1,rederp)
     for tag in tags:
       insert.Bind(2,tag)
@@ -60,7 +60,8 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
       insert.reset()
     var create = prepare("CREATE TABLE AS resultcache.r" & $rederp & " " & sql);
     create.step()
-  var select = prepare("SELECT * FROM resultcache.r" & $name)
+  name = findResults(tags, limit, offset)
+  var select = prepare("SELECT * FROM resultcache.r" & $name.value)
   select.get()
   return select
 

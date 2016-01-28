@@ -24,9 +24,11 @@ proc makeQuery(posi: seq[int64],nega: seq[int64]): string =
       # sigh
       result = "SELECT medium FROM media_tags WHERE NOT tag " & equalOrInTags(nega.len)    
   else:
-    result = onequery & equalOrInTags(posi.len) &
-      " GROUP BY medium" &
-      " HAVING(count()==?)"
+    result = onequery & equalOrInTags(posi.len)
+    if posi.len > 1:
+      result = result &
+        " GROUP BY medium" &
+        " HAVING(count()==?)"
     if nega.len > 0:
       result = result & " EXCEPT\n" & onequery & equalOrInTags(nega.len)
 
@@ -35,7 +37,8 @@ proc bindTags(st: CheckStmt, posi: seq[int64],nega: seq[int64]): int =
   if posi.len > 0:
     for tag in posi:
       st.Bind(++which,tag)
-    st.Bind(++which,posi.len) # HAVING
+    if posi.len > 1:
+      st.Bind(++which,posi.len) # HAVING
   for tag in nega:
     st.Bind(++which,tag)
   return which
@@ -62,7 +65,7 @@ proc findTags*(tags: seq[string]): seq[int64] =
     
 proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
   result = @[]
-  var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & ") AS derp ON derp.medium = media.id GROUP BY media.id"
+  var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & " ) AS derp ON derp.medium = media.id GROUP BY media.id"
   echo("query ",query)
   query = query & " ORDER BY added DESC"
   query = query & " LIMIT ?"

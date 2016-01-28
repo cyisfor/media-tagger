@@ -21,16 +21,39 @@ type DBError* = ref object of SystemError
   index: int
 
 type NoResults* = ref object of DBError
-  
-proc check(db: CheckDB, res: cint) =
+
+# aren't you glad Nim allows you to block people from importing things?
+{.deadCodeElim: on.}
+when defined(windows):
+  when defined(nimOldDlls):
+    const Lib = "sqlite3.dll"
+  elif defined(cpu64):
+    const Lib = "sqlite3_64.dll"
+  else:
+    const Lib = "sqlite3_32.dll"
+elif defined(macosx):
+  const
+    Lib = "libsqlite3(|.0).dylib"
+else:
+  const
+    Lib = "libsqlite3.so(|.0)"
+
+proc errstr*(para1: int): cstring{.cdecl, dynlib: Lib, importc: "sqlite3_errstr".}
+
+
+proc check(db: CheckDB, res: cint, sql: string) =
   case(res):
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
       return
     else:
-      raise DBError(msg: $db.db.errmsg())
+      raise DBError(msg: format("$1($2) $3\n$4",
+                                errstr(res),
+                                res,
+                                db.db.errmsg(),
+                                sql))
 
 proc check(st: CheckStmt, res: cint) {.inline.} =
-  check(st.db,res)
+  check(st.db,res,st.sql)
 
 proc Bind*(st: CheckStmt, idx: int, val: int) =
   echo("bindint ",idx," ",val)
@@ -93,16 +116,16 @@ proc prepare*(db: CheckDB, sql: string): CheckStmt =
   var res = prepare_v2(db.db,
                        sql,sql.len.cint,
                        result.st,nil)
-  db.check(res)
+  db.check(res,sql)
 
 proc close*(db: CheckDB) =
   for st in db.statements.values():
     check(st,finalize(st.st))
-  check(db, close(db.db))
+  check(db, close(db.db),"(closing)")
 
 proc finalize*(st: CheckStmt) =
   st.db.statements.del(st.sql)
-  check(st.db,finalize(st.st))
+  check(st.db,finalize(st.st),st.sql)
 
 proc begin*(db: CheckDB): CheckStmt =
   return prepare(db,"BEGIN")
@@ -124,7 +147,12 @@ template withTransaction*(db: expr, actions: stmt) =
   commit.step()
 
 proc exec*(db: CheckDB, sql: string) =
-  db.check(step(prepare(db,sql).st))
+  var st: PStmt
+  var res = prepare_v2(db.db,
+                       sql,sql.len.cint,
+                       st,nil)
+  db.check(step(st),sql)
+  finalize(st)
 
 proc maybeValue*(st: CheckStmt): tuple[value: int64, ok: bool] =
   assert(1==column_count(st.st))
