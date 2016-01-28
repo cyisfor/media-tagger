@@ -57,8 +57,8 @@ proc findTag*(name: string): int64 =
 
 proc findTags*(tags: seq[string]): seq[int64] =
   result = newSeq[int64](tags.len)
-  for tag in tags:
-    result.add(findTag(tag))
+  for i in 0..tags.len-1:
+    result[i] = findTag(tags[i])
     
 proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
   result = @[]
@@ -83,7 +83,6 @@ proc list*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tu
 var pageStatement = prepare("SELECT type, name, (select group_concat(name,?) from tags inner join media_tags on tags.id = media_tags.tag where media_tags.medium = media.id) FROM media WHERE id = ?")
     
 proc page*(id: int): (string,string,string) =
-    echo("IDE ",id)
     pageStatement.Bind(1,", ")
     pageStatement.Bind(2,id)
     pageStatement.get()

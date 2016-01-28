@@ -27,7 +27,6 @@ proc check(db: CheckDB, res: cint) =
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
       return
     else:
-      echo(db == nil)
       raise DBError(msg: $db.db.errmsg())
 
 proc check(st: CheckStmt, res: cint) {.inline.} =
@@ -38,6 +37,7 @@ proc Bind*(st: CheckStmt, idx: int, val: int) =
   st.check(bind_int(st.st,idx.cint,val.cint))
 
 proc Bind*(st: CheckStmt, idx: int, val: int64) =
+  echo("bindint64 ",idx," ",val)
   st.check(bind_int64(st.st,idx.cint,val.cint))
   
 proc Bind*(st: CheckStmt, idx: int, val: string) =
@@ -77,23 +77,19 @@ proc column*(st: CheckStmt, idx: int): string =
 proc column_int*(st: CheckStmt, idx: int): int64 =
   return column_int64(st.st,idx.cint)
 
-proc open*(location: string, db: var CheckDB) =
-  echo("NEW DB")
-  new(db)
-  var res = sqlite3.open(location,db.db)
-  assert(db.db != nil)
-  db.statements = initTable[string,CheckStmt]()
+proc openSqlite*(location: string): CheckDB =
+  new(result)
+  var res = sqlite3.open(location,result.db)
+  assert(result.db != nil)
+  result.statements = initTable[string,CheckStmt]()
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
 
 proc prepare*(db: CheckDB, sql: string): CheckStmt =
   if db.statements.contains(sql):
-    echo("PREPPED",sql)
     return db.statements[sql]
-  echo("PREP",sql,db==nil)
+  result = CheckStmt(db: db, sql: sql)
   db.statements[sql] = result
-  result.db = db
-  result.sql = sql
   var res = prepare_v2(db.db,
                        sql,sql.len.cint,
                        result.st,nil)
@@ -130,6 +126,17 @@ template withTransaction*(db: expr, actions: stmt) =
 proc exec*(db: CheckDB, sql: string) =
   db.check(step(prepare(db,sql).st))
 
+proc maybeValue*(st: CheckStmt): tuple[value: int64, ok: bool] =
+  assert(1==column_count(st.st))
+  defer: st.db.check(reset(st.st))
+  var res = step(st.st)
+  case res:
+    of SQLITE_ROW:
+      result.ok = true
+      result.value = column_int(st.st,0);
+    else:
+      result.ok = false      
+  
 proc getValue*(st: CheckStmt): int64 =
   assert(1==column_count(st.st))
   defer: st.db.check(reset(st.st))

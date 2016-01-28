@@ -1,7 +1,7 @@
 from herpaderp import `++`
 
 from dbconn import prepare,exec,last_insert_rowid,conn
-from sqldelite import Bind,getValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int
+from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int
 
 from strutils import repeat
 
@@ -16,7 +16,7 @@ UNIQUE(result,tag))""")
 
 exec("CREATE INDEX IF NOT EXISTS resultsByTag ON results_tags(tag)")
 
-proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
+proc findResults(tags: seq[int64], limit: int, offset: int): tuple[value: int64, ok: bool] =
   var s = "SELECT id FROM results WHERE derplimit = ? AND derpoffset = ?"
   if tags.len == 0:
     s = s & " AND NOT id IN (select result from results_tags)"
@@ -32,17 +32,20 @@ proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
   st.Bind(++which,limit)
   st.Bind(++which,offset)
   for tag in tags:
+    echo("tag ",tag," ",which)
     st.Bind(++which,tag)
   st.Bind(++which,tags.len)
-  return st.getValue()
+  return st.maybeValue()
 
 proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
+  echo("CACHE ",tags)
   var name = findResults(tags,limit,offset)
-  var select = prepare("SELECT * FROM resultcache.r" & $name)
-  try:
-    select.step()
-    return select
-  except NoResults: discard
+  if name.ok:
+    var select = prepare("SELECT * FROM resultcache.r" & $name)
+    try:
+      select.step()
+      return select
+    except NoResults: discard
   withTransaction(conn):
     var insert = prepare("INSERT INTO results (derplimit,derpoffset) VALUES (?,?)")
     insert.Bind(1,limit)
@@ -57,6 +60,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
       insert.reset()
     var create = prepare("CREATE TABLE AS resultcache.r" & $rederp & " " & sql);
     create.step()
+  var select = prepare("SELECT * FROM resultcache.r" & $name)
   select.get()
   return select
 

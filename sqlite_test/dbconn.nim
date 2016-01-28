@@ -1,6 +1,5 @@
-from sqldelite import open, prepare, exec, CheckDB, CheckStmt, last_insert_rowid
-var conn*: CheckDB
-open("pics.sqlite",conn)
+from sqldelite import openSqlite, prepare, exec, CheckDB, CheckStmt, last_insert_rowid
+var conn*: CheckDB = openSqlite("pics.sqlite")
 
 proc prepare*(sql: string): CheckStmt =
   return prepare(conn,sql)
@@ -13,4 +12,4 @@ proc exec*(sql: string) =
 
 exec("PRAGMA foreign_keys = ON")
 assert(conn!=nil)
-echo("OK DB CONN")
+
