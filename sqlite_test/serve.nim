@@ -99,13 +99,14 @@ proc handle(req: Request) {.async.} =
 
     await sendChunk(req.client, "<!DOCTYPE html><html><head><title>Drep</title></head><body>")
     await sendChunk(req.client,"<p>" & req.url.path & "</p><p>")
-    var herp: seq[tuple[medium: int,title: string]];
+    var herp: seq[tuple[medium: int64,title: string]];
     try:
       var test = startTest("list")
       herp = db.list(posi,nega,0x20,0x20*page)
       test.done()
     except:
       echo("DERRRRP ",getCurrentExceptionMsg())
+      raise
     for medium,title in items(herp):
       await sendChunk(req.client,format("""{<a href="/art/~page/$1">
       <img title="$2" src="/thumb/$1">

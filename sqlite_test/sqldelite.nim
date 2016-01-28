@@ -6,11 +6,12 @@ import tables
 #  create_function(c,name,nArg,SQLITE_UTF8,nil,fnc,nil,nil);
 
 type
-  CheckDB* = ref object
+  CheckDBDerp = object 
     db: PSqlite3
-    statements: Table[string,CheckStmt]    
+    statements: Table[string,CheckStmt]
+  CheckDB* = ref CheckDBDerp not nil
   CheckStmt* = object
-    db: CheckDB
+    db: CheckDB not nil
     st: PStmt
     sql: string
 
@@ -26,6 +27,7 @@ proc check(db: CheckDB, res: cint) =
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
       return
     else:
+      echo(db == nil)
       raise DBError(msg: $db.db.errmsg())
 
 proc check(st: CheckStmt, res: cint) {.inline.} =
@@ -76,6 +78,7 @@ proc column_int*(st: CheckStmt, idx: int): int64 =
   return column_int64(st.st,idx.cint)
 
 proc open*(location: string, db: var CheckDB) =
+  echo("NEW DB")
   new(db)
   var res = sqlite3.open(location,db.db)
   assert(db.db != nil)
@@ -85,7 +88,9 @@ proc open*(location: string, db: var CheckDB) =
 
 proc prepare*(db: CheckDB, sql: string): CheckStmt =
   if db.statements.contains(sql):
+    echo("PREPPED",sql)
     return db.statements[sql]
+  echo("PREP",sql,db==nil)
   db.statements[sql] = result
   result.db = db
   result.sql = sql

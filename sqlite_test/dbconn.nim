@@ -12,3 +12,5 @@ proc exec*(sql: string) =
   exec(conn,sql)
 
 exec("PRAGMA foreign_keys = ON")
+assert(conn!=nil)
+echo("OK DB CONN")

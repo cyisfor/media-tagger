@@ -6,8 +6,8 @@ from sqldelite import Bind,getValue,CheckStmt,step,NoResults,withTransaction,get
 from strutils import repeat
 
 exec("""CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
-limit INTEGER,
-offset INTEGER)""")
+derplimit INTEGER,
+derpoffset INTEGER)""")
 
 exec("""CREATE TABLE IF NOT EXISTS results_tags (id INTEGER PRIMARY KEY,
   result NOT NULL REFERENCES results(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -17,11 +17,11 @@ UNIQUE(result,tag))""")
 exec("CREATE INDEX IF NOT EXISTS resultsByTag ON results_tags(tag)")
 
 proc findResults(tags: seq[int64], limit: int, offset: int): int64 =
-  var s = "SELECT id FROM results WHERE limit = ? AND offset = ?"
+  var s = "SELECT id FROM results WHERE derplimit = ? AND derpoffset = ?"
   if tags.len == 0:
-    s = s & "AND NOT id IN (select result from results_tags)"
+    s = s & " AND NOT id IN (select result from results_tags)"
   else:
-    s = s & "AND id IN (SELECT result FROM results_tags WHERE tag ";
+    s = s & " AND id IN (SELECT result FROM results_tags WHERE tag ";
     if tags.len == 1:
       s = s & "= ?"
     else:
@@ -44,7 +44,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
     return select
   except NoResults: discard
   withTransaction(conn):
-    var insert = prepare("INSERT INTO results (limit,offset) VALUES (?,?)")
+    var insert = prepare("INSERT INTO results (derplimit,derpoffset) VALUES (?,?)")
     insert.Bind(1,limit)
     insert.Bind(2,offset)
     insert.step()

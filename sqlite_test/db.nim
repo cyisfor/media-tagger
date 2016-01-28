@@ -1,8 +1,10 @@
 from herpaderp import `++`
 import strutils
-from sqldelite import column_int, column, CheckStmt, Bind, getValue, NoResults, step
+from sqldelite import column_int, column, CheckStmt, Bind, getValue, NoResults, step, foreach, get, column
 from dbconn import prepare, last_insert_rowid
 from resultcache import nil
+
+from sequtils import concat
 
 const onequery = "SELECT medium FROM media_tags WHERE tag "
 
@@ -28,7 +30,7 @@ proc makeQuery(posi: seq[int64],nega: seq[int64]): string =
     if nega.len > 0:
       result = result & " EXCEPT\n" & onequery & equalOrInTags(nega.len)
 
-proc bindTags(st: CheckStmt, posi: seq[string],nega: seq[string]): int =
+proc bindTags(st: CheckStmt, posi: seq[int64],nega: seq[int64]): int =
   var which = 0
   if posi.len > 0:
     for tag in posi:
@@ -53,10 +55,10 @@ proc findTag*(name: string): int64 =
     derpS.reset()
     derpI.reset() # ehhh
 
-proc findTags(tags: seq[string]): seq[int64] =
+proc findTags*(tags: seq[string]): seq[int64] =
   result = newSeq[int64](tags.len)
-  for i in 0..tags.len:
-    result[i] = findTag(tags[i])
+  for tag in tags:
+    result.add(findTag(tag))
     
 proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
   result = @[]
@@ -67,7 +69,6 @@ proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tupl
   query = query & " OFFSET ?"
 
   var st = resultcache.cache(query,concat(posi,nega),limit,offset)
-  let threshold = 0
   var which = bindTags(st,posi,nega)
   st.Bind(++which,limit)
   st.Bind(++which,offset)
@@ -90,7 +91,7 @@ proc page*(id: int): (string,string,string) =
             column(pageStatement,1),
             column(pageStatement,2))
 
-proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int]] =
+proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int64]] =
   result = @[]
   for _ in st.foreach():
     var tag = column(st,0)
@@ -99,7 +100,7 @@ proc getRelated(st: CheckStmt): seq[tuple[tag: string, count: int]] =
 
 var relst = prepare("SELECT name,(select count() from media_tags where tag = tags.id) as num from tags order by num DESC LIMIT ? OFFSET ?")
     
-proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int]] =
+proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq[tuple[tag: string,count: int64]] =
   var query: string
   if posi.len == 0:
     # too expensive to try related tags for only negative tags
@@ -107,13 +108,16 @@ proc related*(posi: seq[string],nega: seq[string], limit: int, offset: int): seq
     relst.Bind(2,offset)
     return getRelated(relst)
 
+  var ipo = findTags(posi)
+  var ine = findTags(nega)
+  
   query = "SELECT (select name from tags where id = tag) AS tag,count() AS num FROM media_tags"
   if posi.len > 0 or nega.len > 0:
-    query = query & " INNER JOIN (" & makeQuery(posi,nega) & ") AS med ON med.medium = media_tags.medium"
+    query = query & " INNER JOIN (" & makeQuery(ipo,ine) & ") AS med ON med.medium = media_tags.medium"
     query = query & " GROUP BY tag ORDER BY num DESC LIMIT ? OFFSET ?"
     
   var st = prepare(query)
-  var which = bindTags(st,posi,nega)
+  var which = bindTags(st,ipo,ine)
   st.Bind(++which,limit)
   st.Bind(++which,offset)
   return getRelated(st)
