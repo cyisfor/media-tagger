@@ -1,17 +1,28 @@
-import sqlite3
-import strutils
-import tables
+from sqlite3 import
+  PSqlite3, PStmt,
+  reset, step, finalize, close,
+  last_insert_rowid,
+  prepare_v2,
+  errmsg,
+  bind_int, bind_int64, bind_text,
+  column_int, column_int64, column_text,
+  column_count,
+  SQLITE_OK,SQLITE_DONE,SQLITE_ROW
+from strutils import nil
+from tables import
+  Table,
+  initTable,
 
 #proc createFunction*(c: PSqlite3, name: string, nArg: int, fnc: Tcreate_function_func_func) =
 #  create_function(c,name,nArg,SQLITE_UTF8,nil,fnc,nil,nil);
 
 type
   CheckDBDerp = object 
-    db: PSqlite3
+    db: PSqlite3 not nil
     statements: Table[string,CheckStmt]
   CheckDB* = ref CheckDBDerp not nil
   CheckStmt* = object
-    db: CheckDB not nil
+    db*: CheckDB not nil
     st: PStmt
     sql: string
 
@@ -46,6 +57,11 @@ proc check(db: CheckDB, res: cint, sql: string) =
     of SQLITE_OK,SQLITE_DONE,SQLITE_ROW:
       return
     else:
+      try:
+        assert db != nil, "huh??"
+      except:
+        writeStackTrace()
+        raise
       raise DBError(msg: format("$1($2) $3\n$4",
                                 errstr(res),
                                 res,
@@ -81,13 +97,15 @@ iterator foreach*(st: CheckStmt): int =
     elif res == SQLITE_DONE:
       break
   
-proc reset*(st: CheckStmt) =
+proc resetStmt*(st: CheckStmt) =
+  echo("a")
   st.check(reset(st.st))
+  assert st.db != nil, "b"
 
 proc get*(st: CheckStmt) =
   var res = step(st.st)
   if(res == SQLITE_DONE):
-    st.reset()
+    st.resetStmt()
     raise NoResults(msg: "No results?")
   st.check(res)
 
@@ -102,26 +120,35 @@ proc column_int*(st: CheckStmt, idx: int): int64 =
 
 proc openSqlite*(location: string): CheckDB =
   new(result)
-  var res = sqlite3.open(location,result.db)
-  assert(result.db != nil)
   result.statements = initTable[string,CheckStmt]()
+  var res = sqlite3.open(location,result.db)
   if (res != SQLITE_OK):
     raise DBError(msg: "Could not open")
+  if result.db == nil:
+    try:
+      assert(result.db != nil)
+    except:
+      writeStackTrace()
+      raise
+  echo("yay!")
 
 proc prepare*(db: CheckDB, sql: string): CheckStmt =
+  assert db != nil, "uhhh"
   if db.statements.contains(sql):
     result = db.statements[sql]
-    assert result.db
+    assert result.db != nil
     return
   result = CheckStmt(db: db, sql: sql)
   db.statements[sql] = result
   var res = prepare_v2(db.db,
                        sql,sql.len.cint,
                        result.st,nil)
-  assert result.db
+  assert result.st != nil
+  assert result.db != nil
   db.check(res,sql)
 
 proc close*(db: CheckDB) =
+  echo("close")
   for st in db.statements.values():
     check(st,finalize(st.st))
   check(db, close(db.db),"(closing)")

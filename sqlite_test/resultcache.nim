@@ -1,7 +1,7 @@
 from herpaderp import `++`
 
 from dbconn import prepare,exec,last_insert_rowid,conn
-from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int,finalize
+from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int,finalize,resetStmt
 
 from strutils import repeat
 
@@ -47,7 +47,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
   if name.ok:
     var select = prepare("SELECT * FROM resultcache" & $name.value)
     try:
-      select.reset()
+      select.resetStmt()
       select.step()
       return select
     except NoResults: discard
@@ -64,7 +64,7 @@ proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
     for tag in tags:
       insert.Bind(2,tag)
       insert.step()
-      insert.reset()
+      insert.resetStmt()
     var create = prepare("CREATE TABLE resultcache" & $rederp & " AS " & sql);
     defer: create.finalize()
     var which = 0
