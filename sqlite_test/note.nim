@@ -34,53 +34,36 @@ from macros import
   `$`,
   len,
   dumpTree,
-  findChild,
-  ident=,
-  toStrLit
+  toStrLit,
+  copyNimTree,
+  quote
 
 macro setup(pieces: stmt): stmt {.immediate.} =
   result = newNimNode(nnkStmtList)
   # type Level = enum ...info,...
   # (type (A = b, c, d...))
-  add(result,pieces[0])
-  add(result,pieces[1])
-  echo(pieces)
-
+  var enums = quote do:
+    type Level = enum
+      spam
+      debug
+      chatty
+      info
+      warn
+      error
+      always    
+  add(result,enums) 
+  add(result,quote) do:
+    root.minlevel = info
+  
   var i = 2
-  while i < len(pieces[0]):
-    var name = pieces[0][i]
+  while i < len(enums[0]):
+    var name = enums[0][i]
     i = i + 1
+    var namestr = toStrLit(name)
     # template info*(...)
-    var templatederp = pieces[2]
-
-    # (template 0:(postfix (ident (*)) NAME)
-    #  1:(rewriting) 2:(generics)
-    #  3:(params) 4:(macros) 5:(reserved)
-    #  6:(statements
-    #      0:(if 0:(elif >= NAME root.minlevel) 1:(call 0:note 1:NAME format args))))
-    ident=(findChild(templatederp,
-                     it.kind == nnkIdent and
-                     it.ident == "NAME"),
-           name)
-    ident=(findChild(templatederp,
-                     it.kind == nnkIdent and
-                     it.ident == "NAME_STR"),
-           toStrLit(name))
-    add(result,templatederp)
-
-setup():
-  type Level = enum
-    spam
-    debug
-    chatty
-    info
-    warn
-    error
-    always
-
-  root.minlevel = info
-
-  template NAME*(format: expr, args: varargs[expr]) =
-    note(NAME_STR, format, args)
+    add(result,quote) do:
+      template `name`*(format: expr, args: varargs[expr]) =
+        note(`namestr`, format, args)
+setup()
   
 info("test $1","hi")
