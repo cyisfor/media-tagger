@@ -15,7 +15,9 @@ def makeWorker(init,foreground):
             initcond.notify_all()
         print('background worker going')
         while True:
-            result = bgqueue.get()
+            try: result = bgqueue.get()
+            except queue.Empty:
+                continue
             try:
                 print('dequeue',result)
                 try: g,backToForeground = result
@@ -24,10 +26,12 @@ def makeWorker(init,foreground):
                     print(result,e)
                     result()
                     continue
-                for mode in g:
-                    if mode is foreground:
-                        foreground(backToForeground)
-                        return
+                def frobnicate():
+                    for mode in g:
+                        if mode is foreground:
+                            foreground(backToForeground)
+                            return
+                frobnicate()
             except:
                 import traceback,time
                 traceback.print_exc()
@@ -35,9 +39,9 @@ def makeWorker(init,foreground):
                 time.sleep(1)
             finally:
                 bgqueue.task_done()
-    threading.Thread(target=bgThread,daemon=True).start()
-    while True:
-        with initcond:
+    with initcond:
+        threading.Thread(target=bgThread,daemon=True).start()
+        while True:
             initcond.wait()
             if initted: break
         
@@ -47,7 +51,6 @@ def makeWorker(init,foreground):
             def inForeground():
                 for mode in g:
                     if mode is background:
-                        print('background put')
                         bgqueue.put((g,inForeground))
                         return
             inForeground() # XXX: ok to assume in foreground?

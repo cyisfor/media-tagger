@@ -75,6 +75,7 @@ def findInfoDerp(id):
 def findInfo(id,getinfo,next=None):
     rows = findInfoDerp(id)
     if len(rows) == 0:
+        print('comic',hex(id),'no exist')
         @getinfo
         def handle(title,description,source,tags):
             db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))

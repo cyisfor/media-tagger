@@ -33,6 +33,7 @@ def handling(f,*a,**kw):
     return wrapper
 
 def getinfo(next):
+    raise RuntimeError('wut?')
     window = Gtk.Window()
     box = Gtk.VBox()
     window.add(box)
@@ -79,6 +80,7 @@ def gotURL(url):
             print('nope')
             return
     print('ok m is',m)
+    w = None
     yield foreground
     c = centry.get_text()
     if c:
@@ -96,9 +98,8 @@ def gotURL(url):
             centry.set_text('{:x}'.format(c))
             wentry.set_text('{:x}'.format(w+1))
             return
-        else:
-            # still in bg
-            c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
+        # still in bg
+        c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
         yield foreground # -> gui
         centry.set_text('{:x}'.format(c))
     if w is None:
