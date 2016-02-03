@@ -1,6 +1,17 @@
 from herpaderp import `++`
 import strutils
-from sqldelite import column_int, column, CheckStmt, Bind, getValue, NoResults, step, foreach, get, column
+from sqldelite import
+  column_int,
+  column,
+  CheckStmt,
+  Bind,
+  getValue,
+  NoResults,
+  step,
+  foreach,
+  get,
+  column,
+  resetStmt
 from dbconn import prepare, last_insert_rowid
 from resultcache import nil
 
@@ -72,8 +83,6 @@ proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tupl
 
   var st = resultcache.cache(query,concat(posi,nega),limit,offset)
   var which = bindTags(st,posi,nega)
-  st.Bind(++which,limit)
-  st.Bind(++which,offset)
   for _ in st.foreach():
     var medium: int64 = column_int(st,0)
     var title: string = column(st,1)

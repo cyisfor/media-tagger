@@ -8,11 +8,16 @@ from sqlite3 import
   column_int, column_int64, column_text,
   column_count,
   SQLITE_OK,SQLITE_DONE,SQLITE_ROW
-from strutils import nil
+from strutils import
+  format,
+  `%`
 from tables import
   Table,
   initTable,
-
+  contains, values, del,
+  `[]`,
+  `[]=`
+  
 #proc createFunction*(c: PSqlite3, name: string, nArg: int, fnc: Tcreate_function_func_func) =
 #  create_function(c,name,nArg,SQLITE_UTF8,nil,fnc,nil,nil);
 

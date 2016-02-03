@@ -1,8 +1,21 @@
 from herpaderp import `++`
-
-from dbconn import prepare,exec,last_insert_rowid,conn
-from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int,finalize,resetStmt
-
+from dbconn import
+  prepare,
+  exec,
+  last_insert_rowid,
+  conn
+from sqldelite import
+  Bind,
+  maybeValue,
+  CheckStmt,
+  step,
+  NoResults,
+  withTransaction,
+  get,
+  foreach,
+  column_int,
+  finalize,
+  resetStmt
 from strutils import repeat
 
 exec("""CREATE TABLE IF NOT EXISTS results (id INTEGER PRIMARY KEY,
@@ -44,38 +57,31 @@ proc findResults(tags: seq[int64], limit: int, offset: int): tuple[value: int64,
 proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
   echo("CACHE ",tags)
   var name = findResults(tags,limit,offset)
-  if name.ok:
-    var select = prepare("SELECT * FROM resultcache" & $name.value)
-    try:
-      select.resetStmt()
-      select.step()
-      return select
-    except NoResults: discard
-  withTransaction(conn):
-    var insert = prepare("INSERT INTO results (derplimit,derpoffset) VALUES (?,?)")
-    defer: insert.finalize()
-    insert.Bind(1,limit)
-    insert.Bind(2,offset)
-    insert.step()
-    var rederp = last_insert_rowid()
-    insert.finalize()
-    insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
-    insert.Bind(1,rederp)
-    for tag in tags:
-      insert.Bind(2,tag)
+  if not name.ok:
+    withTransaction(conn):
+      var insert = prepare("INSERT INTO results (derplimit,derpoffset) VALUES (?,?)")
+      defer: insert.finalize()
+      insert.Bind(1,limit)
+      insert.Bind(2,offset)
       insert.step()
-      insert.resetStmt()
-    var create = prepare("CREATE TABLE resultcache" & $rederp & " AS " & sql);
-    defer: create.finalize()
-    var which = 0
-    bindTags(which,create,tags)
-    create.Bind(++which,limit)
-    create.Bind(++which,offset)
-    create.step()
-  name = findResults(tags, limit, offset)
-  var select = prepare("SELECT * FROM resultcache" & $name.value)
-  select.get()
-  return select
+      var rederp = last_insert_rowid()
+      insert.finalize()
+      insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
+      insert.Bind(1,rederp)
+      for tag in tags:
+        insert.Bind(2,tag)
+        insert.step()
+        insert.resetStmt()
+      echo("CREATE",sql)
+      var create = prepare("CREATE TABLE resultcache" & $rederp & " AS " & sql);
+      defer: create.finalize()
+      var which = 0
+      bindTags(which,create,tags)
+      create.Bind(++which,limit)
+      create.Bind(++which,offset)
+      create.step()
+    name = findResults(tags, limit, offset)
+  return prepare("SELECT * FROM resultcache" & $name.value)
 
 proc doExpire(s: string, tags: seq[int64]) =
   var select = prepare(s)

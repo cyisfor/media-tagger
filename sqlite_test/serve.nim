@@ -105,7 +105,9 @@ proc handle(req: Request) {.async.} =
       herp = db.list(posi,nega,0x20,0x20*page)
       test.done()
     except:
-      echo("DERRRRP ",getCurrentExceptionMsg())
+      var e = getCurrentException()
+      echo(getStackTrace(e))
+      echo("DERRRRP ",e.msg)
       return
     for medium,title in items(herp):
       await sendChunk(req.client,format("""{<a href="/art/~page/$1">
