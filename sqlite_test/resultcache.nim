@@ -1,7 +1,7 @@
 from herpaderp import `++`
 
 from dbconn import prepare,exec,last_insert_rowid,conn
-from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int
+from sqldelite import Bind,maybeValue,CheckStmt,step,NoResults,withTransaction,get,foreach,column_int,finalize
 
 from strutils import repeat
 
@@ -16,6 +16,13 @@ UNIQUE(result,tag))""")
 
 exec("CREATE INDEX IF NOT EXISTS resultsByTag ON results_tags(tag)")
 
+proc bindTags(which: var int, st: CheckStmt, tags: seq[int64]) =
+  for tag in tags:
+    echo("tag ",tag," ",which)
+    st.Bind(++which,tag)
+  if tags.len > 1:
+    st.Bind(++which,tags.len)
+
 proc findResults(tags: seq[int64], limit: int, offset: int): tuple[value: int64, ok: bool] =
   var s = "SELECT id FROM results WHERE derplimit = ? AND derpoffset = ?"
   if tags.len == 0:
@@ -23,45 +30,50 @@ proc findResults(tags: seq[int64], limit: int, offset: int): tuple[value: int64,
   else:
     s = s & " AND id IN (SELECT result FROM results_tags WHERE tag ";
     if tags.len == 1:
-      s = s & "= ?"
+      s = s & "= ?)"
     else:
       s = s & "IN (" & repeat("?,",tags.len-1) & "?)"
-    s = s & " GROUP BY result HAVING count()==?)"
+      s = s & " GROUP BY result HAVING count()==?)"
   var st = prepare(s)
   var which = 0
   st.Bind(++which,limit)
   st.Bind(++which,offset)
-  for tag in tags:
-    echo("tag ",tag," ",which)
-    st.Bind(++which,tag)
-  st.Bind(++which,tags.len)
+  bindTags(which,st,tags)
   return st.maybeValue()
 
 proc cache*(sql: string, tags: seq[int64], limit: int, offset: int): CheckStmt =
   echo("CACHE ",tags)
   var name = findResults(tags,limit,offset)
   if name.ok:
-    var select = prepare("SELECT * FROM resultcache.r" & $name.value)
+    var select = prepare("SELECT * FROM resultcache" & $name.value)
     try:
+      select.reset()
       select.step()
       return select
     except NoResults: discard
   withTransaction(conn):
     var insert = prepare("INSERT INTO results (derplimit,derpoffset) VALUES (?,?)")
+    defer: insert.finalize()
     insert.Bind(1,limit)
     insert.Bind(2,offset)
     insert.step()
     var rederp = last_insert_rowid()
+    insert.finalize()
     insert = prepare("INSERT INTO results_tags (result,tag) VALUES (?,?)")
     insert.Bind(1,rederp)
     for tag in tags:
       insert.Bind(2,tag)
       insert.step()
       insert.reset()
-    var create = prepare("CREATE TABLE AS resultcache.r" & $rederp & " " & sql);
+    var create = prepare("CREATE TABLE resultcache" & $rederp & " AS " & sql);
+    defer: create.finalize()
+    var which = 0
+    bindTags(which,create,tags)
+    create.Bind(++which,limit)
+    create.Bind(++which,offset)
     create.step()
   name = findResults(tags, limit, offset)
-  var select = prepare("SELECT * FROM resultcache.r" & $name.value)
+  var select = prepare("SELECT * FROM resultcache" & $name.value)
   select.get()
   return select
 
@@ -78,7 +90,7 @@ proc doExpire(s: string, tags: seq[int64]) =
   except: return
   for _ in select.foreach():
     var result = select.column_int(1);
-    exec("DROP TABLE resultcache." & $result)
+    exec("DROP TABLE resultcache" & $result)
   delete.step()
 
 proc expire*(tags: seq[int64]) =

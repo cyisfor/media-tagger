@@ -110,12 +110,15 @@ proc openSqlite*(location: string): CheckDB =
 
 proc prepare*(db: CheckDB, sql: string): CheckStmt =
   if db.statements.contains(sql):
-    return db.statements[sql]
+    result = db.statements[sql]
+    assert result.db
+    return
   result = CheckStmt(db: db, sql: sql)
   db.statements[sql] = result
   var res = prepare_v2(db.db,
                        sql,sql.len.cint,
                        result.st,nil)
+  assert result.db
   db.check(res,sql)
 
 proc close*(db: CheckDB) =
@@ -151,12 +154,13 @@ proc exec*(db: CheckDB, sql: string) =
   var res = prepare_v2(db.db,
                        sql,sql.len.cint,
                        st,nil)
+  db.check(res,sql)
   db.check(step(st),sql)
-  finalize(st)
+  db.check(finalize(st),"(finalize exec)")
 
 proc maybeValue*(st: CheckStmt): tuple[value: int64, ok: bool] =
   assert(1==column_count(st.st))
-  defer: st.db.check(reset(st.st))
+  defer: st.check(reset(st.st))
   var res = step(st.st)
   case res:
     of SQLITE_ROW:
@@ -167,7 +171,7 @@ proc maybeValue*(st: CheckStmt): tuple[value: int64, ok: bool] =
   
 proc getValue*(st: CheckStmt): int64 =
   assert(1==column_count(st.st))
-  defer: st.db.check(reset(st.st))
+  defer: st.check(reset(st.st))
   var res = step(st.st)
   case res:
     of SQLITE_ROW:

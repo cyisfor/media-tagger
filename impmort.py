@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import note
 import create
 import withtags
 import filedb
@@ -87,8 +88,8 @@ def main():
         #	raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
         #print(implied.union(discovered))
         path = path.encode('utf-8')
-        impmort(path,implied)
-def impmort(path,implied):
+        impmort(path,implied,recheck=recheck)
+def impmort(path,implied,recheck=False):
     bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
     if bad[0][0] != 0: return
     idnum = None

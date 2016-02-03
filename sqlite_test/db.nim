@@ -66,7 +66,6 @@ proc findTags*(tags: seq[string]): seq[int64] =
 proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tuple[medium: int64,title: string]] =
   result = @[]
   var query = "SELECT id,name FROM media INNER JOIN (" & makeQuery(posi,nega) & " ) AS derp ON derp.medium = media.id GROUP BY media.id"
-  echo("query ",query)
   query = query & " ORDER BY added DESC"
   query = query & " LIMIT ?"
   query = query & " OFFSET ?"
