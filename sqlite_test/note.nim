@@ -26,46 +26,49 @@ proc note(level: string, format: string, args: varargs[string, `$`]) =
     debugEcho(s)
 
 from macros import
-  bindSym,
-  toStrLit,
-  newStrLitNode,
   newNimNode,
   nnkStmtList,
-  nnkEnumTy,
-  nnkEmpty,
-  nnkTypeDef,
-  nnkAsgn,
-  nnkTemplateDef,
-  add
+  add,
+  `[]`,
+  `[]=`,
+  `$`,
+  len,
+  dumpTree,
+  findChild,
+  ident=,
+  toStrLit
 
-macro setup(pieces: stmt): stmt =
+macro setup(pieces: stmt): stmt {.immediate.} =
   result = newNimNode(nnkStmtList)
   # type Level = enum ...info,...
   # (type (A = b, c, d...))
-  var names = pieces[0][2..high(names)]
-
-  # enum
   add(result,pieces[0])
-  
-  # root.minlevel = info
   add(result,pieces[1])
+  echo(pieces)
 
-  for name in names:
+  var i = 2
+  while i < len(pieces[0]):
+    var name = pieces[0][i]
+    i = i + 1
     # template info*(...)
-    templatederp = deepCopy(pieces[2])
+    var templatederp = pieces[2]
+
     # (template 0:(postfix (ident (*)) NAME)
     #  1:(rewriting) 2:(generics)
     #  3:(params) 4:(macros) 5:(reserved)
     #  6:(statements
     #      0:(if 0:(elif >= NAME root.minlevel) 1:(call 0:note 1:NAME format args))))
-    templatederp[0][0][1] = name
-    var stmtlist = templatederp[6]
-    var theelif = stmtlist[0][0]
-    theelif[1] = name
-    stmtlist[1][1] = name
-    add(result,templatederp)    
+    ident=(findChild(templatederp,
+                     it.kind == nnkIdent and
+                     it.ident == "NAME"),
+           name)
+    ident=(findChild(templatederp,
+                     it.kind == nnkIdent and
+                     it.ident == "NAME_STR"),
+           toStrLit(name))
+    add(result,templatederp)
 
-setup(Level,info):
+setup():
   type Level = enum
     spam
     debug
@@ -75,9 +78,9 @@ setup(Level,info):
     error
     always
 
-  root.minlevel = whatever
+  root.minlevel = info
 
-  template somename*(format: expr, args: varargs[expr]) =
-    note(somenamewhatever, format, args)
+  template NAME*(format: expr, args: varargs[expr]) =
+    note(NAME_STR, format, args)
   
 info("test $1","hi")
