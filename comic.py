@@ -24,23 +24,23 @@ def go():
         """CREATE OR REPLACE FUNCTION setcomicpage(_medium integer, _comic integer, _which integer) RETURNS void AS
 $$
 
-BEGIN                                                  
-     LOOP                                               
+BEGIN												  
+     LOOP											   
          -- first try to update the key 
          UPDATE comicPage set medium = _medium where comic = _comic and which = _which;
-         IF found THEN                                  
-             RETURN;                                    
-         END IF;                                        
-         -- not there, so try to insert the key         
+         IF found THEN								  
+             RETURN;									
+         END IF;										
+         -- not there, so try to insert the key		 
          -- if someone else inserts the same key concurrently
-         -- we could get a unique-key failure           
-         BEGIN                                          
+         -- we could get a unique-key failure		   
+         BEGIN										  
              INSERT INTO comicPage(medium,comic,which) VALUES (_medium,_comic,_which);
-             RETURN;                                    
-         EXCEPTION WHEN unique_violation THEN           
+             RETURN;									
+         EXCEPTION WHEN unique_violation THEN		   
              -- Do nothing, and loop to try the UPDATE again.
-         END;                                           
-     END LOOP;                                          
+         END;										   
+     END LOOP;										  
 END;
 $$ language 'plpgsql'""")
 
@@ -60,9 +60,11 @@ def withC(f):
 def findComicByTitle(title,getinfo):
     rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
     if len(rows) == 0:
+        print("Couldn't find title",title)
         @getinfo
         def handle(description):
-            return db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+            nonlocal rows
+            rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
                 (title,
                 description))[0][0]
     return rows[0][0]

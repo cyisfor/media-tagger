@@ -82,7 +82,7 @@ proc list*(posi: seq[int64],nega: seq[int64], limit: int, offset: int): seq[tupl
   query = query & " OFFSET ?"
 
   var st = resultcache.cache(query,concat(posi,nega),limit,offset)
-  var which = bindTags(st,posi,nega)
+  discard bindTags(st,posi,nega)
   for _ in st.foreach():
     var medium: int64 = column_int(st,0)
     var title: string = column(st,1)

@@ -3,6 +3,7 @@ import favorites.parseBase as parse
 import favorites.parsers
 import comic
 import db
+import tags as tagsModule
 
 from bs4sux import BeautifulSoup
 import os
@@ -65,11 +66,16 @@ def isNext(s):
     if s == '>>': return True
     if 'next' in s: return True
 
+if 'tags' in os.environ:
+    tags = tagsModule.parse('e621,'+os.environ['tags'])
+else:
+    tags = tagsModule.parse('e621')
+    
 def getPool(base):
     print('base',base)
     whicher = count(0)
     title = None
-    while True:    
+    while True:	
         #with open('derp.html') as inp:
         with setupurllib.myopen(base) as inp:
             doc = BeautifulSoup(inp)
@@ -79,16 +85,16 @@ def getPool(base):
             if not h4:
                 print(doc)
                 raise SystemExit
+
             title = h4.string.strip()
             print(title)
-
-            def getinfo():
+            def getinfo(next):
                 description = h4.next_element.string.strip()
-                if description: return description
-                return input('Description: ').strip()
-
+                if not description:
+                    description = input('Description: ').strip()
+                next(description)
             com = comic.findComicByTitle(title,getinfo)
-            source = db.execute("SELECT findURISource($1)",(base,))[0][0]
+            source = db.execute("SELECT findURISource($1)",(base,))[0][0]	
             db.execute("UPDATE comics SET source = $1 WHERE id = $2",(source,com))
             db.retransaction()
             print('updooted',com,source)
@@ -107,7 +113,7 @@ def getPool(base):
                 try: 
                     medium = parse.parse(url)
                 except parse.ParseError: continue
-                db.retransaction()                
+                db.retransaction()				
             which = next(whicher)
             for tries in range(2):
                 try: db.execute('SELECT setComicPage($1,$2,$3)',(medium,com,which))

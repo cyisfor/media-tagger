@@ -83,6 +83,7 @@ def gotURL(url):
     c = centry.get_text()
     if c:
         c = int(c,0x10)
+        print('yay',c)
     else:
         yield background
         import db

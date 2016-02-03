@@ -1,6 +1,6 @@
 from sqlite3 import
   PSqlite3, PStmt,
-  reset, step, finalize, close,
+  step, finalize, close,
   last_insert_rowid,
   prepare_v2,
   errmsg,
@@ -89,23 +89,27 @@ proc Bind*(st: CheckStmt, idx: int, val: string) =
   st.check(bind_text(st.st,idx.cint,val, val.len.cint, nil))
 
 proc step*(st: CheckStmt) =
+  echo("STERP ",st.sql)
   st.check(step(st.st))
 
 iterator foreach*(st: CheckStmt): int =
   var i = 0
-  while true:
-    var res = step(st.st)
-    check(st, res)
-    if res == SQLITE_ROW:
-      yield i
-      inc(i)
-    elif res == SQLITE_DONE:
-      break
+  try:
+    while true:
+      var res = step(st.st)
+      check(st, res)
+      if res == SQLITE_ROW:
+        yield i
+        inc(i)
+      elif res == SQLITE_DONE:
+        break
+  finally:
+    echo("reset!",st.sql)
+    st.check(sqlite3.reset(st.st))
   
 proc resetStmt*(st: CheckStmt) =
-  echo("a")
-  st.check(reset(st.st))
-  assert st.db != nil, "b"
+  echo("Resetting ",st.sql)
+  st.check(sqlite3.reset(st.st))
 
 proc get*(st: CheckStmt) =
   var res = step(st.st)
@@ -192,18 +196,22 @@ proc exec*(db: CheckDB, sql: string) =
 
 proc maybeValue*(st: CheckStmt): tuple[value: int64, ok: bool] =
   assert(1==column_count(st.st))
-  defer: st.check(reset(st.st))
+  defer: st.check(sqlite3.reset(st.st))
+  echo("STEPV")
   var res = step(st.st)
   case res:
     of SQLITE_ROW:
       result.ok = true
       result.value = column_int(st.st,0);
+      echo("ERP ",st.sql)
     else:
       result.ok = false      
+  st.check(sqlite3.reset(st.st))
+  echo("RESETV")
   
 proc getValue*(st: CheckStmt): int64 =
   assert(1==column_count(st.st))
-  defer: st.check(reset(st.st))
+  defer: st.check(sqlite3.reset(st.st))
   var res = step(st.st)
   case res:
     of SQLITE_ROW:

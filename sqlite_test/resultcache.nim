@@ -48,9 +48,10 @@ proc findResults(tags: seq[int64], limit: int, offset: int): tuple[value: int64,
       s = s & "IN (" & repeat("?,",tags.len-1) & "?)"
       s = s & " GROUP BY result HAVING count()==?)"
   var st = prepare(s)
+  st.resetStmt()
   var which = 0
-  st.Bind(++which,limit)
-  st.Bind(++which,offset)
+  st.Bind(1,limit)
+  st.Bind(2,offset)
   bindTags(which,st,tags)
   return st.maybeValue()
 
