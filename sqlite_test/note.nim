@@ -6,19 +6,20 @@ from macros import
   add,
   `[]`,
   `[]=`,
-  lispRepr,
+  treeRepr,
   len,
   dumpTree,
   toStrLit,
   copyNimTree,
   quote,
-  parseStmt
+  parseStmt,
+  copyChildrenTo
 
 macro setup(): stmt {.immediate.} =
   result = newNimNode(nnkStmtList)
   # type Level = enum ...info,...
   # (type (A = b, c, d...))
-  var enums = quote do:
+  var enums = parseStmt("""
     type Level = enum
       spam
       debug
@@ -27,11 +28,9 @@ macro setup(): stmt {.immediate.} =
       warn
       error
       always
-  enums = enums[0]
-  add(result,enums)
-  var info = enums[0][2][5]
-
-  var derp = quote do:
+""")
+      
+  var derp = quote("@@") do:
     type Notepad* = ref object of RootObj
       location: bool
       byProcedure: bool
@@ -41,6 +40,7 @@ macro setup(): stmt {.immediate.} =
     
     root.location = true
     root.byProcedure = false
+    root.minlevel = info
     
     proc note(level: string, format: string, args: varargs[string, `$`]) =
       var s: string
@@ -56,19 +56,20 @@ macro setup(): stmt {.immediate.} =
       else:
         s = level & ": " & strutils.format(format, args)
         debugEcho(s)
-        
-  add(result,parseStmt("root.minlevel = info"))
-  var i = 2
-  while i < len(enums[0]):
-    var name = enums[0][i]
+  copyChildrenTo(derp[0],enums[0])
+  copyChildrenTo(enums, result)
+  enums = enums[0][0][2]
+  var i = 1
+  echo(treeRepr(enums))
+  while i < len(enums):
+    var name = enums[i]
     i = i + 1
     var namestr = toStrLit(name)
-    echo(lispRepr(result))
     # template info*(...)
-    var derp = quote do:
+    derp = quote do:
       template `name`*(format: expr, args: varargs[expr]) =
         note(`namestr`, format, args)
-    add(result,derp)
+    copyChildrenTo(derp,result)
 setup()
   
 info("test $1","hi")
