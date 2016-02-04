@@ -1,4 +1,4 @@
-from strutils import nil
+from strutils import toLower
 
 from macros import
   newNimNode,
@@ -6,14 +6,20 @@ from macros import
   add,
   `[]`,
   `[]=`,
+  ident,
+  strVal,
+  `!`,
+  `$`,
   treeRepr,
   len,
   dumpTree,
   toStrLit,
   copyNimTree,
+  copyNimNode,
   quote,
   parseStmt,
-  copyChildrenTo
+  copyChildrenTo,
+  newIdentNode
 
 macro setup(): stmt {.immediate.} =
   result = newNimNode(nnkStmtList)
@@ -21,16 +27,13 @@ macro setup(): stmt {.immediate.} =
   # (type (A = b, c, d...))
   var enums = parseStmt("""
     type Level = enum
-      spam
-      debug
-      chatty
-      info
-      warn
-      error
-      always
-""")
-      
-  var derp = quote("@@") do:
+      SPAM
+      DEBUG
+      CHATTY
+      INFO
+      WARN
+      ERROR
+      ALWAYS
     type Notepad* = ref object of RootObj
       location: bool
       byProcedure: bool
@@ -40,7 +43,7 @@ macro setup(): stmt {.immediate.} =
     
     root.location = true
     root.byProcedure = false
-    root.minlevel = info
+    root.minlevel = INFO
     
     proc note(level: string, format: string, args: varargs[string, `$`]) =
       var s: string
@@ -56,20 +59,20 @@ macro setup(): stmt {.immediate.} =
       else:
         s = level & ": " & strutils.format(format, args)
         debugEcho(s)
-  copyChildrenTo(derp[0],enums[0])
+""")
   copyChildrenTo(enums, result)
   enums = enums[0][0][2]
   var i = 1
-  echo(treeRepr(enums))
   while i < len(enums):
-    var name = enums[i]
+    var name = newIdentNode(toLower($enums[i].ident))
+    var namestr = toStrLit(enums[i])
     i = i + 1
-    var namestr = toStrLit(name)
     # template info*(...)
-    derp = quote do:
+    var derp = quote do:
       template `name`*(format: expr, args: varargs[expr]) =
         note(`namestr`, format, args)
     copyChildrenTo(derp,result)
+  echo(treeRepr(result))
 setup()
   
 info("test $1","hi")
