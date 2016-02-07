@@ -36,7 +36,7 @@ macro setup(): stmt {.immediate.} =
     var namestr = toStrLit(enums[i])
     i = i + 1
     # template info*(...)
-    var derp = quote do:
+    let derp = quote do:
       template `name`*(format: expr, args: varargs[expr]) =
         if root.minlevel > `ident`:
           note(`namestr`, format, args)

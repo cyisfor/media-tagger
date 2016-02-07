@@ -34,4 +34,5 @@ proc note(level: string, format: string, args: varargs[string, `$`]) =
     debugEcho(s)
 
 template DERP*(format: expr, args: varargs[expr]) =
-  note("DERPSTR", format, args)
+  if root.minlevel > HERPDERP:
+    note("DERPSTR", format, args)
