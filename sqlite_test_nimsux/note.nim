@@ -1,3 +1,5 @@
+from strutils import toLower
+
 type Level = enum
   SPAM
   DEBUG
@@ -12,52 +14,66 @@ type Notepad* = ref object of RootObj
   byProcedure: bool
   minlevel: Level
 
-var root: Notepad
+var root: Notepad = new Notepad
 
 root.location = true
 root.byProcedure = false
 root.minlevel = INFO
 
-proc note(level: string, format: string, args: varargs[string, `$`]) =
+proc makesrc(): string =
+  var frame = getFrame().prev
+  if root.byProcedure:
+    return $frame.procname
+  else:
+    return $frame.filename & ":" & $(frame.line)
+
+
+proc note(srcname: string, level: string, format: string, args: varargs[string, `$`]) =
   var s: string
   if root.location:
-    var frame = getFrame().prev
-    s = "("
-    if root.byProcedure:
-      s = s & $frame.procname
-    else:
-      s = s & $frame.filename
-      s = s & ":" & $(frame.line) & ") "
-      s = s & level & ": " & strutils.format(format, args)
+    s = "(" & srcname & ") "
+    s = s & level & ": " & strutils.format(format, args)
   else:
     s = level & ": " & strutils.format(format, args)
-    debugEcho(s)
+  debugEcho(s)
 
-macro setup(): stmt {.immediate.} =
-  result = newNimNode(nnkStmtList)
-  # type Level = enum ...info,...
-  # (type (A = b, c, d...))
-  var enums = [Level]
+from macros import
+  newNimNode,
+  newIdentNode,
+  nnkStmtList,
+  treeRepr,
+  toStrLit,
+  newStrLitNode,
+  quote,
+  copyChildrenTo,
+  parseStmt
 
-  var i = 1
-  while i < len(enums):    
-    var ident = enums[i]
-    echo(ident)
-    var name = newIdentNode(toLower($ident.ident))
-    var namestr = toStrLit(enums[i])
-    i = i + 1
-    # template info*(...)
-    let derp = quote do:
-      template `name`*(format: expr, args: varargs[expr]) =
-        if root.minlevel > `ident`:
-          note(`namestr`, format, args)
-    copyChildrenTo(derp,result)
-  echo(treeRepr(result))
-setup()
+macro dumpast(s: stmt): stmt =
+  echo(treeRepr(s))
+
+dumpast:
+  macro setup(): stmt {.immediate.} =
+    result = newNimNode(nnkStmtList)
+    # type Level = enum ...info,...
+    # (type (A = b, c, d...))
+    for level in low(Level)..high(Level):
+      var ident = newIdentNode($level)
+      var name = newIdentNode(toLower($level))
+      var namestr = newStrLitNode($level)
+      # template info*(...)
+      let derp = quote do:
+        template `name`*(format: expr, args: varargs[expr]) =
+          if root.minlevel > `ident`:
+            note(makesrc(),`namestr`, format, args)
+      #echo(treeRepr(derp))
+      copyChildrenTo(derp,result)
+    #echo(treeRepr(result))
+  setup()
+
+  info("inf $1","2")
+
+  template DERP*(format: expr, args: varargs[expr]) =
+    if root.minlevel > HERPDERP:
+      note("DERPSTR", format, args)
 
 
-info("test $1","hi")
-
-template DERP*(format: expr, args: varargs[expr]) =
-  if root.minlevel > HERPDERP:
-    note("DERPSTR", format, args)
