@@ -1,3 +1,5 @@
+from strutils import nil
+
 type Level = enum
   SPAM
   DEBUG
