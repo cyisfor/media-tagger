@@ -47,33 +47,22 @@ from macros import
   quote,
   copyChildrenTo,
   parseStmt
+    
+template setup(): stmt {.immediate.} =
+  # type Level = enum ...info,...
+  # (type (A = b, c, d...))
+  for level in low(Level)..high(Level):
+    var ident = $level
+    var name = "\"" & toLower(ident) & "\"";
+    template `name`(format: expr, args: varargs[string,`$`]) =
+        if root.minlevel > `ident`:
+          note(makesrc(),`namestr`, format, args)
+setup()
 
-macro dumpast(s: stmt): stmt =
-  echo(treeRepr(s))
+info("inf $1","2")
 
-dumpast:
-  macro setup(): stmt {.immediate.} =
-    result = newNimNode(nnkStmtList)
-    # type Level = enum ...info,...
-    # (type (A = b, c, d...))
-    for level in low(Level)..high(Level):
-      var ident = newIdentNode($level)
-      var name = newIdentNode(toLower($level))
-      var namestr = newStrLitNode($level)
-      # template info*(...)
-      let derp = quote do:
-        template `name`*(format: expr, args: varargs[expr]) =
-          if root.minlevel > `ident`:
-            note(makesrc(),`namestr`, format, args)
-      #echo(treeRepr(derp))
-      copyChildrenTo(derp,result)
-    #echo(treeRepr(result))
-  setup()
+template DERP*(format: expr, args: varargs[expr]) =
+  if root.minlevel > HERPDERP:
+    note("DERPSTR", format, args)
 
-  info("inf $1","2")
-
-  template DERP*(format: expr, args: varargs[expr]) =
-    if root.minlevel > HERPDERP:
-      note("DERPSTR", format, args)
-
-
+    
