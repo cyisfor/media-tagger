@@ -290,6 +290,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
                             params['o'] = o - 1
                             disp.Links.prev = disp.unparseQuery(params)
                     return f()
+
+            if 'p' in params:
+                pageSize = params['p']
+            else:
+                pageSize = thumbnailPageSize
                 
             def getPage():
                 if 'q' in params:
@@ -318,7 +323,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         return page
                 else:
                     if o:
-                        offset = thumbnailPageSize*o
+                        offset = pageSize*o
                     else:
                         offset = 0
                         
@@ -329,11 +334,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         withtags.searchForTags(
                             tags,
                             offset=offset,
-                            limit=thumbnailPageSize),
+                            limit=pageSize),
                         withtags.searchForTags(
                             tags,
                             offset=offset,
-                            limit=thumbnailPageSize,
+                            limit=pageSize,
                             wantRelated=True),
                         basic))
             with disp.Links:
