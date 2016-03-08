@@ -292,7 +292,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                     return f()
 
             if 'p' in params:
-                pageSize = params['p']
+                pageSize = int(params['p'][0])
             else:
                 pageSize = thumbnailPageSize
                 
@@ -331,6 +331,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                         pathurl,
                         params,
                         o,
+                        pageSize,
                         withtags.searchForTags(
                             tags,
                             offset=offset,

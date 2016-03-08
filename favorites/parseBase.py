@@ -52,11 +52,13 @@ def locked(table):
     return deco
 
 @locked('urisources')
-def parse(primarySource):
+def parse(primarySource,noCreate=False):
     primarySource = primarySource.strip()
-    if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
-        note('skipping',primarySource)
-        return
+    if (skip or noCreate):
+        source = db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,))
+        if source:
+            note('skipping',primarySource)
+            return db.execute('SELECT id FROM media WHERE sources @> ARRAY[$1::int]',(source[0]))[0][0]
     note('parsing',repr(primarySource))
     url = urllib.parse.urlparse(primarySource)
     doc = None

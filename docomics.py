@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import note
 from bgworker import makeWorker
 
 from mygi import GLib
@@ -33,7 +34,6 @@ def handling(f,*a,**kw):
     return wrapper
 
 def getinfo(next):
-    raise RuntimeError('wut?')
     window = Gtk.Window()
     box = Gtk.VBox()
     window.add(box)
@@ -72,8 +72,8 @@ def gotURL(url):
     sys.stdout.flush()
     from favorites.parseBase import parse,normalize,ParseError
     try:
-        m = parse(normalize(url))
-        assert(m)
+        m = parse(normalize(url),noCreate=True)
+        assert m, url
     except ParseError:
         try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
         except ValueError:
@@ -85,13 +85,14 @@ def gotURL(url):
     c = centry.get_text()
     if c:
         c = int(c,0x10)
-        print('yay',c)
+        print('yay',hex(c))
     else:
         yield background
         import db
         print('m is still',m)
-        c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1',(m,))
-        if len(c)==1:
+        c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1 ORDER BY which DESC',(m,))
+        if len(c)>0:
+            note.yellow('boop!',c)
             c = c[0]
             c,w = c
             yield foreground
@@ -122,9 +123,10 @@ def gotURL(url):
                 raise
     def gotcomic(title,description,source,tags):
         import comic
+        note.yellow('find mediaum',c,w,m)
+
         comic.findMedium(c,w,m)
         foreground(lambda: wentry.set_text("{:x}".format(w+1)))
-        
     yield background
     import comic
     comic.findInfo(c,

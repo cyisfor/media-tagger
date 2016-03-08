@@ -498,7 +498,7 @@ def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
 
 @gen.coroutine
-def media(url,query,offset,info,related,basic):
+def media(url,query,offset,pageSize,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
     related=stripGeneral(related)
@@ -511,7 +511,8 @@ def media(url,query,offset,info,related,basic):
 
     with Links:
         info = list(info)
-        if len(info)>=thumbnailPageSize:
+        print('oooooo',offset)
+        if len(info)>=pageSize:
             query['o'] = offset + 1
             Links.next = url.path+unparseQuery(query)
         if offset > 0:

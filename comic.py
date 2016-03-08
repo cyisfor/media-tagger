@@ -1,3 +1,4 @@
+import note
 from versions import Versioner
 from db import vsetup,transaction
 import db
@@ -64,9 +65,10 @@ def findComicByTitle(title,getinfo):
         @getinfo
         def handle(description):
             nonlocal rows
-            rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
-                (title,
-                description))[0][0]
+            with db.transaction():
+                rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+                                  (title,
+                                  description))[0][0]
     return rows[0][0]
 
 def findInfoDerp(id):
@@ -77,8 +79,9 @@ def findInfo(id,getinfo,next=None):
     if len(rows) == 0:
         print('comic',hex(id),'no exist')
         @getinfo
-        def handle(title,description,source,tags):
-            db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
+        def _(title,description,source,tags):
+            with db.transaction():
+                db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
             if next: next(title,description,source,tags)
     elif next:
         next(*rows[0])
@@ -87,9 +90,11 @@ def findMediumDerp(comic,which,medium=None):
     rows = db.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))
     if len(rows)==0:
         if medium:
-            db.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
-            db.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
+            with db.transaction():
+                db.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
+                db.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
         return medium
+    note.yellow('medium existed',rows,medium)
     return rows[0][0]
 
 def findMedium(comic,which,medium=None):
@@ -100,7 +105,7 @@ def findMedium(comic,which,medium=None):
         if medium:
             return medium
         else:
-            print('No medium for ',comic,which)
+            note.yellow('No medium for ',comic,which)
             np = pages(comic)
             if which == 0 and np == 0:
                 return 0x5c911
