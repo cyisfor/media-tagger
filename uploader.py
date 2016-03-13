@@ -92,7 +92,7 @@ def manage(req):
         try: length = int(length)
         except ValueError: pass
         if length == 0:
-            
+            # we're just submitting updates to an existing image.
             media = serv.headers.get("X-ID")
             if media:
                 try:
@@ -109,7 +109,9 @@ def manage(req):
             raise Error("Please don't use chunked transfer encoding!")
         raise Error("Your client didn't set the Content-Length header for some reason.")
 
-    @coroutine
+    if media is None:
+        
+
     def have_media(media,*a):
         yield filedb.checkResized(media)
         if len(db.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:

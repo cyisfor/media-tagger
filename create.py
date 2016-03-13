@@ -11,8 +11,6 @@ from weirdui import manuallyGetType
     
 import imageInfo
 
-from tornado import gen
-
 from hashlib import sha1 as SHA,md5 as MD5
 
 import gzip
@@ -130,13 +128,11 @@ class Source:
             self.id = sourceId(self.uri,self.isUnique,self.hasTags)
         return self.id
 
-@processLocked("creating")
 def getanId(sources,uniqueSources,download,name):
     for uniqueSource in uniqueSources:
         result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
         if result:
-            yield result[0][0], False
-            return
+            return result[0][0], False
     md5 = None
     for i,source in enumerate(sources):
         if source.uri:
@@ -146,27 +142,24 @@ def getanId(sources,uniqueSources,download,name):
                 result = db.execute("SELECT id FROM media WHERE md5 = $1",
                             (md5,))
                 if result:
-                    yield result[0][0],False
-                    return
+                    return result[0][0],False
                 # don't return here!
                 # we found an md5 and it wasn't in our database
                 # so download it!
     note("downloading to get an id")
     with filedb.mediaBecomer() as data:
-        created = yield download(data)
+        created = download(data)
         note('cerated',created)
         digest = mediaHash(data)
         result = db.execute("SELECT id FROM media WHERE hash = $1",(digest,))
         if result:
             print("Oops, we already had this one, from another source!")
-            yield result[0][0],False
-            return
+            return result[0][0],False
         result = db.execute("SELECT medium FROM dupes WHERE hash = $1",(digest,))
         if result:
             id = result[0][0]
             print("Dupe of {:x}".format(id))
-            yield id, False
-            return
+            return id, False
         result = db.execute("SELECT id FROM blacklist WHERE hash = $1",(digest,))
         if result:
             # this hash is blacklisted
@@ -214,8 +207,7 @@ def getanId(sources,uniqueSources,download,name):
             data.flush()
             savedData.become(id)
             filedb.check(id) # don't bother waiting for this if it stalls
-            yield id,True
-            return
+            return id,True
 
 tagsModule = tags
 
@@ -246,37 +238,14 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
     otherSources = set(Source(source,isUnique=False) for source in otherSources)
     sources = uniqueSources.union(otherSources)
     with db.transaction():
-        id,wasCreated = getanId(sources,uniqueSources,download,name)
-        print('got id',hex(id),wasCreated)
-        if not wasCreated:
-            note("Old medium with id {:x}".format(id))
-            #input()
+        id,was_created = getanId(sources,uniqueSources,download,name)
+    print('got id',hex(id),was_created)
+    if not was_created:
+        note("Old medium with id {:x}".format(id))
+        #input()
     note("update")
     update(id,sources,tags,name)
-    yield id,wasCreated
-
-def internet_future(ioloop,*a,**kw):
-    "the async version of internet_yield"
-    return drain(ioloop,internet_yield(*a,**kw))
-
-def internet(*a,**kw):
-    "the sync version of internet_yield"
-    g = internet_yield(*a,**kw)
-    result = None
-    while True:
-        try:
-            result = g.send(result)
-        except StopIteration: 
-            break
-        except gen.Return as ret:
-            result = ret.value
-            break
-        if is_future(result):
-            if result.running():
-                raise RuntimeError("Download can't complete right away, but this is the sync version!")
-            result = result.result()
-            note('future produced',result)
-    return result
+    return id, was_created
 
 def copyMe(source):
     def download(dest):
