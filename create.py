@@ -205,10 +205,18 @@ def getanId(sources,uniqueSources,download,name):
                 else:
                     print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))
             data.flush()
+            if hasattr(created,'timestamp'):
+                timestamp = created.timestamp()
+            else:
+                import time
+                timestamp = time.mktime(created.timetuple())
+            os.utime(data.name,(timestamp,timestamp))
             data.become(id)
+            
+
             # create thumbnail proactively
-            # don't bother waiting for this if it stalls
-            eventlet.spawn_n(filedb.check,id)
+            # don't bother waiting for it to appear
+            filedb.incoming(id)
             return id,True
 
 tagsModule = tags

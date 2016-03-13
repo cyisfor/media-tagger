@@ -7,7 +7,6 @@ from itertools import count
 import fixprint
 
 from tracker_coroutine import coroutine
-from tornado.gen import Future
 
 from dimensions import thumbnailPageSize,thumbnailRowSize
 
@@ -37,23 +36,13 @@ def quote(s):
         print(repr(s))
         raise
 
-# XXX: put this somewhere
-def wrapFuture(f,wrapper):
-    ff = Future()
-    f.add_done_callback(lambda f: ff.set_result(wrapper(f)))
-    return ff
-        
-    
 def makeLinks(info):
     allexists = True
     links = []
-    @coroutine
-    def iter():
-        nonlocal allexists
-        for id,name,type,tagz in info:
-            tagz = [str(tag) for tag in tagz]
-            fid,oneexists = yield filedb.check(id,create=False)
-            allexists = allexists and oneexists
+    for id,name,type,tagz in info:
+        tagz = [str(tag) for tag in tagz]
+        fid,oneexists = yield filedb.check(id,create=False)
+        allexists = allexists and oneexists
             links.append(dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz)))
     def done(f):
         return {'allexists': allexists, 

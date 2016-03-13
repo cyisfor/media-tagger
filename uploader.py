@@ -114,14 +114,19 @@ def manage(req):
             shutil.copyfileobj(self.rfile,dest,length)
             dest.flush()
             assert(dest.tell()>0)
-            modified = req.headers['Last-Modified']
-            if modified is None:
-                modified = req.headers.get('If-Modified-Since')
-            if modified is None:
+            def getrawcreated():
+                for header in (
+                        'X-Created',
+                        'Last-Modified',
+                        'If-Modified-Since'):
+                    if header in req.headers:
+                        return req.headers[header]
+            created = getrawcreated()
+            if created is None:
                 return datetime.datetime.now()
             else:
-                modified = email.utils.parsedate(modified)
-                return datetime.datetime(*(modified[:6]))
+                created = email.utils.parsedate(modified)
+                return datetime.datetime(*(created[:6]))
 
         media, was_created = create.internet(download,
                                                                                  None,
