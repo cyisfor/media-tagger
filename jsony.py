@@ -149,7 +149,7 @@ def info(info,path,params):
         Links.id = info.pop('id')
         fid,exists = filedb.check(Links.id)
         Session.refresh = not exists
-        if Session.head: return        
+        if Session.head: return		
     return makePage(info)
 
 def media(url,query,offset,info,related,basic):
