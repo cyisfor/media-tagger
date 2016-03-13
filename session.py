@@ -1,7 +1,7 @@
-import context
+from context import contextify
 import time
 
-@context.Context
+@contextify
 class Session:
     refresh = False
     query = None

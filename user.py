@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from functools import reduce
 
 import versions,db
-import context2
+from context import contextify
 
 v = versions.Versioner('user')
 
@@ -35,37 +35,37 @@ def currentUser():
 defaultTags = '-rating:explicit, -gore'
 dtags = tags.parse(defaultTags)
 
-@context2.Context
+@contextify
 class User:
     ident = None
     id = None
     rescaleImages = False
     defaultTags = None
-    def tags(self):
-        if self.defaultTags:
+    def tags():
+        if User.defaultTags:
             return dtags
         result = tags.Taglist()
-        for id,nega in db.execute("SELECT tag,nega FROM uzertags WHERE uzer = $1",(self.id,)):
+        for id,nega in db.execute("SELECT tag,nega FROM uzertags WHERE uzer = $1",(User.id,)):
             if nega:
                 result.nega.add(id)
             else:
                 result.posi.add(id)
         return result
-    def visit(self,media):
-        db.execute('SELECT uzerVisitsInsert($1,$2)',self.id,media)
-    def __str__(self):
-        return self.ident
-    def __repr__(self):
-        return '<user '+self.ident+'>'
-    def __init__(self,ident):
+    def visit(media):
+        db.execute('SELECT uzerVisitsInsert($1,$2)',User.id,media)
+    def __str__():
+        return User.ident
+    def __repr__():
+        return '<user '+User.ident+'>'
+    def setup(ident):
         for go in range(2):
             result = db.execute("SELECT id,rescaleImages,defaultTags FROM uzers WHERE ident = $1",(ident,))
             if result and len(result[0]) == 3:
                 result = result[0]
-                self.ident = ident
-                self.id = result[0]
-                self.rescaleImages = result[1]
-                self.defaultTags = result[2]
+                User.ident = ident
+                User.id = result[0]
+                User.rescaleImages = result[1]
+                User.defaultTags = result[2]
                 return
             db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
         raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")

@@ -1,90 +1,92 @@
-import tracker_coroutine
+# thank you so much Aaron Griffith
 
-def methodize(f):
-    class Method:
-        def __get__(self,cls):
-            return f
-    return Method
+import parameterize
+import eventlet.greenthread
+import greenlet
+# normally parameterize is set to work with threading locals
+# we can simulate this in green threads, with a dictionary lookup by
+# thread ID
 
-def Classmethodize(klass):
-    for n,v in klass.__dict__.items():
-        if n == '__dict__': continue
-        if hasattr(v,'__call__') or hasattr(v,'__get__'):
-            setattr(klass,n,classmethod(v))
-    return klass
+def derp(value):
+    return list(value.items())
 
-def Context(klass):
-    defaults = dict()
-    rest = dict()
-    for n,v in klass.__dict__.items():
-        if n == '__dict__': continue
-        elif n.startswith('_') or hasattr(v,'__call__'):
-            rest[n] = v
-        else:
-            defaults[n] = v
-    stacks = {}
-        # one stack per coroutine...
+env_by_thread = {}
+class ThreadLocal:
+    def __getattr__(self,name):
+        assert(name=='dynamic_environment')
+        me = eventlet.greenthread.getcurrent()
+        if me in env_by_thread:
+            return env_by_thread[me]
+        raise AttributeError("no environment")
+    def __setattr__(self,name,value):
+        assert(name=='dynamic_environment')
+        me = eventlet.greenthread.getcurrent()
+        env_by_thread[me] = value
+        # must set this, since parameterize checks dir(self)
+        # to see if the attribute exists...
+    def __dir__(self):
+        me = eventlet.greenthread.getcurrent()
+        if me in env_by_thread:
+            return ['dynamic_environment']
+        return []
 
-    if tracker_coroutine.which in stacks:
-        stack = stacks[tracker_coroutine.which]
-    else:
-        stack = [defaults]
-        stacks[tracker_coroutine.which] = stack
-        
-    # below top the stack must be tuples, so they don't mutate when the top does
-    # must push a copy every enter, because even if same "self" must not mutate after exit
-    class Derivate: 
-        __doc__ = rest.get('__doc__','')
-        def __init__(self): pass
-        def __enter__(self):
-            derps = stack[-1]
-            items = tuple(derps.items())
-            stack[-1] = items
-            stack.append(derps)
-        def __exit__(self,*a):
-            stack.pop()
-            stack[-1] = dict(stack[-1])
+parameterize.set_context_locals(ThreadLocal())
+
+# a coroutine-local-ish stack of contexts
+# like implicit arguments passed with every function
+# that act like globals
+
+def contextify(klass):
+    # klass contains defaults, but what actually is here is a parameter
+    # dict, that you lookup with getattr to get/set current values
+    # or use call and 'with' to parameterize by copy of current value
+    d = dict((n,v) for n,v in klass.__dict__.items() if not n.startswith('_'))
+    p = parameterize.Parameter(d)
+    class Context:
+        def __call__(self):
+            d = dict(p.get())
+            return p.parameterize(d)
         def __getattr__(self,n):
-            if n == 'stack': return stack
-            elif n in rest: 
-                v = rest[n]
-            else:
-                v = stack[-1][n]
-            if hasattr(v,'__get__'):				
-                return v.__get__(klass)
-            return v
+            return p.get()[n]
         def __setattr__(self,n,v):
-            if n == 'stack':
-                setattr(super(),n,v)
-                return
-            elif n in rest:
-                return rest[n]
-            stack[-1][n] = v
-    for n,v in rest.items():
-        if n == '__init__': continue
-        try: setattr(Derivate,n,v)
-        except AttributeError: pass
-    d = Derivate()
-    d.__name__ = klass.__name__
-    return d
+            p.get()[n] = v
+        __name__ = klass.__name__
+    return Context()
+
 
 def test():
-    @Context
+    @contextify
     class Test:
         a = 3
         b = 4
-        def foo(self):
-            print('sum',self.a,self.b,self.a+self.b)
-            return 3
+        def foo():
+            print('sum',Test.a,Test.b,Test.a+Test.b)
+            return 23-Test.a
 
     print(Test.foo())
-    with Test:
+    with Test():
         Test.a = 5
         print(Test.foo())
-        with Test:
+        with Test():
             Test.a = 7
             print(Test.foo())
         print(Test.foo())
 
     print(Test.foo())
+
+    @greenlet.greenlet
+    def thing1():
+        with Test():
+            Test.a = 5
+            print('Test.a is 5')
+            thing2.switch()
+            print('Test.a is still 5? ',Test.a)
+    @greenlet.greenlet
+    def thing2():
+        with Test():
+            Test.a = 23
+            print('o noes')
+            thing1.switch()
+    thing1.switch()
+
 if __name__ == '__main__': test()

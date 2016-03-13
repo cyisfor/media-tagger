@@ -15,7 +15,7 @@ import comic
 from user import User,dtags as defaultTags
 from session import Session
 import tags
-import context
+from context import contextify
 import db
 from redirect import Redirect
 import filedb
@@ -65,7 +65,7 @@ def makeBase():
     # drop bass
     return 'http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/'
 
-@context.Context
+@contextify
 class Links:
     next = None
     prev = None
@@ -126,7 +126,7 @@ def page(info,path,params):
             Session.refresh = not exists and type.startswith('image')
         Session.modified = modified
         return
-    with Links:
+    with Links():
         Links.id = id
         Session.modified = modified
         if name:
@@ -148,7 +148,7 @@ def page(info,path,params):
 def info(info,path,params):
     Session.modified = info['sessmodified']
     del info['sessmodified']
-    with Links:
+    with Links():
         sources = info.pop('sources')
         if sources is None:
             sources = ()
@@ -166,7 +166,7 @@ def info(info,path,params):
 def media(url,query,offset,info,related,basic):
     #related = tags.names(related) should already be done
     import sys,os
-    with Links:
+    with Links():
         info = list(info)
         if len(info)>=thumbnailPageSize:
             Links.next = offset + 1
@@ -296,7 +296,7 @@ def showPages(path,params):
         return
     title,description,source = comic.findInfo(com,comicNoExist)
     if not description: description = 'ehunno' 
-    with Links:
+    with Links():
         if page > 0:
             Links.prev = page - 1
         if page + 1 < numPages:
@@ -317,7 +317,7 @@ def showComicPage(path):
     if Session.head: return
     title,description,source = comic.findInfo(com,comicNoExist)
     typ,size,width,height = getStuff(medium)
-    with Links:
+    with Links():
         if which > 0:
             Links.prev = which - 1
         if comic.pages(com) > which+1:
