@@ -182,11 +182,11 @@ def getanId(sources,uniqueSources,download,name):
             image = None
             data.seek(0,0)
             savedData = data
-#            if data.name[-1] == 'z':
-#                try:
-#                    data = gzip.open(data)
-#                except IOError as e:
-#                    raise
+#			if data.name[-1] == 'z':
+#				try:
+#					data = gzip.open(data)
+#				except IOError as e:
+#					raise
             image,mimetype = openImage(data)
             if not image:
                 note('we hafe to guess')
