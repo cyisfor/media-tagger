@@ -205,8 +205,10 @@ def getanId(sources,uniqueSources,download,name):
                 else:
                     print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))
             data.flush()
-            savedData.become(id)
-            filedb.check(id) # don't bother waiting for this if it stalls
+            data.become(id)
+            # create thumbnail proactively
+            # don't bother waiting for this if it stalls
+            eventlet.spawn_n(filedb.check,id)
             return id,True
 
 tagsModule = tags

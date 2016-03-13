@@ -110,60 +110,42 @@ def manage(req):
         raise Error("Your client didn't set the Content-Length header for some reason.")
 
     if media is None:
-        
+        def download(dest):
+            shutil.copyfileobj(self.rfile,dest,length)
+            dest.flush()
+            assert(dest.tell()>0)
+            modified = req.headers['Last-Modified']
+            if modified is None:
+                modified = req.headers.get('If-Modified-Since')
+            if modified is None:
+                return datetime.datetime.now()
+            else:
+                modified = email.utils.parsedate(modified)
+                return datetime.datetime(*(modified[:6]))
 
-    def have_media(media,*a):
-        yield filedb.checkResized(media)
-        if len(db.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
-            db.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
-                (User.id,media))
-            db.retransaction();
-            message = 'Uploaded '+name+' to your queue for tagging.'
-        else:
-            message = 'You already seem to have uploaded this.'
+        media, was_created = create.internet(download,
+                                                                                 None,
+                                                                                 tags,
+                                                                                 primarySource,
+                                                                                 sources,
+                                                                                 name)
+    else:
+        create.update(media,sources,tags,name)
 
-        message = (message+'\r\n').encode('utf-8')
-        serv.send_response(codes.OK,"yay")
-        serv.send_header("Content-Length",len(message))
-        serv.end_headers()
-        serv.wfile.write(message)
+    yield filedb.checkResized(media)
+    if len(db.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:
+        db.execute("INSERT INTO uploads (uzer,media) VALUES ($1,$2)",
+                             (User.id,media))
+        db.retransaction();
+        message = 'Uploaded '+name+' to your queue for tagging.'
+    else:
+        message = 'You already seem to have uploaded this.'
 
-    if media is None:
-        class Uploader:
-            dest = None
-            def start(self,dest):
-                self.dest = dest
-                return self.future
-            def __init__(self):
-                self.future = concurrent.Future()
-                self.result = create.internet_future(
-                        serv.stream.ioloop, 
-                        self.start,
-                        primarySource,
-                        tags,
-                        primarySource,
-                        sources,
-                        name)
-                serv.stream.io_loop.add_future(self.result,have_media)
-            def data_received(self,chunk):
-                self.dest.write(chunk)
-            def commit(self):
-                self.dest.flush()
-                assert(self.dest.tell()>0)
-                modified = serv.headers['Last-Modified']
-                if modified is None:
-                    modified = serv.headers.get('If-Modified-Since')
-                if modified is None:
-                    modified = datetime.datetime.now()
-                else:
-                    modified = email.utils.parsedate(modified)
-                    modified = datetime.datetime(*(modified[:6]))
-                if hasattr(modified,'timestamp'):
-                    timestamp = modified.timestamp()
-                else:
-                    import time
-                    timestamp = time.mktime(modified.timetuple())
-                os.utime(self.dest.name,(timestamp,timestamp))
+    message = (message+'\r\n').encode('utf-8')
+    req.send_response(codes.FOUND,"yay")
+    req.send_header("Location","/~user/queue?message="+quote(message))
+    req.end_headers()
+
                 self.dest.seek(0,0)
                 # close as we can get to when it was created...
                 self.future.set_result(modified)

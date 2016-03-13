@@ -8,7 +8,7 @@ oj = os.path.join
 base = os.path.expanduser("/home/.local/filedb")
 top = base
 
-def poke(id,target):
+def thumbpoke(id,contents=None):
     target = oj(base,'temp',id)
     with open(target,'wb') as out:
         if contents:
@@ -21,7 +21,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
     if os.path.exists(medium): return id,True
     if not create:
         return id, False
-    poke(id)
+    thumbpoke(id,contents)
     exists = False
     for i in range(10):
         if os.path.exists(medium): 
