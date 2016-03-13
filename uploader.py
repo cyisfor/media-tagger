@@ -35,24 +35,37 @@ def mycopy(src,dst,length=None):
             if left < len(buf):
                 buf = bytearray(left)
 
-def manage(user,serv):
-    message = 'Uploaded.'
-    name = serv.headers.get('X-File-Name')
-    checkderp = False
-    if not name:
-        name = serv.headers.get_filename()
+def get_filename(req):
+    if 'X-File-Name' in req.headers:
+        return req.headers['X-File-Name']
+    if 'Content-Disposition' in req.headers:
+        disposition = req.headers['Content-Disposition']
+        value,params = cgi.parse_header(disposition)
+        if 'filename' in params:
+            if value != 'attachment':
+                note.warning("Weird content disposition",disposition)
+            return params['filename']
+    name = req.path.rsplit('/',1)[-1]
+    if not '.' in name:
         if not name:
-            name = serv.path.rsplit('/',1)[-1]
-            if not name:
-                checkderp = True
-                name = 'unknown.'+ magic.guess_extension(serv.headers.get_content_type())
-    if not checkderp:
-        if len(name)>0x80:
-            raise Error("That file name is too long.")
-        # what unicode characters shouldn't be allowed in names?
-        # XXX: this will scramble the character order bleh
-        # name = ''.join(set(name).intersection(goodCharacters))
-        name = name.encode('utf-8').decode('utf-8')
+            name = 'unknown'
+        if 'Content-Type' in req.headers:
+            content_type = cgi.parse_header(req.headers['Content-Type'])
+            ext = magic.guess_extension(content_type) 
+        else:
+            ext = '.dat'
+        name += ext
+    return name
+
+def manage(req):
+    message = 'Uploaded.'
+    name = get_filename(req)
+    if len(name)>0x80:
+        raise Error("That file name is too long.")
+    # what unicode characters shouldn't be allowed in names?
+    # XXX: this will scramble the character order bleh
+    # name = ''.join(set(name).intersection(goodCharacters))
+    name = name.encode('utf-8',errors='replace').decode('utf-8')
 
     sources = serv.headers.get_all('X-Source',())
     if sources:
