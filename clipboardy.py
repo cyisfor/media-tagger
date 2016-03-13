@@ -1,9 +1,5 @@
-import coro
-
-from mytornado import sleep
-
-from tornado import ioloop,gen
-from tornado.process import Subprocess
+from eventlet.greenthread import sleep
+from eventlet.green import subprocess as s
 
 import time
 import subprocess as s
@@ -24,13 +20,12 @@ if not os.path.exists(exe):
 seen = set()
 
 
-@coro.tracecoroutine
 def start(handler,check=None):
     buf = b''
-    proc = Subprocess([exe],stdout=Subprocess.STREAM)
+    proc = s.Popen([exe],stdout=s.PIPE)
     while True:
         try:
-            length = yield proc.stdout.read_until(b'\n')
+            length = proc.stdout.readline()
             line = yield proc.stdout.read_bytes(int(length,0x10))
             if check is None or check(line):
                 handler(line.decode('utf-8'))
@@ -40,4 +35,3 @@ def start(handler,check=None):
 
 def run(handler, check=None):
     start(handler,check)
-    ioloop.IOLoop.instance().start()
