@@ -13,7 +13,7 @@ import email.utils
 import os
 
 def setup():
-    db.setup('''CREATE TABLE uploads (    
+    db.setup('''CREATE TABLE uploads (	
     uzer INTEGER REFERENCES uzers(id) ON DELETE CASCADE ON UPDATE CASCADE,
     media bigint REFERENCES media(id) ON DELETE CASCADE ON UPDATE CASCADE,
     checked boolean DEFAULT FALSE)''',
@@ -63,9 +63,8 @@ def manage(req):
     if len(name)>0x80:
         raise Error("That file name is too long.")
     # what unicode characters shouldn't be allowed in names?
-    # XXX: this will scramble the character order bleh
-    # name = ''.join(set(name).intersection(goodCharacters))
-    name = name.encode('utf-8',errors='replace').decode('utf-8')
+    # name = ''.join(n for n in name if n in goodCharacters)
+    name = name.encode('utf-8',errors='xmlcharrefreplace').decode('utf-8')
 
     sources = serv.headers.get_all('X-Source',())
     if sources:
@@ -79,7 +78,7 @@ def manage(req):
     else:
         tags = ()
     for bit in serv.headers.get_all('X-Tag',()):
-        if bit:            
+        if bit:			
             bit = tagsModule.parse(bit)
             if tags:
                 tags.update(bit)
@@ -93,6 +92,7 @@ def manage(req):
         try: length = int(length)
         except ValueError: pass
         if length == 0:
+            
             media = serv.headers.get("X-ID")
             if media:
                 try:
@@ -218,13 +218,13 @@ def addInfoToMedia(form,media=None):
         media = int(media[0],0x10)
     dertags = form.get('tags')
     if not dertags: return
-    sources = form.get('sources')    
+    sources = form.get('sources')	
     if not sources: return
     mime = form.get('type')
     # XXX: should do something with type
     if not mime: return
     dertags = tags.parse(dertags[0])
-    sources = sources[0].split('\n')    
+    sources = sources[0].split('\n')	
 
     with db.transaction():
         db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest($2::bigint[]) EXCEPT SELECT unnest($3::bigint[])) WHERE id = $1',
