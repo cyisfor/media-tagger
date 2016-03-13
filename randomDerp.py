@@ -124,11 +124,8 @@ from session import Session
 from pages import makePage,makeLinks,makeLink,Links
 
 import dirty.html as d
-from tornado.gen import Return
-from tracker_coroutine import coroutine
 import urllib.parse
 
-@coroutine
 def page(info,path,params):
     with Links:
         info = list(info)
@@ -145,7 +142,7 @@ def page(info,path,params):
                         d.p(d.a('Another?',href=zoop)),
                         d.p(d.a(link,href='/art/~page/'+fid+'/')),
             d.div(links if links else '',title='past ones'))
-        raise Return(page)
+        return page
 
 if __name__ == '__main__':
     from pprint import pprint

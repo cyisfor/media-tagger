@@ -3,8 +3,7 @@ import impmort
 
 from tracker_coroutine import coroutine
 
-from tornado import ioloop
-from tornado.process import Subprocess as s
+import subprocess as s
 
 from functools import wraps
 import os
@@ -17,7 +16,7 @@ ino = None
 def getino():
     global ino
     if ino is not None: return ino
-    ino = s(['inotifywait',"-q","-m","-c",importPath],stdout=s.STREAM);
+    ino = s.Popen(['inotifywait',"-q","-m","-c",importPath],stdout=s.PIPE);
 
     return ino
 
@@ -105,7 +104,6 @@ def watch():
 def main():
     #catchup()
     watch()
-    ioloop.IOLoop.instance().start()
 
 if __name__ == '__main__':
     main()

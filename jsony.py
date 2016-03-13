@@ -41,14 +41,13 @@ def makeLinks(info):
     links = []
     for id,name,type,tagz in info:
         tagz = [str(tag) for tag in tagz]
-        fid,oneexists = yield filedb.check(id,create=False)
+        fid,oneexists = filedb.check(id,create=False)
         allexists = allexists and oneexists
-            links.append(dict(id=id,exists=oneexists,name=name,type=type,tags=tags.full(tagz)))
-    def done(f):
-        return {'allexists': allexists, 
-            'rowsize': thumbnailRowSize, 
-            'links': links}
-    return wrapFuture(iter(),done)
+        links.append(dict(id=id,exists=oneexists,
+                                            name=name,type=type,tags=tags.full(tagz)))
+    return {'allexists': allexists, 
+                    'rowsize': thumbnailRowSize, 
+                    'links': links}
 
 def makeBase():
     # drop bass
@@ -166,11 +165,9 @@ def media(url,query,offset,info,related,basic):
         related = tags.full(related)
         basic = tags.full(basic)
 
-        def done(f):
-            return makePage(
-                tags=basic,
-                links=f.result())
-        return wrapFuture(makeLinks(info),done)
+        return makePage(
+            tags=basic,
+            links=makeLinks(info))
 
 def desktop(raw,path,params):
     import desktop
