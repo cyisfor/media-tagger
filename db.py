@@ -3,7 +3,8 @@ def export(f): return f # meh
 import sqlparse
 
 import sys,os
-sys.path.insert(0,os.path.expanduser("/extra/user/code/postgresql-python"))
+sys.path.insert(0,os.path.expanduser("/home/code/postgresql-python"))
+print(sys.path)
 import postgresql as pg
 from contextlib import contextmanager
 from itertools import count, chain
@@ -54,7 +55,7 @@ class DBProxy:
                 password = inp.read()
         except IOError:
             password = None
-        self.c = pg.Connection(dbname='pics',port=5433,password=password)
+        self.c = pg.Connection(dbname='pics',port=5433,host="/run",password=password)
         self.c.verbose = False
         #self.c.out = open('/tmp/self.log','at')
         password = None

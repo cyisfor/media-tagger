@@ -5,7 +5,7 @@ from pages import d,RawString,Links
 
 from replacer import replacerFile
 
-from tornado import gen
+from tracker_coroutine import coroutine
 import http.client as codes
 
 import shutil,datetime
@@ -96,7 +96,7 @@ def manage(user,serv):
             raise Error("Please don't use chunked transfer encoding!")
         raise Error("Your client didn't set the Content-Length header for some reason.")
 
-    @gen.coroutine
+    @coroutine
     def have_media(media,*a):
         yield filedb.checkResized(media)
         if len(db.execute("SELECT uzer FROM uploads WHERE media = $1",(media,))) == 0:

@@ -1,5 +1,6 @@
 from mytornado import sleep
-from tornado import gen
+from tracker_coroutine import coroutine
+from tornado.gen import Return
 
 import tempfile
 from contextlib import contextmanager
@@ -7,16 +8,16 @@ from contextlib import contextmanager
 import os,time
 oj = os.path.join
 
-base = os.path.expanduser("/extra/user/filedb")
+base = os.path.expanduser("/home/.local/filedb")
 top = base
 
-@gen.coroutine
+@coroutine
 def _check(id,category,create=True,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
-    if os.path.exists(medium): raise gen.Return((id,True))
+    if os.path.exists(medium): raise Return((id,True))
     if not create:
-        raise gen.Return(id, False)
+        raise Return(id, False)
     target = oj(base,'temp',id)
     with open(target,'wb') as out:
         if contents:
@@ -28,7 +29,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
             exists = True
             break
         yield sleep(delay)        
-    raise gen.Return((id,exists))
+    raise Return((id,exists))
 
 def check(id,**kw):
     kw.setdefault('category','thumb')

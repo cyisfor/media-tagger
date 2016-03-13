@@ -1,7 +1,8 @@
-
 import fixprint
 
 from dimensions import thumbnailPageSize,thumbnailRowSize
+
+from tracker_coroutine import coroutine
 
 import comic
 from user import User,dtags as defaultTags
@@ -23,7 +24,6 @@ from dirty import RawString
 from place import place
 from itertools import count
 
-from tornado import gen
 from tornado.gen import Return
 
 try:
@@ -137,7 +137,7 @@ def fixName(id,type):
     db.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
     return name
 
-@gen.coroutine
+@coroutine
 def makeLinks(info,linkfor=None):
     if linkfor is None:
         linkfor = pageLink
@@ -234,7 +234,7 @@ def makeStyle(s):
         res += '}\n'
     return d.style(res,type='text/css')
 
-@gen.coroutine
+@coroutine
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
     isImage = None
     if doScale:
@@ -307,7 +307,7 @@ def simple(info,path,params):
     id,type = info
     return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id)))
 
-@gen.coroutine
+@coroutine
 def resized(info,path,params):
     id = int(path[1],0x10)
     while True:
@@ -367,7 +367,7 @@ def maybeDesc(id):
                      id='desc')
     return None
     
-@gen.coroutine
+@coroutine
 def page(info,path,params):
     if Session.head:
         id,modified,size = info
@@ -439,7 +439,7 @@ def stringize(key):
 def thumbLink(id):
     return "/thumb/"+'{:x}'.format(id)
 
-@gen.coroutine
+@coroutine
 def info(info,path,params):
     Session.modified = info['sessmodified']
     if Session.head: return
@@ -497,7 +497,7 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
     return [tag.replace('general:','') for tag in tags]
 
-@gen.coroutine
+@coroutine
 def media(url,query,offset,pageSize,info,related,basic):
     #related = tags.names(related) should already be done
     basic = tags.names(basic)
@@ -528,7 +528,7 @@ def media(url,query,offset,pageSize,info,related,basic):
                 d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
         raise Return(page)
 
-@gen.coroutine
+@coroutine
 def desktop(raw,path,params):
     import desktop
     if 'n' in params:
@@ -556,7 +556,7 @@ def desktop(raw,path,params):
             d.hr())
     else:
         middle = ''
-    @gen.coroutine
+    @coroutine
     def makeDesktopLinks():
         links = []
         allexists = True
@@ -566,7 +566,7 @@ def desktop(raw,path,params):
             links.append(d.td(d.a(d.img(title=name,src="/thumb/"+fid),
                             href=pageLink(id))))
         Session.refresh = not allexists
-        raise gen.Return(links)
+        raise Return(links)
     links = yield makeDesktopLinks()
     def makeDesktopRows():
         row = []
@@ -673,7 +673,7 @@ def checkModified(medium):
         else:
             Session.modified = modified
 
-@gen.coroutine
+@coroutine
 def showAllComics(params):
     page = getPage(params)
     comics = comic.list(page,User.tags().nega)
@@ -707,7 +707,7 @@ def showAllComics(params):
                     (d.a("Next",href=Links.next)if Links.next else '')))
         raise Return(page)
 
-@gen.coroutine
+@coroutine
 def showPages(path,params):
     com = int(path[0],0x10)
     page = getPage(params)
@@ -746,7 +746,7 @@ def showPages(path,params):
         raise Return(page)
 
 
-@gen.coroutine
+@coroutine
 def showComicPage(path):
     com = int(path[0],0x10)
     which = int(path[1],0x10)
@@ -788,7 +788,7 @@ def showComic(info,path,params):
     else:
         return showComicPage(path)
 
-@gen.coroutine
+@coroutine
 def oembed(info, path, params):
     Session.type = 'application/json'
     if Session.head: return

@@ -1,7 +1,8 @@
 import myserver
 import note
 note.monitor(myserver)
-from tornado import gen
+from tracker_coroutine import coroutine
+from tornado.concurrent import Future
 from tornado.ioloop import IOLoop
 
 import time,sys
@@ -16,14 +17,14 @@ class Handler(myserver.ResponseHandler):
         sys.stdout.flush()
         sys.stdout.buffer.write(data)
         print('='*60)
-    @gen.coroutine
+    @coroutine
     def get(self):
         yield self.write("before headers\n")
         yield self.send_status(200,"Okie")
         yield self.send_header("Content-Type","text/plain; charset=utf-8")
         yield self.write("after header\n")
-        future = gen.Future()
-        @gen.coroutine
+        future = Future()
+        @coroutine
         def send_time(level):
             try:
                 yield self.send_header("X-Time",str(time.time()))

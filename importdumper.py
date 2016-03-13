@@ -1,7 +1,9 @@
 import filedb
 import impmort
 
-from tornado import ioloop, gen
+from tracker_coroutine import coroutine
+
+from tornado import ioloop
 from tornado.process import Subprocess as s
 
 from functools import wraps
@@ -62,7 +64,7 @@ def catchup():
     for name in os.listdir(importPath):
         take(name)
 
-@gen.coroutine
+@coroutine
 def watch():
     attribs = set()
         

@@ -1,7 +1,9 @@
 import note
 note.monitor(__name__)
 
+import tracker_coroutine
 from tornado import gen
+from tornado.concurrent import Future
 from functools import wraps
 import traceback
 import sys
@@ -36,4 +38,7 @@ def tracecoroutine(f):
             note.alarm('error in ',f)
             traceback.print_exc()
             return
-    return gen.coroutine(wrapper)
+    return tracker_coroutine.coroutine(wrapper)
+
+success = Future()
+success.set_result(42)

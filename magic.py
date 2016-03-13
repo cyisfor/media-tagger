@@ -4,9 +4,9 @@ from ctypes import CDLL,c_void_p,c_int,c_char_p,c_size_t
 
 libmagic=None
 try:
-	libmagic=CDLL("libmagic.so") #or even better, check ctypes.util
+    libmagic=CDLL("libmagic.so") #or even better, check ctypes.util
 except ImportError:
-	exit(1)
+    exit(1)
 
 MAGIC_NONE=0x000000 				# No flags 
 MAGIC_DEBUG=0x000001 				# Turn on debugging 
@@ -110,8 +110,8 @@ for f in (magic_buffer, magic_check, magic_close, magic_descriptor, magic_file, 
 
 
 def guess(filepath):
-	mc=magic_open(MAGIC_NONE)
-	magic_load(mc, None)
-	res=magic_file(mc, filepath)
-	magic_close(mc)
-	return res
+    mc=magic_open(MAGIC_NONE)
+    magic_load(mc, None)
+    res=magic_file(mc, filepath)
+    magic_close(mc)
+    return res

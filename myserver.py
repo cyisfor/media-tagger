@@ -1,11 +1,15 @@
 import note
-import coro
+from redirect import Redirect
 
 from derp import printStack
+import tracker_coroutine
+from tracker_coroutine import coroutine
+from coro import success
 
 import six
 
 from tornado import httputil, gen, concurrent, iostream, util
+from tornado.gen import Return
 from tornado.concurrent import is_future
 from tornado.ioloop import TimeoutError
 from tornado.escape import utf8
@@ -53,22 +57,10 @@ def decodeHeader(name,value):
         return utf8(str(value))
 
 def send_header(stream, name, normalized_value):
+    note.shout("Send heder ya",name)
     return stream.write(utf8(name)+ b': ' + utf8(normalized_value) + b'\r\n')
 
-success = concurrent.Future()
-success.set_result(None)
-
 here = os.path.dirname(__file__)
-
-class Redirect(coro.Exit):
-    def __init__(self,handler,location,code,message):
-        if handler.status_sent:
-            raise RuntimeError("Can't redirect, you already started the response",code,message,location)
-        self.code = str(code)
-        self.message = message
-        self.location = location
-    def __str__(self):
-        return '<Redirect '+self.code+' '+self.location+'>'
 
 class ResponseHandler(object):
     timeout = 10
@@ -85,7 +77,6 @@ class ResponseHandler(object):
         self.method, self.path, self.version = start_line
         self.version = self.version.rstrip()
         if not self.conn.old_client and self.version == 'HTTP/1.0':
-            self.conn.old_client = True
             self.conn.old_client = True
         else:
             assert self.version == 'HTTP/1.1'
@@ -110,7 +101,7 @@ class ResponseHandler(object):
     monthname = [None,
                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     def set_chunked(self):
         assert False, "uuu"
         assert self.length is None, "You can't both be chunked and have a length!"
@@ -149,12 +140,13 @@ class ResponseHandler(object):
     def send_header(self,name,value=None):
         if value is not None:
             self.headers.add(name,decodeHeader(name,value))
-        if self.check_header(name,value): 
+        if self.check_header(name,value):
             del self.headers[name]
+            return success
         else:
             return self.actually_send_header(name)
     needDate = True
-    @gen.coroutine
+    @coroutine
     def actually_send_header(self,name):
         if name == 'Transfer-Encoding':
             raise RuntimeError("derp")
@@ -163,11 +155,13 @@ class ResponseHandler(object):
                 yield self.send_status(self.code,self.message)
             else:
                 raise RuntimeError('please send status')
+        note.shout("sending")	
         yield send_header(self.stream, name, self.headers[name])
+        note.shout("sended")
         if name == 'Date':
             self.needDate = False
         del self.headers[name]
-    @gen.coroutine
+    @coroutine
     def end_headers(self):
         if self.finished_headers:
             raise RuntimeError('finished headers already!')
@@ -193,7 +187,7 @@ class ResponseHandler(object):
         yield self.stream.write(b'\r\n')
         self.finished_headers = True
         yield self.flush_pending()
-    @gen.coroutine
+    @coroutine
     def flush_pending(self):
         pending = self.pending
         self.pending = None
@@ -204,7 +198,7 @@ class ResponseHandler(object):
         if self.pending is not None:
             self.pending.append(chunk)
             return success
-        
+
         if self.chunked:
             chunk = self.conn._format_chunk(chunk)
         elif self.length:
@@ -220,30 +214,41 @@ class ResponseHandler(object):
             raise RuntimeError("Can't add to the body and automatically calculate content length. Either set chunked, or set the length, or write the whole body before ending headers.")
         self.written += len(chunk)
         return self.stream.write(chunk)
-    @gen.coroutine
+    @coroutine
     @printStack
     def respond(self):
         note('respond?')
         try:
-            response = yield self.do()
+            fu = self.do()
+            @fu.add_done_callback
+            def _(fu):
+                note.alarm("BOINGOING",fu._exc_info,fu._callbacks)
+                return fu
+            note.purple("getting response on",tracker_coroutine.which)
+            response = yield fu
             note.blue('got response',response)
             if not self.finished_headers:
                 if not (self.status_sent or self.code):
                     note.alarm('oh no we went boom!',self.request)
                 yield self.end_headers()
         except Redirect as e:
-            note.yellow('REDIRECT',e.location)
+            note.shout('REDIRECT',e.location)
             yield self.send_status(e.code,e.message)
             yield self.send_header('Location',e.location)
+            yield self.send_header('Content-Length','0')
             yield self.end_headers()
+            note.shout("OK DONE")
         except Exception as e:
             import traceback
             traceback.print_exc()
             note.alarm('derp',e)
         finally:
             self.recordAccess()
-    def redirect(self,locationcode=302,message='boink'):
-        raise Redirect(self,location,code,message)
+        raise Return(23)
+    def redirect(self,location,code=302,message='boink'):
+        if self.status_sent:
+            raise RuntimeError("Can't redirect, you already started the response",code,message,location)
+        raise Redirect(location,code,message)
     ip = None
     def recordAccess(self):
         self.log.write(json.dumps((
@@ -253,13 +258,13 @@ class ResponseHandler(object):
             self.path,
             self.written,
             self.agent,
-            self.referrer,            
+            self.referrer,
             time.time()))+"\n")
     def received_headers(self): pass
     agent = None
     referrer = None
     def received_header(self,name,value):
-        "received a header just now, can setup, or raise an error if this is not a good header"        
+        "received a header just now, can setup, or raise an error if this is not a good header"
         if name == 'Content-Length':
             note('setting length')
             self.length = int(value)
@@ -297,7 +302,7 @@ class AsyncCancellable(concurrent.Future):
             future = next(self.gen)
         except StopIterationError:
             self.set_result(None)
-        except Return as e:
+        except gen.Return as e:
             self.set_result(e.value)
         else:
             if is_future(future):
@@ -362,7 +367,7 @@ class ConnectionHandler(HTTP1Connection):
     max_start_header_length = max_header_length * 10
     max_headers = 0x20
     readed = 0
-    @gen.coroutine
+    @coroutine
     def read_headers(self):
         parser = HTTPHeaders()
         lastkey = None
@@ -386,8 +391,10 @@ class ConnectionHandler(HTTP1Connection):
         self.request.received_headers()
         note('received all headers')
         raise gen.Return(parser)
-    @gen.coroutine
+    old_client = False # this will get set with the first message's headers
+    @coroutine
     def read_body(self,headers):
+        note.red("read body")
         if headers.get("Expect") == '100-continue':
             if self.request.OK():
                 # can't pipeline 100 continues they must be written BEFORE the next request arrives
@@ -398,19 +405,22 @@ class ConnectionHandler(HTTP1Connection):
                 # have to abort the WHOLE connection if the request wasn't OK
                 raise HTTPError(500,"Bad request")
         if self.request.length is None:
-            note('read chunked body')
-            if self.request.chunked:
-                # now it's whether the response is chunked, not the request body
-                del self.request.chunked
-                yield self._read_chunked_body(self.request)
+            # implicit Connection: close for HTTP/1.0
+            if not self.old_client and not self.method in {'GET','HEAD'}:
+                note('read chunked body')
+                if self.request.chunked:
+                    # now it's whether the response is chunked, not the request body
+                    del self.request.chunked
+                    yield self._read_chunked_body(self.request)
         else:
             length = self.request.length
             note('read body',length)
             # now it's the length of the response, not the length of the request
             del self.request.length
             yield self._read_fixed_body(length,self.request)
-    old_client = False # this will get set with the first message's headers
-    @gen.coroutine
+        # ugh.... python...
+        raise gen.Return()
+    @coroutine
     def read_message(self):
         if self.request is not None:
             note('err',derpid(self),self.request)
@@ -426,19 +436,22 @@ class ConnectionHandler(HTTP1Connection):
             self.stream.close()
             raise iostream.StreamClosedError
         try:
-            start_line = httputil.parse_request_start_line(start_line.decode('utf-8').rstrip())
-        except httputil.HTTPInputError as e:            
+            start_line = httputil.parse_request_start_line(
+                start_line.decode('utf-8').rstrip())
+        except httputil.HTTPInputError as e:
             note('BAD REQUEST LINE',start_line)
             raise iostream.StreamClosedError
         except Exception as e:
             note('derp???',e)
-            six.raise_from(RuntimeException('uh'), e)
+            six.raise_from(RuntimeError('uh'), e)
         note('setting request',derpid(self),start_line)
+        self.method, self.path, self.version = start_line
         self.request = self.requestFactory(self, self.stream, start_line)
         headers = yield maybeTimeout(self.stream, self.header_timeout, self.read_headers())
         
         yield maybeTimeout(self.stream, self.body_timeout, self.read_body(headers))
-        
+        note.blue("boop! done reading body")
+
         # Now we've read the request, so start writing it, asynchronously
         yield self.startWriting()
         note('del self.request (started writing)',derpid(self))
@@ -463,16 +476,19 @@ class ConnectionHandler(HTTP1Connection):
         except iostream.StreamClosedError:
             self.on_connection_close('reading')
     max_pending = 100
-    @gen.coroutine
+    @coroutine
     def startWriting(self):
         if self.writing:
+            # oops, a response is already writing, that isn't this one!
             # we'll start after the current response is done writing.
             # ONLY yield if too many requests are pending
             while len(self.pendingResponses) > self.max_pending:
                 # would just yield self.writing... but maybe this would be resumed
                 # before doneWriting is called... that would make the connection hang
                 yield self.done_writing
+                # now self.done_writing is a new future, from the next writer
             if self.writing:
+                note.cyan('already writing, need to wait')
                 self.pendingResponses.append(self.request)
                 return
         if self.request is None:
@@ -491,7 +507,8 @@ class ConnectionHandler(HTTP1Connection):
         del self.writing
         if oldWriting.running():
             note('warning, response writer timed out',derpid(oldWriting.timeout))
-            oldWriting.set_exception(TimeoutError)
+            oldWriting.set_exception(TimeoutError())
+            self.stream.close()
     @printStack
     def doneWriting(self,future):
         note('done writing',derpid(self))
@@ -551,7 +568,7 @@ class Server(TCPServer, httputil.HTTPServerConnectionDelegate):
             def notify():
                 print('Ready to serve.',[s.getsockname() for s in sockets])
             self.derp = self.io_loop.call_later(0.1,notify)
-    @gen.coroutine
+    @coroutine
     def close_all_connections(self):
         note('closing all connections')
         while self.connections:
@@ -565,4 +582,3 @@ class Server(TCPServer, httputil.HTTPServerConnectionDelegate):
         return conn.read_next_message('start')
     def on_close(self, server):
         self.connections.remove(server)
-

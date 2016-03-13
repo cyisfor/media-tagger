@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     }
     
     {
-        filedb = strdup("/extra/user/filedb");
+        filedb = strdup("/home/.local/filedb");
         record(INFO, "filedb '%s'",filedb);
     }
 

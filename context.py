@@ -1,4 +1,4 @@
-import threading
+import tracker_coroutine
 
 def methodize(f):
     class Method:
@@ -22,7 +22,15 @@ def Context(klass):
             rest[n] = v
         else:
             defaults[n] = v
-    stack = [defaults]   
+    stacks = {}
+        # one stack per coroutine...
+
+    if tracker_coroutine.which in stacks:
+        stack = stacks[tracker_coroutine.which]
+    else:
+        stack = [defaults]
+        stacks[tracker_coroutine.which] = stack
+        
     # below top the stack must be tuples, so they don't mutate when the top does
     # must push a copy every enter, because even if same "self" must not mutate after exit
     class Derivate: 
@@ -42,7 +50,7 @@ def Context(klass):
                 v = rest[n]
             else:
                 v = stack[-1][n]
-            if hasattr(v,'__get__'):                
+            if hasattr(v,'__get__'):				
                 return v.__get__(klass)
             return v
         def __setattr__(self,n,v):
@@ -66,8 +74,7 @@ def test():
         a = 3
         b = 4
         def foo(self):
-            print('')
-            print(self.a+self.b)
+            print('sum',self.a,self.b,self.a+self.b)
             return 3
 
     print(Test.foo())

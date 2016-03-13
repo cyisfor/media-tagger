@@ -18,7 +18,7 @@ import note
 
 from user import User,UserError
 import user
-from redirect import Redirect
+
 from dispatcher import dispatch,process
 import uploader
 import tagfilter
@@ -32,6 +32,7 @@ import tags as tagsModule
 from tags import Taglist
 
 from tornado import gen, ioloop
+from tracker_coroutine import coroutine
 
 from itertools import count
 import urllib.parse
@@ -52,7 +53,7 @@ def parsePath(pathquery):
             path = path[:-len('.json')]+'/'
     elif not path.endswith('/'): 
         # we want a trailing / or can't tell whether to go . or ..
-        raise Redirect(path + '/')
+        raise myserver.Redirect(path + '/',)
     else:
         json = False
     path = path.split('/')[:-1] # last is a blank for the trailing /
@@ -161,7 +162,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 note('setting forw',value)
                 self.ip = value
         return super().received_header(name,value)
-    @gen.coroutine
+    @coroutine
     def do(self):
         try:
             if self.uploader:
@@ -170,7 +171,11 @@ class Handler(FormCollector,myserver.ResponseHandler):
                 yield self.send_header('Location','/art/~page/{:x}'.format(media))
                 return
             with self.user, Session:
-                try: yield super().do() or myserver.success
+                fu = super().do()
+                @fu.add_done_callback
+                def _(fu):
+                    note.alarm('CALLODERP',fu,fu._callbacks)
+                try: yield fu or myserver.success
                 except Redirect as r:
                     yield self.send_status(r.code,"go")
                     yield self.send_header('Location',r.where)
@@ -182,7 +187,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
         with Session:
             Session.head = True
             return self.get()
-    @gen.coroutine
+    @coroutine
     def options(self):
         yield self.send_response(200,"OK")
         yield self.send_header('Content-Length',0)
@@ -203,7 +208,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
             self.botlog.flush()
             if self.method.lower() == 'head':
                 return self.send_blob(head)
-            @gen.coroutine
+            @coroutine
             def delaySender(id,name,ip,headwbody):
                 block = 0x10
                 blocksize = 1 << block
@@ -225,7 +230,7 @@ class Handler(FormCollector,myserver.ResponseHandler):
             self.timeout = None
             return delaySender('{:x}'.format(id(headwbody)),name,self.ip,headwbody)
         return super().respond()
-    @gen.coroutine
+    @coroutine
     @printStack
     def get(self):
         Session.handler = self

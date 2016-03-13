@@ -31,7 +31,7 @@ Image* MyResize(Image* image, int width, context* ctx) {
 
   // ResizeImage clones?
   thumb = ResizeImage(image, width, image->rows*width/image->columns,
-		      BoxFilter,
+		      BoxFilter, 1.0,
 		      ctx->exception);
   CatchExceptionAndReset(ctx->exception);
   DestroyImage(image);
@@ -151,7 +151,7 @@ static int TooSimilar(ColorPacket* aa, ColorPacket* bb) {
   }*/
 
 static unsigned long getQuality(context* ctx, Image* image, unsigned long quality) {
-  const char* value = GetImageProperty(image,"JPEG-Quality",ctx->exception);
+  const char* value = GetImageProperty(image,"JPEG-Quality");
   if (value != NULL && *value) {
     sscanf(value,"%lu",&quality);
   }
@@ -221,9 +221,9 @@ static void Reduce(Image* image, context* ctx) {
   qi.dither_method = NoDitherMethod;
   qi.tree_depth = 2;
 
-  QuantizeImage(&qi,image,ctx->exception);
+  QuantizeImage(&qi,image);
   CatchExceptionAndReset(ctx->exception);
-  CompressImageColormap(image,ctx->exception);
+  CompressImageColormap(image);
   CatchExceptionAndReset(ctx->exception);
   // this is only if mallocked? DestroyQuantizeInfo(&qi);
 }
@@ -285,7 +285,7 @@ void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
   ctx->image_info->quality = image->quality; // not sure which of these is the one you set
   record(INFO,"%lu",ctx->image_info->quality);
 
-  if(!WriteImage(ctx->image_info,image,ctx->exception)) {
+  if(!WriteImage(ctx->image_info,image)) {
     CatchExceptionAndReset(ctx->exception);
     record(WARN,"Could not write the image!");
     exit(1);

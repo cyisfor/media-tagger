@@ -124,7 +124,8 @@ from session import Session
 from pages import makePage,makeLinks,makeLink,Links
 
 import dirty.html as d
-from tornado.gen import coroutine,Return
+from tornado.gen import Return
+from tracker_coroutine import coroutine
 import urllib.parse
 
 @coroutine

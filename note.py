@@ -1,8 +1,8 @@
 import os,io
-from ansi import color,reset
+from ansi import color,reset,fg,bg,escape,bold
 import sys
 
-white = color('white',bold=True)
+white = color('white',styles=(bold,))
 
 def decode(o):
     if hasattr(o,'value'):
@@ -14,7 +14,7 @@ if 'debug' in os.environ:
     out = sys.stderr.buffer
     modules = set()
     here = os.path.dirname(__file__)
-    always = 'always' in os.environ
+    always = not 'notalways' in os.environ
     def setroot(where):
         global here
         here = os.path.dirname(where) 
@@ -74,9 +74,15 @@ if 'debug' in os.environ:
         out.flush()
     class NoteModule:
         def note(self,*s):
-            output(color('green',bold=True),s)
+            output(color('green',styles=(bold,)),s)
         def alarm(self,*s):
-            output(color('red',bold=True),s)
+            output(fg(216,0,0)+bg(180,180,0)+escape(bold),s)
+        def purple(self,*s):
+            output(fg(126,10,216)+escape(bold),s)
+        def blue(self,*s):
+            output(fg(20,20,216)+escape(bold),s)
+        def shout(self,*s):
+            output(fg(216,0,216)+escape(bold),s)
         def __call__(self,*s):
             output(color('green'),s)
         def __getattr__(self,n):
@@ -88,6 +94,9 @@ if 'debug' in os.environ:
             else:
                 module = '__main__'
             modules.add(module)
+    if __name__ == '__main__':
+        note = NoteModule()
+        note.purple("whoops")		
 else:
     class NoteModule:
         def __call__(self,*a,**kw): pass
