@@ -9,11 +9,8 @@ import note
 from imagecheck import NoGood,isGood
 from weirdui import manuallyGetType
     
-from futurestuff import drain
-
 import imageInfo
 
-from tornado.concurrent import is_future, Future
 from tornado import gen
 
 from hashlib import sha1 as SHA,md5 as MD5
@@ -229,8 +226,7 @@ def update(id,sources,tags,name):
         
     tagsModule.tag(id,tags)
 
-def internet_yield(download,media,tags,primarySource,otherSources,name=None):
-    "yields a Future if it needs a download until it's done, then yields the result"
+def internet(download,media,tags,primarySource,otherSources,name=None):
     if not name:
         name = media.rsplit('/',1)
         if len(name) == 2:
@@ -250,22 +246,11 @@ def internet_yield(download,media,tags,primarySource,otherSources,name=None):
     otherSources = set(Source(source,isUnique=False) for source in otherSources)
     sources = uniqueSources.union(otherSources)
     with db.transaction():
-        g = getanId(sources,uniqueSources,download,name)
-        result = None
-        while True:
-            try:
-                result = g.send(result)
-            except StopIteration:
-                assert result,(sources,uniqueSources,download,name)
-                break
-            except gen.Return as ret:
-                result = ret.value
-                break
-        id,wasCreated = result
+        id,wasCreated = getanId(sources,uniqueSources,download,name)
         print('got id',hex(id),wasCreated)
         if not wasCreated:
-             note("Old medium with id {:x}".format(id))
-             #input()
+            note("Old medium with id {:x}".format(id))
+            #input()
     note("update")
     update(id,sources,tags,name)
     yield id,wasCreated
