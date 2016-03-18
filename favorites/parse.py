@@ -27,7 +27,7 @@ if __name__ == '__main__':
         import catchup
         for line in sys.stdin:
             enqueue(line.strip())
-            catchup.poke()    
+            catchup.poke()	
     else:
         here = os.path.dirname(sys.argv[0])
         def doparsethingy():
