@@ -93,9 +93,6 @@ class Catchup(Process):
             if not self.is_alive(): break
             self.done.value = True
 
-
-
-
 instance = Catchup()
 
 if __name__ == '__main__':

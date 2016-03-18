@@ -38,7 +38,7 @@ if __name__ == '__main__':
             ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
             import catchup
             def gotPiece(piece):
-                print("Trying {}".format(piece.strip()))
+                print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
                 sys.stdout.flush()
                 enqueue(piece.strip())
                 catchup.poke()
