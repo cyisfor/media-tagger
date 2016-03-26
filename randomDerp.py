@@ -131,8 +131,8 @@ def page(info,path,params):
         info = list(info)
         id,name,type,tags = info.pop(0)
         #Links.next = "." this gets preloaded sometimes :/
-        links = yield makeLinks(info)
-        fid,link,thing = yield makeLink(id,type,name,False,0,0)
+        links = makeLinks(info)
+        fid,link,thing = makeLink(id,type,name,False,0,0)
         zoop = {'c': '1'}
         zoop.update((n,v[0]) for n,v in params.items())
         zoop = urllib.parse.urlencode(zoop)

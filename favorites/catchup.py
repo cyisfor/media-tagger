@@ -19,11 +19,25 @@ class Catchup(Process):
         super().__init__()
         self.condition = Condition()
         self.done = Value(c_bool,False)
+    def run(self):
+        db.reopen()
+        try:
+            import signal
+            signal.signal(signal.SIGUSR1, lambda sig: None)
+            while True:
+                while self.squeak() is True: pass
+                with self.condition:
+                    if self.done.value: break
+                    print('waiting for pokes')
+                    self.condition.wait()
+                    print('squeak!')
+        except SystemExit: pass
+        except KeyboardInterrupt: pass
     def squeak(self,*a):
         uri = top()
         if uri is None:
             print('none dobu')
-            if self.done.value: raise SystemExit
+            if self.process.done.value: raise SystemExit
             return
         ah = alreadyHere(uri)
         if ah:
@@ -68,25 +82,17 @@ class Catchup(Process):
                 traceback.print_exc(file=sys.stdout)
                 time.sleep(1)
         return True
-    def run(self):
-        db.reopen()
-        try:
-            import signal
-            signal.signal(signal.SIGUSR1, lambda sig: None)
-            while True:
-                while self.squeak() is True: pass
-                with self.condition:
-                    if self.done.value: break
-                    print('waiting for pokes')
-                    self.condition.wait()
-                    print('squeak!')
-        except SystemExit: pass
-        except KeyboardInterrupt: pass
+
+class Catchupper:
+    def __init__(self):
+        self.process = Catchup()
+        self.process.start()
     def poke(self):
-        with self.condition:
-            if not self.is_alive():
+        with self.process.condition:
+            if not self.process.is_alive():
                 print('died?')
-                self.start()
+                self.process = Catchup()
+                self.process.start
             self.condition.notify_all()
     def finish(self):
         self.done.value = True
@@ -96,15 +102,13 @@ class Catchup(Process):
             if not self.is_alive(): break
             self.done.value = True
 
-instance = Catchup()
 
 if __name__ == '__main__':
+    instance = Catchup()
     while instance.squeak() is True: pass
 else:
-    instance.start() 
+    instance = Catchupper()
 
     poke = instance.poke
-
     terminate = instance.terminate
-
     finish = instance.finish

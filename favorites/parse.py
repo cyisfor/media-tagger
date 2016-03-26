@@ -38,7 +38,9 @@ if __name__ == '__main__':
             from itertools import count
             import gtkclipboardy as clipboardy
             from mygi import Gtk
+            print('loading UI')
             ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
+            print('boop')
             import catchup
             def gotPiece(piece):
                 print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
@@ -57,6 +59,7 @@ if __name__ == '__main__':
             win.connect('destroy',Gtk.main_quit)
             win.set_title('parse')
             win.show_all()
+            print('Okay!')
             clipboardy.run(gotPiece,lambda piece: b'http' == piece[:4])
             print('done yay',os.getpid())
         try:

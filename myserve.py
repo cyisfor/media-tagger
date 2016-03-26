@@ -353,5 +353,5 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 import socket
 class MyServer(HTTPServer):
     address_family=socket.AF_INET6
-
+print('OK waiting on http://[::1]:8029')
 MyServer(('::1',8029),Handler).serve_forever()
