@@ -8,7 +8,7 @@ import sys,time,os
 
 oj = os.path.join
 
-here = os.path.dirname(sys.argv[0])
+here = os.path.dirname(sys.argv[0]) or os.curdir
 
 version = versions.Versioner('media')
 

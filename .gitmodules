@@ -6,3 +6,6 @@
 	path = pg_similarity
 	url = ./dedup/pg_similarity
 	ignore = untracked
+[submodule "dedup/mvptree"]
+	path = dedup/mvptree
+	url = https://github.com/michaelmior/mvptree
