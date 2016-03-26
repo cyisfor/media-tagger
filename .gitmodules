@@ -9,3 +9,4 @@
 [submodule "dedup/mvptree"]
 	path = dedup/mvptree
 	url = https://github.com/michaelmior/mvptree
+	ignore = untracked
