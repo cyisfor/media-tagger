@@ -1,0 +1,8 @@
+[submodule "dedup/pHash"]
+	path = dedup/pHash
+	url = https://github.com/sdepold/pHash/
+	ignore = untracked
+[submodule "pg_similarity"]
+	path = pg_similarity
+	url = ./dedup/pg_similarity
+	ignore = untracked

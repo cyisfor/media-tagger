@@ -110,6 +110,7 @@ def gotURL(url):
             w = int(w,0x10)
         else:
             yield background
+            import db
             w = db.execute('SELECT MAX(which)+1 FROM comicpage WHERE comic = $1',(c,))
             if w[0][0]:
                 w = w[0][0]

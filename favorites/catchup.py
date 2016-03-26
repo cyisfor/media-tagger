@@ -37,7 +37,7 @@ class Catchup(Process):
         uri = top()
         if uri is None:
             print('none dobu')
-            if self.process.done.value: raise SystemExit
+            if self.done.value: raise SystemExit
             return
         ah = alreadyHere(uri)
         if ah:
@@ -95,12 +95,12 @@ class Catchupper:
                 self.process.start
             self.condition.notify_all()
     def finish(self):
-        self.done.value = True
+        self.process.done.value = True
         while True:
             self.poke()
-            self.join(1)
+            self.process.join(1)
             if not self.is_alive(): break
-            self.done.value = True
+            self.process.done.value = True
 
 
 if __name__ == '__main__':
@@ -110,5 +110,5 @@ else:
     instance = Catchupper()
 
     poke = instance.poke
-    terminate = instance.terminate
+    terminate = instance.process.terminate
     finish = instance.finish
