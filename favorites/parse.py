@@ -2,6 +2,9 @@
 import sys
 import os
 
+myself = os.path.abspath(sys.modules[__name__].__file__)
+here = os.path.dirname(myself)
+
 if len(sys.argv)>1:
     mode = 0
 elif 'stdin' in os.environ:
@@ -11,7 +14,8 @@ else:
     if not 'ferrets' in os.environ:
         os.environ['ferrets'] = 'yep'
         os.environ['name'] = 'parser'
-        os.execlp('daemonize','daemonize',sys.executable,os.path.abspath(sys.argv[0]))
+        os.execlp('daemonize',
+                  'daemonize',sys.executable,os.path.abspath(myself))
 
 import syspath
 import fixprint
@@ -29,7 +33,6 @@ if __name__ == '__main__':
             enqueue(line.strip())
             catchup.poke()	
     else:
-        here = os.path.dirname(sys.argv[0])
         def doparsethingy():
             import fcntl,os,time
             from itertools import count

@@ -8,7 +8,6 @@ import db
 import fixstdin
 import fixprint
 
-from PIL import Image
 from hashlib import md5 as MD5
 
 import codecs

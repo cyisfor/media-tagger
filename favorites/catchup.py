@@ -84,6 +84,9 @@ class Catchup(Process):
         except KeyboardInterrupt: pass
     def poke(self):
         with self.condition:
+            if not self.is_alive():
+                print('died?')
+                self.start()
             self.condition.notify_all()
     def finish(self):
         self.done.value = True

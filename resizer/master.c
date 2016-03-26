@@ -1,11 +1,16 @@
+#include "record.h"
+
+
 #include <unistd.h>
 #include <string.h> // strrchr
 #include <stdlib.h> // malloc
 #include <stdio.h>
 #include <errno.h>
 #include <signal.h>
-
-#include "record.h"
+#include <fcntl.h> // locking
+#include <error.h>
+#include <sys/wait.h>
+#include <time.h>
 
 #define NUM 4
 #define WORKER_LIFETIME 3600 // like an hour idk
@@ -15,7 +20,7 @@ int workers[NUM];
 const char* lackey = NULL;
 const char* filedb = NULL;
 
-int startLackey(void) {    
+int startLackey(void) {
     int pid = fork();
     if(pid == 0) {
         execl(lackey,"lackey",filedb,NULL);
@@ -27,22 +32,41 @@ int startLackey(void) {
 void onchild(int signal) {}
 
 void onalarm(int signal) {
-    // randomly kill a worker, to keep them fresh 
+    // randomly kill a worker, to keep them fresh
     // b/c memory leaks in ImageMagick
     static int ctr = 0;
     // note this could kill a worker in the middle of thumbnail generation
     // but this will also kill a worker stuck in the middle of thumbnail generation
     kill(workers[ctr],SIGTERM);
     ctr = (ctr + 1)%NUM;
-    alarm(WORKER_LIFETIME/NUM); 
+    alarm(WORKER_LIFETIME/NUM);
     // it'll cycle through them all in a lifetime
     // visit each once a lifetime
 }
 
+static void dolock(void) {
+  int fd = open("/tmp/lackey-master.lock", O_WRONLY|O_CREAT,0600);
+  if(fd < 0) error(1,0,"Lock wouldn't open.");
+  struct flock lock = {
+    .l_type = F_WRLCK,
+  };
+  if(-1 != fcntl(fd,F_SETLK,&lock)) return;
+  switch(errno) {
+  case EACCES:
+  case EAGAIN:
+    exit(2);
+  default:
+    error(3,errno,"Couldn't set a lock.");
+  };
+}
+
+
 int main(int argc, char** argv) {
+  dolock();
+
     srand(time(NULL));
     recordInit();
-    char* buf; 
+    char* buf;
     ssize_t amt;
     char* lastslash = strrchr(argv[0],'/');
     if(lastslash == NULL) {
@@ -56,13 +80,12 @@ int main(int argc, char** argv) {
         lackey = buf;
         record(INFO, "lackey '%s'",lackey);
     }
-    
+
     {
         filedb = strdup("/home/.local/filedb");
         record(INFO, "filedb '%s'",filedb);
     }
 
-    setenv("LD_LIBRARY_PATH","/opt/ImageMagick/lib",1);
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = onchild;

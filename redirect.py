@@ -1,6 +1,4 @@
-import coro
-
-class Redirect(coro.Exit):
+class Redirect(Exception):
     def __init__(self,location,code=302,message='boink'):
         self.code = code
         self.message = message

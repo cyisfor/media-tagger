@@ -5,7 +5,6 @@ from pages import d,RawString,Links
 
 from replacer import replacerFile
 
-from tracker_coroutine import coroutine
 import http.client as codes
 
 import shutil,datetime
@@ -151,18 +150,11 @@ def manage(req):
     req.send_header("Location","/~user/queue?message="+quote(message))
     req.end_headers()
 
-                self.dest.seek(0,0)
-                # close as we can get to when it was created...
-                self.future.set_result(modified)
-                # this closes the crab
-        return Uploader()
-    else:
-        result = db.execute("SELECT id FROM media WHERE id = $1",(media,))
-        if not result:
-            raise Error("No media by that ID")
-        create.update(media,sources,tags)
-        have_media(media)
-        return media
+    self.dest.seek(0,0)
+    # close as we can get to when it was created...
+    self.future.set_result(modified)
+    # this closes the crab
+
 
 def page(info,path,params):
     def contents():

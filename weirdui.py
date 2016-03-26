@@ -28,12 +28,12 @@ def manuallyGetType(data,badtype):
         except KeyboardInterrupt:
             print(NoGood("User wouldn't enter a good type for",badtype,type))
             return False
-    
+
     def getByGUI():
         from gi.repository import Gtk
         ok,eh = Gtk.init_check()
         if not ok: return False
-            
+
         win = Gtk.Window()
         vbox = Gtk.VBox(False,2)
         win.add(vbox)
@@ -68,7 +68,4 @@ def manuallyGetType(data,badtype):
         return True
     if not ( getByGUI() or getByTTY() ):
         raise NoGood("Couldn't find a way to manually get the type.",badtype,bit);
-        
-    
-                                          
-                    
+    return mimetype
