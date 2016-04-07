@@ -36,7 +36,7 @@ def addColumn():
 
 @version(1339)
 def _():
-    db.setup('ALTER TABLE media ADD COLUMN mh_hash char(72)')
+    db.setup('ALTER TABLE media ADD COLUMN mh_hash bytea')
     
 version.setup()
 
@@ -75,79 +75,91 @@ def create(hid):
     gen.stdin.flush()
     return gen.stdout.readline().decode().rstrip()
 
+mh_gen = None
 def createMH(hid):
     global mh_gen
-  if mh_gen is None:
-    mh_gen = s.Popen([oj(here,'create_mh')],stdin=s.PIPE,stdout=s.PIPE)
-    assert(mh_gen)
-  mh_gen.stdin.write((filedb.mediaPath()+'\n').encode());
+    if mh_gen is None:
+        mh_gen = s.Popen([oj(here,'mh_create')],stdin=s.PIPE,stdout=s.PIPE)
+        assert(mh_gen)
+        mh_gen.stdin.write((filedb.mediaPath()+'\n').encode());
+    mh_gen.stdin.write((hid+'\n').encode())
     mh_gen.stdin.flush()
-  return mh_gen.stdout.readline().decode().rstrip()
+    return mh_gen.stdout.readline().decode().rstrip()
+
 lastlen = 0
 def status(s):
-    global lastlen
-    if lastlen:
-        diff = lastlen - len(s)
-        if diff > 0:
-            sys.stdout.write('\b'*diff+' '*diff)
-    lastlen = len(s)
-    sys.stdout.write('\r'+s)
-    sys.stdout.flush()
+        global lastlen
+        if lastlen:
+                diff = lastlen - len(s)
+                if diff > 0:
+                        sys.stdout.write('\b'*diff+' '*diff)
+        lastlen = len(s)
+        sys.stdout.write('\r'+s)
+        sys.stdout.flush()
 
 if __name__ == '__main__':
-    start = time.time()
-    total = db.execute('SELECT count(id) FROM media WHERE NOT pHashFail AND pHash IS NULL')[0][0]
-    achieved = 0
-    timespent = 0
-    if os.path.exists('last'):
-        with open('last') as inp:
-            achieved = int(inp.readline())
-            timespent = float(inp.readline())
-    elif os.path.exists(oj(here,'last.temp')):
-        with open(oj(here,'last.temp')) as inp:
-            achieved = int(inp.readline())
-            timespent = float(inp.readline())
-    counter = count(0)
-    elapsed = 0
-    current = 0
-    with db.transaction():
-        for id, in db.execute('''SELECT id FROM media WHERE 
+        start = time.time()
+        total = db.execute('SELECT count(id) FROM media WHERE NOT pHashFail AND pHash IS NULL')[0][0]
+        achieved = 0
+        timespent = 0
+        if os.path.exists('last'):
+                with open('last') as inp:
+                        achieved = int(inp.readline())
+                        timespent = float(inp.readline())
+        elif os.path.exists(oj(here,'last.temp')):
+                with open(oj(here,'last.temp')) as inp:
+                        achieved = int(inp.readline())
+                        timespent = float(inp.readline())
+        counter = count(0)
+        elapsed = 0
+        current = 0
+        where = '''FROM media WHERE 
 NOT pHashFail AND 
 pHash IS NULL AND
 type = ANY($1)
-ORDER BY id''',(['image/png','image/jpeg'],)):
-            hid = '{:x}'.format(id)
-            status(hid+' '+timeify((total - current) * (timespent + elapsed) / (achieved if achieved else 1))+' left')
-            if not os.path.exists(filedb.mediaPath(id)):
-                print('uhhh',hid)
-                raise SystemExit
-            current = next(counter)
-            if (current+1)%10==0:
-                db.retransaction()
-                with open('last.temp','w') as out:
-                    out.write('{}\n'.format(achieved))
-                    out.write('{}\n'.format(timespent + elapsed))
-                try: os.unlink('last')
-                except OSError: pass
-                os.rename('last.temp','last')
-                print('retransaction')
-            pHash = create(hid)
-            elapsed = time.time() - start
-            if (pHash == 'ERROR'):
-                print('err')
-                db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
-            else:
-                db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
-            achieved = achieved + 1
-            for id, in db.execute('''SELECT id FROM media WHERE
+ORDER BY id'''
+        types = ['image/png','image/jpeg']
+        which = count(1)
+        with db.transaction():
+            total = db.execute('SELECT COUNT(1)'+where,types)
+            for id, in db.execute('SELECT id' + where,types)
+                        hid = '{:x}'.format(id)
+                    status(str(next(which))+'/'+str(total)+' '+
+                                 hid+' '+timeify((total - current) * (timespent + elapsed) / (achieved if achieved else 1))+' left')
+                    if not os.path.exists(filedb.mediaPath(id)):
+                            print('uhhh',hid)
+                            raise SystemExit
+                    current = next(counter)
+                    if (current+1)%10==0:
+                            db.retransaction()
+                            with open('last.temp','w') as out:
+                                    out.write('{}\n'.format(achieved))
+                                    out.write('{}\n'.format(timespent + elapsed))
+                            try: os.unlink('last')
+                            except OSError: pass
+                            os.rename('last.temp','last')
+                            print('retransaction')
+                    pHash = create(hid)
+                    elapsed = time.time() - start
+                    if (pHash == 'ERROR'):
+                            print('err')
+                            db.execute('UPDATE media SET pHashFail = TRUE WHERE id = $1',(id,))
+                    else:
+                            db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
+                    achieved = achieved + 1
+
+    where = '''FROM media WHERE
 NOT phashFail AND
 mh_hash IS NULL AND
 pHash = 0 AND
 type = ANY($1)
-ORDER BY id''',(['image/png','image/jpeg'],)):
+ORDER BY id'''
+    total = db.execute('SELECT COUNT(1) '+where)
+    which = count(1)
+    for id, in db.execute('SELECT id '+where,types):
         hid = '{:x}'.format(id)
-                print("need mh hash for",hid)
-                mh_hash = createMH(hid)
-                assert(mh_hash != 'ERROR')
-                db.execute('UPDATE media SET mh_hash = $1 WHERE id = $2',(mh_hash,id))
-                db.retransaction()y
+        print("need mh hash for",hid,"{}/{}".format(next(which),total))
+        mh_hash = createMH(hid)
+        assert(mh_hash != 'ERROR')
+        db.execute("UPDATE media SET mh_hash = decode($1,'hex') WHERE id = $2",(mh_hash,id))
+        db.retransaction()

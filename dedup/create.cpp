@@ -4,10 +4,6 @@
 #include <stdio.h>
 
 int main(void) {
-    int derp = open("create.log",O_WRONLY|O_CREAT,0644);
-    dup2(derp,2);
-    close(derp);
-
     char* line = NULL;
     size_t space = 0;
     bool indir = false;
@@ -18,6 +14,9 @@ int main(void) {
         if(indir == false) {
             assert(chdir(line) == 0);
             indir = true;
+            int derp = open("create.log",O_WRONLY|O_CREAT,0644);
+            dup2(derp,2);
+            close(derp);            
         } else {
             ulong64 hash = 23;
 	    struct stat buf;
@@ -25,7 +24,7 @@ int main(void) {
 	      fprintf(stderr,"whyyyy %s\n",line);
 	      exit(23);
 	    }
-            if(ph_mh_imagehash(line,hash) < 0)  {
+            if(ph_dct_imagehash(line,hash) < 0)  {
                 fprintf(stdout, "ERROR\n",stdout);
             } else {
                 fprintf(stdout,"%llx\n",hash);
