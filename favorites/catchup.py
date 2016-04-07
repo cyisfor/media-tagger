@@ -93,7 +93,7 @@ class Catchupper:
                 print('died?')
                 self.process = Catchup()
                 self.process.start
-            self.condition.notify_all()
+            self.process.condition.notify_all()
     def finish(self):
         self.process.done.value = True
         while True:

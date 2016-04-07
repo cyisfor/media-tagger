@@ -35,12 +35,12 @@ if __name__ == '__main__':
     import shutil,os,filedb
     setup()
     id = next()
-    desktop = os.path.expanduser("/extra/user/.config/desktop")
+    desktop = os.path.expanduser("/home/.config/desktop")
     try: os.unlink(desktop)
     except OSError: pass
     # Can't use filedb.mediaPath why...?
     shutil.copy2(os.path.join(filedb.top,"media",'{:x}'.format(id)),desktop)
     if not os.environ.get('DISPLAY'):
         os.environ['DISPLAY'] = ':0.0'
-    os.environ.setdefault('XAUTHORITY','/extra/user/.Xauthority')
+    os.environ.setdefault('XAUTHORITY','/home/.Xauthority')
     os.execlp("xfdesktop","xfdesktop","--reload")

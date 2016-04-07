@@ -79,4 +79,6 @@ div#thumbs {
 	display: inline;
 }
 
-
+#desc {
+    white-space: nowrap;
+}

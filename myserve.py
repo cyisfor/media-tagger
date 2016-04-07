@@ -300,8 +300,8 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
                     else:
                         @prevnext
                         def page():
-                            return gen.maybe_future(disp.page(
-                                info.pageInfo(ident),path,params))
+                            return disp.page(
+                                info.pageInfo(ident),path,params)
                             return page
                         return page
                 else:

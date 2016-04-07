@@ -354,9 +354,8 @@ def maybeDesc(id):
     blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
     if blurb:
         lines = linepat.split(blurb[0][0])
-        avglen = min(120,max(40,mean(len(line) for line in lines)))
-        return d.div([d.p(p) for p in lines],
-                     style='width: {}em'.format(avglen/2),
+        # assuming blurb is trusted!
+        return d.div([d.p(RawString(p)) for p in lines],
                      id='desc')
     return None
     

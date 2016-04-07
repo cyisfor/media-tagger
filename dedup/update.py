@@ -34,10 +34,13 @@ def addColumn():
              WHERE a.id > b.id AND a.phash = b.phash AND (('x' || encode(substring(uuid_send(a.derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 3) AND (('x' || encode(substring(uuid_send(b.derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 3)''')
 #        'ALTER TABLE media DROP COLUMN derpHash'
 
+@version(1339)
+def _():
+    db.setup('ALTER TABLE media ADD COLUMN mh_hash char(72)')
+    
 version.setup()
 
 gen = None
-
 
 def timeify(seconds):
     seconds = int(seconds)
@@ -72,6 +75,14 @@ def create(hid):
     gen.stdin.flush()
     return gen.stdout.readline().decode().rstrip()
 
+def createMH(hid):
+    global mh_gen
+  if mh_gen is None:
+    mh_gen = s.Popen([oj(here,'create_mh')],stdin=s.PIPE,stdout=s.PIPE)
+    assert(mh_gen)
+  mh_gen.stdin.write((filedb.mediaPath()+'\n').encode());
+    mh_gen.stdin.flush()
+  return mh_gen.stdout.readline().decode().rstrip()
 lastlen = 0
 def status(s):
     global lastlen
@@ -128,3 +139,15 @@ ORDER BY id''',(['image/png','image/jpeg'],)):
             else:
                 db.execute('UPDATE media SET pHash = $1::bit(64)::int8 WHERE id = $2',('x'+pHash,id))
             achieved = achieved + 1
+            for id, in db.execute('''SELECT id FROM media WHERE
+NOT phashFail AND
+mh_hash IS NULL AND
+pHash = 0 AND
+type = ANY($1)
+ORDER BY id''',(['image/png','image/jpeg'],)):
+        hid = '{:x}'.format(id)
+                print("need mh hash for",hid)
+                mh_hash = createMH(hid)
+                assert(mh_hash != 'ERROR')
+                db.execute('UPDATE media SET mh_hash = $1 WHERE id = $2',(mh_hash,id))
+                db.retransaction()y
