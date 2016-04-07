@@ -23,6 +23,8 @@ id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE);
 --UPDATE dupeCheckPosition SET bottom = COALESCE(GREATEST((SELECT MAX(sis) FROM possibleDupes),(SELECT MAX(bro) FROM possibleDupes),bottom),bottom);
 -- mehhh
 
+DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHash = 0) AND bro IN (select ID from media where pHash = 0);y
+
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
 _test record;
@@ -32,7 +34,10 @@ _count int DEFAULT 0;
 BEGIN
     FOR _test IN SELECT media.id,phash FROM media
     LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
-    WHERE phash IS NOT NULL AND possibleDupes.id IS NULL
+    WHERE 
+          phash != 0  AND
+          phash IS NOT NULL AND 
+          possibleDupes.id IS NULL
     AND media.id > coalesce((SELECT bottom FROM dupeCheckPosition),0)
     ORDER BY media.id LIMIT 1000
     LOOP
@@ -41,6 +46,7 @@ BEGIN
             FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash) AS dist FROM media 
             LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
             WHERE nadupes.id IS NULL
+            AND phash != 0
             AND phash IS NOT NULL AND media.id < _test.id
     	AND hammingfast(phash,_test.phash) < _threshold
             LOOP

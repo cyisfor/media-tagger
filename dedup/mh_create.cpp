@@ -35,7 +35,7 @@ int main(void) {
             int i;
             assert(hashlen==72);
             for(i=0;i<hashlen;++i) {
-              fprintf(stdout,"%x",hash[i]);
+              fprintf(stdout,"%02x",hash[i]);
             }
             fputc('\n',stdout);
           }
