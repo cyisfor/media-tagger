@@ -23,7 +23,8 @@ const char* filedb = NULL;
 int startLackey(void) {
     int pid = fork();
     if(pid == 0) {
-        execl(lackey,"lackey",filedb,NULL);
+        execlp("cgexec","-g","memory:/image_manipulation",
+               lackey,filedb,NULL);
         exit(23);
     }
     return pid;

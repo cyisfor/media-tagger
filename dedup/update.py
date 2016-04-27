@@ -158,6 +158,6 @@ type = ANY($1)'''
             print("need mh hash for",hid,"{}/{}".format(next(which),totalderp))
             mh_hash = createMH(hid)
             assert(mh_hash != 'ERROR')
-            db.execute("UPDATE media SET mh_hash = decode($1,'hex') WHERE id = $2",(mh_hash,id))
+            db.execute("UPDATE media SET mh_hash = $1::bit(576) WHERE id = $2",('x'+mh_hash,id))
             db.retransaction()
 

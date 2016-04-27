@@ -1,4 +1,5 @@
 #include "magick/MagickCore.h"
+#include "limit_me.h"
 
 #include <arpa/inet.h> // htons
 
@@ -73,6 +74,8 @@ static const char* maybeOverrideType(const char* path, bool* cont) {
 int main(void) {
     char* path = NULL;
     size_t space = 0;
+
+    limit_me();
 
     MagickCoreGenesis(NULL,MagickFalse);
 

@@ -14,7 +14,9 @@ if not os.path.exists(exe):
     subprocess.call(['make'])
 
 def makeProcess():
-    return subprocess.Popen([exe],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+    return subprocess.Popen([
+            "cgexec","-g","memory:/image_manipulation",
+            exe],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
 process = makeProcess()
 def getProcess():
     global process

@@ -88,11 +88,12 @@ class Catchupper:
         self.process = Catchup()
         self.process.start()
     def poke(self):
+        print('poke')
         with self.process.condition:
             if not self.process.is_alive():
                 print('died?')
                 self.process = Catchup()
-                self.process.start
+                self.process.start()
             self.process.condition.notify_all()
     def finish(self):
         self.process.done.value = True

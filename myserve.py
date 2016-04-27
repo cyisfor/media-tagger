@@ -132,8 +132,8 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
         if not self.ip in IGNORED:
             return super().recordAccess(*a, **kw)
     def __init__(self,*a,**kw):
-        FormCollector.__init__(self,*a,**kw)
         BaseHTTPRequestHandler.__init__(self,*a,**kw)
+        FormCollector.__init__(self,*a,**kw)
     def do_HEAD(self):
         with Session():
             Session.head = True

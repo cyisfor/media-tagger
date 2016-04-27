@@ -23,7 +23,7 @@ id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE);
 --UPDATE dupeCheckPosition SET bottom = COALESCE(GREATEST((SELECT MAX(sis) FROM possibleDupes),(SELECT MAX(bro) FROM possibleDupes),bottom),bottom);
 -- mehhh
 
-DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHash = 0) AND bro IN (select ID from media where pHash = 0);y
+DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHash = 0) AND bro IN (select ID from media where pHash = 0);
 
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
@@ -63,12 +63,13 @@ BEGIN
         END LOOP;
     FOR _test IN SELECT media.id,phash FROM media WHERE phash IS NOT NULL AND
     media.id IN (select id from dupesneedrecheck) LIMIT 1000
+
     LOOP
         FOR _result IN SELECT media.id,pHash as hash, hammingfast(phash,_test.phash) AS dist FROM media
 	LEFT OUTER JOIN dupesneedrecheck ON media.id = dupesneedrecheck.id
             WHERE phash IS NOT NULL AND dupesneedrecheck.id IS NULL
       	    AND media.id != _test.id
-      	    AND hammingfast(phash,_test.phash) < _threshold
+--      	    AND hammingfast(phash,_test.phash) < _threshold
         LOOP
 	        BEGIN
 		INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
@@ -80,6 +81,31 @@ BEGIN
         END LOOP;
 	DELETE FROM dupesNeedRecheck WHERE id = _test.id;
 	RAISE NOTICE 'finished rechecking %',_test.id;
+    END LOOP;
+
+    FOR _test IN SELECT media.id,mh_hash FROM media
+        LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
+        WHERE 
+              possibleDupes.id IS NULL AND
+              mh_hash IS NOT NULL AND
+              pHash = 0
+    LOOP
+        RAISE NOTICE 'mh_check %',_test.id;
+        FOR _result IN SELECT media.id,mh_hash, hamming(mh_hash,_test.mh_hash) AS dist FROM media
+        LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND media.id = nadupes.sis
+        WHERE nadupes.id IS NULL AND
+              mh_hash IS NOT NULL AND
+              pHash = 0 
+              AND hamming(mh_hash,_test.mh_hash) < _threshold
+         LOOP
+            BEGIN
+                INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+                _count := _count + 1;
+            EXCEPTION
+		        WHEN unique_violation THEN
+			        RAISE NOTICE 'already checked (thisisbad) %',_test.id; 
+            END;
+         END LOOP;
     END LOOP;
     RETURN _count;
 END
