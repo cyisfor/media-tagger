@@ -94,7 +94,13 @@ class Catchupper:
                 print('died?')
                 self.process = Catchup()
                 self.process.start()
-            self.process.condition.notify_all()
+            try:
+                self.process.condition.notify_all()
+            except AssertionError:
+                # bug...
+                self.process.terminate()
+                self.process = Catchup()
+                self.process.start()
     def finish(self):
         self.process.done.value = True
         while True:

@@ -1,7 +1,8 @@
 #/usr/bin/python3
 
 import ctypes
-import magic,os,threading
+import mymagic as magic
+import os,threading
 from mimetypes import guess_extension
 
 class MyGuesser:
