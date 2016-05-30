@@ -93,6 +93,7 @@ def impmort(path,implied,recheck=False):
     if bad[0][0] != 0: return
     idnum = None
     source = db.execute("SELECT id FROM filesources WHERE path = $1",(path,))
+    print('something',source)
     try:
         with db.transaction():
             if source:

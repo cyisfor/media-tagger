@@ -183,11 +183,16 @@ def getanId(sources,uniqueSources,download,name):
             image,mimetype = openImage(data)
             if not image:
                 note('we hafe to guess')
-                mimetype, encoding = magic.guess_type(data.name)[:2]
-                if mimetype is None or mimetype == 'binary':
-                    mimetype = manuallyGetType(data,mimetype)
+                try:
+                    mimetype = magic.guess_type(data.name)[0]
+                except TypeError:
+                    mimetype = manuallyGetType(data, mimetype)
                 else:
-                    mimetype = mimetype.split('\\012')[0]
+                    if mimetype is None or mimetype == 'binary':
+                        mimetype = manuallyGetType(data,mimetype)
+                    else:
+                        mimetype = mimetype.split('\\012')[0]
+
                 note.blue('guessed mimetype',repr(mimetype),type(mimetype))
             if not isGood(mimetype):
                 mimetype = manuallyGetType(data,mimetype)

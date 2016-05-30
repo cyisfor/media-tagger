@@ -33,6 +33,13 @@ def handling(f,*a,**kw):
         f(*(a+(handler,)),**kw)
     return wrapper
 
+def justdo(f,*a,**kw):
+    def callback(*b,**bkw):
+        return f(*a,**kw)
+    return callback
+
+from functools import partial
+
 def getinfo(next):
     window = Gtk.Window()
     box = Gtk.VBox()
@@ -48,20 +55,19 @@ def getinfo(next):
     description = e("description")
     source = e("source")
     tags = e("tags")
-    title.connect('activate',lambda *a: description.grab_focus())
+    title.connect('activate',justdo(description.grab_focus)))
     title.grab_focus()
-    description.connect('activate',lambda *a: source.grab_focus())
-    source.connect('activate',lambda *a: tags.grab_focus())
-    tags.connect('activate',lambda *a: window.destroy())
-    def herp(*a):
-        nonlocal title, description, source, tags
+    description.connect('activate',justdo(source.grab_focus))
+    source.connect('activate',justdo(tags.grab_focus))
+    tags.connect('activate',justdo(window.destroy))
+    def herp(title, description, source, tags, *a):
         title = title.get_text() or None
         description = description.get_text() or None
         source = source.get_text() or None
         tags = tags.get_text() or None
         assert title
         background(lambda: next(title,description,source,tags))
-    window.connect('destroy',herp)
+    window.connect('destroy',partial(herp,title,description,source,tags))
     window.show_all()
             
 @dually

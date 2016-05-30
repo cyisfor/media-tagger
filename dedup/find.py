@@ -45,10 +45,14 @@ import os
 
 findStmt = '''SELECT sis,bro FROM possibleDupes WHERE 
 NOT sis IN (select id from glibsucks) AND 
-NOT bro IN (select id from glibsucks) AND 
+NOT bro IN (select id from glibsucks) AND
+NOT (
+  sis IN (select sis FROM nadupes WHERE nadupes.bro = possibleDupes.bro) OR
+  sis IN (select bro FROM nadupes WHERE nadupes.sis = possibleDupes.bro) 
+) AND
 sis IN (select id from media where type = ANY($2)) AND 
 bro IN (select id from media where type = ANY($2)) AND 
-dist < $1 EXCEPT SELECT sis,bro FROM nadupes ORDER BY sis DESC LIMIT 1000'''
+dist < $1 ORDER BY sis DESC LIMIT 1000'''
 
 maxDistance = os.environ.get('distance')
 if maxDistance is None:
