@@ -9,7 +9,7 @@ sub:
 all: lackey-bin lackey-master
 
 lackey-bin: $(objects)
-	gcc $(FLAGS) `pkg-config --cflags ImageMagick` -o $@ $^ `pkg-config --libs ImageMagick` 
+	gcc $(FLAGS) `pkg-config --cflags ImageMagick` -o $@ $^ `pkg-config --libs ImageMagick` -lbsd
 
 lackey-master: master.o record.o
 	gcc $(FLAGS) -o $@ $^

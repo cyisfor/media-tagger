@@ -4,6 +4,11 @@
 
 #include "record.h"
 
+#include <bsd/unistd.h> // setproctitle
+
+#include <sys/wait.h> // waitpid
+
+
 #include <string.h> /* strndup */
 
 #include <sys/time.h> /* futimes */
@@ -97,15 +102,19 @@ void make_create(const char* incoming, const char* name) {
   uint32_t id = strtoul(name,NULL,0x10);
   if(id==0) return;
 
+  setproctitle("lackey %x",id);
   int fd = open(incoming,O_RDONLY|O_DIRECTORY);
   assert(fd>0);
   int ofd = openat(fd,name,O_RDWR);
 
-  close(fd);
   if(ofd==-1) {
     // it got deleted...somehow.
     return;
   }
+  // regardless of success, if fail this'll just repeatedly fail 
+  // so delete it anyway
+  unlinkat(fd,name,0);
+
   struct flock desc = {};
   desc.l_type = F_WRLCK;
   desc.l_pid = getpid();
@@ -115,6 +124,7 @@ void make_create(const char* incoming, const char* name) {
       exit(3);
     }
     record(WARNING,"Didn't get file lock for %s",name);
+	close(fd);
     return;
   }
   record(INFO,"Got file lock for %s",name);
@@ -136,23 +146,20 @@ void make_create(const char* incoming, const char* name) {
     success = make_thumbnail(ctx,id);
   }
 
-  // regardless of success, if fail this'll just repeatedly fail 
-  // so delete it anyway
-  fd = open(incoming,O_RDONLY);
-  assert(fd>0);
-  unlinkat(fd,name,0);
-
   close(ofd); // this will free the lock
 
   // more files may exist which need handling.
 
-  DIR* contents = NULL;
-  if(g_checking!=1) contents = fdopendir(fd);
-  close(fd);
-  if(contents==NULL) return;
-
-  if(g_checking==1) return;
+  if(g_checking==1) {
+	  close(fd);	  
+	  return;
+  }
   g_checking = 1;
+
+  DIR* contents = fdopendir(fd);
+  close(fd);
+
+  if(contents==NULL) return;
 
   struct dirent* item;
   while((item = readdir(contents))) {

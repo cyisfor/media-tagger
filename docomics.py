@@ -55,7 +55,7 @@ def getinfo(next):
     description = e("description")
     source = e("source")
     tags = e("tags")
-    title.connect('activate',justdo(description.grab_focus)))
+    title.connect('activate',justdo(description.grab_focus))
     title.grab_focus()
     description.connect('activate',justdo(source.grab_focus))
     source.connect('activate',justdo(tags.grab_focus))
