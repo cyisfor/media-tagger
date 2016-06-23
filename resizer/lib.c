@@ -4,8 +4,7 @@
 #include "record.h"
 
 #include <stdio.h>
-#include <sys/stat.h>
-
+#include <sys/stat.h> /* stat, futimens */
 
 #include <string.h>
 #include <assert.h>
@@ -27,7 +26,7 @@ struct context_s {
 #define MOVED g_object_unref(in); in = t
 
 
-VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
+VipsImage* lib_thumbnail(VipsIn* in, context* ctx) {
   In* thumb = NULL;
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
@@ -149,13 +148,11 @@ VipsImage* lib_read(const char* source, uint32_t slen, context* ctx) {
 	// sigh
 	memcpy(filename,source,slen);
 	filename[slen] = '\0';
+	assert(0==stat(filename,&ctx->stat));
 	return thumbnail_open(source);
 }
 
-static void lib_done(VipsImage* in, context* ctx) {
-	g_object_unref(in);
-	// we reuse ctx though
-}
+static void copy_meta(int dest, struct stat info);
 
 // WriteAndOptimizeByCrushingThisImageBrutally(...)
 
@@ -187,16 +184,17 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 								 NULL);
 	}
 
+	g_object_unref(image);
+	
   fchmod(tempfd,0644);
   rename(tempname,dest);
+	copy_meta(tempfd,ctx->stat);
   close(tempfd); 
-  free(tempName);
+  free(tempname);
 }
 
+// neh, we never use this
 void context_finish(context** ctx) {
-  // DestroyImageInfo((*ctx)->image_info);
-  // see below
-  DestroyExceptionInfo((*ctx)->exception);
   free(*ctx);
   *ctx = NULL;
 }
@@ -230,12 +228,7 @@ static void _cheat_copy(const char* source,
   fclose(in);
   fflush(out);
 
-  struct timeval mod[2];
-  mod[0].tv_sec = instat->st_mtime;
-  mod[0].tv_usec = 0;
-  mod[1].tv_sec = instat->st_atime;
-  mod[1].tv_usec = 0;
-  futimes(fileno(out),mod);
+	copy_meta(fileno(out),instat);
   fclose(out);
 }
 
@@ -243,11 +236,23 @@ void lib_copy(const char* src,
 							const char* dest) {
 	int din = open(src,O_RDONLY);
 	assert(din >= 0);
-	char* tempName = filedb_file("temp","resizedXXXXXX");
-  int tempfd = mkstemp(tempName);
+	char* tempname = filedb_file("temp","resizedXXXXXX");
+  int tempfd = mkstemp(tempname);
 	struct stat info;
 	assert(0==fstat(din,&info));
 	assert(info.st_size ==
 				 copy_file_range(din,0,tempfd,0,info.st_size,
 												 COPY_FR_REFLINK));
+	copy_meta(tempfd, info);
+}
+
+static void copy_meta(int dest, struct stat info) {
+	fchmod(dest,info.st_mode);
+	struct timespec times[2];
+	memset(&times[0],&info.st_atim,sizeof(struct timespec));
+	memset(&times[1],&info.st_mtim,sizeof(struct timespec));
+	futimens(dest,times);
+  rename(tempname,dest);
+  close(dest);
+  free(tempname);
 }

@@ -11,7 +11,6 @@
 
 #include <string.h> /* strndup */
 
-#include <sys/time.h> /* futimes */
 #include <sys/types.h>  /* stat */
 #include <sys/stat.h> /* stat, open */
 #include <unistd.h> /* stat */
@@ -60,7 +59,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
       return 1;
   }
 
-  Image* thumb = lib_thumbnail(image,ctx);
+  VipsImage* thumb = lib_thumbnail(image,ctx);
   char* dest = filedb_path("thumb",id);
   if(thumb) {
     lib_write(thumb,dest,1,ctx);
@@ -172,9 +171,6 @@ void make_create(const char* incoming, const char* name) {
 }
 
 void make_init(void) {
-    MagickCoreGenesis(NULL,MagickTrue);
-    //InitializeMagick(NULL);
-    SetFatalErrorHandler(error);
-    SetErrorHandler(error);
-    ctx = make_context();
+	vips_init("");
+	ctx = make_context();
 }

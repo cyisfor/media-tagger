@@ -19,13 +19,11 @@ VipsImage* lib_resize(VipsImage* image, int width, context* ctx);
 
 VipsImage* lib_thumbnail(VipsImage* image, context* ctx);
 
-VipsImage* FirstImage(VipsImage* image);
+VipsImage* lib_read(const char* source, uint32_t slen, context* ctx);
 
-VipsImage* ReadImageCtx(const char* source, uint32_t slen, context* ctx);
+void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx);
 
-void WriteImageCtx(VipsImage* image, const char* dest, int thumb, context* ctx);
-
-void DirectCopy(VipsImage* image,
+void lib_copy(VipsImage* image,
 		const char* dest,
 		context* ctx);
 
