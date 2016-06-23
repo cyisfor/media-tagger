@@ -16,59 +16,134 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 
 struct context_s {
-  ExceptionInfo* exception;
-  ImageInfo* image_info;
   struct stat stat;
 };
-
-#define CatchExceptionAndReset(exn) { CatchException(exn); ClearMagickException(exn); }
-
-Image* MyResize(Image* image, int width, context* ctx) {
-  Image* thumb = NULL;
-
-  if(image->columns < width)
-    return image;
-
-  // ResizeImage clones?
-  thumb = ResizeImage(image, width, image->rows*width/image->columns,
-		      BoxFilter, 1.0,
-		      ctx->exception);
-  CatchExceptionAndReset(ctx->exception);
-  DestroyImage(image);
-  return thumb;
-}
 
 /*
   Strategy: cut the largest square out of the image you can
   then scale that down.
 */
 
-Image* MakeThumbnail(Image* image, context* ctx) {
-  Image* thumb = NULL;
-  if (image->magick_columns <= SIDE && image->magick_rows < SIDE) {
+#define MOVED g_object_unref(in); in = t
+
+
+VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
+  In* thumb = NULL;
+  if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
+			// no thumbnailing needed
       return NULL;
     }
   }
 
-  image = FirstImage(image);
+	// first crop
+	if (in->Ysize > in->Xsize) {
+		int margin = (in->Ysize - in->Xsize);
+		VipsImage* t = NULL;
+		assert(0==vips_extract_area(in, &t,
+																0,
+																in->Ysize + margin >> 1,
+																in->Xsize,
+																in->Ysize - margin,
+																NULL));
+		MOVED;
+	} else if (in->Xsize > in->Ysize) {
+		int margin = (in->Xsize - in->Ysize);
+		VipsImage* t = NULL;
+		assert(0==vips_extract_area(in, &t,
+																in->Xsize + margin >> 1,
+																0,
+																in->Xsize - margin,
+																in->Ysize,
+																NULL));
+		MOVED;
+	}
 
-  
-  // grumble grumble fuck you ImageMagick
-  
-  image->page.x = image->page.y = 0;
-  image->page.width = image->magick_columns;
-  image->page.height = image->magick_rows;
+	if(in->Coding == VIPS_CODING_RAD) {
+		VipsImage* t = NULL;
+		assert(0==vips_rad2float(in,&t,NULL));
+		MOVED;
+	}
 
-  if (image->magick_columns != image->magick_rows) {
-    RectangleInfo rect;
-    memset(&rect,0,sizeof(rect));
-    rect.width = rect.height = min(image->magick_columns,image->magick_rows);
+	// now resize the (possibly) cropped image
+
+	// no linear processing (can't pre-shrink)
+	bool have_imported = false;
+	if(in->Type == VIPS_INTERPRETATION_CMYK &&
+		in->Coding == VIPS_CODING_NONE &&
+		(in->BandFmt == VIPS_FORMAT_UCHAR ||
+		 in->BandFmt == VIPS_FORMAT_USHORT) &&
+		vips_image_get_typeof( in, VIPS_META_ICC_NAME )) {
+		VipsImage* t = NULL;
+		assert(vips_icc_import(in, &t,
+													 "input_profile", import_profile,
+													 "embedded", TRUE,
+													 "pcs", VIPS_PCS_XYZ,
+													 NULL ));
+		MOVED;
+		have_imported = true;
+	}
+	VipsImage* t = NULL;
+
+	assert(0==vips_colourspace( in, &t, interpretation, NULL ));
+	MOVED;
+
+	/* If there's an alpha, we have to premultiply before shrinking. See
+	 * https://github.com/jcupitt/libvips/issues/291
+	 */
+
+	bool have_premultiplied = false;
+	if(in->Bands == 2 ||
+		(in->Bands == 4 && in->Type != VIPS_INTERPRETATION_CMYK) ||
+		in->Bands == 5 ) {
+		assert(0==vips_premultiply(in, &t, NULL));
+		
+		/* vips_premultiply() makes a float image. When we
+		 * vips_unpremultiply() below, we need to cast back to the
+		 * pre-premultiply format.
+		 */
+		unpremultiplied_format = in->BandFmt;
+		MOVED;
+		have_premultiplied = true;
+	}
+
+	// shrink from Ysize/Xsize to SIDE
+	assert(0==vips_resize(in,&t,SIDE/((double)in->Ysize),NULL));
+	MOVED;
+	// crop just to make sure it's the right size
+	assert(0==vips_extract_area(in, &t,
+															0,0,
+															SIDE,SIDE,
+															NULL));
+	MOVED;
+
+	if(have_premultiplied) {
+		assert(0==vips_unpremultiply(in,&t,NULL));
+		MOVED;
+		vips_cast(in, &t, unpremultiplied_format, NULL);
+		MOVED;
+	}
+
+	if(have_imported) {
+		assert(0==vips_colourspace( in, &t, 
+																VIPS_INTERPRETATION_sRGB, NULL ));
+		MOVED;		
+	}
+	return in;
+}
+
+		
+	
+	
+
+
+
     /*	if (rect.width < SIDE && image->columns > SIDE)
 	rect.width = SIDE;
 	if (rect.height < SIDE && image->rows > SIDE)
-	rect.height = SIDE; */  
-    
+	rect.height = SIDE; */
+
+
     // RollImage clones?
     assert(image);
     thumb = RollImage(image,
@@ -116,17 +191,13 @@ Image* FirstImage(Image* image) {
   return image;
 }
 
-Image* ReadImageCtx(const char* source, uint32_t slen, context* ctx) {
-  ctx->image_info = CloneImageInfo((ImageInfo *) NULL);
-  memcpy(ctx->image_info->filename,source,slen);
-  ctx->image_info->filename[slen] = '\0';
-  ctx->image_info->file = NULL;
-  ctx->image_info->verbose = MagickFalse;
-  stat(ctx->image_info->filename,&ctx->stat);
-
-  Image* ret = ReadImage(ctx->image_info,ctx->exception);
-  CatchExceptionAndReset(ctx->exception);
-  return ret;
+VipsImage* read_image(const char* source, uint32_t slen, context* ctx) {
+	static char filename[0x100];
+	assert(slen < 0x100);
+	// sigh
+	memcpy(filename,source,slen);
+	filename[slen] = '\0';
+	return thumbnail_open(source);
 }
 
 static void DoneWithImage(Image* image, context* ctx) {

@@ -1,4 +1,5 @@
-#include "magick/MagickCore.h"
+#include <vips/vips.h>
+
 #include <stdint.h>
 
 typedef struct context_s context;
@@ -6,25 +7,25 @@ typedef struct context_s context;
 // destroy returned image.
 
 
-/* Notice: only destroy the image returned from MyResize/MakeThumbnail
+/* Notice: only destroy the image returned from resize_image/make_thumbnail
    not the one passed to it. */
 
-Image* MyResize(Image* image, int width, context* ctx);
+VipsImage* MyResize(VipsImage* image, int width, context* ctx);
 
 /*
   Strategy: cut the largest square out of the image you can
   then scale that down.
 */
 
-Image* MakeThumbnail(Image* image, context* ctx);
+VipsImage* lib_thumbnail(VipsImage* image, context* ctx);
 
-Image* FirstImage(Image* image);
+VipsImage* FirstImage(VipsImage* image);
 
-Image* ReadImageCtx(const char* source, uint32_t slen, context* ctx);
+VipsImage* ReadImageCtx(const char* source, uint32_t slen, context* ctx);
 
-void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx);
+void WriteImageCtx(VipsImage* image, const char* dest, int thumb, context* ctx);
 
-void DirectCopy(Image* image,
+void DirectCopy(VipsImage* image,
 		const char* dest,
 		context* ctx);
 

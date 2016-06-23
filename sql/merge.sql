@@ -41,7 +41,10 @@ BEGIN
     ELSE
        _aadd := GREATEST(_aadd,_badd);
     END IF;
-    UPDATE media SET added = NULL WHERE id = _b;
+    UPDATE media SET 
+					 -- junk, will be deleted, but must be unique + not null
+					 added = _aadd + ('1 second'::interval * random() / 10000)
+					  WHERE id = _b;
     UPDATE media SET added = _aadd WHERE id = _a;
 END
 $$ language 'plpgsql';

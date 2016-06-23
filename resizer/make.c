@@ -38,7 +38,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Thumbnail %x", id);
-  Image* image = ReadImageCtx(source,strlen(source),ctx);
+  VipsImage* image = read_image(source,strlen(source),ctx);
 
   if (!image) {
       int pid = fork();
@@ -61,7 +61,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
   }
   free(source);
 
-  Image* thumb = MakeThumbnail(image,ctx);
+  Image* thumb = lib_thumbnail(image,ctx);
   char* dest = filedb_path("thumb",id);
   if(thumb) {
     WriteImageCtx(thumb,dest,1,ctx);

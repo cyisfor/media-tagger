@@ -109,6 +109,7 @@ class Finder:
     def next(self):
         try: self.source, self.dest = next(self.dupes)
         except StopIteration:
+            print('reloading dupes!')
             self.dupes = iter(db.execute(findStmt,(
                 maxDistance,
                 ['image/png',

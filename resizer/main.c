@@ -13,7 +13,7 @@
 extern char* environ[];
 
 int main(int argc, char** argv) {
-  struct rlimit memlimit = { 0x20000000, 0x20000000 };
+  //struct rlimit memlimit = { 0x20000000, 0x20000000 };
   //setrlimit(RLIMIT_DATA,&memlimit);
   //setrlimit(RLIMIT_STACK,&memlimit);
   //setrlimit(RLIMIT_AS,&memlimit);
