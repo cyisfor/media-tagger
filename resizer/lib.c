@@ -18,6 +18,8 @@
 
 struct context_s {
   struct stat stat;
+	bool was_jpeg;
+	char source[0x100];
 };
 
 /*
@@ -30,8 +32,9 @@ struct context_s {
 #include "vipsthumbderp.c"
 
 
-VipsImage* lib_thumbnail(VipsImage* in, context* ctx) {
-  VipsImage* thumb = NULL;
+VipsImage* lib_thumbnail(context* ctx) {
+	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
+	
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
 			// no thumbnailing needed
@@ -65,10 +68,15 @@ VipsImage* lib_thumbnail(VipsImage* in, context* ctx) {
 	// now resize the (possibly) cropped image
 
 	// Xsize * SIDE/Xsize => SIDE (Ysize is same as Xsize now)
-	return lib_resize(in,SIDE/((double)in->Xsize));
+	return do_resize(in,factor);
 }
 
-VipsImage* lib_resize(VipsImage* in, double factor) {
+VipsImage* lib_resize(context* ctx, int width) {
+	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, width);
+	return do_resize(in,factor);
+}
+
+static VipsImage* do_resize(VipsImage* in, double factor) {
 	if(in->Coding == VIPS_CODING_RAD) {
 		VipsImage* t = NULL;
 		assert(0==vips_rad2float(in,&t,NULL));
@@ -146,14 +154,14 @@ VipsImage* lib_resize(VipsImage* in, double factor) {
 	return in;
 }
 
-VipsImage* lib_read(const char* source, uint32_t slen, context* ctx) {
-	static char filename[0x100];
+void lib_read(const char* source, uint32_t slen, context* ctx) {
 	assert(slen < 0x100);
 	// sigh
-	memcpy(filename,source,slen);
-	filename[slen] = '\0';
-	assert(0==stat(filename,&ctx->stat));
-	return thumbnail_open(source);
+	memcpy(ctx->source,source,slen);
+	ctx->source[slen] = '\0';
+	assert(0==stat(ctx->source,&ctx->stat));
+	ctx->was_jpeg = 0;
+	// later, when we know what size, return thumbnail_open(ctx->source,&ctx->was_jpeg);
 }
 
 static void copy_meta(int dest, struct stat info);
@@ -169,7 +177,7 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 
 	bool jpeg = thumb != 0;
 	if(!jpeg) {
-		jpeg = (0==strcmp(loader,"VipsForeignLoadJpegFile"));
+		jpeg = ctx->was_jpeg;
 	}
 
 	if(jpeg) {
@@ -206,34 +214,6 @@ void context_finish(context** ctx) {
 context* make_context(void) {
   context* ctx = (context*)malloc(sizeof(struct context_s));
   return ctx;
-}
-
-static void _cheat_copy(const char* source,
-			const struct stat* instat,
-			const char* dest) {
-  FILE* in = fopen(source,"rb");
-  if(!in) {
-    record(WARN,"Open r %s",source);
-    return;
-  }
-
-  FILE* out = fopen(dest,"wb");
-  if(!out) {
-    record(WARN,"Open w %s",dest);
-    return;
-  }
-
-  assert(dest);
-  uint8_t buf[0x1000];
-  while(!feof(in)) {
-    ssize_t num = fread(buf,1,0x1000,in);
-    fwrite(buf,1,num,out);
-  }
-  fclose(in);
-  fflush(out);
-
-	copy_meta(fileno(out),instat);
-  fclose(out);
 }
 
 void lib_copy(const char* src,
