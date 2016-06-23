@@ -72,19 +72,18 @@ static int make_thumbnail(context* ctx, uint32_t id) {
 }
 
 static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
-  Image* image;
+  VipsImage* image;
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Resize %x %d",id,newwidth);
-  image = ReadImageCtx(source,strlen(source),ctx);
+  image = lib_read(source,strlen(source),ctx);
   free(source);
   if (!image) {
     record(WARN,"Could not read media from '%x'",id);
     return 0;
   }
 
-  image = FirstImage(image);
-  image = MyResize(image,newwidth,ctx);
+  image = lib_resize(image,((double)newwidth)/image->Xsize);
 
   char* dest = filedb_path("resized",id);
 

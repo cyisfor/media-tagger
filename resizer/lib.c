@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <sys/stat.h> /* stat, futimens */
 
+#include <stdbool.h> 
+
 #include <string.h>
 #include <assert.h>
 
@@ -25,9 +27,11 @@ struct context_s {
 
 #define MOVED g_object_unref(in); in = t
 
+#include "vipsthumbderp.c"
 
-VipsImage* lib_thumbnail(VipsIn* in, context* ctx) {
-  In* thumb = NULL;
+
+VipsImage* lib_thumbnail(VipsImage* in, context* ctx) {
+  VipsImage* thumb = NULL;
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
 			// no thumbnailing needed
@@ -80,7 +84,7 @@ VipsImage* lib_resize(VipsImage* in, double factor) {
 		vips_image_get_typeof( in, VIPS_META_ICC_NAME )) {
 		VipsImage* t = NULL;
 		assert(vips_icc_import(in, &t,
-													 "input_profile", import_profile,
+													 // "input_profile", "sRGB",
 													 "embedded", TRUE,
 													 "pcs", VIPS_PCS_XYZ,
 													 NULL ));
@@ -89,7 +93,7 @@ VipsImage* lib_resize(VipsImage* in, double factor) {
 	}
 	VipsImage* t = NULL;
 
-	assert(0==vips_colourspace( in, &t, interpretation, NULL ));
+	assert(0==vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL ));
 	MOVED;
 
 	/* If there's an alpha, we have to premultiply before shrinking. See

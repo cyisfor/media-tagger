@@ -10,7 +10,7 @@ typedef struct context_s context;
 /* Notice: only destroy the image returned from resize_image/make_thumbnail
    not the one passed to it. */
 
-VipsImage* lib_resize(VipsImage* image, int width, context* ctx);
+VipsImage* lib_resize(VipsImage* in, double factor);
 
 /*
   Strategy: cut the largest square out of the image you can
@@ -28,3 +28,4 @@ void lib_copy(VipsImage* image,
 		context* ctx);
 
 context* make_context(void);
+void context_finish(context** ctx);
