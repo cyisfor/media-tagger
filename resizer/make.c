@@ -59,15 +59,15 @@ static int make_thumbnail(context* ctx, uint32_t id) {
       free(source);
       return 1;
   }
-  free(source);
 
   Image* thumb = lib_thumbnail(image,ctx);
   char* dest = filedb_path("thumb",id);
   if(thumb) {
-    WriteImageCtx(thumb,dest,1,ctx);
+    lib_write(thumb,dest,1,ctx);
   } else {
-    DirectCopy(image,dest,ctx);
+    lib_copy(source,dest);
   }
+  free(source);
   free(dest);
   return(1);
 }

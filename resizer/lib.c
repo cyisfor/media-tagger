@@ -59,13 +59,18 @@ VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
 		MOVED;
 	}
 
+	// now resize the (possibly) cropped image
+
+	// Xsize * SIDE/Xsize => SIDE (Ysize is same as Xsize now)
+	return lib_resize(in,SIDE/((double)in->Xsize));
+}
+
+VipsImage* lib_resize(VipsImage* in, double factor) {
 	if(in->Coding == VIPS_CODING_RAD) {
 		VipsImage* t = NULL;
 		assert(0==vips_rad2float(in,&t,NULL));
 		MOVED;
 	}
-
-	// now resize the (possibly) cropped image
 
 	// no linear processing (can't pre-shrink)
 	bool have_imported = false;
@@ -92,6 +97,7 @@ VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
 	 * https://github.com/jcupitt/libvips/issues/291
 	 */
 
+	VipsBandFormat unpremultiplied_format;
 	bool have_premultiplied = false;
 	if(in->Bands == 2 ||
 		(in->Bands == 4 && in->Type != VIPS_INTERPRETATION_CMYK) ||
@@ -107,16 +113,20 @@ VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
 		have_premultiplied = true;
 	}
 
-	// shrink from Ysize/Xsize to SIDE
-	assert(0==vips_resize(in,&t,SIDE/((double)in->Ysize),NULL));
+	// shrink by specified factor
+	int oldwidth = in->Xsize;
+	int oldheight = in->Ysize;
+	assert(0==vips_resize(in,&t,factor,NULL));
 	MOVED;
+	
 	// crop just to make sure it's the right size
 	assert(0==vips_extract_area(in, &t,
 															0,0,
-															SIDE,SIDE,
+															oldwidth, oldheight,
 															NULL));
 	MOVED;
 
+	// fix colorspace crap
 	if(have_premultiplied) {
 		assert(0==vips_unpremultiply(in,&t,NULL));
 		MOVED;
@@ -125,6 +135,7 @@ VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
 	}
 
 	if(have_imported) {
+		// make sure we're in sRGB
 		assert(0==vips_colourspace( in, &t, 
 																VIPS_INTERPRETATION_sRGB, NULL ));
 		MOVED;		
@@ -132,66 +143,7 @@ VipsImage* make_thumbnail(VipsIn* in, context* ctx) {
 	return in;
 }
 
-		
-	
-	
-
-
-
-    /*	if (rect.width < SIDE && image->columns > SIDE)
-	rect.width = SIDE;
-	if (rect.height < SIDE && image->rows > SIDE)
-	rect.height = SIDE; */
-
-
-    // RollImage clones?
-    assert(image);
-    thumb = RollImage(image,
-		      image->magick_columns-(image->magick_columns-rect.width)/2,
-		      image->magick_rows-(image->magick_rows-rect.height)/2,
-		      ctx->exception);
-    CatchExceptionAndReset(ctx->exception);
-    if(thumb) {
-        assert(thumb);
-        DestroyImage(image);
-        image = thumb;
-    }
-
-    // CropImage clones
-    thumb = CropImage(image,&rect,ctx->exception);
-    CatchExceptionAndReset(ctx->exception);
-    DestroyImage(image);
-    image = thumb;
-
-    if (rect.width <= SIDE && rect.height <= SIDE)
-	return image;
-  }
-
-  // MyResize destroys and catches
-  thumb = MyResize(image, SIDE, ctx);
-  return thumb;
-}
-
-Image* FirstImage(Image* image) {
-  Image* frame;
-  unsigned long length;
-  length = GetImageListLength(image);
-  if (length > 1) {
-    // RemoveFirstImageFromList is NOT cloned
-    // but DestroyImageList won't get it
-    frame = RemoveFirstImageFromList(&image);
-    if(!frame)
-      record(WARN,"Could not extract first frame");
-
-    // destroys all images left in list (frame 2 and up)
-    DestroyImageList(image);
-    return frame;
-  }
-
-  return image;
-}
-
-VipsImage* read_image(const char* source, uint32_t slen, context* ctx) {
+VipsImage* lib_read(const char* source, uint32_t slen, context* ctx) {
 	static char filename[0x100];
 	assert(slen < 0x100);
 	// sigh
@@ -200,173 +152,44 @@ VipsImage* read_image(const char* source, uint32_t slen, context* ctx) {
 	return thumbnail_open(source);
 }
 
-static void DoneWithImage(Image* image, context* ctx) {
-  DestroyImage(image);
-  DestroyImageInfo(ctx->image_info);
-  ctx->image_info = NULL;
-}
-/*
-static int TooSimilar(ColorPacket* aa, ColorPacket* bb) {
-  if(!aa) return 0;
-  if(!bb) return 0;
-
-  PixelPacket a = aa->pixel;
-  PixelPacket b = bb->pixel;
-  unsigned long sqdist =
-    abs(a.red - b.red) +
-    abs(a.green - b.green) +
-    abs(a.blue - b.blue) +
-    abs(a.opacity - b.opacity);
-
-  return (sqdist < 5);
-  }*/
-
-static unsigned long getQuality(context* ctx, Image* image, unsigned long quality) {
-  const char* value = GetImageProperty(image,"JPEG-Quality");
-  if (value != NULL && *value) {
-    sscanf(value,"%lu",&quality);
-  }
-
-  return quality;
-}
-
-static void Reduce(Image* image, context* ctx) {
-
-//  ColorPacket* hist = GetImageHistogram(image,&nc,ctx->exception);
-  size_t nc = GetNumberColors(image,NULL,ctx->exception);
-  CatchExceptionAndReset(ctx->exception);
-
-  if(nc<=0x10) return;
-  /*
-    we have to try to quantize it, because the transparency is lost with jpeg
-  if(nc>0x1000) {
-    // no point in quantizing an image with more than 8192 colors...
-    ctx->image_info->quality = 30;
-    ctx->image_info->compression = JPEGCompression;
-    ctx->image_info->interlace = LineInterlace;
-    strcpy(image->magick,"JPEG");
-    return;
-    }*/
-
-
-/**** this is too expensive for some pictures with >100000 significant colors.
-  unsigned int i = 0;
-  unsigned int num = 0;
-  ColorPacket** colors = NULL;
-  for(;i<nc;++i) {
-    if(hist[i].count < 3) continue;
-    ++num;
-    colors = (ColorPacket**) realloc(colors,num*sizeof(ColorPacket**));
-    colors[num-1]=hist+i;
-  }
-
-  // now sort by distance from [0,0,0] and pick best colors in each range of spectrum...?
-
-  unsigned int j;
-
-  unsigned int num2 = num;
-  //record(WARN,"Checking %d",num);
-  for(i=0;i<num;++i) {
-    for(j=i+1;j<num;++j) {
-      if(TooSimilar(colors[i],colors[j])) {
-	colors[i] = NULL; // this has the effect of removing it and it won't eliminate any other colors
-	--num2;
-	break;
-      }
-    }
-  }
-
-  //record(WARN,"Found %d unique",num2);
-
-  // How to now use colors for quantizing?
-
-  free(colors);
-  free(hist);
-*/
-
-  QuantizeInfo qi;
-  GetQuantizeInfo(&qi);
-
-  qi.number_colors = 0x10;
-  qi.measure_error = MagickFalse;
-  qi.dither_method = NoDitherMethod;
-  qi.tree_depth = 2;
-
-  QuantizeImage(&qi,image);
-  CatchExceptionAndReset(ctx->exception);
-  CompressImageColormap(image);
-  CatchExceptionAndReset(ctx->exception);
-  // this is only if mallocked? DestroyQuantizeInfo(&qi);
+static void lib_done(VipsImage* in, context* ctx) {
+	g_object_unref(in);
+	// we reuse ctx though
 }
 
 // WriteAndOptimizeByCrushingThisImageBrutally(...)
 
-void WriteImageCtx(Image* image, const char* dest, int thumb, context* ctx) {
-  char* tempName = filedb_file("temp","resizedXXXXXX");
-  int tempfd = mkstemp(tempName);
-  FILE* temp = fdopen(tempfd,"wb");
+void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
+  char* tempname = filedb_file("temp","resizedXXXXXX");
+  int tempfd = mkstemp(tempname);
 
   record(INFO,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
-  image->filename[0] = '\0';
-  ctx->image_info->file = temp;
-  image->quality = getQuality(ctx, image,image->quality);
 
-  record(INFO,"Quality %lu ->",image->quality);
-  thumb = 1; // derp
-  if(thumb) {
-    if(strcmp(image->magick,"JPEG")) {
-      // force it to be a jpeg.
-      image->quality = 40;
-      strcpy(image->magick,"JPEG");
-    } else {
-      image->quality = min(40,image->quality);
-    }
-    ctx->image_info->compression = JPEGCompression;
-    ctx->image_info->interlace = LineInterlace;
-  } else if(!strcmp(image->magick,"JPEG")) {
-    // adjust quality different if it's a jpeg or...
-    if(image->quality < 60)
-      image->quality = max(10,image->quality / 2);
-    else if(image->quality > 30)
-      image->quality = 30;
-    ctx->image_info->compression = JPEGCompression;
-    ctx->image_info->interlace = LineInterlace;
-  } else {
-    // if it's a...
-    if(!(strcmp(image->magick,"GIF") && strcmp(image->magick,"BMP") && strcmp(image->magick,"PNM")))
-      strcpy(image->magick,"PNG");
+	bool jpeg = thumb != 0;
+	if(!jpeg) {
+		jpeg = (0==strcmp(loader,"VipsForeignLoadJpegFile"));
+	}
 
-    // ...png <.<
+	if(jpeg) {
+		vips_jpegsave(image, tempname,
+														 "Q", 40,
+														 "optimize_coding", TRUE,
+														 "strip", TRUE,
+														 "trellis_quant", TRUE,
+														 "overshoot_deringing", TRUE,
+														 NULL);
+	} else {
+		// if it's bmp/ttf/pdf/w/ev just convert to png
+		// we're not making animated GIF thumbs, those are beeg
+		vips_pngsave(image, tempname,
+								 "compression", 9,
+								 NULL);
+	}
 
-    if(!strcmp(image->magick,"PNG")) {
-      ctx->image_info->type = OptimizeType;
-      ctx->image_info->compression = ZipCompression;
-      image->quality = 9;
-      Reduce(image,ctx);
-    } else {
-      // Don't let any weird ones slip through
-      image->quality = 30;
-      ctx->image_info->compression = JPEGCompression;
-      ctx->image_info->interlace = LineInterlace;
-      strcpy(image->magick,"JPEG");
-    }
-  }
-
-  ctx->image_info->quality = image->quality; // not sure which of these is the one you set
-  record(INFO,"%lu",ctx->image_info->quality);
-
-  if(!WriteImage(ctx->image_info,image)) {
-    CatchExceptionAndReset(ctx->exception);
-    record(WARN,"Could not write the image!");
-    exit(1);
-  }
-  CatchExceptionAndReset(ctx->exception);
-
-  DoneWithImage(image,ctx);
   fchmod(tempfd,0644);
-  rename(tempName,dest);
-  fclose(temp); // closes tempfd
+  rename(tempname,dest);
+  close(tempfd); 
   free(tempName);
 }
 
@@ -380,10 +203,6 @@ void context_finish(context** ctx) {
 
 context* make_context(void) {
   context* ctx = (context*)malloc(sizeof(struct context_s));
-  ctx->exception = AcquireExceptionInfo();
-  //ctx->image_info = CloneImageInfo((ImageInfo *) NULL);
-  // this is keeping some unwanted information, so everything scales down by the first thing scaled down's quality (i.e. 9 for jpeg images)
-  ctx->image_info = NULL;
   return ctx;
 }
 
@@ -420,9 +239,15 @@ static void _cheat_copy(const char* source,
   fclose(out);
 }
 
-void DirectCopy(Image* image,
-		const char* dest,
-		context* ctx) {
-  _cheat_copy(image->filename,&(ctx->stat),dest);
-  DoneWithImage(image,ctx);
+void lib_copy(const char* src,
+							const char* dest) {
+	int din = open(src,O_RDONLY);
+	assert(din >= 0);
+	char* tempName = filedb_file("temp","resizedXXXXXX");
+  int tempfd = mkstemp(tempName);
+	struct stat info;
+	assert(0==fstat(din,&info));
+	assert(info.st_size ==
+				 copy_file_range(din,0,tempfd,0,info.st_size,
+												 COPY_FR_REFLINK));
 }
