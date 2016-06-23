@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // copy_file_range
 #include "lib.h"
 #include "filedb.h"
 
@@ -9,9 +10,19 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h> // mkstemp
+#include <sys/syscall.h> // copy_file_range
 #include <unistd.h> // close
 #include <fcntl.h> // open
-#include <sys/syscall.h> // copy_file_range
+
+// sigh
+static loff_t
+copy_file_range(int fd_in, loff_t *off_in, int fd_out,
+								loff_t *off_out, size_t len, unsigned int flags)
+{
+	return syscall(__NR_copy_file_range, fd_in, off_in, fd_out,
+								 off_out, len, flags);
+}
+
 
 #define SIDE 190
 
@@ -208,9 +219,9 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 	
   fchmod(tempfd,0644);
   rename(tempname,dest);
+  free(tempname);
 	copy_meta(tempfd,ctx->stat);
   close(tempfd); 
-  free(tempname);
 }
 
 // neh, we never use this
@@ -233,18 +244,17 @@ void lib_copy(const char* src,
 	struct stat info;
 	assert(0==fstat(din,&info));
 	assert(info.st_size ==
-				 copy_file_range(din,0,tempfd,0,info.st_size,
-												 COPY_FR_REFLINK));
+				 copy_file_range(din,0,tempfd,0,info.st_size,0));
+	rename(tempname,dest);
+	free(tempname);
 	copy_meta(tempfd, info);
 }
 
 static void copy_meta(int dest, struct stat info) {
 	fchmod(dest,info.st_mode);
 	struct timespec times[2];
-	memset(&times[0],&info.st_atim,sizeof(struct timespec));
-	memset(&times[1],&info.st_mtim,sizeof(struct timespec));
+	memcpy(&times[0],&info.st_atim,sizeof(struct timespec));
+	memcpy(&times[1],&info.st_mtim,sizeof(struct timespec));
 	futimens(dest,times);
-  rename(tempname,dest);
   close(dest);
-  free(tempname);
 }

@@ -21,6 +21,7 @@
 #include <errno.h> /* errno */
 
 #include <dirent.h> /* fopendir DIR etc */
+#include <stdlib.h> // free, malloc, exit
 
 
 #define THUMBNAIL 1
@@ -29,22 +30,23 @@
 
 int errsock = -1;
 
-static void error(ExceptionType type, const char* reason, const char* description) {
-  record(ERROR,"%d: %s %s",type,reason,description);
-}
-
 static int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Thumbnail %x", id);
-  VipsImage* image = read_image(source,strlen(source),ctx);
+  if(!lib_read(source,strlen(source),ctx)) {
+		record(ERROR,"couldn't stat %x",id);
+		return 0;
+	}
 
+  char* dest = filedb_path("thumb",id);
+
+  VipsImage* image = lib_thumbnail(ctx);
   if (!image) {
       int pid = fork();
       if(pid==0) {
           close(0);
-          char* dest = filedb_path("thumb",id);
-          execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
+					execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
                  "-loglevel","warning",
                  "-i",source,"-s","190x190","-f","image2",dest,NULL);
       }
@@ -52,20 +54,17 @@ static int make_thumbnail(context* ctx, uint32_t id) {
       waitpid(pid,&status,0);
       if(status != 0) {
         record(WARN,"Could not read media from '%x' (%s)",id,source);
+				lib_copy(source,dest);						
         free(source);
+				free(dest);
         return 0;
       }
       free(source);
+			free(dest);
       return 1;
   }
 
-  VipsImage* thumb = lib_thumbnail(image,ctx);
-  char* dest = filedb_path("thumb",id);
-  if(thumb) {
-    lib_write(thumb,dest,1,ctx);
-  } else {
-    lib_copy(source,dest);
-  }
+	lib_write(image,dest,1,ctx);
   free(source);
   free(dest);
   return(1);
@@ -82,8 +81,8 @@ static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
     return 0;
   }
 
-  image = lib_resize(image,newwidth);
-	if(!image) {
+	VipsImage* image = lib_resize(ctx,newwidth);
+  if(!image) {
 		record(WARN,"Could not read image from '%x'",id);
 		return 0;
 	}
