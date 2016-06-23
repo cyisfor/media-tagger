@@ -72,22 +72,24 @@ static int make_thumbnail(context* ctx, uint32_t id) {
 }
 
 static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
-  VipsImage* image;
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Resize %x %d",id,newwidth);
-  image = lib_read(source,strlen(source),ctx);
-  free(source);
-  if (!image) {
-    record(WARN,"Could not read media from '%x'",id);
+	bool ok = lib_read(source,strlen(source),ctx);
+	free(source);
+  if (!ok) {
+    record(WARN,"Could not stat media from '%x'",id);
     return 0;
   }
 
-  image = lib_resize(image,((double)newwidth)/image->Xsize);
+  image = lib_resize(image,newwidth);
+	if(!image) {
+		record(WARN,"Could not read image from '%x'",id);
+		return 0;
+	}
 
   char* dest = filedb_path("resized",id);
-
-  WriteImageCtx(image,dest,0,ctx);
+  lib_write(image,dest,0,ctx);
   free(dest);
   return 1;
 }

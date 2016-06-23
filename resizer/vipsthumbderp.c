@@ -108,7 +108,7 @@ thumbnail_open( const char *filename, bool* was_jpeg, int target_width)
 		if( !(im = vips_image_new_from_file( filename, NULL )) )
 			return( NULL );
 
-		shrink = calculate_shrink(im, target_shrink);
+		shrink = calculate_shrink(im, target_width);
 
 		g_object_unref( im );
 

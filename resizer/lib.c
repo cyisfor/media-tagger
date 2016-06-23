@@ -6,10 +6,12 @@
 #include <stdio.h>
 #include <sys/stat.h> /* stat, futimens */
 
-#include <stdbool.h> 
-
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h> // mkstemp
+#include <unistd.h> // close
+#include <fcntl.h> // open
+#include <sys/syscall.h> // copy_file_range
 
 #define SIDE 190
 
@@ -31,6 +33,7 @@ struct context_s {
 
 #include "vipsthumbderp.c"
 
+static VipsImage* do_resize(VipsImage* in, int target_width);
 
 VipsImage* lib_thumbnail(context* ctx) {
 	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
@@ -68,15 +71,16 @@ VipsImage* lib_thumbnail(context* ctx) {
 	// now resize the (possibly) cropped image
 
 	// Xsize * SIDE/Xsize => SIDE (Ysize is same as Xsize now)
-	return do_resize(in,factor);
+	return do_resize(in,SIDE);
 }
 
 VipsImage* lib_resize(context* ctx, int width) {
 	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, width);
-	return do_resize(in,factor);
+	return do_resize(in,width);
 }
 
-static VipsImage* do_resize(VipsImage* in, double factor) {
+static VipsImage* do_resize(VipsImage* in, int target_width) {
+	double factor = calculate_shrink(in,target_width);
 	if(in->Coding == VIPS_CODING_RAD) {
 		VipsImage* t = NULL;
 		assert(0==vips_rad2float(in,&t,NULL));
@@ -154,13 +158,17 @@ static VipsImage* do_resize(VipsImage* in, double factor) {
 	return in;
 }
 
-void lib_read(const char* source, uint32_t slen, context* ctx) {
+bool lib_read(const char* source, uint32_t slen, context* ctx) {
 	assert(slen < 0x100);
 	// sigh
 	memcpy(ctx->source,source,slen);
 	ctx->source[slen] = '\0';
-	assert(0==stat(ctx->source,&ctx->stat));
+	if(0!=stat(ctx->source,&ctx->stat)) {
+		record(WARNING,"%s didn't exist",source);
+		return false;
+	}
 	ctx->was_jpeg = 0;
+	return true;
 	// later, when we know what size, return thumbnail_open(ctx->source,&ctx->was_jpeg);
 }
 
