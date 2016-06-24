@@ -30,7 +30,7 @@
 
 int errsock = -1;
 
-static int make_thumbnail(context* ctx, uint32_t id) {
+int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Thumbnail %x", id);
@@ -70,7 +70,7 @@ static int make_thumbnail(context* ctx, uint32_t id) {
   return(1);
 }
 
-static int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
+int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   char* source = filedb_path("media",id);
   assert(source);
   record(INFO,"Resize %x %d",id,newwidth);
