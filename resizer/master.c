@@ -1,6 +1,9 @@
 #include "record.h"
+#include "watch.h"
 
 #include <uv.h>
+
+#include <assert.h>
 
 #include <unistd.h>
 #include <string.h> // strrchr
@@ -52,8 +55,7 @@ void wait_then_restart_lackey(uv_process_t *req,
 	uv_close((uv_handle_t*)req,lackey_closed);
 }
 
-const char* lackey = NULL;
-const char* filedb = NULL;
+char lackey[PATH_MAX] = NULL;
 
 void start_lackey(struct lackey* who) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
@@ -66,19 +68,20 @@ void start_lackey(struct lackey* who) {
 	uv_process_options_t opt = {
 		.exit_cb = wait_then_restart_lackey,
 		.file = "cgexec",
-		.args = args,
+		.args = (char**)args,
 		.env = NULL,
-		.cwd = filedb,
 		.flags = UV_PROCESS_WINDOWS_HIDE,
 		.stdio_count = 1,
 		.stdio = &io
 	};
-	assert(0==uv_spawn(uv_default_loop(),&who->.process, &opt));
+	assert(0==uv_spawn(uv_default_loop(),&who->process, &opt));
 }
 
-void lackey_init(struct lackey* self) {
+void lackey_init(struct lackey* self, int which) {
 	uv_timer_init(uv_default_loop(), &self->restart);
 	self->restart.data = self;
+	self->which = which; // derp
+	start_lackey(self);
 }
 
 void kill_lackey(uv_timer_t* handle) {
@@ -88,7 +91,7 @@ void kill_lackey(uv_timer_t* handle) {
 	// note this could kill a worker in the middle of thumbnail generation
 	// but this will also kill a worker stuck in the middle of thumbnail generation
 	record(INFO,"killing worker %d",ctr);
-	uv_process_kill(&workers[ctr],SIGTERM);
+	uv_process_kill(&workers[ctr].process,SIGTERM);
 	ctr = (ctr + 1)%NUM;
 	// it'll cycle through them all in a lifetime
 	// visit each once a lifetime
@@ -116,25 +119,26 @@ int main(int argc, char** argv) {
 
 	srand(time(NULL));
 	recordInit();
-	char* buf;
 	ssize_t amt;
 	char* lastslash = strrchr(argv[0],'/');
 	if(lastslash == NULL) {
-		lackey = "./lackey-bin";
+		realpath("./lackey-bin",lackey);
 	} else {
+		realpath(argv[0],lackey);
+		// take the real path of us, and convert the end to lackey-bin
 		amt = lastslash - argv[0] + 1;
-		char* buf = malloc(amt + sizeof("lackey-bin"));
-		memcpy(buf,argv[0],amt);
-		memcpy(buf+amt,"lackey-bin",sizeof("lackey-bin"));
-		buf[amt+sizeof("lackey-bin")] = '\0';
-		lackey = buf;
-		record(INFO, "lackey '%s'",lackey);
+		memcpy(lackey+amt,"lackey-bin",sizeof("lackey-bin"));
+		lackey[amt+sizeof("lackey-bin")-1] = '\0';
 	}
+	record(INFO, "lackey '%s'",lackey);
 	
-	{
-		filedb = strdup("/home/.local/filedb");
-		record(INFO, "filedb '%s'",filedb);
-	}
+	chdir("/home/.local/filedb/incoming");
+	uv_fs_event_t watchreq;
+	watch_dir(&watchreq,
+						".",
+						&handle,
+						
+						
 
 	uv_timer_t restart_timer;
 	uv_timer_init(uv_default_loop(),&restart_timer);
@@ -144,8 +148,7 @@ int main(int argc, char** argv) {
 	int i = 0;
 	record(INFO,"Firing off %d workers",NUM);
 	for(;i<NUM;++i) {
-		workers[i].which = i; // derp
-		start_lackey(&workers[i]);
+		lackey_init(&workers[i], i);
 	}
 	return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }

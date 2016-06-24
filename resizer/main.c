@@ -25,9 +25,7 @@ int main(int argc, char** argv) {
   record(WARN,"warning");
   record(INFO,"info");
   record(DEBUG,"debug");
-  assert(argc==2);
-  filedb_top(argv[1]);
-	chdir(argv[1]);
+  filedb_top(".");
   make_init();
 	context* ctx = make_context();
 	struct message m;
