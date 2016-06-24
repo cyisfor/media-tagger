@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 		if(m.resize)
 			make_resized(ctx,m.resized.id,m.resized.width);
 		else
-			make_thumb(ctx,m.id);
+			make_thumbnail(ctx,m.id);
 	}
 }		
 

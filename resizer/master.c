@@ -14,7 +14,8 @@
 #include <time.h>
 
 #define NUM 4
-#define WORKER_LIFETIME 3600 // like an hour idk
+#define WORKER_LIFETIME 3600 * 1000 // like an hour idk
+#define RESTART_DELAY 1000
 
 struct lackey {
 	uv_process_t process;
@@ -26,7 +27,7 @@ struct lackey {
 void start_lackey(struct lackey* who);
 
 void lackey_restarting(uv_timer_t* handle) {
-	uv_lackey_t* self = (uv_lackey_t*)handle->data;
+	struct lackey* self = (struct lackey*)handle->data;
 	record(INFO,"restarting worker %d",
 				 self->which);
 	start_lackey(self);
@@ -35,7 +36,7 @@ void lackey_restarting(uv_timer_t* handle) {
 
 void lackey_closed(uv_handle_t* req) {
 	// magic
-	uv_lackey_t* self = (uv_lackey_t*)req;
+	struct lackey* self = (struct lackey*)req;
 	uv_timer_start(&self->restart, lackey_restarting, RESTART_DELAY,0);
 }
 	
@@ -43,7 +44,7 @@ void lackey_closed(uv_handle_t* req) {
 void wait_then_restart_lackey(uv_process_t *req,
 															int64_t exit_status,
 															int term_signal) {
-	uv_lackey_t* self = (uv_lackey_t*)req;
+	struct lackey* self = (struct lackey*)req;
 	record(INFO,"worker %d (%d) died %d",
 				 req->pid,
 				 self->which,
@@ -55,22 +56,22 @@ const char* lackey = NULL;
 const char* filedb = NULL;
 
 void start_lackey(struct lackey* who) {
-	char* args[] = {"cgexec","-g","memory:/image_manipulation",
+	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 									lackey,NULL};
-	uv_pipe_init(uv_default_loop(), &who->pipe);
+	uv_pipe_init(uv_default_loop(), &who->pipe, 1);
 	uv_stdio_container_t io = {
-		.flags: UV_CREATE_PIPE | UV_READABLE_PIPE,
-		.data.stream: (uv_stream_t*) &who->.pipe		
+		.flags = UV_CREATE_PIPE | UV_READABLE_PIPE,
+		.data.stream = (uv_stream_t*) &who->pipe		
 	};
 	uv_process_options_t opt = {
-		.exit_cb: wait_then_restart_lackey,
-		.file: "cgexec",
-		.args: args,
-		.env: NULL,
-		.cwd: filedb,
-		.flags: UV_PROCESS_WINDOWS_HIDE,
-		.stdio_count: 1,
-		.stdio: &io
+		.exit_cb = wait_then_restart_lackey,
+		.file = "cgexec",
+		.args = args,
+		.env = NULL,
+		.cwd = filedb,
+		.flags = UV_PROCESS_WINDOWS_HIDE,
+		.stdio_count = 1,
+		.stdio = &io
 	};
 	assert(0==uv_spawn(uv_default_loop(),&who->.process, &opt));
 }
@@ -143,7 +144,7 @@ int main(int argc, char** argv) {
 	int i = 0;
 	record(INFO,"Firing off %d workers",NUM);
 	for(;i<NUM;++i) {
-		workers[i].which = i;
+		workers[i].which = i; // derp
 		start_lackey(&workers[i]);
 	}
 	return uv_run(uv_default_loop(), UV_RUN_DEFAULT);

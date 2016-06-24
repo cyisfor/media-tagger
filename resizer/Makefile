@@ -9,7 +9,9 @@ lackey-bin: $(objects)
 	gcc $(FLAGS) `pkg-config --cflags vips` -o $@ $^ `pkg-config --libs vips` -lbsd
 
 lackey-master: master.o record.o
-	gcc $(FLAGS) -o $@ $^
+	gcc $(FLAGS) `pkg-config --cflags libuv` -o $@ $^ `pkg-config --libs libuv`
+
+master.o: FLAGS+=`pkg-config --cflags libuv`
 
 %.o: %.c
 	gcc $(FLAGS) `pkg-config --cflags vips` -c -o $@ $^ 
