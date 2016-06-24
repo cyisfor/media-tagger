@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
   filedb_top(argv[1]);
 	chdir(argv[1]);
   make_init();
+	context* ctx = make_context();
 	struct message m;
 	for(;;) {
 		assert(sizeof(m)==read(STDIN_FILENO,&m,sizeof(m)));
