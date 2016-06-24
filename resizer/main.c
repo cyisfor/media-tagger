@@ -1,5 +1,5 @@
 #include "make.h"
-#include "watch.h"
+#include "message.h"
 #include "filedb.h"
 
 #include "record.h"
@@ -8,6 +8,8 @@
 
 #include <sys/resource.h>
 #include <stdlib.h>
+#include <unistd.h> // read
+
 #include <assert.h>
 
 extern char* environ[];
@@ -25,10 +27,15 @@ int main(int argc, char** argv) {
   record(DEBUG,"debug");
   assert(argc==2);
   filedb_top(argv[1]);
-  char* temp = filedb_file("temp",NULL);
-  setenv("MAGICK_TEMPORARY_PATH",temp,1);
-  free(temp);
+	chdir(argv[1]);
   make_init();
-  watch_run(make_create);
-  return 0;
-}
+	struct message m;
+	for(;;) {
+		assert(sizeof(m)==read(STDIN_FILENO,&m,sizeof(m)));
+		if(m.resize)
+			make_resized(ctx,m.resized.id,m.resized.width);
+		else
+			make_thumb(ctx,m.id);
+	}
+}		
+

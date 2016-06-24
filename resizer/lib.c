@@ -56,33 +56,44 @@ VipsImage* lib_thumbnail(context* ctx) {
     }
   }
 
-	// first crop
+	// crop AFTER resize
 	if (in->Ysize > in->Xsize) {
+		in = do_resize(in, SIDE);
 		int margin = (in->Ysize - in->Xsize);
+		record(INFO,"Hmmm %d %d %d",
+					 in->Xsize, in->Ysize, margin);
 		VipsImage* t = NULL;
 		assert(0==vips_extract_area(in, &t,
 																0,
-																in->Ysize + margin >> 1,
+																margin >> 1,
 																in->Xsize,
 																in->Ysize - margin,
 																NULL));
 		MOVED;
 	} else if (in->Xsize > in->Ysize) {
+		// resize so that Ysize == SIDE
+		in = do_resize(in, SIDE * in->Xsize / in->Ysize);
 		int margin = (in->Xsize - in->Ysize);
+		record(INFO,"Hmmm %d %d %d",
+					 in->Xsize, in->Ysize, margin);
+
 		VipsImage* t = NULL;
-		assert(0==vips_extract_area(in, &t,
-																in->Xsize + margin >> 1,
-																0,
-																in->Xsize - margin,
-																in->Ysize,
-																NULL));
+		if(vips_extract_area(in, &t,
+												 margin >> 1,
+												 0,
+												 in->Xsize - margin,
+												 in->Ysize,
+												 NULL)) {
+			record(ERROR,"umm can't the everything %d %d %d\n",
+						 in->Xsize, in->Ysize, margin);
+			assert(0);
+		}
 		MOVED;
+
 	}
 
-	// now resize the (possibly) cropped image
+	return in;
 
-	// Xsize * SIDE/Xsize => SIDE (Ysize is same as Xsize now)
-	return do_resize(in,SIDE);
 }
 
 VipsImage* lib_resize(context* ctx, int width) {
@@ -91,7 +102,7 @@ VipsImage* lib_resize(context* ctx, int width) {
 }
 
 static VipsImage* do_resize(VipsImage* in, int target_width) {
-	double factor = calculate_shrink(in,target_width);
+	double factor = 1 / calculate_shrink(in,target_width);
 	if(in->Coding == VIPS_CODING_RAD) {
 		VipsImage* t = NULL;
 		assert(0==vips_rad2float(in,&t,NULL));
@@ -139,6 +150,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 		have_premultiplied = true;
 	}
 
+	record(INFO,"eh factor %f",factor);
 	// shrink by specified factor
 	int oldwidth = in->Xsize;
 	int oldheight = in->Ysize;
@@ -146,11 +158,12 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	MOVED;
 	
 	// crop just to make sure it's the right size
-	assert(0==vips_extract_area(in, &t,
-															0,0,
-															oldwidth, oldheight,
-															NULL));
-	MOVED;
+	if(0==vips_extract_area(in, &t,
+													0,0,
+													target_width, oldheight*factor,
+													NULL)) {
+		MOVED;
+	}
 
 	// fix colorspace crap
 	if(have_premultiplied) {
@@ -204,8 +217,9 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 														 "Q", 40,
 														 "optimize_coding", TRUE,
 														 "strip", TRUE,
-														 "trellis_quant", TRUE,
-														 "overshoot_deringing", TRUE,
+//														 "trellis_quant", TRUE,
+//														 "overshoot_deringing", TRUE,
+//									"optimize_scans", TRUE,
 														 NULL);
 	} else {
 		// if it's bmp/ttf/pdf/w/ev just convert to png

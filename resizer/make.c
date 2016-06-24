@@ -102,6 +102,7 @@ void make_create(const char* incoming, const char* name) {
   if(id==0) return;
 
   setproctitle("lackey %x",id);
+	// use openat etc since we need to open the directory anyway
   int fd = open(incoming,O_RDONLY|O_DIRECTORY);
   assert(fd>0);
   int ofd = openat(fd,name,O_RDWR);
