@@ -3,7 +3,7 @@ struct message {
 	union {
 		struct {
 			uint16_t id:7;
-			uint16_t width:16;
+			uint32_t width:32;
 		} resized;
 		uint16_t id:7;
 	};

@@ -113,6 +113,69 @@ static void dolock(void) {
   };
 }
 
+static void send_to_worker(void* udata, const char* filename) {
+
+	uint32_t ident = strtol(filename,NULL,0x10);
+	assert(ident > 0 && ident < (1<<7)); // can bump 1<<7 up in message.h l8r
+	
+	int fd = open(filename,O_RDONLY);
+	if(fd == -1) {
+		// got deleted somehow
+		return;
+	}
+	// regardless of success, if fail this'll just repeatedly fail 
+  // so delete it anyway
+  unlink(name);
+
+	char buf[0x100];
+	ssize_t len = read(fd,buf,0x100);
+	struct message* m = malloc(sizeof(struct message));
+	m->resize = false;
+	m->id = ident;
+		
+	
+	if(len) {
+		buf[len] = '\0';
+		uint32_t width = strtol(buf, NULL, 0x10);
+		if(width > 0) {
+			record(INFO,"Got width %x, sending resize request",width);
+			m->resize = true;
+			m->resized.width = width;
+		}
+	}
+	
+	// pick a worker who isn't busy, or wait for one to finish.
+	// workers should only be busy if the write fails.
+	maybe_send_to_worker(0,m);
+}
+
+struct writing {
+	uv_write_t req;
+	uv_timer_t timer; // have to set ->data for this...
+	struct message message;
+	int which;
+};
+
+static void maybe_send_to_worker(struct writing* self) {
+	uv_write(&self->req, (uv_stream_t*)&workers[which].pipe,
+					 &self->message, sizeof(struct message), maybe_written);
+}
+
+static void maybe_written(uv_write_t* req, int status) {
+	struct writing* self = (struct writing*)req;
+	if(status == 0) {
+		free(self);
+		return;
+	}
+	record(INFO,"Sending message to worker %d failed",self->which);
+	if(self->which == NUM) {
+		worker_sender->data = self;
+		uv_timer_start(&self->timer, retry_send_places, 1000, 0);
+	} else {
+		++self.which;
+		maybe_send_to_worker(self);
+	}
+	
 
 int main(int argc, char** argv) {
   dolock();
@@ -133,12 +196,6 @@ int main(int argc, char** argv) {
 	record(INFO, "lackey '%s'",lackey);
 	
 	chdir("/home/.local/filedb/incoming");
-	uv_fs_event_t watchreq;
-	watch_dir(&watchreq,
-						".",
-						&handle,
-						
-						
 
 	uv_timer_t restart_timer;
 	uv_timer_init(uv_default_loop(),&restart_timer);
@@ -150,5 +207,15 @@ int main(int argc, char** argv) {
 	for(;i<NUM;++i) {
 		lackey_init(&workers[i], i);
 	}
+
+	uv_fs_event_t watchreq;
+	struct watcher handle = {
+		.f = send_to_worker,
+		.udata = NULL
+	};
+	watch_dir(&watchreq,
+						".",
+						&handle);				
+						
 	return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 }
