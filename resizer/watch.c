@@ -1,3 +1,5 @@
+#include "watch.h"
+
 #include <uv.h>
 
 #include <sys/types.h> // opendir etc
@@ -7,14 +9,14 @@
 void check(uv_fs_event_t* req, const char* filename, int events, int status) {
 	assert(status >= 0);
 	if(events && UV_CHANGE) {
-		Handler* handle = (Handler*) req->data;
+		struct watcher* handle = (struct watcher*) req->data;
 		handle->f(handle->udata, filename);
 	}
 }
 
 void watch_dir(uv_fs_event_t req,
 							 const char* location,
-							 Handler* handle) {
+							 struct watcher* handle) {
 	// maybe race condition, so do this first.
 	uv_fs_init(uv_default_loop, &req);
 	req->data = handle;

@@ -113,8 +113,15 @@ static void dolock(void) {
   };
 }
 
-static void send_to_worker(void* udata, const char* filename) {
+struct writing {
+	uv_write_t req;
+	uv_timer_t timer; // have to set ->data for this...
+	struct message message;
+	int which;
+};
 
+static void maybe_send_to_worker(struct writing* self);
+static void send_to_a_worker(void* udata, const char* filename) {
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<7)); // can bump 1<<7 up in message.h l8r
 	
@@ -129,38 +136,37 @@ static void send_to_worker(void* udata, const char* filename) {
 
 	char buf[0x100];
 	ssize_t len = read(fd,buf,0x100);
-	struct message* m = malloc(sizeof(struct message));
-	m->resize = false;
-	m->id = ident;
-		
+	
+	struct writing* self = malloc(sizeof(struct writinng));
+	uv_timer_init(uv_default_loop(),&self->timer);
+	self->timer.data = self;
+	self->which = 0;
+	
+	self->m.resize = false;
+	self->m.id = ident;
 	
 	if(len) {
 		buf[len] = '\0';
 		uint32_t width = strtol(buf, NULL, 0x10);
 		if(width > 0) {
 			record(INFO,"Got width %x, sending resize request",width);
-			m->resize = true;
-			m->resized.width = width;
+			self->m.resize = true;
+			self->m.resized.width = width;
 		}
 	}
 	
 	// pick a worker who isn't busy, or wait for one to finish.
 	// workers should only be busy if the write fails.
-	maybe_send_to_worker(0,m);
+	maybe_send_to_worker(self);
 }
 
-struct writing {
-	uv_write_t req;
-	uv_timer_t timer; // have to set ->data for this...
-	struct message message;
-	int which;
-};
-
+static void maybe_written(uv_write_t* req, int status);
 static void maybe_send_to_worker(struct writing* self) {
 	uv_write(&self->req, (uv_stream_t*)&workers[which].pipe,
 					 &self->message, sizeof(struct message), maybe_written);
 }
 
+static void retry_send_places(uv_timer_t* req);
 static void maybe_written(uv_write_t* req, int status) {
 	struct writing* self = (struct writing*)req;
 	if(status == 0) {
@@ -169,13 +175,20 @@ static void maybe_written(uv_write_t* req, int status) {
 	}
 	record(INFO,"Sending message to worker %d failed",self->which);
 	if(self->which == NUM) {
-		worker_sender->data = self;
+		self->which = 0;
 		uv_timer_start(&self->timer, retry_send_places, 1000, 0);
 	} else {
 		++self.which;
 		maybe_send_to_worker(self);
 	}
-	
+}
+
+static void retry_send_places(uv_timer_t* req) {
+	struct writing* self = (struct writing*)req->data;
+	record(WARNING,"Retrying sending %x to all workers...",
+				 self->message.id);
+	maybe_send_to_worker(self);
+}
 
 int main(int argc, char** argv) {
   dolock();
@@ -210,7 +223,7 @@ int main(int argc, char** argv) {
 
 	uv_fs_event_t watchreq;
 	struct watcher handle = {
-		.f = send_to_worker,
+		.f = send_to_a_worker,
 		.udata = NULL
 	};
 	watch_dir(&watchreq,
