@@ -14,13 +14,13 @@ void check(uv_fs_event_t* req, const char* filename, int events, int status) {
 	}
 }
 
-void watch_dir(uv_fs_event_t req,
+void watch_dir(uv_fs_event_t* req,
 							 const char* location,
 							 struct watcher* handle) {
 	// maybe race condition, so do this first.
-	uv_fs_init(uv_default_loop, &req);
+	uv_fs_event_init(uv_default_loop(), req);
 	req->data = handle;
-	uv_fs_event_start(&req, catchup, location, 0);
+	uv_fs_event_start(req, check, location, 0);
 	
 	// catchup could use the fd in the uv_fs_event_t
 	// IF THEY WEREN'T ASSES ABOUT INTERFACES
@@ -28,7 +28,7 @@ void watch_dir(uv_fs_event_t req,
   for(;;) {
     struct dirent* ent = readdir(d);
     if(!ent) break;
-    handle(ent->d_name, udata);
+    handle->f(ent->d_name, handle->udata);
   }
   closedir(d);
 }

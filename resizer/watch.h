@@ -5,6 +5,6 @@ struct watcher {
 
 #include <uv.h>
 
-void watch_dir(uv_fs_event_t req,
+void watch_dir(uv_fs_event_t* req,
 							 const char* location,
-							 Handler* handle);
+							 struct watcher* handle);

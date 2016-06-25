@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 struct message {
 	bool resize:1;
 	union {

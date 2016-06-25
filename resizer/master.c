@@ -1,5 +1,6 @@
 #include "record.h"
 #include "watch.h"
+#include "message.h"
 
 #include <uv.h>
 
@@ -15,6 +16,7 @@
 #include <error.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <stdlib.h> // null
 
 #define NUM 4
 #define WORKER_LIFETIME 3600 * 1000 // like an hour idk
@@ -55,7 +57,7 @@ void wait_then_restart_lackey(uv_process_t *req,
 	uv_close((uv_handle_t*)req,lackey_closed);
 }
 
-char lackey[PATH_MAX] = NULL;
+char lackey[PATH_MAX];
 
 void start_lackey(struct lackey* who) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
@@ -114,14 +116,13 @@ static void dolock(void) {
 }
 
 struct writing {
-	uv_write_t req;
-	uv_timer_t timer; // have to set ->data for this...
+	uv_timer_t timer;
 	struct message message;
 	int which;
 };
 
-static void maybe_send_to_worker(struct writing* self);
-static void send_to_a_worker(void* udata, const char* filename) {
+static void send_to_a_worker(struct writing* self);
+static void file_changed(void* udata, const char* filename) {
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<7)); // can bump 1<<7 up in message.h l8r
 	
@@ -132,62 +133,63 @@ static void send_to_a_worker(void* udata, const char* filename) {
 	}
 	// regardless of success, if fail this'll just repeatedly fail 
   // so delete it anyway
-  unlink(name);
+  unlink(filename);
 
 	char buf[0x100];
 	ssize_t len = read(fd,buf,0x100);
 	
-	struct writing* self = malloc(sizeof(struct writinng));
+	struct writing* self = malloc(sizeof(struct writing));
 	uv_timer_init(uv_default_loop(),&self->timer);
-	self->timer.data = self;
 	self->which = 0;
 	
-	self->m.resize = false;
-	self->m.id = ident;
+	self->message.resize = false;
+	self->message.id = ident;
 	
 	if(len) {
 		buf[len] = '\0';
 		uint32_t width = strtol(buf, NULL, 0x10);
 		if(width > 0) {
 			record(INFO,"Got width %x, sending resize request",width);
-			self->m.resize = true;
-			self->m.resized.width = width;
+			self->message.resize = true;
+			self->message.resized.width = width;
 		}
 	}
 	
 	// pick a worker who isn't busy, or wait for one to finish.
 	// workers should only be busy if the write fails.
-	maybe_send_to_worker(self);
-}
-
-static void maybe_written(uv_write_t* req, int status);
-static void maybe_send_to_worker(struct writing* self) {
-	uv_write(&self->req, (uv_stream_t*)&workers[which].pipe,
-					 &self->message, sizeof(struct message), maybe_written);
+	send_to_a_worker(self);
 }
 
 static void retry_send_places(uv_timer_t* req);
-static void maybe_written(uv_write_t* req, int status) {
-	struct writing* self = (struct writing*)req;
-	if(status == 0) {
-		free(self);
-		return;
+static void send_to_a_worker(struct writing* self) {
+	uv_buf_t buf = {
+		.base = &self->message,
+		.len = sizeof(self->message)
+	};
+	int which;
+	for(which=0;which<NUM;++which) {
+		int err =
+			uv_try_write((uv_stream_t*)&workers[self->which].pipe, &buf, 1);
+		if(err >= 0) {
+			free(self);
+			return;
+		}
+		if(err == EAGAIN) {
+			record(INFO,"Sending message to worker %d failed",self->which);
+		} else {
+			record(ERROR,"Write error on worker %d!",which);
+		}
 	}
-	record(INFO,"Sending message to worker %d failed",self->which);
-	if(self->which == NUM) {
-		self->which = 0;
-		uv_timer_start(&self->timer, retry_send_places, 1000, 0);
-	} else {
-		++self.which;
-		maybe_send_to_worker(self);
-	}
+	record(WARNING,"No workers could take our message!");
+	uv_timer_start(&self->timer, retry_send_places, 1000, 0);
 }
 
 static void retry_send_places(uv_timer_t* req) {
-	struct writing* self = (struct writing*)req->data;
+	// magic
+	struct writing* self = (struct writing*)req;
 	record(WARNING,"Retrying sending %x to all workers...",
 				 self->message.id);
-	maybe_send_to_worker(self);
+	send_to_a_worker(self);
 }
 
 int main(int argc, char** argv) {
