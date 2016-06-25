@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h> // getenv
+#include <unistd.h> // getpid
 
 recordLevel maximumLevel = DEBUG;
 

@@ -28,7 +28,7 @@ void watch_dir(uv_fs_event_t* req,
   for(;;) {
     struct dirent* ent = readdir(d);
     if(!ent) break;
-    handle->f(ent->d_name, handle->udata);
+    handle->f(handle->udata, ent->d_name);
   }
   closedir(d);
 }

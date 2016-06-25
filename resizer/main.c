@@ -21,11 +21,8 @@ int main(int argc, char** argv) {
   //setrlimit(RLIMIT_AS,&memlimit);
   setproctitle_init(argc,argv,environ);
   recordInit();
-  record(ERROR,"error");
-  record(WARN,"warning");
-  record(INFO,"info");
-  record(DEBUG,"debug");
   filedb_top(".");
+	record(INFO,"Started a lackey!");
   make_init();
 	context* ctx = make_context();
 	struct message m;

@@ -63,18 +63,29 @@ void start_lackey(struct lackey* who) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 									lackey,NULL};
 	uv_pipe_init(uv_default_loop(), &who->pipe, 1);
-	uv_stdio_container_t io = {
-		.flags = UV_CREATE_PIPE | UV_READABLE_PIPE,
-		.data.stream = (uv_stream_t*) &who->pipe		
+	uv_stdio_container_t io[3] = {
+		{
+			.flags = UV_CREATE_PIPE | UV_READABLE_PIPE,
+			.data.stream = (uv_stream_t*) &who->pipe		
+		},
+		{
+			// stdout
+			.flags = UV_INHERIT_FD
+		},
+		{
+			// stderr
+			.flags = UV_INHERIT_FD
+		}
 	};
+
 	uv_process_options_t opt = {
 		.exit_cb = wait_then_restart_lackey,
 		.file = "cgexec",
 		.args = (char**)args,
 		.env = NULL,
 		.flags = UV_PROCESS_WINDOWS_HIDE,
-		.stdio_count = 1,
-		.stdio = &io
+		.stdio_count = 3,
+		.stdio = io
 	};
 	assert(0==uv_spawn(uv_default_loop(),&who->process, &opt));
 }
@@ -123,6 +134,8 @@ struct writing {
 
 static void send_to_a_worker(struct writing* self);
 static void file_changed(void* udata, const char* filename) {
+	if(filename[0] == '\0' || filename[0] == '.') return;
+	
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<7)); // can bump 1<<7 up in message.h l8r
 	
@@ -163,7 +176,7 @@ static void file_changed(void* udata, const char* filename) {
 static void retry_send_places(uv_timer_t* req);
 static void send_to_a_worker(struct writing* self) {
 	uv_buf_t buf = {
-		.base = &self->message,
+		.base = (void*)&self->message,
 		.len = sizeof(self->message)
 	};
 	int which;
@@ -193,20 +206,25 @@ static void retry_send_places(uv_timer_t* req) {
 }
 
 int main(int argc, char** argv) {
+	record(ERROR,"error");
+  record(WARN,"warning");
+  record(INFO,"info");
+  record(DEBUG,"debug");
   dolock();
+
 
 	srand(time(NULL));
 	recordInit();
 	ssize_t amt;
-	char* lastslash = strrchr(argv[0],'/');
+	realpath(argv[0],lackey);
+	char* lastslash = strrchr(lackey,'/');
 	if(lastslash == NULL) {
 		realpath("./lackey-bin",lackey);
 	} else {
-		realpath(argv[0],lackey);
 		// take the real path of us, and convert the end to lackey-bin
-		amt = lastslash - argv[0] + 1;
+		amt = lastslash - lackey + 1;
+		record(INFO,"realp %s",lackey+amt);
 		memcpy(lackey+amt,"lackey-bin",sizeof("lackey-bin"));
-		lackey[amt+sizeof("lackey-bin")-1] = '\0';
 	}
 	record(INFO, "lackey '%s'",lackey);
 	
@@ -225,7 +243,7 @@ int main(int argc, char** argv) {
 
 	uv_fs_event_t watchreq;
 	struct watcher handle = {
-		.f = send_to_a_worker,
+		.f = file_changed,
 		.udata = NULL
 	};
 	watch_dir(&watchreq,

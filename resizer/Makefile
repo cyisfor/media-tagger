@@ -1,4 +1,4 @@
-objects:=lib.o watch.o filedb.o make.o main.o record.o
+objects:=lib.o filedb.o make.o main.o record.o
 export PKG_CONFIG_PATH:=/custom/vips/lib/pkgconfig
 
 PACKAGES=libuv vips
@@ -11,11 +11,11 @@ all: lackey-bin lackey-master
 lackey-bin: $(objects)
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS) -lbsd
 
-lackey-master: master.o record.o
+lackey-master: master.o record.o watch.o
 	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
-	gcc $(FLAGS) `pkg-config --cflags vips` -c -o $@ $^ 
+	gcc $(CFLAGS) -c -o $@ $^ 
 
 clean:
-	rm -f lackey-bin $(objects)
+	rm -f lackey-bin lackey-master *.o
