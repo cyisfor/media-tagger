@@ -20,8 +20,8 @@ bool linebuf_read(struct linebuf* self, int fd) {
 			self->buf.base = realloc(self->buf.base,
 															 self->buf.len+self->space);
 		}
-		//ssize_t amt = recv(fd, self->buf.base, self->space, MSG_DONTWAIT);
-		ssize_t amt = read(fd, self->buf.base, self->space);
+		//ssize_t amt = recv(fd, self->buf.base+self->buf.len, self->space, MSG_DONTWAIT);
+		ssize_t amt = read(fd, self->buf.base+self->buf.len, self->space);
 		if(amt == 0) {
 			record(ERROR,"Connection closed.");
 			// probably shouldn't try to get partial line here, eh
@@ -63,6 +63,7 @@ bool linebuf_next(struct linebuf* self, uv_buf_t* dest) {
 			} else {
 				memmove(self->buf.base, self->beginning, left);
 			}
+			self->beginning = NULL;
 			// expand space to the stuff we just copied to safety
 			self->space += self->buf.len - left;
 			self->buf.len = left;

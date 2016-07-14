@@ -82,6 +82,7 @@ void start_lackey(struct lackey* who) {
 		.exit_cb = wait_then_restart_lackey,
 		.file = "cgexec",
 		.args = (char**)args,
+		.cwd = "..",
 		.env = NULL,
 		.flags = UV_PROCESS_WINDOWS_HIDE,
 		.stdio_count = 3,
@@ -137,7 +138,7 @@ static void file_changed(void* udata, const char* filename) {
 	if(filename[0] == '\0' || filename[0] == '.') return;
 	
 	uint32_t ident = strtol(filename,NULL,0x10);
-	assert(ident > 0 && ident < (1<<7)); // can bump 1<<7 up in message.h l8r
+	assert(ident > 0 && ident < (1<<31)); // can bump 1<<31 up in message.h l8r
 	
 	int fd = open(filename,O_RDONLY);
 	if(fd == -1) {
@@ -179,16 +180,20 @@ static void send_to_a_worker(struct writing* self) {
 		.base = (void*)&self->message,
 		.len = sizeof(self->message)
 	};
-	int which;
-	for(which=0;which<NUM;++which) {
+	int i;
+	// cycle around the workers naturally this way.
+	static int start = 0;
+	++start;
+	for(i=0;i<NUM;++i) {
+		int which = (start + i) % NUM;
 		int err =
-			uv_try_write((uv_stream_t*)&workers[self->which].pipe, &buf, 1);
+			uv_try_write((uv_stream_t*)&workers[which].pipe, &buf, 1);
 		if(err >= 0) {
 			free(self);
 			return;
 		}
 		if(err == EAGAIN) {
-			record(INFO,"Sending message to worker %d failed",self->which);
+			record(INFO,"Sending message to worker %d failed",which);
 		} else {
 			record(ERROR,"Write error on worker %d!",which);
 		}
@@ -211,7 +216,6 @@ int main(int argc, char** argv) {
   record(INFO,"info");
   record(DEBUG,"debug");
   dolock();
-
 
 	srand(time(NULL));
 	recordInit();
