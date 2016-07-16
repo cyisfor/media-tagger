@@ -87,6 +87,7 @@ def main():
         #	raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
         #print(implied.union(discovered))
         path = path.encode('utf-8')
+        print(path)
         impmort(path,implied,recheck=recheck)
 def impmort(path,implied,recheck=False):
     bad = db.execute("SELECT COUNT(path) FROM badfiles WHERE path = $1",(path,))
