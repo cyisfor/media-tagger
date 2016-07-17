@@ -48,19 +48,19 @@ int main(int argc, char *argv[])
 		}
 		ESCAPE('\\',"\\");
 		ESCAPE(0,"0");
+		ESCAPE(1,"1");
 		ESCAPE('"',"\"");
+		ESCAPE('\t',"t");
 		ESCAPE('\n',"n");
 		ESCAPE('\r',"r");
 		ESCAPE('\a',"a");
 		if(!isprint(*c)) {
-			char hex[0x10] = "0123456789ABCDEF";
-			write(STDOUT_FILENO, "\\x", 2);
-			if(*c > 0xF) {
-				write(STDOUT_FILENO, &hex[(*c >> 8) & 0xF], 1);
-				++width;
-			}
-			write(STDOUT_FILENO, &hex[*c & 0xF], 1);
-			width += 3;
+			char oct[0x10] = "01234567";
+			write(STDOUT_FILENO, "\\", 1);
+			write(STDOUT_FILENO, &oct[(*c >> 6) & 7], 1);
+			write(STDOUT_FILENO, &oct[(*c >> 3) & 7], 1);
+			write(STDOUT_FILENO, &oct[*c & 7], 1);
+			width += 4;
 		} else {
 //			WRITELIT("boop\n");
 			write(STDOUT_FILENO, c, 1);
