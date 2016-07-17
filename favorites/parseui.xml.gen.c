@@ -1,5 +1,5 @@
 unsigned long int parseui_size = 836L;
-unsigned char parseui[836] = 
+unsigned char parseui[836L] = 
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!-- Generated with glade 3.1"
 "8.3 -->\n<interface>\n  <requires lib=\"gtk+\" version=\"3.12\"/>\n  <obj"
 "ect class=\"GtkWindow\" id=\"top\">\n    <property name=\"can_focus\">Fal"

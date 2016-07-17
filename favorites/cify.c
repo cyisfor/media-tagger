@@ -21,15 +21,15 @@ int main(int argc, char *argv[])
 	WRITELIT("unsigned long int ");
 	WRITE(name,namelen);
 	WRITELIT("_size = ");
-	char buf[0x100];
-	ssize_t numsize = snprintf(buf,0x100,"%ld",info.st_size);
-	WRITE( buf,
+	char numbuf[0x100];
+	ssize_t numsize = snprintf(numbuf,0x100,"%ld",info.st_size);
+	WRITE(numbuf,
 				numsize);
 	WRITELIT("L;\n"
 					 "unsigned char ");
 	WRITE(name,namelen);
 	WRITELIT("[");
-	WRITE( buf, numsize);
+	WRITE(numbuf, numsize);
 	WRITELIT("L] = \n\"");
 	void* data = mmap(NULL, info.st_size, PROT_READ, MAP_SHARED, STDIN_FILENO, 0);
 	assert(data != MAP_FAILED);
@@ -78,6 +78,8 @@ int main(int argc, char *argv[])
 	WRITE(name,namelen);
 	WRITELIT("_size;\nextern unsigned char ");
 	WRITE(name,namelen);
-	WRITELIT(";\n");
+	WRITELIT("[");
+	WRITE(numbuf, numsize);
+	WRITELIT("];\n");
 	return 0;
 }
