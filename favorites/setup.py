@@ -18,6 +18,8 @@ def pkgconfig(*packages, **kw):
 setup(name = 'FU',
 	  ext_modules=[Extension('_parseui',
 							 sources = ['parseui.c',
-							            'squeetie.png.ch',
+							            'squeetie.png.c',
+							            'sweetie_thinking.gif.c',
+							            "parseui.xml.c",
 							 ],
 							 **pkgconfig("gtk+-3.0"))])

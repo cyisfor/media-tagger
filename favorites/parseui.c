@@ -1,6 +1,6 @@
-#include "parseui.xml.ch"
-#include "squeetie.png.ch"
-#include "sweetie_thinking.gif.ch"
+#include "parseui.xml.h"
+#include "squeetie.png.h"
+#include "sweetie_thinking.gif.h"
 
 #include <Python.h>
 #include <gtk/gtk.h>
