@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	write(STDOUT_FILENO, buf,
 				numsize);
 	WRITELIT("L;\n"
-					 "char ");
+					 "unsigned char ");
 	write(STDOUT_FILENO,name,namelen);
 	WRITELIT("[");
 	write(STDOUT_FILENO, buf, numsize);

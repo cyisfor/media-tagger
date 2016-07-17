@@ -2,12 +2,13 @@
 #include "squeetie.png.ch"
 #include "sweetie_thinking.gif.ch"
 
+#include <Python.h>
 #include <gtk/gtk.h>
 #include <assert.h>
-#include <python.h>
+
 
 void ignore_result(PyObject* result) {
-	assert(result != NULL); Py_DECREF(result);
+	Py_XDECREF(result);
 }
 
 static void button_clicked(GtkWidget* widget, GdkEventButton* event,
@@ -19,12 +20,9 @@ static void button_clicked(GtkWidget* widget, GdkEventButton* event,
 	Py_DECREF(arglist);
 }
 
-PyObject* Py_Empty = NULL;
-
 static void destroyed(GtkWidget* widget,
 											PyObject* on_destroyed) {
-	PyObject* arglist = Py_BuildValue("()");
-	ignore_result(PyObject_CallObject(on_destroyed,Py_Empty));
+	ignore_result(PyObject_CallObject(on_destroyed,NULL));
 }
 
 typedef struct ui {
@@ -33,7 +31,7 @@ typedef struct ui {
 	GdkPixbufAnimation* thinking;
 } *ui;
 
-static GdkPixbufAnimation* load_icon(gchar* buf, gsize len) {
+static GdkPixbufAnimation* load_icon(unsigned char* buf, gsize len) {
 	GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
 	gdk_pixbuf_loader_set_size(loader, 32, 32);
 	GError* error = NULL;
@@ -45,18 +43,25 @@ static GdkPixbufAnimation* load_icon(gchar* buf, gsize len) {
 	return anim;
 }
 
-ui parseui_load(Clicked_f on_clicked,
-								Destroyed_f on_destroyed,
+PyObject* save_callback(PyObject* cb) {
+	assert(PyCallable_Check(cb));
+	Py_INCREF(cb);
+	return cb;
+}
+
+ui parseui_load(PyObject* on_clicked,
+								PyObject* on_destroyed,
 								void* data) {
-	if(Py_Empty == NULL) {
-		Py_Empty = Py_BuildValue("()");
-	}
+
+	on_clicked = save_callback(on_clicked);
+	on_destroyed = save_callback(on_destroyed);
+	
 	GtkBuilder* b = gtk_builder_new_from_string(parseui, parseui_size);
 	GtkWidget* top = GTK_WIDGET(gtk_builder_get_object(b,"top"));
 	g_signal_connect(top, "button_release_event", (GCallback)button_clicked,
-									 make_closure(Clicked, on_clicked, data));
+									 on_clicked);
 	g_signal_connect(top, "destroy", (GCallback)destroyed,
-									 make_closure(Destroyed, on_destroyed, data));
+									 on_destroyed);
 	gtk_widget_show_all(top);
 	ui ui = g_new(struct ui, 1);
 	ui->img = GTK_IMAGE(gtk_builder_get_object(b,"image"));
