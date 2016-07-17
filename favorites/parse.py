@@ -37,22 +37,45 @@ if __name__ == '__main__':
 			import fcntl,os,time
 			from itertools import count
 			import gtkclipboardy as clipboardy
-			from parseui import parseui
+			from mygi import Gtk, GLib, GdkPixbuf
 			print('loading UI')
 			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
 			print('boop')
 			import catchup
+			img = ui.get_object("image")
+			busy = GdkPixbuf.PixbufAnimation.new_from_file(
+				os.path.join(here,"sweetie_thinking.gif"))
+			ready = img.get_pixbuf()
+
 			def gotPiece(piece):
+				img.set_from_animation(busy)
+				delay = 11 * 400 # milliseconds
+				granularity = 4
+				elapsed = 0
+				def until_idle():
+					nonlocal elapsed
+					if elapsed >= delay:
+						img.set_from_animation(busy)
+						elapsed = 0
+					else:
+						elasped += delay / granularity
+					print("check idle")
+					if catchup.check_idle():
+						print("yay!")
+						# this should just be cosmetic, hopefully...
+						img.set_from_pixbuf(ready)
+						return False
+					return True
+				GLib.timeout_add(delay/granularity,until_idle)
 				print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 				sys.stdout.flush()
 				enqueue(piece.strip())
 				catchup.poke()
 				print("poked")
 			print('Ready to parse')
-			win = parseui()
-			@win.quit
-			def _(e):
-				print("Gettin' outta here!",e)
+			win = ui.get_object("top")
+			def seriouslyQuit(win,e):
+				print("Gettin' outta here!",e.button,dir(e.button))
 				Gtk.main_quit()
 				catchup.terminate()
 				raise SystemExit
