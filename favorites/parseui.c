@@ -51,8 +51,8 @@ static PyObject* save_callback(PyObject* cb) {
 }
 
 void free_capsule(PyObject* c) {
-	g_free(PyCapsule_GetPointer(c));
-	py_DECREF(c);
+	g_free(PyCapsule_GetPointer(c,"_parseui.UI"));
+	Py_DECREF(c);
 }
 
 static PyObject* load(PyObject* self, PyObject* args) {
@@ -73,16 +73,16 @@ static PyObject* load(PyObject* self, PyObject* args) {
 	ui->ready = load_icon(squeetie,squeetie_size);
 	ui->thinking = load_icon(sweetie_thinking, sweetie_thinking_size);
 
-	return PyCapsule_New(ui, "_parseui.UI", free_capsule)
+	return PyCapsule_New(ui, "_parseui.UI", free_capsule);
 }
 
 enum states { READY = 0, THINKING = 1 };
 
 static PyObject* state(PyObject* self, PyObject* args) {
 	PyObject* pui = NULL;
-	enum states state;
+	enum states state = READY;
 	assert(PyArg_ParseTuple(args,"(Oi)",&pui,&state));
-	ui ui = (ui) PyCapsule_GetPointer(pui, "_parseui.UI");
+	ui ui = (struct ui*) PyCapsule_GetPointer(pui, "_parseui.UI");
 	switch(state) {
 	#define CASE(name,mem) \
 		case name: \
@@ -93,6 +93,8 @@ static PyObject* state(PyObject* self, PyObject* args) {
 		CASE(READY,ready);
 		CASE(THINKING,thinking);
 	};
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyMethodDef Methods[] = {
