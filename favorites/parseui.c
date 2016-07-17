@@ -4,34 +4,27 @@
 
 #include <gtk/gtk.h>
 #include <assert.h>
+#include <python.h>
 
-
-#define CLOSURE(name) typedef struct name { \
-		name ## _f cb; \
-		void* data; \
-	} *name
-
-typedef void (*Clicked_f)(void*, GdkEventType, guint, guint);
-typedef void (*Destroyed_f)(void*);
-CLOSURE(Clicked);
-CLOSURE(Destroyed);
-
-#define make_closure(name,ecb,data) { name c = g_new(struct name, 1); \
-		c->cb = ecb; \
-		c->data = data; \
-		(void*)c;				\
-	}
-
-
-static void button_clicked(GtkWidget* widget, GdkEventButton* event, gpointer udata) {
-	Clicked on_clicked = (Clicked) udata;
-	on_clicked->cb(on_clicked->data,
-								 event->type, event->state, event->button);
+void ignore_result(PyObject* result) {
+	assert(result != NULL); Py_DECREF(result);
 }
 
-static void destroyed(GtkWidget* widget, void* udata) {
-	Destroyed on_destroyed = (Destroyed) udata;
-	on_destroyed->cb(on_destroyed->data);
+static void button_clicked(GtkWidget* widget, GdkEventButton* event,
+													 PyObject* on_clicked) {
+	PyObject* arglist = Py_BuildValue
+		("(iii)",
+		 event->type, event->state, event->button);
+	ignore_result(PyObject_CallObject(on_clicked, arglist));
+	Py_DECREF(arglist);
+}
+
+PyObject* Py_Empty = NULL;
+
+static void destroyed(GtkWidget* widget,
+											PyObject* on_destroyed) {
+	PyObject* arglist = Py_BuildValue("()");
+	ignore_result(PyObject_CallObject(on_destroyed,Py_Empty));
 }
 
 typedef struct ui {
@@ -55,6 +48,9 @@ static GdkPixbufAnimation* load_icon(gchar* buf, gsize len) {
 ui parseui_load(Clicked_f on_clicked,
 								Destroyed_f on_destroyed,
 								void* data) {
+	if(Py_Empty == NULL) {
+		Py_Empty = Py_BuildValue("()");
+	}
 	GtkBuilder* b = gtk_builder_new_from_string(parseui, parseui_size);
 	GtkWidget* top = GTK_WIDGET(gtk_builder_get_object(b,"top"));
 	g_signal_connect(top, "button_release_event", (GCallback)button_clicked,

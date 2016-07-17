@@ -37,7 +37,7 @@ if __name__ == '__main__':
 			import fcntl,os,time
 			from itertools import count
 			import gtkclipboardy as clipboardy
-			from mygi import Gtk
+			from parseui import parseui
 			print('loading UI')
 			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
 			print('boop')
