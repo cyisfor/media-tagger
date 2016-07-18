@@ -46,24 +46,20 @@ if __name__ == '__main__':
 			busy = GdkPixbuf.PixbufAnimation.new_from_file(
 				os.path.join(here,"sweetie_thinking.gif"))
 			ready = img.get_pixbuf()
+			win = ui.get_object("top")
 
 			def gotPiece(piece):
+				win.set_keep_above(True)
 				img.set_from_animation(busy)
 				delay = 11 * 400 # milliseconds
 				granularity = 4
 				elapsed = 0
 				def until_idle():
 					nonlocal elapsed
-					if elapsed >= delay:
-						img.set_from_animation(busy)
-						elapsed = 0
-					else:
-						elasped += delay / granularity
-					print("check idle")
 					if catchup.check_idle():
-						print("yay!")
 						# this should just be cosmetic, hopefully...
 						img.set_from_pixbuf(ready)
+						win.set_keep_above(False)
 						return False
 					return True
 				GLib.timeout_add(delay/granularity,until_idle)
@@ -73,7 +69,6 @@ if __name__ == '__main__':
 				catchup.poke()
 				print("poked")
 			print('Ready to parse')
-			win = ui.get_object("top")
 			def seriouslyQuit(win,e):
 				print("Gettin' outta here!",e.button,dir(e.button))
 				Gtk.main_quit()

@@ -38,7 +38,7 @@ class Catchup(Process):
 		except SystemExit: pass
 		except KeyboardInterrupt: pass
 	def check_idle(self):
-		self.idle.wait(1)
+		self.idle.wait(0.1)
 		return self.idle.is_set()
 	def squeak(self,*a):
 		uri = top()
