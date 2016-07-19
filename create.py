@@ -148,24 +148,26 @@ class Source:
 		self.hasTags = hasTags
 		self.isUnique = isUnique
 		self.impl = SourceImpl(thing)
-	@property
-	def uri(self):
-		self.id
-		self.uri = self.impl.lookup_uri()
-		return self.uri
-	@property
-	def path(self):
-		self.id
-		self.path = self.impl.lookup_path()
-		return self.path
-	@property
-	def id(self):
-		self.id = self.impl.lookup_id()
-		return self.id
+	def __getattr__(self,name):
+		if name == 'uri':
+			self.id
+			self.uri = self.impl.lookup_uri()
+			return self.uri
+		elif name == 'path':
+			self.id
+			self.path = self.impl.lookup_path()
+			return self.path
+		elif name == 'id':
+			self.impl.hasTags = self.hasTags
+			self.impl.isUnique = self.isUnique
+			self.id = self.impl.lookup_id()
+			return self.id
+		else:
+			return getattr(self.impl,name)
 	
 def getanId(sources,uniqueSources,download,name):
 	for uniqueSource in uniqueSources:
-		result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.lookup(),))
+		result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.id,))
 		if result:
 			return result[0][0], False
 	md5 = None
@@ -234,7 +236,7 @@ def getanId(sources,uniqueSources,download,name):
 			if not '.' in name:
 				name += '.' + magic.guess_extension(mimetype)
 			note("New {} with id {:x} ({})".format(mimetype,id,name))
-			sources = set([source.lookup() for source in sources])
+			sources = set([source.id for source in sources])
 			db.execute("INSERT INTO media (id,name,hash,created,size,type,md5,sources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",(
 				id,name,digest,created,
 				os.fstat(data.fileno()).st_size,mimetype,md5,sources))
@@ -264,13 +266,13 @@ tagsModule = tags
 def update(id,sources,tags,name):
 	donetags = []
 	with db.transaction():
-		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([source.lookup() for source in sources],id,name))
+		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
 		
 	tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
 	if not name:
-		name = media.url.rsplit('/',1)
+		name = media.uri.rsplit('/',1)
 		if len(name) == 2:
 			name = name[1]
 		else:

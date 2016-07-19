@@ -40,6 +40,9 @@ if __name__ == '__main__':
 			from mygi import Gtk, GLib, GdkPixbuf
 			print('loading UI')
 			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
+			progress = ui.get_object("progress")
+			def gui_progress(cur,total):
+				progress.set_fraction(cur/total)
 			print('boop')
 			import catchup
 			img = ui.get_object("image")
@@ -51,6 +54,8 @@ if __name__ == '__main__':
 			def gotPiece(piece):
 				win.set_keep_above(True)
 				img.set_from_animation(busy)
+				progress.set_fraction(0)
+				progress.show()
 				delay = 11 * 400 # milliseconds
 				granularity = 4
 				elapsed = 0
@@ -60,6 +65,7 @@ if __name__ == '__main__':
 						# this should just be cosmetic, hopefully...
 						img.set_from_pixbuf(ready)
 						win.set_keep_above(False)
+						progress.hide()
 						return False
 					return True
 				GLib.timeout_add(delay/granularity,until_idle)
