@@ -14,14 +14,23 @@ import fixprint
 
 from ctypes import c_bool
 
-class Catchup(Process):
-	def __init__(self):
+progress = None
+
+class Catchupper(Process):
+	progress = None
+	def __init__(self,progress):
 		super().__init__()
 		self.condition = Condition()
 		self.idle = Event()
 		self.idle.set()
 		self.done = Value(c_bool,False)
+		if progress:
+			self.progress = Queue()
+	def send_progress(self,block,total):
+		self.progress.put((block,total))
 	def run(self):
+		if self.progress:
+			setupurllib.progress = self.send_progress
 		db.reopen()
 		try:
 			import signal
@@ -90,23 +99,26 @@ class Catchup(Process):
 				time.sleep(1)
 		return True
 
-class Catchupper:
-	def __init__(self):
-		self.process = Catchup()
+
+class Catchup:
+	def __init__(self,progress=False):
+		self.process = Catchupper(progress)
 		self.process.start()
+		self.check_idle = self.process.check_idle
+		self.terminate = self.process.terminate
 	def poke(self):
 		print('poke')
 		with self.process.condition:
 			if not self.process.is_alive():
 				print('died?')
-				self.process = Catchup()
+				self.process = Catchupper()
 				self.process.start()
 			try:
 				self.process.condition.notify_all()
 			except AssertionError:
 				# bug...
 				self.process.terminate()
-				self.process = Catchup()
+				self.process = Catchupper()
 				self.process.start()
 	def finish(self):
 		self.process.done.value = True
@@ -118,12 +130,5 @@ class Catchupper:
 
 
 if __name__ == '__main__':
-	instance = Catchup()
-	while instance.squeak() is True: pass
-else:
 	instance = Catchupper()
-
-	poke = instance.poke
-	terminate = instance.process.terminate
-	finish = instance.finish
-	check_idle = instance.process.check_idle
+	while instance.squeak() is True: pass

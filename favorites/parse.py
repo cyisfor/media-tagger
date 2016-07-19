@@ -37,12 +37,28 @@ if __name__ == '__main__':
 			import fcntl,os,time
 			from itertools import count
 			import gtkclipboardy as clipboardy
-			from mygi import Gtk, GLib, GdkPixbuf
+			from mygi import Gtk, GLib, GdkPixbuf, Gdk
 			print('loading UI')
-			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))
+			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))			
 			progress = ui.get_object("progress")
+			progress.set_name("progress")
+			css = Gtk.CssProvider()
+			css.load_from_path(os.path.join(here,"parseui.css"))
+			
+			# get the default screen for the default display
+			screen = Gdk.Screen.get_default()
+			
+			# new object which will store styling information affecting widget
+			styleContext = Gtk.StyleContext()
+			styleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
 			def gui_progress(cur,total):
+				print('progress',cur,total,cur/total)
 				progress.set_fraction(cur/total)
+				progress.show()
+			import setupurllib
+			setupurllib.progress(gui_progress)
+			print('progress?',setupurllib.derps)
 			print('boop')
 			import catchup
 			img = ui.get_object("image")
@@ -55,7 +71,6 @@ if __name__ == '__main__':
 				win.set_keep_above(True)
 				img.set_from_animation(busy)
 				progress.set_fraction(0)
-				progress.show()
 				delay = 11 * 400 # milliseconds
 				granularity = 4
 				elapsed = 0
