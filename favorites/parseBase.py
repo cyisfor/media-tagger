@@ -134,7 +134,8 @@ def parse(primarySource,noCreate=False):
 					derpSource = primarySource
 				else:
 					derpSource = derpmedia
-				derpSources = [urllib.parse.urljoin(primarySource,source) for source in derpSources]
+				derpSources = [create.Source(
+					urllib.parse.urljoin(primarySource,source)) for source in derpSources]
 				media.headers['Referer'] = primarySource
 				def download(dest):
 					print('download',media.url)
@@ -152,8 +153,12 @@ def parse(primarySource,noCreate=False):
 				#	 return datetime.datetime.fromtimestamp(mtime)
 				assert derpSource
 				try:
-					image,wasCreated = create.internet(download,media.url,tags,derpSource,derpSources,
-						name = name)
+					image,wasCreated = create.internet(download,
+					                                   create.Source(media.url),
+					                                   tags,
+					                                   create.Source(derpSource),
+					                                   derpSources,
+					                                   name = name)
 					return image
 				except create.NoGood:
 					print("No good",media.url,media.headers)

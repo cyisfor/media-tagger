@@ -4,7 +4,6 @@ import sqlparse
 
 import sys,os
 sys.path.insert(0,os.path.expanduser("/home/code/postgresql-python"))
-print(sys.path)
 import postgresql as pg
 from contextlib import contextmanager
 from itertools import count, chain

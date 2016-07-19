@@ -61,14 +61,16 @@ def withC(f):
 def findComicByTitle(title,getinfo):
 	rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
 	if len(rows) == 0:
-		print("Couldn't find title",title)		
+		print("Couldn't find title",title)
 		@getinfo
 		def handle(description):
 			nonlocal rows
 			with db.transaction():
 				rows = db.execute("SELECT id FROM comics WHERE title = $1",
 				(title,))
-				if rows: return
+				if rows:
+					# nehh, race condition, something else created this comic!
+					return rows[0][0]
 				rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
 								  (title,
 								   description))

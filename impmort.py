@@ -74,7 +74,6 @@ def main():
 		db.execute("CREATE TABLE badfiles (path TEXT PRIMARY KEY)")
 	except: pass
 	
-	skipping = False
 	sources = None
 	recheck = os.environ.get('recheck')
 	def check(path,name):
@@ -82,10 +81,6 @@ def main():
 			source = sources.get(name)
 		else:
 			source = None
-		if skipping: 
-			if path == 'path at which to restart changes':
-				skipping = False
-			continue	
 		#bpath,length = cod.encode(path,'surrogateescape')
 		#if length!=len(path):
 		#	raise Exception("Bad path? ",path[:length],'|',repr(path[length:]))
@@ -99,9 +94,11 @@ def main():
 		if 'sources.db' in ns:
 			print("found a sources database!")
 			if sources: sources.close()
+			import dbm
 			sources = dbm.open(os.path.join(top,'sources.db'),'r',0o644)
-			ns.remove('sources.db')
+			ns.remove('sources.db')		
 		for name in ns:
+			if name in {'html'}: continue
 			check(os.path.abspath(os.path.join(vtop,top,name)),name)
 
 def impmort(path,implied,recheck=False,urisource=None):
@@ -122,7 +119,7 @@ def impmort(path,implied,recheck=False,urisource=None):
 			else:
 				source = db.execute("INSERT INTO sources (hasTags) VALUES (TRUE) RETURNING id")[0][0]
 				db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
-			source = create.Source(source)
+			source = create.Source(source,hasTags=True)
 			if not idnum:
 				with open(path,'rb') as inp:
 					hash = create.mediaHash(inp)
@@ -132,7 +129,7 @@ def impmort(path,implied,recheck=False,urisource=None):
 			try: discovered,name = discover(path)
 			except ImportError: return
 			if urisource:
-				urisource = create.Source(urisource)
+				urisource = create.Source(urisource,hasTags=True)
 			if idnum:
 				note("Adding source",idnum,source)
 				sources = [source]
@@ -149,11 +146,11 @@ def impmort(path,implied,recheck=False,urisource=None):
 				else:
 					sources = ()
 				create.internet(create.copyMe(path),
-								path.decode('utf-8'),
-								implied.union(discovered),
-								source,
-								sources,
-								name=name)
+				                source,
+				                implied.union(discovered),
+				                source,
+				                sources,
+				                name=name)
 	except create.NoGood: 
 		db.execute("INSERT INTO badfiles (path) VALUES ($1)",(path,))
 

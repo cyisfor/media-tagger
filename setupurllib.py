@@ -70,7 +70,7 @@ if not 'skipcookies' in os.environ:
         with closing(db.cursor()) as c:
             c.execute('SELECT '+','.join(fields)+' FROM cookies');
             for row in c:
-                jar.set_cookie(Cookie(*row))
+                jar.set_cookie(cookiejar.Cookie(*row))
             for cookie in jar:
                 c.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
                            ','.join('?' for f in fields) + ')',
