@@ -22,13 +22,13 @@ import fixprint
 from dbqueue import enqueue
 
 if __name__ == '__main__':
-	import catchup
 	if mode == 0:
 		enqueue(sys.argv[1])
 	elif mode == 1:
 		import settitle
 		settitle.set('parse')
-		import catchup
+		from catchup import Catchup
+		catchup = Catchup()
 		for line in sys.stdin:
 			enqueue(line.strip())
 			catchup.poke()	
@@ -38,6 +38,7 @@ if __name__ == '__main__':
 			from itertools import count
 			import gtkclipboardy as clipboardy
 			from mygi import Gtk, GLib, GdkPixbuf, Gdk
+			from catchup import Catchup, Empty
 			print('loading UI')
 			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))			
 			progress = ui.get_object("progress")
@@ -56,11 +57,8 @@ if __name__ == '__main__':
 				print('progress',cur,total,cur/total)
 				progress.set_fraction(cur/total)
 				progress.show()
-			import setupurllib
-			setupurllib.progress(gui_progress)
-			print('progress?',setupurllib.derps)
-			print('boop')
 			import catchup
+			catchup = Catchup(provide_progress=True)
 			img = ui.get_object("image")
 			busy = GdkPixbuf.PixbufAnimation.new_from_file(
 				os.path.join(here,"sweetie_thinking.gif"))
@@ -76,6 +74,11 @@ if __name__ == '__main__':
 				elapsed = 0
 				def until_idle():
 					nonlocal elapsed
+					while True:
+						try:
+							block, total = catchup.progress.get(False)
+							gui_progress(block,total)
+						except Empty: break
 					if catchup.check_idle():
 						# this should just be cosmetic, hopefully...
 						img.set_from_pixbuf(ready)

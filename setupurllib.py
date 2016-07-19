@@ -213,12 +213,7 @@ def myopen(request):
 	#			 request = Request(request)
 	#		 request.add_header('If-Modified-Since',email.utils.formatdate(stat.st_mtime))
 
-derps = set()
-print('cleared progress')
-def progress(f):
-	global derps
-	print('derpprogress?',derps)
-	derps.add(f)
+progress = None
 	
 def myretrieve(request,dest):
 	global derps
@@ -227,15 +222,15 @@ def myretrieve(request,dest):
 		total = headers.get('Content-Length')
 		block = bytearray(0x1000)
 		sofar = 0
-		print('progress?',derps)
+		print('progress?',progress)
 		while True:
 			amt = inp.readinto(block)
 			if amt == 0: break
 			dest.write(memoryview(block)[:amt])
 			if derps:
 				sofar += amt
-				for p in derps:
-					p(sofar,total)
+				if progress:
+					progress(sofar,total)
 		return inp.headers
 
 print('urllib has been setup for proxying')

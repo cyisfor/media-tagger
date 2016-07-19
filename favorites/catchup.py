@@ -8,7 +8,8 @@ from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host
 import db
 
-from multiprocessing import Process, Condition, Value, Event
+from multiprocessing import Process, Condition, Value, Event, Queue
+from queue import Empty
 import time
 import fixprint
 
@@ -18,13 +19,13 @@ progress = None
 
 class Catchupper(Process):
 	progress = None
-	def __init__(self,progress):
+	def __init__(self,provide_progress):
 		super().__init__()
 		self.condition = Condition()
 		self.idle = Event()
 		self.idle.set()
 		self.done = Value(c_bool,False)
-		if progress:
+		if provide_progress:
 			self.progress = Queue()
 	def send_progress(self,block,total):
 		self.progress.put((block,total))
@@ -101,9 +102,14 @@ class Catchupper(Process):
 
 
 class Catchup:
-	def __init__(self,progress=False):
-		self.process = Catchupper(progress)
+	# provide_progress=True means we'll pull from self.progress
+	def __init__(self,provide_progress=False):
+		self.provide_progress = provide_progress
+		self.start()
+	def start(self):
+		self.process = Catchupper(self.provide_progress)
 		self.process.start()
+		self.progress = self.process.progress
 		self.check_idle = self.process.check_idle
 		self.terminate = self.process.terminate
 	def poke(self):
@@ -112,14 +118,14 @@ class Catchup:
 			if not self.process.is_alive():
 				print('died?')
 				self.process = Catchupper()
-				self.process.start()
+				self.start()
 			try:
 				self.process.condition.notify_all()
 			except AssertionError:
 				# bug...
 				self.process.terminate()
 				self.process = Catchupper()
-				self.process.start()
+				self.start()
 	def finish(self):
 		self.process.done.value = True
 		while True:
@@ -128,7 +134,7 @@ class Catchup:
 			if not self.is_alive(): break
 			self.process.done.value = True
 
-
 if __name__ == '__main__':
+	# no subprocess here
 	instance = Catchupper()
 	while instance.squeak() is True: pass
