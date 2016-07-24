@@ -103,6 +103,7 @@ class Catchup:
 		self.process = Catchupper(self.provide_progress)
 		self.process.start()
 		self.terminate = self.process.terminate
+		self.get = self.process.q.get
 	def poke(self):
 		print('poke')
 		if not self.process.is_alive():

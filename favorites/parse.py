@@ -31,7 +31,8 @@ if __name__ == '__main__':
 		catchup = Catchup()
 		for line in sys.stdin:
 			enqueue(line.strip())
-			catchup.poke()	
+			catchup.poke()
+		catchup.finish()
 	else:
 		def doparsethingy():
 			import fcntl,os,time
@@ -58,46 +59,39 @@ if __name__ == '__main__':
 				print('progress',cur,total,cur/total)
 				progress.set_fraction(cur/total)
 				progress.show()
-			import catchup
-			catchup = Catchup(provide_progress=True)
 			# whyyyyy
-			def clear_progress():
-				while True:
-					cur, total = catchup.progress.get()
-					GLib.idle_add(lambda: gui_progress(cur,total))
-			import threading
-			t = threading.Thread(target=clear_progress)
-			t.setDaemon(True)
-			t.start()
-			img = ui.get_object("image")
-			busy = GdkPixbuf.PixbufAnimation.new_from_file(
+
+						busy = GdkPixbuf.PixbufAnimation.new_from_file(
 				os.path.join(here,"sweetie_thinking.gif"))
 			ready = GdkPixbuf.Pixbuf.new_from_file(
 				os.path.join(here, "squeetie.png"))
 			win = ui.get_object("top")
 
-			def getBusy(self):
+			def set_busy(is_busy=True):
+				if not is_busy:
+					progress.hide()
+					img.set_from_pixbuf(ready)
+					win.set_keep_above(False)
+					return
 				win.set_keep_above(True)
 				img.set_from_animation(busy)
 				progress.set_fraction(0)
-				delay = 11 * 400 # milliseconds
-				granularity = 4
-				elapsed = 0
-				idle_delay = delay / granularity - 0.1
-				idle = False
-				def until_idle():
-					nonlocal idle
-					nonlocal elapsed
-					idle = catchup.check_idle()
-					if idle:
-						# this should just be cosmetic, hopefully...
-						img.set_from_pixbuf(ready)
-						win.set_keep_above(False)
-						progress.hide()
-
-						return False
-					return True
-				GLib.timeout_add(delay/granularity,until_idle)
+				
+			import catchup
+			catchup = Catchup(provide_progress=True)
+			# whyyyyy
+			def watch_catchup():
+				while True:
+					type,mess = catchup.get()
+					if type == catchup.PROGRESS:
+						GLib.idle_add(lambda mess=mess: gui_progress(*mess))
+					elif type == catchup.IDLE:
+						GLib.idle_add(lambda idle=mess[0]: set_busy(not idle))
+			import threading
+			t = threading.Thread(target=clear_progress)
+			t.setDaemon(True)
+			t.start()
+			img = ui.get_object("image")
 			def gotPiece(self,piece):
 				self.getBusy()
 				print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
