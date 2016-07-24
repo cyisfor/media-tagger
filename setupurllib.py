@@ -216,10 +216,12 @@ def myopen(request):
 progress = None
 	
 def myretrieve(request,dest):
-	global derps
+	global progress
 	with myopen(request) as inp:
 		headers = inp.headers
 		total = headers.get('Content-Length')
+		if total:
+			total = int(total)
 		block = bytearray(0x1000)
 		sofar = 0
 		print('progress?',progress)
@@ -227,10 +229,9 @@ def myretrieve(request,dest):
 			amt = inp.readinto(block)
 			if amt == 0: break
 			dest.write(memoryview(block)[:amt])
-			if derps:
+			if progress:
 				sofar += amt
-				if progress:
-					progress(sofar,total)
+				progress(sofar,total)
 		return inp.headers
 
 print('urllib has been setup for proxying')

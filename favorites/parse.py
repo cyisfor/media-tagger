@@ -37,7 +37,8 @@ if __name__ == '__main__':
 			import fcntl,os,time
 			from itertools import count
 			import gtkclipboardy as clipboardy
-			from mygi import Gtk, GLib, GdkPixbuf, Gdk
+			from mygi import Gtk, GLib, GdkPixbuf, Gdk, GObject
+			GObject.threads_init()
 			from catchup import Catchup, Empty
 			print('loading UI')
 			ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))			
@@ -59,34 +60,46 @@ if __name__ == '__main__':
 				progress.show()
 			import catchup
 			catchup = Catchup(provide_progress=True)
+			# whyyyyy
+			def clear_progress():
+				while True:
+					cur, total = catchup.progress.get()
+					GLib.idle_add(lambda: gui_progress(cur,total))
+			import threading
+			t = threading.Thread(target=clear_progress)
+			t.setDaemon(True)
+			t.start()
 			img = ui.get_object("image")
 			busy = GdkPixbuf.PixbufAnimation.new_from_file(
 				os.path.join(here,"sweetie_thinking.gif"))
-			ready = img.get_pixbuf()
+			ready = GdkPixbuf.Pixbuf.new_from_file(
+				os.path.join(here, "squeetie.png"))
 			win = ui.get_object("top")
 
-			def gotPiece(piece):
+			def getBusy(self):
 				win.set_keep_above(True)
 				img.set_from_animation(busy)
 				progress.set_fraction(0)
 				delay = 11 * 400 # milliseconds
 				granularity = 4
 				elapsed = 0
+				idle_delay = delay / granularity - 0.1
+				idle = False
 				def until_idle():
+					nonlocal idle
 					nonlocal elapsed
-					while True:
-						try:
-							block, total = catchup.progress.get(False)
-							gui_progress(block,total)
-						except Empty: break
-					if catchup.check_idle():
+					idle = catchup.check_idle()
+					if idle:
 						# this should just be cosmetic, hopefully...
 						img.set_from_pixbuf(ready)
 						win.set_keep_above(False)
 						progress.hide()
+
 						return False
 					return True
 				GLib.timeout_add(delay/granularity,until_idle)
+			def gotPiece(self,piece):
+				self.getBusy()
 				print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 				sys.stdout.flush()
 				enqueue(piece.strip())

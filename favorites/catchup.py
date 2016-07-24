@@ -15,41 +15,34 @@ import fixprint
 
 from ctypes import c_bool
 
-progress = None
+PROGRESS, IDLE = range(2)
 
 class Catchupper(Process):
-	progress = None
 	def __init__(self,provide_progress):
 		super().__init__()
-		self.condition = Condition()
-		self.idle = Event()
-		self.idle.set()
 		self.done = Value(c_bool,False)
-		if provide_progress:
-			self.progress = Queue()
+		self.provide_progress = provide_progress
+		self.poked = Condition()
+		self.q = Queue()
 	def send_progress(self,block,total):
-		self.progress.put((block,total))
+		self.q.put((PROGRESS,(block,total)))
 	def run(self):
-		if self.progress:
+		if self.provide_progress:
 			setupurllib.progress = self.send_progress
 		db.reopen()
 		try:
 			import signal
 			signal.signal(signal.SIGUSR1, lambda sig: None)
 			while True:
-				self.idle.clear()
+				self.q.put((IDLE,False))
 				while self.squeak() is True: pass
-				self.idle.set()
-				with self.condition:
-					if self.done.value: break
-					print('waiting for pokes')
-					self.condition.wait()
-					print('squeak!')
+				self.q.put((IDLE,True))
+				if self.done.value: break
+				print('waiting for pokes')
+				with self.poked:
+					self.poked.wait()
 		except SystemExit: pass
 		except KeyboardInterrupt: pass
-	def check_idle(self):
-		self.idle.wait(0.1)
-		return self.idle.is_set()
 	def squeak(self,*a):
 		uri = top()
 		if uri is None:
@@ -109,27 +102,28 @@ class Catchup:
 	def start(self):
 		self.process = Catchupper(self.provide_progress)
 		self.process.start()
-		self.progress = self.process.progress
-		self.check_idle = self.process.check_idle
 		self.terminate = self.process.terminate
 	def poke(self):
 		print('poke')
-		with self.process.condition:
-			if not self.process.is_alive():
-				print('died?')
-				self.process = Catchupper()
-				self.start()
-			try:
-				self.process.condition.notify_all()
-			except AssertionError:
-				# bug...
-				self.process.terminate()
-				self.process = Catchupper()
-				self.start()
+		if not self.process.is_alive():
+			print('died?')
+			self.process = Catchupper()
+			self.start()
+		try:
+			self.process.poked.notify_all()
+		except AssertionError:
+			# bug...
+			self.process.terminate()
+			self.process = Catchupper()
+			self.start()
 	def finish(self):
 		self.process.done.value = True
 		while True:
 			self.poke()
+			try:
+				while True:
+					print('ignored message',self.process.q.get(False))
+			except queue.Empty: pass
 			self.process.join(1)
 			if not self.is_alive(): break
 			self.process.done.value = True
