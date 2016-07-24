@@ -95,6 +95,8 @@ class Catchupper(Process):
 
 
 class Catchup:
+	PROGRESS = PROGRESS
+	IDLE = IDLE # meh
 	# provide_progress=True means we'll pull from self.progress
 	def __init__(self,provide_progress=False):
 		self.provide_progress = provide_progress
