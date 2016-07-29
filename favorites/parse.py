@@ -43,7 +43,6 @@ def doparsethingy2():
 	styleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
 	def gui_progress(cur,total):
-		print('progress',cur,total,cur/total)
 		progress.set_fraction(cur/total)
 		progress.show()
 
@@ -74,6 +73,9 @@ def doparsethingy2():
 				GLib.idle_add(lambda mess=mess: gui_progress(*mess))
 			elif type == catchup.IDLE:
 				GLib.idle_add(lambda idle=mess: set_busy(not idle))
+			else:
+				print(type,mess)
+				raise SystemExit("wat")
 	import threading
 	t = threading.Thread(target=watch_catchup)
 	t.setDaemon(True)

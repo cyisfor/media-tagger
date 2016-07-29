@@ -35,32 +35,33 @@ if __name__ == '__main__':
 	import shutil,os,filedb
 	setup()
 	id = next()
-	desktop = os.path.expanduser("/home/.config/desktop")
-	try: os.unlink(desktop)
-	except OSError: pass
 	# Can't use filedb.mediaPath why...?
 	src = os.path.join(filedb.top,"media",'{:x}'.format(id))
-	os.chdir("/home/tmp")
-	try: os.mkdir("ipfs")
+	os.chdir("/home/creation/ipfs")
+	try: os.mkdir("desktop")
 	except OSError: pass
-	os.chdir("ipfs")
+	os.chdir("desktop")
 	name = db.execute("SELECT name FROM media WHERE id = $1",(id,))[0][0];
 	shutil.copy2(src,name)
+	o = urllib.request.FancyURLOpener()
+	with o.open("http://cy.h/art/~desktop") as inp:
+		doc = BeautifulSoup(inp,'lxml')
+	src = doc.find('img','wid')['src']
+	o.retrieve(src,src.rsplit('/')[-1])
+	for img in doc.find_all
 	with open('index.html.temp','wt') as out:
+		
 		out.write('''<html><head><title>cy's Current Desktop</title></head>
 		<body>
-		<p>Hi I'm cy. I hang around on <a href="https://www.hypeirc.net/">#hyperboria</a> and <a href="https://derpibooru.org">derpibooru</a>. Mostly I write <a href="https://critter.cloudns.org/stories/html/">stories</a> about ponies. Anyway, here's my current (randomly selected once an hour) desktop wallpaper:</p>
+		<p>Here's my current (randomly selected once an hour) desktop wallpaper!</p>
 		<p><img src="'''+name+'''"/></p>
 		</body></html>''')
 	os.rename('index.html.temp','index.html')
-	try:
-		import subprocess as s
-		out,err = s.Popen(["ipfs","add","--recursive","--quiet",'.'],
-											stdout=s.PIPE).communicate()
-		out = out.decode().rstrip()
-		hashes = out.split('\n')
-		s.call(["ipfs","name","publish","--lifetime=1h","/ipfs/"+hashes[-1]])
-	except FileNotFoundError: pass
+	os.utime("..") # trigger the ipfs thing
+	
+	desktop = os.path.expanduser("/home/.config/desktop")
+	try: os.unlink(desktop)
+	except OSError: pass
 	shutil.copy2(src,desktop)
 	if not os.environ.get('DISPLAY'):
 		os.environ['DISPLAY'] = ':0.0'

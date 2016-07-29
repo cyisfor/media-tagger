@@ -110,14 +110,15 @@ class Catchup:
 		print('poke')
 		if not self.process.is_alive():
 			print('died?')
-			self.process = Catchupper()
+			self.process = Catchupper(self.provide_progress)
 			self.start()
 		try:
-			self.process.poked.notify_all()
+			with self.process.poked:
+				self.process.poked.notify_all()
 		except AssertionError:
 			# bug...
 			self.process.terminate()
-			self.process = Catchupper()
+			self.process = Catchupper(self.provide_progresss)
 			self.start()
 	def finish(self):
 		self.process.done.value = True
