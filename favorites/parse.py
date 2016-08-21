@@ -52,6 +52,12 @@ def doparsethingy2():
 		os.path.join(here, "squeetie.png"))
 	win = ui.get_object("top")
 
+	processed = 0
+	def set_remaining(remaining):
+		nonlocal processed
+		win.set_tooltip_text("%d→%d"%(remaining,processed))
+		processed += 1
+	
 	def set_busy(is_busy=True):
 		print('set busy',is_busy)
 		if not is_busy:
@@ -73,6 +79,8 @@ def doparsethingy2():
 				GLib.idle_add(lambda mess=mess: gui_progress(*mess))
 			elif type == catchup.IDLE:
 				GLib.idle_add(lambda idle=mess: set_busy(not idle))
+			elif type == catchup.DONE:
+				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))
 			else:
 				print(type,mess)
 				raise SystemExit("wat")

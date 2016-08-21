@@ -5,7 +5,7 @@ if __name__ == '__main__':
 
 from favorites.parseBase import *
 from favorites import parsers
-from dbqueue import top,fail,win,megafail,delay,host
+from dbqueue import top,fail,win,megafail,delay,host,remaining
 import db
 
 from multiprocessing import Process, Condition, Value, Event, Queue
@@ -15,7 +15,7 @@ import fixprint
 
 from ctypes import c_bool
 
-PROGRESS, IDLE = range(2)
+PROGRESS, IDLE, DONE = range(3)
 
 class Catchupper(Process):
 	def __init__(self,provide_progress):
@@ -33,9 +33,12 @@ class Catchupper(Process):
 		try:
 			import signal
 			signal.signal(signal.SIGUSR1, lambda sig: None)
+			# ehhhh done, before we start, to transmit remaining?
+			self.q.put((DONE,remaining()))
 			while True:
 				self.q.put((IDLE,False))
-				while self.squeak() is True: pass
+				while self.squeak() is True:
+					self.q.put((DONE,remaining()))
 				self.q.put((IDLE,True))
 				if self.done.value: break
 				print('waiting for pokes')
@@ -96,6 +99,7 @@ class Catchupper(Process):
 
 class Catchup:
 	PROGRESS = PROGRESS
+	DONE = DONE
 	IDLE = IDLE # meh
 	# provide_progress=True means we'll pull from self.progress
 	def __init__(self,provide_progress=False):

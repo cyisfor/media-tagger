@@ -31,11 +31,17 @@ def enqueue(uri):
 
     db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,$2 WHERE NOT EXISTS (SELECT id FROM parseQueue WHERE uri = $2)",(h,uri))
 
-def top():
-    r = db.execute('''SELECT uri FROM parseQueue WHERE NOT done AND tries < 5 AND
+criteria = '''NOT done AND tries < 5 AND
     (host IS NULL OR EXISTS 
         (select id FROM hosts WHERE resume IS NULL OR resume > clock_timestamp() AND id = parseQueue.id))
-    ORDER BY added DESC LIMIT 1''')
+'''
+
+def remaining():
+	return db.execute("SELECT count(1) from parseQueue WHERE"+criteria)[0][0]
+    
+def top():
+    r = db.execute('SELECT uri FROM parseQueue WHERE' + criteria +
+                   'ORDER BY added DESC LIMIT 1')
     if r: return r[0][0]
     return None
 def delay(host,interval='10 seconds'):

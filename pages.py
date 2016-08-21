@@ -395,10 +395,14 @@ def page(info,path,params):
 			return '/art/~comic/{:x}/'.format(id)
 		comic, title, prev, next = comic
 		if next:
-			Links.next = pageURL(next)
+			next = pageURL(next)
+			if not Links.next:
+				Links.next = next
 		if prev:
-			Links.prev = pageURL(prev);
-		tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=Links.prev) if prev else None,d.a('>>',href=Links.next) if next else None))
+			prev = pageURL(prev)
+			if not Links.prev:
+				Links.prev = prev
+		tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=prev) if prev else None,d.a('>>',href=next) if next else None))
 	with Links():
 		if comic:
 			updateComic(comic)

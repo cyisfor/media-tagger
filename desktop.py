@@ -43,12 +43,6 @@ if __name__ == '__main__':
 	os.chdir("desktop")
 	name = db.execute("SELECT name FROM media WHERE id = $1",(id,))[0][0];
 	shutil.copy2(src,name)
-	o = urllib.request.FancyURLOpener()
-	with o.open("http://cy.h/art/~desktop") as inp:
-		doc = BeautifulSoup(inp,'lxml')
-	src = doc.find('img','wid')['src']
-	o.retrieve(src,src.rsplit('/')[-1])
-	for img in doc.find_all
 	with open('index.html.temp','wt') as out:
 		
 		out.write('''<html><head><title>cy's Current Desktop</title></head>
