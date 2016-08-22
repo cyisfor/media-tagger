@@ -77,7 +77,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = negaClause
 
 	if User.noComics:
-		derp = NOT(IN('things.id',Select('medium','comicPage')))
+		derp = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 		if where is None:
 			where = derp
 		else:
