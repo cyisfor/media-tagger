@@ -83,8 +83,7 @@ positiveWhere {
 
 negativeClause {
     NOT neighbors && array(select id from unwanted %(anyWanted)s)
-}
-
+}		
 anyWanted {
     where id NOT IN (select unnest(tags) from wanted)
 }
@@ -101,11 +100,16 @@ media.id,media.name,media.type,
 FROM
         %(positiveClause)s
         %(negativeClause)s
+        %(notComic)s
     %(ordering)s
 }
 
 relatedNoTags {
     (NOT tags.id = ANY(%%(tags)s::bigint[])) AND
+}
+
+notComic {
+  things.id NOT IN (select medium FROM comicPage)
 }
 
 related {
@@ -114,6 +118,7 @@ SELECT derp.id,derp.name FROM (SELECT tags.id,first(tags.name) as name FROM tags
 FROM
         %(positiveClause)s
         %(negativeClause)s
+        %(notComic)s
     %(ordering)s) 
     GROUP BY tags.id
     LIMIT %%(taglimit)s::int) AS derp ORDER BY derp.name

@@ -15,7 +15,7 @@ import fixprint
 
 from ctypes import c_bool
 
-PROGRESS, IDLE, DONE = range(3)
+PROGRESS, IDLE, COMPLETE = range(3)
 
 class Catchupper(Process):
 	def __init__(self,provide_progress):
@@ -33,12 +33,12 @@ class Catchupper(Process):
 		try:
 			import signal
 			signal.signal(signal.SIGUSR1, lambda sig: None)
-			# ehhhh done, before we start, to transmit remaining?
-			self.q.put((DONE,remaining()))
+			# ehhhh a done, before we start, to transmit remaining?
+			self.q.put((COMPLETE,remaining()))
 			while True:
 				self.q.put((IDLE,False))
 				while self.squeak() is True:
-					self.q.put((DONE,remaining()))
+					self.q.put((COMPLETE,remaining()))
 				self.q.put((IDLE,True))
 				if self.done.value: break
 				print('waiting for pokes')
@@ -99,7 +99,7 @@ class Catchupper(Process):
 
 class Catchup:
 	PROGRESS = PROGRESS
-	DONE = DONE
+	COMPLETE = COMPLETE
 	IDLE = IDLE # meh
 	# provide_progress=True means we'll pull from self.progress
 	def __init__(self,provide_progress=False):

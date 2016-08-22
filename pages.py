@@ -593,6 +593,14 @@ def user(info,path,params):
 	if User.rescaleImages:
 		iattr['checked'] = True
 	rescalebox = d.input(iattr)
+	iattr = {
+		'type': 'checkbox',
+		'name': 'comic',
+	}
+	if not user.nocomic:
+		iattr['checked'] = True
+	comicbox = d.input(iattr)
+	
 	if User.defaultTags:
 		def makeResult():
 			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
@@ -617,6 +625,7 @@ def user(info,path,params):
 		d.form(
 		d.ul(
 			d.li("Rescale Media? ",rescalebox),
+			d.li("Comic pages on main listing? ",comicbox),
 			d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
 			d.li(d.input(type="submit",value="Submit"))),
 		action=place+'/~user/',

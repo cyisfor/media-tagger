@@ -37,10 +37,10 @@ criteria = '''NOT done AND tries < 5 AND
 '''
 
 def remaining():
-	return db.execute("SELECT count(1) from parseQueue WHERE"+criteria)[0][0]
+	return db.execute("SELECT count(1) from parseQueue WHERE "+criteria)[0][0]
     
 def top():
-    r = db.execute('SELECT uri FROM parseQueue WHERE' + criteria +
+    r = db.execute('SELECT uri FROM parseQueue WHERE ' + criteria +
                    'ORDER BY added DESC LIMIT 1')
     if r: return r[0][0]
     return None
