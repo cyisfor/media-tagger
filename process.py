@@ -19,13 +19,13 @@ def user(path,params,data):
 	news = {
 		'rescaleimages': rescale
 	}
-	noComics = params.get('nocomics')
-	if noComics:
-		noComics = noComics[0]
-		if noComics:
-			noComics = True
-		else:
+	comic = params.get('comic')
+	if comic:
+		comic = comic[0]
+		if comic:
 			noComics = False
+		else:
+			noComics = True
 		news['noComics'] = noComics
 	newtags = params.get('tags')	
 	note('updating user tags',newtags)

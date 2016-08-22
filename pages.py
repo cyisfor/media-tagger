@@ -597,7 +597,7 @@ def user(info,path,params):
 		'type': 'checkbox',
 		'name': 'comic',
 	}
-	if not user.nocomic:
+	if not User.noComics:
 		iattr['checked'] = True
 	comicbox = d.input(iattr)
 	

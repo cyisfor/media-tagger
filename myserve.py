@@ -71,6 +71,8 @@ class FormCollector:
 		else:
 			self.chunks.append(chunk)
 	def do(self):
+		note.alarm("Form collecter do")
+		raise SystemExit(23)
 		if self.disabled: return super().do()
 		if not self.form_data:
 			self.request_body = b''.join(self.chunks)
@@ -194,10 +196,10 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 		self.send_header('Access-Control-Allow-Headers',
 		                 self.headers['access-control-request-headers'])
 	def do_POST(self):
+		note("um",self.path)
 		json,path,parsed,params = parsePath(self.path)
 		mode = path[0][1:]
 		self.form.update(params)
-		note(self.form)
 		raise Redirect(process(mode,parsed,self.form,None))
 	content_length = 0
 	chunked = False
