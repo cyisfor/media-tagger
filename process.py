@@ -26,7 +26,9 @@ def user(path,params,data):
 			noComics = False
 		else:
 			noComics = True
-		news['noComics'] = noComics
+	else:
+		noComics = True
+	news['noComics'] = noComics
 	newtags = params.get('tags')	
 	note('updating user tags',newtags)
 	news['defaultTags'] = False

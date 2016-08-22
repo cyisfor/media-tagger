@@ -58,24 +58,10 @@ class FormCollector:
 	form = None
 	request_body = None
 	disabled = False
-	def __init__(self,*a,**kw):
-		super().__init__(*a,**kw)
-		if self.command != 'POST':
-			self.disabled = True
-		else:
-			self.chunks = []
-	def data_received(self,chunk):
-		if self.disabled: return super().data_received(chunk)
-		if self.form_data:
-			note('do something')
-		else:
-			self.chunks.append(chunk)
-	def do(self):
-		note.alarm("Form collecter do")
-		raise SystemExit(23)
-		if self.disabled: return super().do()
+	def do_POST(self):
 		if not self.form_data:
-			self.request_body = b''.join(self.chunks)
+			length = int(self.headers["Content-Length"])
+			self.request_body = self.rfile.read(length)
 			self.form = {}
 			if self.request_body:
 				thing = self.request_body.decode('utf-8')
@@ -98,7 +84,6 @@ class FormCollector:
 						vs.append(v)
 					else:
 						self.form[n] = [v]
-		return super().do()
 	def received_header(self,name,value):
 		if self.disabled: return super().received_header(name, value)
 		if name != 'Content-Type': 
@@ -135,7 +120,6 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 			return super().recordAccess(*a, **kw)
 	def __init__(self,*a,**kw):
 		BaseHTTPRequestHandler.__init__(self,*a,**kw)
-		FormCollector.__init__(self,*a,**kw)
 	def do_HEAD(self):
 		with Session():
 			Session.head = True
@@ -196,6 +180,7 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 		self.send_header('Access-Control-Allow-Headers',
 		                 self.headers['access-control-request-headers'])
 	def do_POST(self):
+		FormCollector.do_POST(self)
 		note("um",self.path)
 		json,path,parsed,params = parsePath(self.path)
 		mode = path[0][1:]
