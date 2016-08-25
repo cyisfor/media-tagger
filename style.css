@@ -75,6 +75,10 @@ div#thumbs {
 	display: none;
 }
 
+.comic {
+	border: solid #0F0;
+}
+
 .thumb.comic span.taghi {
 	background-color: rgba(255,255,100,0.3);
 }

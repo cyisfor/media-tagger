@@ -162,10 +162,7 @@ def makeLinks(info,linkfor=None):
 		if name is None:
 			name = fixName(id,type)
 		#row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-		if is_comic:
-			thingy = "(C)";
-		else:
-			thingy = "(i)";
+		thingy = "(i)";
 		taginfo = d.span(thingy,title=wrappit(', '.join(tags)
 										   if tags else ''),
 						 href=link,
