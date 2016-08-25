@@ -49,14 +49,14 @@ def nonumbers(f):
 		return filter(f(*k,**a))
 	return wrapper
 
-tagsWhat = [
+tagsWhat = (
 			'media.id',
 			'media.name',
 			'media.type',
 			array(Select('tags.name',
 						 InnerJoin('tags',AS(Select('unnest(neighbors)'),'neigh'),
 								   EQ('neigh.unnest','tags.id'))))
-			]
+			)
 
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
@@ -77,11 +77,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = negaClause
 
 	if User.noComics:
-		derp = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
+		incomics = IN('things.id',Select('medium','comicPage','which != 0'))
 		if where is None:
-			where = derp
+			where = NOT(incomics)
 		else:
-			where = AND(where,derp)
+			where = AND(where,NOT(incomics))
 	arg = argbuilder()
 
 	mainCriteria = Select('things.id',From,where)
@@ -114,6 +114,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		stmt = Order(stmt,'derp.name')
 	else:
 		mainCriteria.what = tagsWhat
+		if User.noComics:
+			mainCriteria.what += (AS(incomics,"is_comic"),)
 		stmt = mainOrdered
 
 	# we MIGHT need a with statement...
@@ -131,7 +133,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			'id',
 			Union(Select('tags.id',
 						 InnerJoin('tags','things',
-								   EQ('tags.id','things.id')),
+-								   EQ('tags.id','things.id')),
 									 notWanted),
 				  Select('id',herp)))
 	else:

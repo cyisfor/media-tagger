@@ -140,7 +140,8 @@ def makeLinks(info,linkfor=None):
 	row = []
 	rows = []
 	allexists = True
-	for id,name,type,tags in info:
+	for id,name,type,tags,*is_comic in info:
+		is_comic = len(is_comic) >= 1 and is_comic[1]
 		i = next(counter)
 		if i%thumbnailRowSize==0:
 			if row:
@@ -163,7 +164,10 @@ def makeLinks(info,linkfor=None):
 						 href=link,
 						 class_='taghi')
 		link = d.a(d.img(src=src,title=' '+name+' '),href=link)
-		row.append(d.div(link,taginfo,class_='thumb'))
+		klass = 'thumb'
+		if is_comic:
+			klass += ' comic'
+		row.append(d.div(link,taginfo,class_=klass))
 					
 	if row: rows.append((tuple(row)+(d.br(),)))
 	Session.refresh = not allexists
@@ -501,7 +505,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 		removers.append(d.a('-'+tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
 
 	with Links():
-		info = list(info)
+		info = tuple(info)
 		print('oooooo',offset)
 		if len(info)>=pageSize:
 			query['o'] = offset + 1
