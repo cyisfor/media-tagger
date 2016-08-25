@@ -75,6 +75,10 @@ div#thumbs {
 	display: none;
 }
 
+.thumb.comic span.taghi {
+	background-color: rgba(255,255,100,0.3);
+}
+
 .thumb:hover span.taghi {
 	display: inline;
 }

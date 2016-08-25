@@ -141,7 +141,10 @@ def makeLinks(info,linkfor=None):
 	rows = []
 	allexists = True
 	for id,name,type,tags,*is_comic in info:
-		is_comic = len(is_comic) >= 1 and is_comic[1]
+		if len(is_comic) >= 1:
+			is_comic = is_comic[0]
+		else:
+			is_comic = False
 		i = next(counter)
 		if i%thumbnailRowSize==0:
 			if row:
@@ -159,7 +162,11 @@ def makeLinks(info,linkfor=None):
 		if name is None:
 			name = fixName(id,type)
 		#row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
-		taginfo = d.span('(i)',title=wrappit(', '.join(tags)
+		if is_comic:
+			thingy = "(C)";
+		else:
+			thingy = "(i)";
+		taginfo = d.span(thingy,title=wrappit(', '.join(tags)
 										   if tags else ''),
 						 href=link,
 						 class_='taghi')

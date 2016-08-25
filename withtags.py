@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
 
 from user import User
@@ -77,11 +77,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = negaClause
 
 	if User.noComics:
-		incomics = IN('things.id',Select('medium','comicPage','which != 0'))
+		first_page = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 		if where is None:
-			where = NOT(incomics)
+			where = first_page
 		else:
-			where = AND(where,NOT(incomics))
+			where = AND(where,first_page)
 	arg = argbuilder()
 
 	mainCriteria = Select('things.id',From,where)
@@ -115,7 +115,10 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	else:
 		mainCriteria.what = tagsWhat
 		if User.noComics:
-			mainCriteria.what += (AS(incomics,"is_comic"),)
+
+			mainCriteria.what += (
+				EXISTS(Select(
+					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
 		stmt = mainOrdered
 
 	# we MIGHT need a with statement...
@@ -133,7 +136,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			'id',
 			Union(Select('tags.id',
 						 InnerJoin('tags','things',
--								   EQ('tags.id','things.id')),
+								   EQ('tags.id','things.id')),
 									 notWanted),
 				  Select('id',herp)))
 	else:

@@ -297,6 +297,11 @@ class Contains(Binary):
 class AS(Binary): pass
 
 @grouping
+class EXISTS(Unary):
+	def sql(self):
+		return "EXISTS("+encode(self.clause)+")"
+
+@grouping
 class ANY(Unary):
     def __init__(self, clause):
         super().__init__(Group(clause))
