@@ -42,6 +42,8 @@ img.wid {
 
 #desc {
 	display: inline-block;
+	max-width: 72em;
+  margin-top: 1em;
 	padding-left: 1em;
 	padding-right: 1em;
 	border: thin solid black;
@@ -85,8 +87,4 @@ div#thumbs {
 
 .thumb:hover span.taghi {
 	display: inline;
-}
-
-#desc {
-    white-space: nowrap;
 }

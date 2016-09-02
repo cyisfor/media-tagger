@@ -182,7 +182,7 @@ def myopen(request):
 		for i in range(2,len(url)):
 			url[i] = urlparse.quote(url[i],safe="/&=?+")
 		request.full_url = urlparse.urlunparse(url)
-	print('requesting',request.full_url)
+		print('requesting',request.full_url)
 	try:
 		with closing(opener.open(request)) as inp:
 			headers = inp.headers

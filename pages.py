@@ -361,7 +361,12 @@ linepat = re.compile('[ \t]*\n+\s*')
 def maybeDesc(id):
 	blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
 	if blurb:
-		lines = linepat.split(blurb[0][0])
+		blurb = blurb[0][0]
+		if not blurb: return None
+		if blurb[0] == '<':
+			return d.div(RawString(blurb),
+			             id='desc')
+		lines = linepat.split(blurb)
 		# assuming blurb is trusted!
 		return d.div([d.p(RawString(p)) for p in lines],
 					 id='desc')

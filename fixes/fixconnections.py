@@ -22,8 +22,8 @@ for row in c.execute("select id,name from tags where name LIKE '%:%' OFFSET $1",
     c.execute("SELECT disconnect($2,$1)",(category,tag))
     c.execute("SELECT disconnect($1,$2)",(category,tag))
     c.execute("SELECT disconnect($2,$1)",(category,wholetag))
-    c.execute("SELECT connect($2,$1)",(tag,wholetag))
-    c.execute("SELECT connect($1,$2)",(tag,wholetag))
-    c.execute("SELECT connect($1,$2)",(category,wholetag))
+    c.execute("SELECT connectone($2,$1)",(tag,wholetag))
+    c.execute("SELECT connectmanytoone(ARRAY[$1,$2],$3)",
+							(tag,category,wholetag))
     with open("derpcounter","w") as out:
         out.write(str(skip+count))
