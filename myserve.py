@@ -268,7 +268,7 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 			def getPage():
 				if 'q' in params:
 					try:
-						ident,name,ctype,ignoretags = next(withtags.searchForTags(
+						ident,name,ctype,ignoretags,*is_comic = next(withtags.searchForTags(
 							tags,
 							offset=o,
 							limit=1))

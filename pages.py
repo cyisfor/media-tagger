@@ -203,12 +203,17 @@ def standardHead(title,*contents):
 		d.meta(name="og:url",value=url if Links.id else makeBase()),
 		d.link(rel="icon",type="image/png",href="/favicon.png"),
 		d.link(rel='stylesheet',type='text/css',href="/style/art.css"),
-		d.link(rel='next',href=Links.next if Links.next else ''),
-		d.link(rel='prev',href=Links.prev if Links.prev else ''),
-		d.link(rel='alternate',type='application/json+oembed',href='/art/~oembed/{:x}?url={}'.format(Links.id,
-			# oembed sucks:
-			quote(url))) if Links.id else '',
-		*contents)
+		(d.link(rel='next',href=Links.next) if Links.next else ''),
+		(d.link(rel='prev',href=Links.prev) if Links.prev else ''),
+		d.script(src="navigation.js",type="text/javascript"),
+
+		d.link(rel='alternate',
+		       type='application/json+oembed',
+		       href='/art/~oembed/{:x}?url={}'.format(
+			       Links.id,
+			       # oembed sucks:
+			       quote(url))) if Links.id else '',
+	*contents)
 
 def makePage(title,*content,**kw):
 	if kw.get('nouser') is None:
