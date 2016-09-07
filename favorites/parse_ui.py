@@ -4,7 +4,6 @@ catchup = catchup(provide_progress=True)
 
 import fcntl,os,time
 from itertools import count
-import gtkclipboardy as clipboardy
 from mygi import Gtk, GLib, GdkPixbuf, Gdk, GObject
 
 
@@ -98,7 +97,5 @@ except ImportError: pass
 else:
 	application.add_window(win)
 
-
-clipboardy.make(gotPiece,lambda piece: b'http' == piece[:4]).start()
-
-print('done yay',os.getpid())
+import gtkclipboardy as clipboardy
+clipboardy(gotPiece,lambda piece: b'http' == piece[:4]).start()

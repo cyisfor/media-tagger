@@ -8,7 +8,7 @@ def derp(f):
 
 import threading
 
-def make(handler,check):
+def make(handler,check=None):
 	seen = set()
 	clipboard = None
 	def gotClip(clipboard, text, nun=None):
@@ -41,12 +41,16 @@ def make(handler,check):
 		import signal
 		signal.signal(signal.SIGINT, signal.SIG_DFL)
 		Gtk.main()
+		
 	class BothOrStart(tuple):
 		def start(self):
 			return start()
+		def run(self,derphandler=None):
+			nonlocal handler
+			if derphandler:
+				handler = derphandler
+			run()
 	return BothOrStart((start,run))
 
-def run(handler,check):
-	start,run = make(handler,check)
-	run()
-	return start,run
+import sys
+sys.modules[__name__] = make

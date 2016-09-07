@@ -239,9 +239,8 @@ class GUI:
         window.connect('destroy',Gtk.main_quit)
         window.show_all()
         import gtkclipboardy as clipboardy
-        start,run = clipboardy.make(self.gotClipboard,
-                       lambda piece: b'http' == piece[:4])
-        start()
+        clipboardy(self.gotClipboard,
+                   lambda piece: b'http' == piece[:4]).start()
     def setWhich(self,which):
         self.wentry.set_text('{:x}'.format(which))
     @kbquit
