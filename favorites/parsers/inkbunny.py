@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib..parse
+import urllib.parse
 
 def extract(doc):
     if '///files' in doc.url: return

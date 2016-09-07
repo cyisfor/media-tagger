@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib..parse
+import urllib.parse
 
 def mystrip(s,chars):
 	for c in chars:
@@ -57,7 +57,7 @@ def extract(doc):
 			raise
 
 def normalize(url):
-	u = urllib..parse.urlparse(url)
+	u = urllib.parse.urlparse(url)
 	host = u.netloc
 	path = u.path
 	if host == 'derpiboo.ru':
@@ -73,6 +73,6 @@ def normalize(url):
 	if path.startswith('/images/'):
 		path = path[len('/images'):]
 		
-	url = urllib..parse.urlunparse(('https',host,path,None,None,None))
+	url = urllib.parse.urlunparse(('https',host,path,None,None,None))
 	#raise SystemExit('okay',url)
 	return url

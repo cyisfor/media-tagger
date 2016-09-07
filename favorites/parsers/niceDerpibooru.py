@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib..parse
+import urllib.parse
 
 def decode(inp):
     return json.load(inp)
@@ -43,5 +43,5 @@ def extract(doc):
 noquery = re.compile('^[^?]*')
 
 def normalize(url):
-    url = urllib..parse.urlparse(url)
-    return urllib..parse.urlunparse(('http','derpibooru.org',url.path,None,None,None))
+    url = urllib.parse.urlparse(url)
+    return urllib.parse.urlunparse(('http','derpibooru.org',url.path,None,None,None))

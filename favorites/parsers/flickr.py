@@ -6,7 +6,7 @@ from contextlib import closing
 from bs4sux import BeautifulSoup
 
 import urllib.request
-import urllib..parse
+import urllib.parse
 
 here = os.path.dirname(__file__)
 with open(os.path.join(here,"flickr.api"),"rt") as inp:
@@ -49,6 +49,6 @@ def extract(doc):
         for tag in tags.findAll('a'):
             tag = tag['data-tag']
             if not tag: continue
-            yield Tag(None,urllib..parse.unquote(tag))
+            yield Tag(None,urllib.parse.unquote(tag))
     else:
         yield Tag('special','tagme')

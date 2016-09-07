@@ -9,7 +9,8 @@ from . import weasyl
 from . import pixiv
 from . import flickr
 from . import zerochan
-from ..parse import registerFinder as register
+from .. import parse
+register = parse.registerFinder
 
 import re
 

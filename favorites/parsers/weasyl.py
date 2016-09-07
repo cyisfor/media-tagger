@@ -1,7 +1,7 @@
 from .things import *
 from ..parse import ParseError
 import re
-import urllib..parse
+import urllib.parse
 
 def hasClass(c):
     def handler(e):
@@ -14,7 +14,7 @@ def extract(doc):
     for a in doc.findAll('a'):
         href = a.get('href')
         if not href: continue
-        href = urllib..parse.urlparse(href).path
+        href = urllib.parse.urlparse(href).path
         try: name,category,rest = href[1:].split('/',2)
         except ValueError: continue
         if not category in set(("submissions","characters")):
@@ -40,7 +40,7 @@ def extract(doc):
         href = a.get('href')
         if not href: continue
         if not str(href).startswith('/search?q='): continue
-        yield Tag(None,urllib..parse.unquote(href[len('/search?q='):]))
+        yield Tag(None,urllib.parse.unquote(href[len('/search?q='):]))
         tags = True
     if not tags:
         raise Exception("No tags found")

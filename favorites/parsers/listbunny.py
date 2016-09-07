@@ -1,6 +1,6 @@
 import setupurllib
 import urllib.request
-import urllib..parse
+import urllib.parse
 from bs4sux import BeautifulSoup
 
 import re
@@ -23,7 +23,7 @@ def findLinks(base,doc,nextbox):
         if not img: continue
         src = img.get('src')
         if not ( src and isThumb(a,img,src)): continue
-        yield urllib..parse.urljoin(base,href)
+        yield urllib.parse.urljoin(base,href)
 
 def findPages(base):
     while True:
