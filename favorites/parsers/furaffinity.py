@@ -1,7 +1,7 @@
-from .parseBase import ParseError
+from ..parse import ParseError
 from .things import *
 import re
-import urllib.parse
+import urllib..parse
 
 def mystrip(s,chars):
     for c in chars:

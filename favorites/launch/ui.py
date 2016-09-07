@@ -1,14 +1,16 @@
-import catchup
+from favorites import catchup
 
 catchup = catchup(provide_progress=True)
 
 import fcntl,os,time
 from itertools import count
 from mygi import Gtk, GLib, GdkPixbuf, Gdk, GObject
+import os
 
+here = os.path.dirname(__file__)
 
 print('loading UI')
-ui = Gtk.Builder.new_from_file(os.path.join(here,"parseui.xml"))			
+ui = Gtk.Builder.new_from_file(os.path.join(here,"ui.xml"))			
 progress = ui.get_object("progress")
 progress.set_name("progress")
 
@@ -61,6 +63,7 @@ t.start()
 	
 img = ui.get_object("image")
 def gotPiece(piece):
+	from favorites.dbqueue import enqueue
 	print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 	sys.stdout.flush()
 	enqueue(piece.strip())
@@ -78,7 +81,7 @@ win.set_title('parse')
 win.show_all()
 
 css = Gtk.CssProvider()
-css.load_from_path(os.path.join(here,"parseui.css"))
+css.load_from_path(os.path.join(here,"ui.css"))
 
 # get the default screen for the default display
 screen = Gdk.Screen.get_default()
@@ -95,4 +98,4 @@ else:
 
 import gtkclipboardy as clipboardy
 clipboardy(gotPiece,lambda piece: b'http' == piece[:4]).start()
-print('Okay!')
+print('Ready!')

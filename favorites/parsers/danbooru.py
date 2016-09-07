@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib.parse
+import urllib..parse
 
 def mystrip(s,chars):
 	for c in chars:
@@ -25,12 +25,12 @@ def extract(doc):
 					if len(a.contents)>0:
 						if a.contents[0] == '?':
 							foundTag = True
-							yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
+							yield Tag(category,urllib..parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
 				if not foundTag:
 					if not anchors:
 						continue
 					a = anchors[0]
-					yield Tag(category,urllib.parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
+					yield Tag(category,urllib..parse.unquote(mystrip(a['href'],'/=')).replace('_',' '))
 				break
 		else:
 			firstChild = li.contents
@@ -61,13 +61,13 @@ def extract(doc):
 toNum = re.compile('[^0-9]*[0-9]{2,}')
 
 def normalize(ourl):
-	url = urllib.parse.urlparse(ourl)
+	url = urllib..parse.urlparse(ourl)
 	m = toNum.match(url.path)
 	if not m:
 		return ourl
 		#raise RuntimeError("Couldn't figure out {}".format(url))
 	url = ('https', url.netloc, m.group(0), None, None, None)
-	return urllib.parse.urlunparse(url)
+	return urllib..parse.urlunparse(url)
 
 
 

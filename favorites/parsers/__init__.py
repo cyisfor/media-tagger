@@ -9,7 +9,7 @@ from . import weasyl
 from . import pixiv
 from . import flickr
 from . import zerochan
-from . import parseBase as parse
+from . import parse as parse
 
 import re
 

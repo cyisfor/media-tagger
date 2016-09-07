@@ -24,12 +24,12 @@ if __name__ == '__main__':
 	elif mode == 1:
 		import settitle
 		settitle.set('parse')
-		from catchup import Catchup
-		catchup = Catchup()
+		from favorites import catchup
+		catchup = catchup()
 		for line in sys.stdin:
 			enqueue(line.strip())
 			catchup.poke()
 		catchup.finish()
 	else:
 		import application
-		application('media.watcher','parse_ui')
+		application('media.watcher','launch.ui')

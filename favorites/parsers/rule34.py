@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib.parse
+import urllib..parse
 import urllib.request
 import setupurllib
 from bs4sux import BeautifulSoup
@@ -28,7 +28,7 @@ def deredirect(url):
             content = meta.get('content')
             print(content)
             time,href = urldiv.split(content.lower())
-            nextURL = urllib.parse.urljoin(url,href.strip('"\''))
+            nextURL = urllib..parse.urljoin(url,href.strip('"\''))
             break
         if not nextURL:
             return inp.url

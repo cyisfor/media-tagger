@@ -1,6 +1,6 @@
 from .things import *
 import re
-import urllib.parse
+import urllib..parse
 import urllib.request
 from bs4sux import BeautifulSoup
 from contextlib import closing
@@ -52,4 +52,4 @@ def extract(doc):
         tageq = href.find('tag=')
         if tageq > 0:
             yield Tag(None,
-                    urllib.parse.unquote(href[tageq+4:]))
+                    urllib..parse.unquote(href[tageq+4:]))

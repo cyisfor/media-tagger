@@ -18,9 +18,9 @@ import os
 import datetime
 from pprint import pprint
 
-try: from .things import *
+try: from .parsers.things import *
 except SystemError:
-	from things import *
+	from parsers.things import *
 
 finders = []
 
