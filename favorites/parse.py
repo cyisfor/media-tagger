@@ -2,20 +2,8 @@
 import sys
 import os
 
-myself = os.path.abspath(sys.modules[__name__].__file__)
-here = os.path.dirname(myself)
-
-if len(sys.argv)>1:
-	mode = 0
-elif 'stdin' in os.environ:
-	mode = 1
-else:
-	mode = 2
-	if not 'ferrets' in os.environ:
-		os.environ['ferrets'] = 'yep'
-		os.environ['name'] = 'parser'
-		os.execlp('daemonize',
-		          'daemonize',sys.executable,os.path.abspath(myself))
+import application
+application('media.watcher')
 
 import syspath
 import fixprint
@@ -64,8 +52,10 @@ def doparsethingy2():
 			progress.hide()
 			img.set_from_pixbuf(ready)
 			win.set_keep_above(False)
+			win.set_icon(ready)
 			return
 		win.set_keep_above(True)
+		win.set_icon(busy)
 		img.set_from_animation(busy)
 		progress.set_fraction(0)
 

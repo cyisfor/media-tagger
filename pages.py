@@ -205,7 +205,7 @@ def standardHead(title,*contents):
 		d.link(rel='stylesheet',type='text/css',href="/style/art.css"),
 		(d.link(rel='next',href=Links.next) if Links.next else ''),
 		(d.link(rel='prev',href=Links.prev) if Links.prev else ''),
-		d.script(src="navigation.js",type="text/javascript"),
+		d.script(src="/stuff/navigation.js",type="text/javascript"),
 
 		d.link(rel='alternate',
 		       type='application/json+oembed',
