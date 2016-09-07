@@ -1,4 +1,4 @@
-from .things import *
+from favorites.things import *
 import re
 import urllib.parse
 import urllib.request

@@ -1,5 +1,5 @@
-from ..parse import ParseError
-from .things import *
+from favorites.parse import ParseError
+from favorites.things import *
 import re
 import urllib.parse
 

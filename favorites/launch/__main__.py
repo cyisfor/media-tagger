@@ -19,9 +19,9 @@ def doparsethingy():
 		sys.stderr.flush()
 
 if __name__ == '__main__':
-	if mode == 0:
+	if len(sys.argv)>1:
 		enqueue(sys.argv[1])
-	elif mode == 1:
+	elif 'stdin' in os.environ:
 		import settitle
 		settitle.set('parse')
 		from favorites import catchup

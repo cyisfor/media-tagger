@@ -1,4 +1,4 @@
-from .things import Tag
+from favorites.things import Tag
 from . import danbooru
 from . import derpibooru
 from . import furaffinity
@@ -9,8 +9,7 @@ from . import weasyl
 from . import pixiv
 from . import flickr
 from . import zerochan
-from .. import parse
-register = parse.registerFinder
+from favorites.parse import ParseError, registerFinder as register
 
 import re
 

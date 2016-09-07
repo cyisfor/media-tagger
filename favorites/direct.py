@@ -3,7 +3,7 @@
 import time
 
 import syspath
-from favorites.parse.base import parse,ParseError
+from favorites.parse import parse,ParseError
 from favorites import parsers
 
 if __name__ == '__main__':

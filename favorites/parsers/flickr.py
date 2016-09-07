@@ -1,5 +1,5 @@
-from .things import Image,Tag,Source
-from ..parse import ParseError
+from favorites.things import Image,Tag,Source
+from favorites.parse import ParseError
 import os
 import re
 from contextlib import closing
