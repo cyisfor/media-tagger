@@ -140,3 +140,5 @@ if __name__ == '__main__':
 	# no subprocess here
 	instance = Catchupper()
 	while instance.squeak() is True: pass
+else:
+	sys.modules[__name__] = Catchup

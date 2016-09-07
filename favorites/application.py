@@ -4,7 +4,7 @@ def application(name,ui,activate=None):
 	from mygi import Gtk,Gio
 	app = Gtk.Application(name,Gio.ApplicationFlags.FLAGS_NONE)
 	def startup(app):
-		# change the meaning of import application for the ui module
+		# HAX: change the meaning of import application for the ui module
 		sys.modules[__name__] = app
 		__import__(ui)
 	app.connect('startup',startup)
