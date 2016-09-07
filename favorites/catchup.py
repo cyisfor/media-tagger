@@ -3,7 +3,7 @@ if __name__ == '__main__':
 	import sys,os
 	import syspath
 
-from favorites.parse import alreadyHere,parse
+from favorites.parse import alreadyHere,parse,ParseError
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host,remaining
 import db
@@ -18,7 +18,7 @@ from ctypes import c_bool
 PROGRESS, IDLE, COMPLETE = range(3)
 
 class Catchupper(Process):
-	def __init__(self,provide_progress):
+	def __init__(self,provide_progress=None):
 		super().__init__()
 		self.done = Value(c_bool,False)
 		self.provide_progress = provide_progress
@@ -27,6 +27,8 @@ class Catchupper(Process):
 	def send_progress(self,block,total):
 		self.q.put((PROGRESS,(block,total)))
 	def run(self):
+		import urllib.error
+
 		if self.provide_progress:
 			import setupurllib
 			setupurllib.progress = self.send_progress
@@ -48,6 +50,8 @@ class Catchupper(Process):
 		except SystemExit: pass
 		except KeyboardInterrupt: pass
 	def squeak(self,*a):
+		import urllib.error
+		import setupurllib
 		uri = top()
 		if uri is None:
 			print('none dobu')
@@ -61,35 +65,47 @@ class Catchupper(Process):
 				win(uri)
 				return True
 		try:
-			for attempts in range(2):
-				print("Parsing",uri)
-				try:
-					parse(uri)
-					win(uri)
-					break
-				except urllib.error.URLError as e:
-					print(e.headers)
-					print(e.getcode(),e.reason,e.geturl())
-					if e.getcode() == 404: raise ParseError('Not found')
-					time.sleep(3)
-			else:
-				print("Could not parse",uri)
-		except ParseError:
-			print('megafail')
-			megafail(uri)
-		except urllib.error.URLError as e:
-			if e.getcode() == 503:
+			try:
+				for attempts in range(2):
+					print("Parsing",uri)
+					try:
+						parse(uri)
+						win(uri)
+						break
+					except urllib.error.URLError as e:
+						print(e.headers)
+						print(e.getcode(),e.reason,e.geturl())
+						if e.getcode() == 404: raise ParseError('Not found')
+						time.sleep(3)
+				else:
+					print("Could not parse",uri)
+			except ParseError:
+				print('megafail')
+				raise SystemExit(23)
+				megafail(uri)
+			except setupurllib.URLError as e:
+				raise e.__cause__
+		except urllib.error.HTTPError as e:
+			print(type(e))
+			if e.code == 503:
 				print('site is bogged down! delaying a while')
 				delay(uri,'1 minute')
-			print('megafail error',e.getcode())
-			megafail(uri)
-		except urllib.error.HTTPError as e:
+			else:
+				print('megafail error',e.code)
+				raise SystemExit(23)
+				#megafail(uri)
 			if e.code == 400:
 				print('uhm, forbid?')
-			print(e,dir(e))
-			raise SystemExit(23)
+			time.sleep(1)
+		except urllib.error.URLError as e:
+			e = e.args[0]
+			if type(e) == ConnectionRefusedError:
+				raise SystemExit(23)
+				fail("connection refused")
+			print(e)
+			raise
 		except Exception as e:
-			print("fail",uri,e)
+			print("fail",uri,type(e))
 			raise SystemExit(23)
 			fail(uri)
 			if not ah:
@@ -140,6 +156,7 @@ class Catchup:
 
 if __name__ == '__main__':
 	# no subprocess here
+
 	instance = Catchupper()
 	while instance.squeak() is True: pass
 else:

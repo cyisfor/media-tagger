@@ -64,6 +64,7 @@ t.start()
 	
 img = ui.get_object("image")
 def gotPiece(piece):
+	import sys
 	from favorites.dbqueue import enqueue
 	print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 	sys.stdout.flush()
