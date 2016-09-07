@@ -2,7 +2,8 @@ import sys
 
 def application(name,ui,activate=None):
 	from mygi import Gtk,Gio
-	app = Gtk.Application(name,Gio.ApplicationFlags.FLAGS_NONE)
+	app = Gtk.Application(application_id=name,
+	                      flags=Gio.ApplicationFlags.FLAGS_NONE)
 	def startup(app):
 		# HAX: change the meaning of import application for the ui module
 		sys.modules[__name__] = app
@@ -10,6 +11,9 @@ def application(name,ui,activate=None):
 	app.connect('startup',startup)
 	if activate:
 		app.connect('activate',activate)
+	else:
+		def gtksucks(app): pass
+		app.connect('activate',gtksucks)
 	app.run(sys.argv)
 
-sys.modules[__NAME__] = application
+sys.modules[__name__] = application

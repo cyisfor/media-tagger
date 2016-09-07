@@ -20,12 +20,13 @@ def gui_progress(cur,total):
 
 processed = 0
 def set_remaining(remaining):
-	nonlocal processed
+	global processed
 	win.set_tooltip_text("%d→%d"%(remaining,processed))
 	processed += 1
 
 busy = GdkPixbuf.PixbufAnimation.new_from_file(
 	os.path.join(here,"sweetie_thinking.gif"))
+busystatic = busy.get_static_image()
 ready = GdkPixbuf.Pixbuf.new_from_file(
 	os.path.join(here, "squeetie.png"))
 win = ui.get_object("top")
@@ -39,7 +40,7 @@ def set_busy(is_busy=True):
 		win.set_icon(ready)
 		return
 	win.set_keep_above(True)
-	win.set_icon(busy)
+	win.set_icon(busystatic)
 	img.set_from_animation(busy)
 	progress.set_fraction(0)
 

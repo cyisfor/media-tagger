@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 if __name__ == '__main__':
 	import sys,os
-	sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+	import syspath
 
-from favorites.parse.base import alreadyHere,parse
+from favorites.parse import alreadyHere,parse
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host,remaining
 import db
@@ -28,6 +28,7 @@ class Catchupper(Process):
 		self.q.put((PROGRESS,(block,total)))
 	def run(self):
 		if self.provide_progress:
+			import setupurllib
 			setupurllib.progress = self.send_progress
 		db.reopen()
 		try:
@@ -55,6 +56,7 @@ class Catchupper(Process):
 		ah = alreadyHere(uri)
 		if ah:
 			print("WHEN I AM ALREADY HERE")
+			import os
 			if 'noupdate' in os.environ:
 				win(uri)
 				return True
@@ -141,4 +143,5 @@ if __name__ == '__main__':
 	instance = Catchupper()
 	while instance.squeak() is True: pass
 else:
+	import sys
 	sys.modules[__name__] = Catchup
