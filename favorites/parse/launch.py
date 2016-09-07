@@ -32,4 +32,4 @@ if __name__ == '__main__':
 		catchup.finish()
 	else:
 		import application
-		application('media.watcher','parse.ui')
+		application('media.watcher','parse_ui')

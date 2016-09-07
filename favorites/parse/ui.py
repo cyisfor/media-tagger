@@ -76,9 +76,6 @@ win.connect("button-release-event",seriouslyQuit)
 win.connect('destroy',Gtk.main_quit)
 win.set_title('parse')
 win.show_all()
-print('Okay!')
-
-
 
 css = Gtk.CssProvider()
 css.load_from_path(os.path.join(here,"parseui.css"))
@@ -90,7 +87,6 @@ screen = Gdk.Screen.get_default()
 styleContext = Gtk.StyleContext()
 styleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-
 try:
 	import application
 except ImportError: pass
@@ -99,3 +95,4 @@ else:
 
 import gtkclipboardy as clipboardy
 clipboardy(gotPiece,lambda piece: b'http' == piece[:4]).start()
+print('Okay!')

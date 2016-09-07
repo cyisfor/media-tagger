@@ -103,5 +103,5 @@ if __name__ == '__main__':
             try:
                 delete(findId(piece),reason)
             except ValueError: pass
-        try: clipboardy.run(gotPiece)
+        try: clipboardy(gotPiece).run()
         except KeyboardInterrupt: pass

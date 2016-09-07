@@ -14,7 +14,6 @@ def initBG():
 
 dually,background = makeWorker(initBG,foreground)
 
-import gtkclipboardy as clipboardy
 from mygi import Gtk,Gdk,GObject
 import sys
 window = Gtk.Window()
@@ -145,5 +144,6 @@ def gotURL(url):
 	comic.findInfo(c,
 				   lambda next: foreground(lambda: getinfo(next)),
 				   gotcomic)
-		
-clipboardy.run(gotURL,lambda piece: b'http' == piece[:4])
+
+import gtkclipboardy as clipboardy
+clipboardy(gotURL,lambda piece: b'http' == piece[:4]).run()

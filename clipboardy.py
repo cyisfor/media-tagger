@@ -32,6 +32,11 @@ def make(handler,check=None):
 			except Exception as e:
 				print("ERROR",e)
 				yield sleep(1)
-	return start,start
+	class Runner:
+		start = start
+		run = start
+		__call__ = start
+	return Runner
+
 import sys
 sys.modules[__name__] = make
