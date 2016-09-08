@@ -70,7 +70,7 @@ class User:
 	def setup(ident):
 		for go in range(2):
 			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate FROM uzers WHERE ident = $1",(ident,))
-			if result and len(result[0]) == 4:
+			if result and len(result[0]) == 5:
 				result = result[0]
 				User.ident = ident
 				User.id = result[0]

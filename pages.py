@@ -619,7 +619,14 @@ def user(info,path,params):
 	if not User.noComics:
 		iattr['checked'] = True
 	comicbox = d.input(iattr)
-	
+
+	iattr = {
+		'type': 'checkbox',
+		'name': 'navigate'
+	}
+	if User.navigate:
+		iattr['checked'] = True
+	navbox = d.input(iattr)
 	if User.defaultTags:
 		def makeResult():
 			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
@@ -645,6 +652,7 @@ def user(info,path,params):
 		d.ul(
 			d.li("Rescale Media? ",rescalebox),
 			d.li("Comic pages on main listing? ",comicbox),
+			d.li("Navigate prev/next by hitting left/right? ",navbox,title="(This requires javascript!)"),
 			d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
 			d.li(d.input(type="submit",value="Submit"))),
 		action=place+'/~user/',
