@@ -1,3 +1,4 @@
+import syspath
 from db import c
 import os
 
