@@ -49,7 +49,8 @@ def wrappit(s):
 
 def quote(s):
 	try:
-		return derp(s).replace('/','%2f')
+		# sigh...
+		return derp(s).replace('/','%2f').replace('%3A',':')
 	except:
 		print(repr(s))
 		raise
