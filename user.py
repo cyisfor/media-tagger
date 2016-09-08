@@ -29,7 +29,11 @@ class VersionHolder:
 	@v(version=4)
 	def noComics():
 		"Users might not want to see spammy comics in the listing?"
-		db.setup("ALTER TABLE uzers ADD COLUMN noComics BOOLEAN DEFAULT TRUE");
+		db.setup("ALTER TABLE uzers ADD COLUMN noComics BOOLEAN NOT NULL DEFAULT TRUE");
+	@v(version=5)
+	def jsnavigate():
+		"Users might want to navigate prev/next just by hitting left and right."
+		db.setup("ALTER TABLE uzers ADD COLUMN navigate BOOLEAN NOT NULL DEFAULT FALSE")
 		
 v.setup()
 
@@ -46,6 +50,7 @@ class User:
 	rescaleImages = False
 	defaultTags = None
 	noComics = True
+	navigate = False
 	def tags():
 		if User.defaultTags:
 			return dtags
@@ -64,7 +69,7 @@ class User:
 		return '<user '+User.ident+'>'
 	def setup(ident):
 		for go in range(2):
-			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics FROM uzers WHERE ident = $1",(ident,))
+			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate FROM uzers WHERE ident = $1",(ident,))
 			if result and len(result[0]) == 4:
 				result = result[0]
 				User.ident = ident
@@ -72,6 +77,7 @@ class User:
 				User.rescaleImages = result[1]
 				User.defaultTags = result[2]
 				User.noComics = result[3]
+				User.navigate = result[4]
 				return
 			db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
 		raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")

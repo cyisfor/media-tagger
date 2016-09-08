@@ -3,6 +3,8 @@ if __name__ == '__main__':
 	import sys,os
 	import syspath
 
+import note
+	
 from favorites.parse import alreadyHere,parse,ParseError
 from favorites import parsers
 from dbqueue import top,fail,win,megafail,delay,host,remaining
@@ -73,8 +75,8 @@ class Catchupper(Process):
 						win(uri)
 						break
 					except urllib.error.URLError as e:
-						print(e.headers)
-						print(e.getcode(),e.reason,e.geturl())
+						note(e.headers)
+						note(e.getcode(),e.reason,e.geturl())
 						if e.getcode() == 404: raise ParseError('Not found')
 						time.sleep(3)
 				else:
@@ -86,7 +88,7 @@ class Catchupper(Process):
 			except setupurllib.URLError as e:
 				raise e.__cause__
 		except urllib.error.HTTPError as e:
-			print(type(e))
+			note(type(e))
 			if e.code == 503:
 				print('site is bogged down! delaying a while')
 				delay(uri,'1 minute')
@@ -100,18 +102,14 @@ class Catchupper(Process):
 		except urllib.error.URLError as e:
 			e = e.args[0]
 			if type(e) == ConnectionRefusedError:
-				raise SystemExit(23)
-				fail("connection refused")
+				note('connection refused')
+				fail(uri)
+				return True
 			print(e)
 			raise
 		except Exception as e:
-			print("fail",uri,type(e))
-			raise SystemExit(23)
-			fail(uri)
-			if not ah:
-				import traceback,sys
-				traceback.print_exc(file=sys.stdout)
-				time.sleep(1)
+			print("huh?",uri,type(e))
+			raise
 		return True
 
 
