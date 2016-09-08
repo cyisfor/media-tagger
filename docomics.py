@@ -9,7 +9,7 @@ foreground = GLib.idle_add
 
 def initBG():
 	import comic,db
-	from favorites.parseBase import parse, ParseError, normalize
+	from favorites.parse import parse, ParseError, normalize
 	import favorites.parsers # side effects galore!
 
 dually,background = makeWorker(initBG,foreground)
@@ -77,7 +77,7 @@ def gotURL(url):
 	yield background
 	print("Trying {}".format(url))
 	sys.stdout.flush()
-	from favorites.parseBase import parse,normalize,ParseError
+	from favorites.parse import parse,normalize,ParseError
 	try:
 		m = parse(normalize(url),noCreate=True)
 		if not m:
@@ -147,3 +147,6 @@ def gotURL(url):
 
 import gtkclipboardy as clipboardy
 clipboardy(gotURL,lambda piece: b'http' == piece[:4]).run()
+
+import expire_queries
+expire_queries()
