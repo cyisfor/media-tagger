@@ -50,10 +50,11 @@ void wait_then_restart_lackey(uv_process_t *req,
 															int64_t exit_status,
 															int term_signal) {
 	struct lackey* self = (struct lackey*)req;
-	record(INFO,"worker %d (%d) died %d",
+	record(INFO,"worker %d (%d) died (exit %d sig %d)",
 				 req->pid,
 				 self->which,
-				 exit_status);
+				 exit_status,
+				 term_signal);
 	uv_close((uv_handle_t*)req,lackey_closed);
 }
 

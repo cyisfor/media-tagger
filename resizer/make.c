@@ -46,7 +46,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
       int pid = fork();
       if(pid==0) {
           close(0);
-					execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
+					execlp("ffmpeg","ffmpeg","-y","-ss","00:00:04",
                  "-loglevel","warning",
 								 "-i",source,
 								 "-s","190x190","-f","image2",

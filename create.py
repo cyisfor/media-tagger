@@ -1,3 +1,6 @@
+import faulthandler,signal
+faulthandler.register(signal.SIGUSR1)
+
 from locks import processLocked
 import db
 from versions import Versioner
