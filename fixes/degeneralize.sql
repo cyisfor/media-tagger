@@ -1,23 +1,25 @@
 --DROP function degen1(_general bigint, _name text, _genrefs int);
 --DROP function fixstuff();
 
-create or replace function degen2() returns void language plpgsql as $$
+create or replace function degen2(_interval interval) returns void language plpgsql as $$
 DECLARE
 _genrefs int;
 _general bigint;
 _name text;
+_shortname text;
 _ungenrefs int;
 _ungen bigint;
 _start timestamptz;
 BEGIN
-	FOR _general,_name,_genrefs IN SELECT things.id,name,refs FROM tags inner join things on tags.id = things.id WHERE name LIKE 'general:%' ORDER BY refs ASC LOOP
+	FOR _general,_name,_genrefs IN SELECT things.id,name,refs FROM tags inner join things on tags.id = things.id WHERE name LIKE 'general:%' ORDER BY refs DESC LOOP
 		IF clock_timestamp()-current_timestamp > '1 minute'::interval THEN
 		   RETURN;
 		 END IF;
 		 
 		_start := clock_timestamp();
-		RAISE NOTICE 'name % %',_name,_genrefs;
-		_ungen := findTag(substring(_name FROM length('general:')+1));
+		_shortname := substring(_name FROM length('general:')+1);
+		_ungen := findTag(_shortname);
+		RAISE NOTICE 'name % % %',_name,_genrefs,_ungen;
 
 		-- ref update triggers disabled for speed
 		UPDATE things SET  refs = refs + _genrefs, neighbors = array(SELECT DISTINCT unnest(array_cat(neighbors,(SELECT neighbors FROM things WHERE id = _general)))) WHERE id = _ungen RETURNING refs INTO _ungenrefs;
@@ -34,11 +36,11 @@ BEGIN
 END;
 $$;
 
-create or replace function degeneralize() returns void language plpgsql as $$
+create or replace function degeneralize(_interval interval DEFAULT '1 minute'::interval) returns void language plpgsql as $$
 BEGIN
 	LOCK TABLE things IN ACCESS EXCLUSIVE MODE;
 	ALTER TABLE things DISABLE TRIGGER ALL;
-	PERFORM degen2();
+	PERFORM degen2(_interval);
 	ALTER TABLE things ENABLE TRIGGER ALL;
 END;
 $$;

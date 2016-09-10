@@ -48,7 +48,10 @@ int make_thumbnail(context* ctx, uint32_t id) {
           close(0);
 					execlp("ffmpeg","ffmpeg","-y","-t","00:00:04",
                  "-loglevel","warning",
-                 "-i",source,"-s","190x190","-f","image2",dest,NULL);
+								 "-i",source,
+								 "-s","190x190","-f","image2",
+								 "-frames","1",
+								 dest,NULL);
       }
       int status;
       waitpid(pid,&status,0);

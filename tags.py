@@ -220,5 +220,5 @@ if __name__ == '__main__':
         window.show_all()
         import signal
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        clipboardy.run(gotPiece, lambda b: gobutton.get_active())
+        clipboardy(gotPiece, lambda b: gobutton.get_active()).run()
 
