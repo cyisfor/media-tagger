@@ -63,7 +63,8 @@ def parse(primarySource,noCreate=False):
 	url = urllib.parse.urlparse(primarySource)
 	doc = None
 	for name,matcher,handlers in finders:
-		if not matcher(url): continue
+		if not matcher(url):
+			continue
 		
 		if 'normalize' in handlers:
 			normalize = handlers['normalize']

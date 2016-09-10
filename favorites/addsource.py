@@ -6,15 +6,10 @@ url = input("URL: ")
 
 import syspath
 import db
-from favorites.parse import finders, parse
-
-for name, matcher, handlers in finders:
-	if not matcher(url): continue
-	
-	if 'normalize' in handlers:
-		url = handlers['normalize'](url)
-		print("Normalized URL",url);
-	break
+from favorites.parse import normalize, parse
+from favorites import parsers as _
+url = normalize(url)
+print("Normalized URL",url);
 
 db.execute("SELECT addsource($1::bigint,$2::text)",(ident,url))
 

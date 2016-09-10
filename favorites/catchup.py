@@ -7,7 +7,7 @@ import note
 	
 from favorites.parse import alreadyHere,parse,ParseError
 from favorites import parsers
-from dbqueue import top,fail,win,megafail,delay,host,remaining
+from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
 import db
 
 from multiprocessing import Process, Condition, Value, Event, Queue
