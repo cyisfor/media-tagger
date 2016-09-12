@@ -43,7 +43,8 @@ space = re.compile('[ \t]+')
 if not 'skipcookies' in os.environ:
 	# this can take a while...
 	import mycookiejar
-	mycookiejar.setup(db)
+	from http.cookiejar import Cookie
+	mycookiejar.setup(oj(top,"temp"))
 	jar = mycookiejar.Jar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 
@@ -70,11 +71,13 @@ if not 'skipcookies' in os.environ:
 
 	@fileProcessor
 	def get_cookies(ff_cookies):
+		import sqlite3
 		with closing(sqlite3.connect(ff_cookies)) as con:
 			cur = con.cursor()
-			cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
+			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies")
 			for item in cur.fetchall():
-				yield cookiejar.Cookie(0, item[4], item[5],
+				jar.creationTime = item[-1]
+				yield Cookie(0, item[4], item[5],
 					None, False,
 					item[0], item[0].startswith('.'), item[0].startswith('.'),
 					item[1], False,
@@ -84,7 +87,7 @@ if not 'skipcookies' in os.environ:
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-		return cookiejar.Cookie(
+		return Cookie(
 			0, name, value,
 			None, False,
 			host, host.startswith('.'), host.startswith('.'),
@@ -100,7 +103,7 @@ if not 'skipcookies' in os.environ:
 		except KeyError:
 			return
 		note.yellow('json cookie value',c['name'],c['value'])
-		return cookiejar.Cookie(
+		return Cookie(
 			0, c['name'], c['value'],
 			None, False,
 			host, host.startswith('.'), host.startswith('.'),

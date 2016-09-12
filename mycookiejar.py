@@ -6,7 +6,6 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-
 from orm import create_table,column,references,make_selins
 
 class Tables:
@@ -54,7 +53,7 @@ def splitdict(d):
 	k = tuple(e[0] for e in k)
 	return k,v
 
-def update(self,domain,path,name,value,creationTime,**attrs):
+def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	attrs['value'] = value
 	attrs = splitdict(attrs)
@@ -95,8 +94,6 @@ def cookies_for_request(self,urlid,**values):
 		+"".join(" AND " + name + " = ?"+str(i+2) for i,name in enumerate(extra_names)),
 		(urlid)+extra_values)
 
-class Cookie(int): pass
-
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
@@ -125,9 +122,6 @@ class Jar(cookiejar.CookieJar):
 		for n in dir(cookie):
 			v = getattr(cookie,n)
 			herderp[n] = v
-		update(name=cookie.name,
-					 value=cookie.value,
-					 port=cookie.port,
-		       creationTime=creationTime,
+		update(creationTime=creationTime,
 					 **herderp)
 
