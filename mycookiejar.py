@@ -7,25 +7,25 @@ except ImportError:
 	import cookielib as cookiejar
 
 
-from orm import CreateTable,Column,References
+from orm import create_table,column,references
 
 class Tables:
-	domains = CreateTable(
+	domains = create_table(
 		"domains",
-		Column("domain","TEXT","UNIQUE"))
-	urls = CreateTable(
+		column("domain","TEXT","UNIQUE"))
+	urls = create_table(
 		"urls",
-		Column("domain",References("domains")),
-		Column("path","TEXT"),
+		column("domain",references("domains")),
+		column("path","TEXT"),
 		"UNIQUE(domain,path)")
 	cookies = CreateTable(
 		"cookies",
-		Column("url",References("urls")),
-		Column("name","TEXT"),
-		Column("value","TEXT"),
-		Column("port","INTEGER","DEFAULT 0"),
-		Column("port_specified","BOOLEAN"),
-		Column("secure","BOOLEAN"))
+		column("url",references("urls")),
+		column("name","TEXT"),
+		column("value","TEXT"),
+		column("port","INTEGER","DEFAULT 0"),
+		column("port_specified","BOOLEAN"),
+		column("secure","BOOLEAN"))
 
 db = None
 def setup(place,name="cookies.sqlite"):

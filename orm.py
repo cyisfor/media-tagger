@@ -115,47 +115,40 @@ def initf(*required,**defaults):
 				setattr(self,n,v)
 	return func
 	
-class CreateTable(SQL):
-	__init__ = initf('name','*columns',temp=False,tail=None,idname='id')
-	def sql(self):
-		s = 'CREATE '
-		if self.temp:
-			s += 'TEMPORARY '
-		s += 'TABLE IF NOT EXISTS ' + encode(self.name) + '(\n'
-		if self.idname:
-			s += encode(self.idname)+" INTEGER PRIMARY KEY,\n"
-			s += ',\n\t'.join(encode(column) for column in self.columns)
-		s += ')\n'
-		if self.tail is not None:
-			s += self.tail
-		return s
+def create_table(name,*columns,temp=False,tail=None,idname='id'):
+	s = 'CREATE '
+	if self.temp:
+		s += 'TEMPORARY '
+	s += 'TABLE IF NOT EXISTS ' + encode(self.name) + '(\n'
+	if self.idname:
+		s += encode(self.idname)+" INTEGER PRIMARY KEY,\n"
+		s += ',\n\t'.join(encode(column) for column in self.columns)
+	s += ')\n'
+	if self.tail is not None:
+		s += self.tail
+	return s
 
-class Column(SQL):
-	__init__ = initf('name','type','*constraints',notNull=True)
-	def sql(self):
-		print(self.constraints)
-		ret = encode(self.name, self.type) + encode(self.constraints)
-		if self.notNull:
-			ret += " NOT NULL"
-		return ret
+def column(name,type,*constraints,notNull=True):
+	print(self.name,self.type)
+	ret = encode((self.name, self.type))
+	ret += encode(self.constraints)
+	if self.notNull:
+		ret += " NOT NULL"
+	return ret
 
-class Constraint(SQL): pass
-
-class References(Constraint):
-	__init__ = initf('table','*columns',cascade=True,default=None)
-	def sql(self):
-		s = 'REFERENCES '+encode(self.table)
-		if not self.columns:
-			s += '(id)'
-		else:
-			columns = (encode(column) for column in self.columns)
-			s += '(' + ','.join(columns) + ')'
-		if self.default is not None:
-			s += ' DEFAULT '+encode(self.default)
-		if self.cascade is True:
-			s += ' ON DELETE CASCADE ON UPDATE CASCADE'
-		elif self.cascade == 'restrict':
-			s += ' ON DELETE RESTRICT ON UPDATE RESTRICT'
+def references(table,*columns,cascade=True,default=None):
+	s = 'REFERENCES '+encode(self.table)
+	if not self.columns:
+		s += '(id)'
+	else:
+		columns = (encode(column) for column in self.columns)
+		s += '(' + ','.join(columns) + ')'
+	if self.default is not None:
+		s += ' DEFAULT '+encode(self.default)
+	if self.cascade is True:
+		s += ' ON DELETE CASCADE ON UPDATE CASCADE'
+	elif self.cascade == 'restrict':
+		s += ' ON DELETE RESTRICT ON UPDATE RESTRICT'
 
 @complex
 class Select(SQL):
