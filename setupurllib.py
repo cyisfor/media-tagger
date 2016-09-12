@@ -43,77 +43,17 @@ space = re.compile('[ \t]+')
 if not 'skipcookies' in os.environ:
 	# this can take a while...
 	import mycookiejar
-
-	class myjar(cookiejar.CookieJar):
-		def _cookies_for_request(self, request):
-			cookies = super()._cookies_for_request(request)
-			note("Cookies for",request.get_full_url(),cookies)
-			return cookies
-		def set_cookie(self, cookie):
-			# sigh, have to redo this entirely
-			c = self._cookies
-			need = 0
-			self._cookies_lock.acquire()
-			try:
-				if cookie.domain not in c:
-					c[cookie.domain] = {
-						cookie.path: {
-							cookie.name: cookie
-						}
-					}
-					return
-				c2 = c[cookie.domain]
-				if cookie.path not in c2:
-					c2[cookie.path] = {
-						cookie.name: cookie
-					}
-					return
-				c3 = c2[cookie.path]
-				if cookie.name not in c3:
-					c3[cookie.name] = cookie
-					return
-				old = c3[cookie.name]
-				if left_is_older(old,cookie):
-					c3[cookie.name] = old
-				# okay, we need to compare now
-			
-			finally:
-				self._cookies_lock.release()
-
-	jar = myjar()
+	mycookiejar.setup(db)
+	jar = mycookiejar.Jar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
-	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
-	fields = [f.strip() for f in fields]
-	def typefield():
-		for f in fields:
-			if f in {'port_specified',
-					 'domain_specified',
-					 'domain_initial_dot',
-					 'path_specified',
-					 'discard'}:
-				yield f + ' BOOLEAN';
-			else:
-				yield f + ' TEXT';
 
-	import sqlite3
 	import json
 				
-	with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
-		db.execute('CREATE TABLE IF NOT EXISTS cookies ('+',\n'.join(typefield())+'\n)')
-		with closing(db.cursor()) as c:
-			c.execute('SELECT '+','.join(fields)+' FROM cookies');
-			for row in c:
-				jar.set_cookie(cookiejar.Cookie(*row))
-			for cookie in jar:
-				c.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
-						   ','.join('?' for f in fields) + ')',
-						  tuple(getattr(cookie,f) for f in fields))	
-		
 	def fileProcessor(f):
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
-			jar.mtime = os.stat(path).st_mtime
+			jar.creationTime = os.stat(path).st_mtime
 			for c in f(path):
 				jar.set_cookie(c)
 		return wrapper

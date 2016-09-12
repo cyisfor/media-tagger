@@ -118,18 +118,16 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
-	def set_cookie(self,cookie,creationTime):
-		class herderp:
-			def __getitem__(self,name):
-				return getattr(cookie,name)
-			def __iter__(self):
-				return dir(cookie)
-		herderp = herderp()
+	def set_cookie(self,cookie,creationTime=None):
+		if creationTime is None:
+			creationTime = self.creationTime
+		herderp = dict()
+		for n in dir(cookie):
+			v = getattr(cookie,n)
+			herderp[n] = v
 		update(name=cookie.name,
 					 value=cookie.value,
 					 port=cookie.port,
 		       creationTime=creationTime,
 					 **herderp)
 
-import sys
-sys.modules[__name__] = Jar()
