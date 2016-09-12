@@ -17,6 +17,7 @@ class Tables:
 		column("url",references("urls")),
 		column("name","TEXT"),
 		column("value","TEXT"),
+		column("expires","REAL"),
 		column("port","INTEGER",notNull=False),
 		column("port_specified","BOOLEAN"),
 		column("lastAccessed","REAL"),

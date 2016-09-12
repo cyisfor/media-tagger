@@ -79,16 +79,21 @@ if not 'skipcookies' in os.environ:
 			# remember mozilla stores creationTime in microseconds
 			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies")
 			for item in cur.fetchall():
-				yield Cookie(0, item[4], item[5],
+				host,path,isSecure,expiry,name,value,creationTime = item
+				if expiry > jar.now():
+					continue
+				yield Cookie(0, name, value,
 					None, False,
-					item[0], item[0].startswith('.'), item[0].startswith('.'),
-					item[1], False,
-					item[2],
-					item[3], item[3]=="",
-					None, None, {}),item[6]/1000000.0
+					host, host.startswith('.'), host.startswith('.'),
+					path, False,
+					isSecure,
+					expiry, False,
+					None, None, {}), creationTime/1000000.0
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
+		if expiry > jar.now():
+			return None
 		return Cookie(
 			0, name, value,
 			None, False,
@@ -103,6 +108,8 @@ if not 'skipcookies' in os.environ:
 			c = json.loads(line)
 			host = c['host']
 		except KeyError:
+			return
+		if c['expires'] > jar.now():
 			return
 		note.yellow('json cookie value',c['name'],c['value'])
 		return Cookie(

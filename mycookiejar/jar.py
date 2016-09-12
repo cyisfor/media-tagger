@@ -104,14 +104,15 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
-	def clear_expired_cookies(self, request):
+	def clear_expired_cookies(self, request = None):
 		urls = "SELECT url FROM cookies WHERE expires > ?"
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"
 		currentTime = now()
 		with db:
 			r = execute("DELETE FROM cookies WHERE expires > ?",
-			            currentTime)
-			print("deleted",r.rowcount)
+			            (currentTime,))
+			print("expired",r.rowcount,"cookies")
+			time.sleep(1)
 			execute("DELETE FROM urls WHERE id IN (" + urls + ")")
 			execute("DELETE FROM domains WHERE id IN (" + domains + ")")
 	def set_cookie(self,cookie,creationTime):
