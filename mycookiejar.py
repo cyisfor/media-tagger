@@ -6,9 +6,19 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
+
+from orm import CreateTable,Column
+
+table = CreateTable(
+	"domains",
+  Column("                 
+
 def make(place,name="cookies.sqlite"):
 	db = sqlite3.connect(oj(place,name))
-	fields = ['name','value','host','path',
+	fields = ['version','name','value',
+	          'port','port_specified',
+	          'url',
+	          'secure',
 	          'expires','isSecure','isHttpOnly']
 	infields = {'isSecure': 'secure',
 	            'maxAge': 'max-age', # eh...
@@ -43,7 +53,9 @@ def make(place,name="cookies.sqlite"):
 	class Cookie(int): pass
 	
 	class Jar(cookiejar.CookieJar):
-		
+		def __init__(self, args):
+			"docstring"
+			
 		def _cookies_for_domain(self, baseDomain, request):
 			for urlid,path in db.execute(
 					"SELECT id,path FROM urls WHERE baseDomain = ?1",
@@ -62,8 +74,9 @@ def make(place,name="cookies.sqlite"):
 			return tuple(self.__cookies_for_request(request))
 		
 		def set_cookie(self,cookie):
-			update(name=cookie.key,
+			update(name=cookie.name,
 			       value=cookie.value,
+			       port=cookie.port,
 			       **cookie)
 
 	return Jar()
