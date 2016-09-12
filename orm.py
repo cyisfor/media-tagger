@@ -1,3 +1,6 @@
+# there is one reason, and one reason alone for writing an ORM
+# to reduce copy and paste code repetition
+
 # this is probably a horrible idea
 
 from functools import wraps
@@ -87,53 +90,26 @@ class With(SQL):
 		add(self.clauses)
 		return 'WITH\n'+',\n'.join(encode(clause) for clause in clauses) + '\n'+encode(self.body)
 
-def initf(*required,**defaults):
-	"Build an init function, counting required arguments (until the * one) then taking keyword arguments passed as defaults for init. Then set attributes according to what the arguments were."
-	if required:
-		lastreq = required[-1]
-		if lastreq.startswith('*'):
-			takeRest = True
-			lastreq = lastreq[1:]
-		required = required[:-1]
-		lasti = len(required)
-	else:
-		lastreq = None
-	def func(self,*a,**kw):
-		for i,n in enumerate(required):
-			setattr(self,n,a[i])
-		if lastreq:
-			if takeRest:
-				v = a[lasti:]
-			else:
-				assert(len(a) == lasti + 1)
-				v = a[lasti]
-			setattr(self,lastreq,v)		
-		for n,v in kw.items():
-			setattr(self,n,v)
-		for n,v in defaults.items():
-			if not hasattr(self,n):
-				setattr(self,n,v)
-	return func
-	
 def create_table(name,*columns,temp=False,tail=None,idname='id'):
 	s = 'CREATE '
 	if temp:
 		s += 'TEMPORARY '
 	s += 'TABLE IF NOT EXISTS ' + encode(name) + '(\n'
 	if idname:
-		s += encode(idname)+" INTEGER PRIMARY KEY,\n"
-		s += ',\n\t'.join(encode(column) for column in columns)
+		s += encode(idname)+" INTEGER PRIMARY KEY,\n "
+		s += ',\n '.join(encode(column) for column in columns)
 	s += ')\n'
 	if tail is not None:
 		s += tail
 	return s
 
 def column(name,type,*constraints,notNull=True):
-	if type.startsWith("REFERENCES"):
+	if type.startswith("REFERENCES"):
 		constraints = (type,) + constraints
 		type = "INTEGER"
 	ret = encode((name, type))
-	ret += encode(constraints)
+	if constraints:
+		ret += " " + encode(constraints)
 	if notNull:
 		ret += " NOT NULL"
 	return ret
@@ -151,6 +127,7 @@ def references(table,*columns,cascade=True,default=None):
 		s += ' ON DELETE CASCADE ON UPDATE CASCADE'
 	elif cascade == 'restrict':
 		s += ' ON DELETE RESTRICT ON UPDATE RESTRICT'
+	return s
 
 @complex
 class Select(SQL):

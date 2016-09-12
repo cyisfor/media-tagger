@@ -18,7 +18,7 @@ class Tables:
 		column("domain",references("domains")),
 		column("path","TEXT"),
 		"UNIQUE(domain,path)")
-	cookies = CreateTable(
+	cookies = create_table(
 		"cookies",
 		column("url",references("urls")),
 		column("name","TEXT"),
@@ -30,10 +30,11 @@ class Tables:
 db = None
 def setup(place,name="cookies.sqlite"):
 	global db
+	import sqlite3
 	db = sqlite3.connect(oj(place,name))
-	db.setup(Tables.domains,
-	         Tables.urls,
-	         Tables.cookies)
+	db.execute(Tables.domains)
+	db.execute(Tables.urls)
+	db.execute(Tables.cookies)
 
 def selins(name,*uniques):
 	def provide_inserter(inserter=None):
@@ -134,4 +135,4 @@ class Jar(cookiejar.CookieJar):
 					 port=cookie.port,
 					 **cookie)
 
-print(Tables.cookies)
+setup(".")
