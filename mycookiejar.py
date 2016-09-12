@@ -29,18 +29,23 @@ def make(place,name="cookies.sqlite"):
 					+ ",".join("?"+str(i+2) for i in range(len(fields)))
 					+ ")",
 					(time.time(),) + values)
-	def cookies_for_request(self,baseDomain,**values):
+	def cookies_for_request(self,urlid,**values):
 		extra_names = tuple(values.keys())
 		extra_values = tuple(values[n] for n in extra_names)
 		return db.execute(
-			"SELECT id FROM cookies WHERE baseDomain = ?1"
+			"SELECT id FROM cookies WHERE path = ?1"
 			+"".join(" AND " + name + " = ?"+str(i+2) for i,name in enumerate(extra_names)),
-			(baseDomain,path,name)+extra_values)
+			(urlid)+extra_values)
 
 	class Jar(cookiejar.CookieJar):
 		def _cookies_for_domain(self, baseDomain, request):
-			for path in db.execute("SELECT id FROM cookies WHERE baseDomain = ?1",
-			                       baseDomain):
+			for urlid,path in db.execute(
+					"SELECT id,path FROM urls WHERE baseDomain = ?1",
+					baseDomain):
 				if not self._policy.path_return_ok(path, request): continue
-				for cookie in cookies_for_request(
-				if not self._policy.return_ok(cookie, 
+				for cookie in db.execute("SELECT id FROM cookies WHERE path = ?",
+				                         (urlid,)):
+					if not self._policy.return_ok(cookie, request): continue
+					yield cookie
+
+	return Jar()
