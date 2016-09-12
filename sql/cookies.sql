@@ -16,3 +16,4 @@ CREATE TABLE IF NOT EXISTS cookies (
  path));
 
 CREATE INDEX basedomain ON cookies (baseDomain);
+CREATE INDEX basedomain ON cookies (baseDomain,path);
