@@ -22,7 +22,8 @@ class Tables:
 		column("port_specified","BOOLEAN"),
 		column("lastAccessed","REAL"),
 		column("creationTime","REAL"),
-		column("secure","BOOLEAN"))
+		column("secure","BOOLEAN"),
+		"UNIQUE(url,name)")
 
 def setup(place,name="cookies.sqlite",policy=None):
 	from mycookiejar import jar
@@ -35,6 +36,8 @@ def setup(place,name="cookies.sqlite",policy=None):
 	jar.db.execute(Tables.domains)
 	jar.db.execute(Tables.urls)
 	jar.db.execute(Tables.cookies)
+	jar.db.execute("CREATE INDEX byexpires ON cookies(expires)")
+
 	selins = make_selins(jar.db)
 
 	jar.findDomain = selins("domains","domain")()
@@ -49,7 +52,6 @@ def setup(place,name="cookies.sqlite",policy=None):
 		return ("UPDATE cookies SET "
 				+ ",".join(n+" = ?"+str(i+off) for i,n in enumerate(jar.extra_fields))
 				+ ", lastAccessed = ?1")
-	jar.update_stmt = updoot(4) + "\n WHERE url = ?2 AND name = ?3"
 	jar.update_id_stmt = updoot(3) + "\n WHERE id = ?2"
 
 	

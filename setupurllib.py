@@ -132,14 +132,6 @@ if not 'skipcookies' in os.environ:
 
 	jar.clear_expired_cookies()
 
-	with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
-		for cookie in jar:
-			stmt = 'INSERT INTO cookies ('+','.join(fields)+') VALUES ('+ ','.join('?' for f in fields)+')'
-			args = tuple(getattr(cookie,f) for f in fields)
-			#print(stmt,tuple(enumerate(args)))
-			db.execute(stmt,args)
-					   
-
 class HeaderWatcher(urllib.HTTPHandler):
 	class Client(http.HTTPConnection):
 		def request(self,method,selector,data,headers):

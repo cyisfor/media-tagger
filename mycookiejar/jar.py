@@ -12,7 +12,6 @@ findURL = None
 cookieGetter = None
 extra_fields = None
 update_id_stmt = None
-update_stmt = None
 
 importing = False
 
@@ -68,29 +67,23 @@ def update(domain,path,name,value,creationTime,**attrs):
 			# it got deleted?
 			doinsert()
 
-def cookies_for_request(self,urlid,**values):
-	extra_names = tuple(values.keys())
-	extra_values = tuple(values[n] for n in extra_names)
-	return execute(
-		"SELECT id FROM cookies WHERE path = ?1"
-		+"".join(" AND " + name + " = ?"+str(i+2) for i,name in enumerate(extra_names)),
-		(urlid)+extra_values)
-
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
 		del self._cookies # just to keep us honest
 	def __enter__(self):
-		print('starting transaction')
+		if verbose:
+			print('starting transaction')
 		return db.__enter__()
 	def __exit__(self,*a):
-		print('committing')
+		if verbose:
+			print('committing')
 		return db.__exit__(*a)
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
 	def _cookies_for_domain(self, baseDomain, request):
 		for urlid,path in execute(
-				"SELECT id,path FROM urls WHERE baseDomain = ?1",
+				"SELECT id,path FROM urls WHERE domain = ?1",
 				baseDomain):
 			if not self._policy.path_return_ok(path, request): continue
 			for cookie in execute("SELECT id FROM cookies WHERE path = ?",
@@ -99,7 +92,7 @@ class Jar(cookiejar.CookieJar):
 				yield Cookie(cookie)
 	def __cookies_for_request(self, request):
 		for baseDomain,domain in execute("SELECT id,domain FROM domains"):
-			if not self._policy.domain_return_ok(domain, request): continue
+			if not self._policy.domain_return_ok(baseDomain, request): continue
 			yield from self._cookies_for_domain(baseDomain,request)
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
@@ -113,8 +106,10 @@ class Jar(cookiejar.CookieJar):
 			            (currentTime,))
 			print("expired",r.rowcount,"cookies")
 			time.sleep(1)
-			execute("DELETE FROM urls WHERE id IN (" + urls + ")")
-			execute("DELETE FROM domains WHERE id IN (" + domains + ")")
+			execute("DELETE FROM urls WHERE id IN (" + urls + ")",
+			(currentTime,))
+			execute("DELETE FROM domains WHERE id IN (" + domains + ")",
+			(currentTime,))
 	def set_cookie(self,cookie,creationTime):
 		herderp = dict()
 		for n in dir(cookie):
