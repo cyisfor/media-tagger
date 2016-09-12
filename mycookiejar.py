@@ -58,7 +58,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 	attrs['value'] = value
 	attrs = splitdict(attrs)
 	with db:
-		url,created = findURL(findDomain(domain),path)
+		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
 			db.execute(
 				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
@@ -71,7 +71,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 			doinsert()
 			return
 		
-		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?")
+		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
 		if r:
 			ident,oldcreation = r[0]
 			if oldcreation < creationTime:
@@ -120,6 +120,7 @@ class Jar(cookiejar.CookieJar):
 			creationTime = self.creationTime
 		herderp = dict()
 		for n in dir(cookie):
+			if n.startswith('_'): continue
 			v = getattr(cookie,n)
 			herderp[n] = v
 		update(creationTime=creationTime,
