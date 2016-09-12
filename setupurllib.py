@@ -77,7 +77,7 @@ if not 'skipcookies' in os.environ:
 		with closing(sqlite3.connect(ff_cookies)) as con:
 			cur = con.cursor()
 			# remember mozilla stores creationTime in microseconds
-			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies")
+			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies ORDER BY host, path, name")
 			for item in cur.fetchall():
 				host,path,isSecure,expiry,name,value,creationTime = item
 				if expiry > jar.now():

@@ -49,7 +49,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 				+ "".join((",?",) * len(extra_fields))
 				+ ")",
 				[name,value,url,now(),creationTime] + values)
-		if created or importing:
+		if created:
 			doinsert()
 			return
 
