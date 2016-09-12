@@ -42,26 +42,8 @@ space = re.compile('[ \t]+')
 
 if not 'skipcookies' in os.environ:
 	# this can take a while...
+	import mycookiejar
 
-	try:
-		import http.cookiejar as cookiejar
-	except ImportError:
-		import cookielib as cookiejar
-
-	def left_is_older(left,right):
-		if left.expires is None:
-			return right.expires is None
-		elif right.expires is None:
-			return False
-		else:
-			if left.expires == right.expires:
-				if not left.value == right.value:
-					note.alarm("cookies differ, but same expires!",
-					           left.value,
-					           right.value)
-					return True
-			return left.expires < right.expires
-		
 	class myjar(cookiejar.CookieJar):
 		def _cookies_for_request(self, request):
 			cookies = super()._cookies_for_request(request)

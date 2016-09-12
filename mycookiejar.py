@@ -30,7 +30,7 @@ class Tables:
 db = None
 selins = None
 def setup(place,name="cookies.sqlite"):
-	global db,selins
+	global db,selins,findDomain,findURL,cookieGetter
 	import sqlite3
 	db = sqlite3.connect(oj(place,name))
 	db.execute(Tables.domains)
@@ -38,9 +38,9 @@ def setup(place,name="cookies.sqlite"):
 	db.execute(Tables.cookies)
 	selins = make_selins(db)
 
-findDomain = selins("domains","domain")()
-findURL = selins("urls","domain","path")()
-cookieGetter = selins("cookies","url","name") # don't commit insert
+	findDomain = selins("domains","domain")()
+	findURL = selins("urls","domain","path")()
+	cookieGetter = selins("cookies","url","name") # don't commit insert
 
 def getCookie(url,name,value,etc):
 	@cookieGetter
@@ -54,19 +54,13 @@ def splitdict(d):
 	k = tuple(e[0] for e in k)
 	return k,v
 
-def update(self,domain,path,name,value,**attrs):
+def update(self,domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	attrs['value'] = value
 	attrs = splitdict(attrs)
 	with db:
-		url = findURL(findDomain(domain),path)
-		r = db.execute(
-			"UPDATE cookies SET "
-			+ ",".join(n+" = ?"+str(i+4) for i,n in enumerate(attrs[0]))
-			+ """, lastAccessed = ?1
-			WHERE name = ?2 AND url = ?3""",
-			(time.time(),name,url) + attrs[1])
-		if r.rowcount == 0:
+		url,created = findURL(findDomain(domain),path)
+		def doinsert():
 			db.execute(
 				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
 				+ ",".join(attrs[0]) + ")"
@@ -74,6 +68,24 @@ def update(self,domain,path,name,value,**attrs):
 				+ ",".join("?"+str(i+4) for i in range(len(attrs[0])))
 				+ ")",
 				(time.time(),name,url) + attrs[1])
+		if created:
+			doinsert()
+			return
+		
+		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?")
+		if r:
+			ident,oldcreation = r[0]
+			if oldcreation < creationTime:
+				return
+		r = db.execute(
+			"UPDATE cookies SET "
+			+ ",".join(n+" = ?"+str(i+3) for i,n in enumerate(attrs[0]))
+			+ """, lastAccessed = ?1
+			WHERE id = ?2""",
+			(time.time(),ident) + attrs[1])
+		if r.rowcount == 0:
+			# it got deleted?
+			doinsert()
 
 def cookies_for_request(self,urlid,**values):
 	extra_names = tuple(values.keys())
@@ -88,7 +100,7 @@ class Cookie(int): pass
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
-		del self.cookies # just to keep us honest
+		del self._cookies # just to keep us honest
 
 	def _cookies_for_domain(self, baseDomain, request):
 		for urlid,path in db.execute(
@@ -106,10 +118,18 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
-	def set_cookie(self,cookie):
+	def set_cookie(self,cookie,creationTime):
+		class herderp:
+			def __getitem__(self,name):
+				return getattr(cookie,name)
+			def __iter__(self):
+				return dir(cookie)
+		herderp = herderp()
 		update(name=cookie.name,
 					 value=cookie.value,
 					 port=cookie.port,
-					 **cookie)
+		       creationTime=creationTime,
+					 **herderp)
 
-setup(".")
+import sys
+sys.modules[__name__] = Jar()
