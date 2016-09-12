@@ -65,38 +65,6 @@ if not 'skipcookies' in os.environ:
 			cookies = super()._cookies_for_request(request)
 			note("Cookies for",request.get_full_url(),cookies)
 			return cookies
-		def set_cookie(self, cookie):
-			# sigh, have to redo this entirely
-			c = self._cookies
-			need = 0
-			self._cookies_lock.acquire()
-			try:
-				if cookie.domain not in c:
-					c[cookie.domain] = {
-						cookie.path: {
-							cookie.name: cookie
-						}
-					}
-					return
-				c2 = c[cookie.domain]
-				if cookie.path not in c2:
-					c2[cookie.path] = {
-						cookie.name: cookie
-					}
-					return
-				c3 = c2[cookie.path]
-				if cookie.name not in c3:
-					c3[cookie.name] = cookie
-					return
-				old = c3[cookie.name]
-				if left_is_older(old,cookie):
-					c3[cookie.name] = old
-				# okay, we need to compare now
-			
-			finally:
-					
-		
-		
 	jar = myjar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
@@ -183,15 +151,15 @@ if not 'skipcookies' in os.environ:
 			c['isSecure'], c['expires'],not not c['expires'],
 			None, None, {})
 	
-	get_cookies(oj(top,"cookies.sqlite"))
+	#get_cookies(oj(top,"cookies.sqlite"))
 	
 	#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
 	ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
 	get_cookies(oj(ff,'cookies.sqlite'))
 	get_json_cookies(oj(ff,'cookies.jsons'))
 
-	get_text_cookies("/extra/user/tmp/cookies.txt")	
-	get_json_cookies("/extra/user/tmp/cookies.jsons")
+	#get_text_cookies("/extra/user/tmp/cookies.txt")	
+	#get_json_cookies("/extra/user/tmp/cookies.jsons")
 
 	jar.clear_expired_cookies()
 
