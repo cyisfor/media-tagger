@@ -20,7 +20,7 @@ class Tables:
 		column("port","INTEGER","DEFAULT 0"),
 		column("port_specified","BOOLEAN"),
 		column("lastAccessed","REAL"),
-		column("commitTime","REAL"),
+		column("creationTime","REAL"),
 		column("secure","BOOLEAN"))
 
 def setup(place,name="cookies.sqlite",policy=None):
@@ -35,7 +35,10 @@ def setup(place,name="cookies.sqlite",policy=None):
 	jar.findDomain = selins("domains","domain")()
 	jar.findURL = selins("urls","domain","path")()
 	jar.cookieGetter = selins("cookies","url","name") # don't commit insert
-	jar.fields = tuple(c.name for c in Tables.cookies.columns)
+	jar.extra_fields = tuple(
+		set(c.name for c in Tables.cookies.columns)
+		-
+		{'url', 'name','value', 'lastAccessed', 'creationTime'})
 	
 	name= jar.__name__
 	jar = jar.Jar(policy)

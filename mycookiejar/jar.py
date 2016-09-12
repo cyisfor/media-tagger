@@ -10,7 +10,7 @@ db = None
 findDomain = None
 findURL = None
 cookieGetter = None
-fields = None
+extra_fields = None
 
 def splitdict(d):
 	k = d.items()
@@ -26,21 +26,19 @@ def execute(stmt,args):
 
 def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
-	values = [None]*len(fields)
-	for i,field in enumerate(fields):
-		if field in {'url','name','value','lastAccessed','creationTime'}:
-			continue
+	values = [None]*len(extra_fields)
+	for i,field in enumerate(extra_fields):
 		values[i] = attrs[field]
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
 			execute(
-				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
-				+ ",".join(fields) + ")"
-				+ "VALUES (?1,?1,?2,?3"
-				+ "".join(",?"+str(i+4) for i in range(len(fields)))
+				"INSERT INTO cookies (lastAccessed,creationTime,name,url,value"
+				+ "".join((','+f) for f in extra_fields) + ")"
+				+ "VALUES (?1,?1,?2,?3,?4"
+				+ "".join(",?"+str(i+4) for i in range(len(extra_fields)))
 				+ ")",
-				[time.time(),name,url] + values)
+				[time.time(),name,url,value] + values)
 		if created:
 			doinsert()
 			return
