@@ -39,6 +39,13 @@ def setup(place,name="cookies.sqlite",policy=None):
 		set(c.name for c in Tables.cookies.columns)
 		-
 		{'url', 'name','value', 'lastAccessed', 'creationTime'})
+
+	updoot = "UPDATE cookies SET "
+				+ ",".join(n+" = ?"+str(i+3) for i,n in enumerate(jar.extra_fields))
+				+ ", lastAccessed = ?1";
+	jar.update_stmt = updoot + "\n WHERE url = ?2 AND name = ?3"
+	jar.update_id_stmt = updoot + "\n WHERE id = ?2"
+
 	
 	name= jar.__name__
 	jar = jar.Jar(policy)

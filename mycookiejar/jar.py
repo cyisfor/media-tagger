@@ -11,6 +11,8 @@ findDomain = None
 findURL = None
 cookieGetter = None
 extra_fields = None
+update_id_stmt = None
+update_stmt = None
 
 def splitdict(d):
 	k = d.items()
@@ -28,7 +30,10 @@ def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	values = [None]*len(extra_fields)
 	for i,field in enumerate(extra_fields):
-		values[i] = attrs[field]
+		value = attrs[field]
+		if field == 'port' and value is None:
+			value = 0
+		values[i] = value
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
@@ -36,7 +41,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 				"INSERT INTO cookies (lastAccessed,creationTime,name,url,value"
 				+ "".join((','+f) for f in extra_fields) + ")"
 				+ "VALUES (?1,?1,?2,?3,?4"
-				+ "".join(",?"+str(i+4) for i in range(len(extra_fields)))
+				+ "".join(",?"+str(i+5) for i in range(len(extra_fields)))
 				+ ")",
 				[time.time(),name,url,value] + values)
 		if created:
@@ -44,16 +49,16 @@ def update(domain,path,name,value,creationTime,**attrs):
 			return
 
 		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
+		r = r.fetchone()
 		if r:
-			ident,oldcreation = r[0]
+			ident,oldcreation = r
 			if oldcreation < creationTime:
 				return
-		r = db.execute(
-			"UPDATE cookies SET "
-			+ ",".join(n+" = ?"+str(i+3) for i,n in enumerate(attrs[0]))
-			+ """, lastAccessed = ?1
-			WHERE id = ?2""",
-			(time.time(),ident) + attrs[1])
+			r = execute(update_id_stmt,
+				[time.time(),ident] + values)
+		else:
+			r = execute(update_stmt,
+			            [time.time(),url,name] + values)
 		if r.rowcount == 0:
 			# it got deleted?
 			doinsert()
