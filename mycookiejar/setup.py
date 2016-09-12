@@ -50,12 +50,7 @@ def setup(place,name="cookies.sqlite",policy=None):
 			ret,created = f(*a,**kw)
 			if created:
 				if hits != f.cache_info().hits:
-					print('cached',a,ret)
 					created = False
-				else:
-					print('truly created',a,ret)
-			else:
-				print('not created',a,ret)
 			return ret, created
 		return wrapper
 	jar.findDomain = memoize(selins("domains","domain")())

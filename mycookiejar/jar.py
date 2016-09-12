@@ -25,7 +25,7 @@ def splitdict(d):
 import os
 verbose = 'db_verbose' in os.environ
 
-def execute(stmt,args):
+def execute(stmt,args=()):
 	if verbose:
 		print(stmt)
 		print(args)
@@ -75,6 +75,13 @@ def update(domain,path,name,value,creationTime,**attrs):
 			# it got deleted?
 			doinsert()
 
+class Cookie:
+	version = 0
+	fields = ['name','value','secure']
+	def __init__(self, r):
+		for i,field in enumerate(self.fields):
+			setattr(self,field,r[i])
+
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
@@ -92,21 +99,23 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_domain(self, baseDomain, request):
 		for urlid,path in execute(
 				"SELECT id,path FROM urls WHERE domain = ?1",
-				baseDomain):
+				(baseDomain,)):
 			if not self._policy.path_return_ok(path, request): continue
-			for cookie in execute("SELECT id FROM cookies WHERE path = ?",
+			for cookie in execute("SELECT "+",".join(Cookie.fields)
+			                      +" FROM cookies WHERE url = ?",
 															 (urlid,)):
+				cookie = Cookie(cookie)
 				if not self._policy.return_ok(cookie, request): continue
-				yield Cookie(cookie)
+				yield cookie
 	def __cookies_for_request(self, request):
 		for baseDomain,domain in execute("SELECT id,domain FROM domains"):
-			if not self._policy.domain_return_ok(baseDomain, request): continue
+			if not self._policy.domain_return_ok(domain, request): continue
 			yield from self._cookies_for_domain(baseDomain,request)
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
 	def clear_expired_cookies(self, request = None):
-		urls = "SELECT url FROM cookies WHERE expires > ?"
+		urls = "SELECT url FROM cookies WHERE expires < ?"
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"
 		currentTime = now()
 		with db:
