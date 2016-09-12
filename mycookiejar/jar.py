@@ -10,6 +10,7 @@ db = None
 findDomain = None
 findURL = None
 cookieGetter = None
+fields = None
 
 def splitdict(d):
 	k = d.items()
@@ -18,20 +19,26 @@ def splitdict(d):
 	k = tuple(e[0] for e in k)
 	return k,v
 
+def execute(stmt,args):
+	print(stmt)
+	print(args)
+	return db.execute(stmt,args)
+
 def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
-	attrs['value'] = value
-	attrs = splitdict(attrs)
+	values = [None]*len(fields)
+	for i,field in enumerate(fields):
+		values[i] = attrs[field]
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
-			db.execute(
+			execute(
 				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
-				+ ",".join(attrs[0]) + ")"
+				+ ",".join(fields) + ")"
 				+ "VALUES (?1,?1,?2,?3"
-				+ ",".join("?"+str(i+4) for i in range(len(attrs[0])))
+				+ ",".join("?"+str(i+4) for i in range(len(fields)))
 				+ ")",
-				(time.time(),name,url) + attrs[1])
+				(time.time(),name,url) + values)
 		if created:
 			doinsert()
 			return

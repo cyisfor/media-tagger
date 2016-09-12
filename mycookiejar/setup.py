@@ -33,7 +33,8 @@ def setup(place,name="cookies.sqlite",policy=None):
 	jar.findDomain = selins("domains","domain")()
 	jar.findURL = selins("urls","domain","path")()
 	jar.cookieGetter = selins("cookies","url","name") # don't commit insert
-
+	jar.fields = tuple(c.name for c in Tables.cookies.columns)
+	
 	name= jar.__name__
 	jar = jar.Jar(policy)
 	sys.modules[name] = jar

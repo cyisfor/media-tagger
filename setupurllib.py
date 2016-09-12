@@ -45,11 +45,7 @@ if not 'skipcookies' in os.environ:
 	import mycookiejar.setup
 	from http.cookiejar import Cookie
 	mycookiejar.setup(oj(top,"temp"))
-	print('ok?',sys.modules['mycookiejar.jar'])
-	import pdb
-	pdb.set_trace()
 	from mycookiejar import jar
-	print('hm',jar.__name__,jar)
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 
 	import json
