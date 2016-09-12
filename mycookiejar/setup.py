@@ -41,9 +41,18 @@ def setup(place,name="cookies.sqlite",policy=None):
 
 	selins = make_selins(jar.db)
 
-	from functools import lru_cache
-	jar.findDomain = lru_cache()(selins("domains","domain")())
-	jar.findURL = lru_cache()(selins("urls","domain","path")())
+	def memoize(f):
+		from functools import lru_cache
+		f = lru_cache()(f)
+		# sigh
+		def wrapper(*a,**kw):
+			misses = f.cache_info.misses
+			ret,created = f(*a,**kw)
+			if misses != f.cache_info.misses:
+				created = False
+			return ret, created
+	jar.findDomain = memoize(selins("domains","domain")())
+	jar.findURL = memoize(selins("urls","domain","path")())
 	jar.cookieGetter = selins("cookies","url","name") # don't commit insert
 	jar.extra_fields = tuple(
 		set(c.name for c in Tables.cookies.columns)

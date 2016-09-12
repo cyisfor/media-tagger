@@ -65,10 +65,15 @@ if not 'skipcookies' in os.environ:
 			with open(path,'rb') as inp:
 				creationTime = os.stat(inp.fileno()).st_mtime
 				inp = textreader(inp)
+				cookies = []
 				for line in inp:
 					c = f(line)
 					if c:
-						yield c,creationTime
+						cookies.append(c)
+				cookies.sort(key=lambda cookie:
+				           (cookie.domain,cookie.path,cookie.name))
+				for c in cookies:
+					yield c,creationTime
 		return wrapper
 
 	@fileProcessor
@@ -80,7 +85,7 @@ if not 'skipcookies' in os.environ:
 			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies ORDER BY host, path, name")
 			for item in cur.fetchall():
 				host,path,isSecure,expiry,name,value,creationTime = item
-				if expiry > jar.now():
+				if expiry < jar.now():
 					continue
 				yield Cookie(0, name, value,
 					None, False,
@@ -92,8 +97,8 @@ if not 'skipcookies' in os.environ:
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-		if expiry > jar.now():
-			return None
+		if expiry < jar.now():
+			return
 		return Cookie(
 			0, name, value,
 			None, False,
@@ -109,7 +114,7 @@ if not 'skipcookies' in os.environ:
 			host = c['host']
 		except KeyError:
 			return
-		if c['expires'] > jar.now():
+		if c['expires'] < jar.now():
 			return
 		note.yellow('json cookie value',c['name'],c['value'])
 		return Cookie(

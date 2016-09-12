@@ -102,10 +102,11 @@ class Jar(cookiejar.CookieJar):
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"
 		currentTime = now()
 		with db:
-			r = execute("DELETE FROM cookies WHERE expires > ?",
+			r = execute("DELETE FROM cookies WHERE expires < ?",
 			            (currentTime,))
-			print("expired",r.rowcount,"cookies")
-			time.sleep(1)
+			if r.rowcount > 0:
+				print("expired",r.rowcount,"cookies")
+				#time.sleep(1)
 			execute("DELETE FROM urls WHERE id IN (" + urls + ")",
 			(currentTime,))
 			execute("DELETE FROM domains WHERE id IN (" + domains + ")",
