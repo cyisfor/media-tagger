@@ -1,3 +1,6 @@
+import os,sys
+oj = os.path.join
+
 from orm import create_table,column,references,make_selins
 
 class Tables:
@@ -25,15 +28,21 @@ def setup(place,name="cookies.sqlite",policy=None):
 	jar.db.execute(Tables.domains)
 	jar.db.execute(Tables.urls)
 	jar.db.execute(Tables.cookies)
-	jar.selins = make_selins(jar.db)
+	selins = make_selins(jar.db)
 
 	jar.findDomain = selins("domains","domain")()
 	jar.findURL = selins("urls","domain","path")()
 	jar.cookieGetter = selins("cookies","url","name") # don't commit insert
 
-	sys.modules[jar.__name__] = jar.Jar(policy)
+	name= jar.__name__
+	jar = jar.Jar(policy)
+	sys.modules[name] = jar
+	import mycookiejar
+	mycookiejar.jar = jar
 	# let's not do this a second time, thx
-	sys.modules[__name__] = lambda *a: raise RuntimeError("don't setup twice!")
+	def pythonsucks(*a):
+		raise RuntimeError("don't setup twice!")
+	sys.modules[__name__] = pythonsucks
 
 import sys
 sys.modules[__name__] = setup

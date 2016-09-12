@@ -1,5 +1,4 @@
-import os,sys,time
-oj = os.path.join
+import time
 
 try:
 	import http.cookiejar as cookiejar
@@ -8,7 +7,6 @@ except ImportError:
 
 # set in setup.py
 db = None
-selins = None
 findDomain = None
 findURL = None
 cookieGetter = None
@@ -65,7 +63,8 @@ class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
 		del self._cookies # just to keep us honest
-
+	def __str__(self):
+		return "Jar<A sqlite cookie jar>"
 	def _cookies_for_domain(self, baseDomain, request):
 		for urlid,path in db.execute(
 				"SELECT id,path FROM urls WHERE baseDomain = ?1",
