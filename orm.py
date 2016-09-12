@@ -124,8 +124,7 @@ class CreateTable(SQL):
 		s += 'TABLE IF NOT EXISTS ' + encode(self.name) + '(\n'
 		if self.idname:
 			s += encode(self.idname)+" INTEGER PRIMARY KEY,\n"
-		for column in self.columns:
-			s += '\t'+encode(column)+',\n'
+			s += ',\n\t'.join(encode(column) for column in columns)
 		s += ')\n'
 		if self.tail is not None:
 			s += self.tail
@@ -144,12 +143,15 @@ class Column(SQL):
 class Constraint(SQL): pass
 
 class References(Constraint):
-	__init__ = initf('name','table',column=None,cascade=True,default=None)
+	__init__ = initf('table','*columns',cascade=True,default=None)
 	def sql(self):
 		s = 'REFERENCES '+ encode(self.name) + ' ' + encode(self.table)
-		if self.column is not None:
-			s += ' (' + encode(self.column) + ')'
-		if self.default:
+		if not self.columns:
+			s += '(id)'
+		else:
+			columns = (encode(column) for column in self.columns)
+			s += '(' + ','.join(columns) + ')'
+		if self.default is not None:
 			s += ' DEFAULT '+encode(self.default)
 		if self.cascade is True:
 			s += ' ON DELETE CASCADE ON UPDATE CASCADE'
