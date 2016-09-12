@@ -134,4 +134,4 @@ class Jar(cookiejar.CookieJar):
 					 port=cookie.port,
 					 **cookie)
 
-print(Tables.cookies.sql())
+print(Tables.cookies)

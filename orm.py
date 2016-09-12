@@ -117,37 +117,39 @@ def initf(*required,**defaults):
 	
 def create_table(name,*columns,temp=False,tail=None,idname='id'):
 	s = 'CREATE '
-	if self.temp:
+	if temp:
 		s += 'TEMPORARY '
-	s += 'TABLE IF NOT EXISTS ' + encode(self.name) + '(\n'
-	if self.idname:
-		s += encode(self.idname)+" INTEGER PRIMARY KEY,\n"
-		s += ',\n\t'.join(encode(column) for column in self.columns)
+	s += 'TABLE IF NOT EXISTS ' + encode(name) + '(\n'
+	if idname:
+		s += encode(idname)+" INTEGER PRIMARY KEY,\n"
+		s += ',\n\t'.join(encode(column) for column in columns)
 	s += ')\n'
-	if self.tail is not None:
-		s += self.tail
+	if tail is not None:
+		s += tail
 	return s
 
 def column(name,type,*constraints,notNull=True):
-	print(self.name,self.type)
-	ret = encode((self.name, self.type))
-	ret += encode(self.constraints)
-	if self.notNull:
+	if type.startsWith("REFERENCES"):
+		constraints = (type,) + constraints
+		type = "INTEGER"
+	ret = encode((name, type))
+	ret += encode(constraints)
+	if notNull:
 		ret += " NOT NULL"
 	return ret
 
 def references(table,*columns,cascade=True,default=None):
-	s = 'REFERENCES '+encode(self.table)
-	if not self.columns:
+	s = 'REFERENCES '+encode(table)
+	if not columns:
 		s += '(id)'
 	else:
-		columns = (encode(column) for column in self.columns)
+		columns = (encode(column) for column in columns)
 		s += '(' + ','.join(columns) + ')'
-	if self.default is not None:
-		s += ' DEFAULT '+encode(self.default)
-	if self.cascade is True:
+	if default is not None:
+		s += ' DEFAULT '+encode(default)
+	if cascade is True:
 		s += ' ON DELETE CASCADE ON UPDATE CASCADE'
-	elif self.cascade == 'restrict':
+	elif cascade == 'restrict':
 		s += ' ON DELETE RESTRICT ON UPDATE RESTRICT'
 
 @complex
