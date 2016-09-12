@@ -6,33 +6,12 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-from orm import create_table,column,references,make_selins
-
-class Tables:
-	domains = create_table(
-		"domains",
-		column("domain","TEXT","UNIQUE"))
-	urls = create_table(
-		"urls",
-		column("domain",references("domains")),
-		column("path","TEXT"),
-		"UNIQUE(domain,path)")
-	cookies = create_table(
-		"cookies",
-		column("url",references("urls")),
-		column("name","TEXT"),
-		column("value","TEXT"),
-		column("port","INTEGER","DEFAULT 0"),
-		column("port_specified","BOOLEAN"),
-		column("secure","BOOLEAN"))
-
+# set in setup.py
 db = None
 selins = None
-
-def getCookie(url,name,value,etc):
-	@cookieGetter
-	def _():
-		return {'value': value, 'etc': etc}
+findDomain = None
+findURL = None
+cookieGetter = None
 
 def splitdict(d):
 	k = d.items()
@@ -112,23 +91,3 @@ class Jar(cookiejar.CookieJar):
 			herderp[n] = v
 		update(creationTime=creationTime,
 					 **herderp)
-
-def setup(place,name="cookies.sqlite",policy=None):
-	global db,selins,findDomain,findURL,cookieGetter
-	import sqlite3
-	db = sqlite3.connect(oj(place,name))
-	db.execute(Tables.domains)
-	db.execute(Tables.urls)
-	db.execute(Tables.cookies)
-	selins = make_selins(db)
-
-	findDomain = selins("domains","domain")()
-	findURL = selins("urls","domain","path")()
-	cookieGetter = selins("cookies","url","name") # don't commit insert
-
-	jar = Jar(policy)
-	# let's not do this a second time, thx
-	sys.modules[__name__] = lambda *a: jar
-
-import sys
-sys.modules[__name__] = setup
