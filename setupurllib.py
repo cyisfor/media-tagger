@@ -63,9 +63,11 @@ if not 'skipcookies' in os.environ:
 	class myjar(cookiejar.CookieJar):
 		def _cookies_for_request(self, request):
 			cookies = super()._cookies_for_request(request)
-			note("Cookies for",request.get_full_url(),cookies)
+			note("Cookies for",request.get_full_url())
+			for cookie in cookies:
+				note.blue(cookie.name,cookie.value)
 			return cookies
-	jar = myjar()
+	jar = cookiejar.CookieJar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
 	fields = [f.strip() for f in fields]
@@ -118,6 +120,7 @@ if not 'skipcookies' in os.environ:
 			cur = con.cursor()
 			cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
 			for item in cur.fetchall():
+				note("ff cookie",item[4],item[5])
 				yield cookiejar.Cookie(0, item[4], item[5],
 					None, False,
 					item[0], item[0].startswith('.'), item[0].startswith('.'),
@@ -156,7 +159,7 @@ if not 'skipcookies' in os.environ:
 	#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
 	ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
 	get_cookies(oj(ff,'cookies.sqlite'))
-	get_json_cookies(oj(ff,'cookies.jsons'))
+	#get_json_cookies(oj(ff,'cookies.jsons'))
 
 	#get_text_cookies("/extra/user/tmp/cookies.txt")	
 	#get_json_cookies("/extra/user/tmp/cookies.jsons")
