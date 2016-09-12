@@ -1,7 +1,8 @@
 #!/usr/bin/env pypy3
 
 import os
-if not 'nofork' in os.environ:
+nofork = 'nofork' in os.environ
+if not nofork:
     import socket
     try:
         socket.create_connection(('::1',8029)).close();
@@ -18,5 +19,8 @@ s.call(['killfile',eu('~/tmp/run/'+name+'.pid')])
 os.environ['name'] = name;
 os.environ['skipcookies'] = '1'
 print('oy')
-os.execlp('daemonize','daemonize',
-          sys.executable,eu("~/code/image/tagger/myserve.py"))
+if nofork:
+	import myserve
+else:
+	os.execlp('daemonize','daemonize',
+						sys.executable,eu("~/code/image/tagger/myserve.py"))

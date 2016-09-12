@@ -33,6 +33,6 @@ else:
 	if not 'ferrets' in os.environ:
 		os.environ['ferrets'] = '1'
 		os.environ['name'] = 'parse';
-		os.execvp("daemonize",("daemonize",)+sys.argv
+		os.execvp("daemonize",["daemonize",sys.executable]+sys.argv)
 	import application
 	application('media.watcher','favorites.launch.ui')

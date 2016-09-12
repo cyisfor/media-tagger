@@ -1,5 +1,6 @@
 import time
 start = time.time()
+import note
 from filedb import top
 from contextlib import closing,contextmanager
 
@@ -46,6 +47,13 @@ if not 'skipcookies' in os.environ:
 		import http.cookiejar as cookiejar
 	except ImportError:
 		import cookielib as cookiejar
+
+	class myjar(cookiejar.CookieJar):
+		def _cookies_for_request(self, request):
+			cookies = super()._cookies_for_request(request)
+			note("Cookies:",cookies)
+			return cookies
+		
 		
 	jar = cookiejar.CookieJar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
@@ -78,8 +86,8 @@ if not 'skipcookies' in os.environ:
 		
 	def fileProcessor(f):
 		def wrapper(path):
-			print('getting',path)
 			if not os.path.exists(path): return
+			print('getting',path)
 			for c in f(path):
 				jar.set_cookie(c)
 		return wrapper

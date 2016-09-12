@@ -1,5 +1,4 @@
-import faulthandler,signal
-faulthandler.register(signal.SIGUSR1)
+import signal_debugging
 
 from locks import processLocked
 import db

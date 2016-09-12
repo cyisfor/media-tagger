@@ -83,8 +83,8 @@ class Catchupper(Process):
 					print("Could not parse",uri)
 			except ParseError:
 				print('megafail')
-				raise SystemExit(23)
 				megafail(uri)
+				return True
 			except setupurllib.URLError as e:
 				raise e.__cause__
 		except urllib.error.HTTPError as e:
