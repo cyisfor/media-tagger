@@ -17,7 +17,7 @@ class Tables:
 		column("url",references("urls")),
 		column("name","TEXT"),
 		column("value","TEXT"),
-		column("port","INTEGER","DEFAULT 0"),
+		column("port","INTEGER",notNull=False),
 		column("port_specified","BOOLEAN"),
 		column("lastAccessed","REAL"),
 		column("creationTime","REAL"),

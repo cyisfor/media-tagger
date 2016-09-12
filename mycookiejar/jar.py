@@ -23,9 +23,13 @@ def splitdict(d):
 	k = tuple(e[0] for e in k)
 	return k,v
 
+import os
+verbose = 'db_verbose' in os.environ
+
 def execute(stmt,args):
-	print(stmt)
-	print(args)
+	if verbose:
+		print(stmt)
+		print(args)
 	return db.execute(stmt,args)
 
 def now(*a):
@@ -35,20 +39,17 @@ def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	values = [None]*len(extra_fields)
 	for i,field in enumerate(extra_fields):
-		v = attrs[field]
-		if field == 'port' and v is None:
-			v = 0
-		values[i] = v
+		values[i] = attrs[field]
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
 			execute(
-				"INSERT INTO cookies (lastAccessed,creationTime,name,url,value"
+				"INSERT INTO cookies (name,value,url,lastAccessed,creationTime"
 				+ "".join((','+f) for f in extra_fields) + ")"
 				+ "VALUES (?,?,?,?,?"
 				+ "".join((",?",) * len(extra_fields))
 				+ ")",
-				[now(),creationTime,name,url,value] + values)
+				[name,value,url,now(),creationTime] + values)
 		if created or importing:
 			doinsert()
 			return
@@ -80,8 +81,10 @@ class Jar(cookiejar.CookieJar):
 		super().__init__(policy)
 		del self._cookies # just to keep us honest
 	def __enter__(self):
+		print('starting transaction')
 		return db.__enter__()
 	def __exit__(self,*a):
+		print('committing')
 		return db.__exit__(*a)
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
