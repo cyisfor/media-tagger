@@ -7,7 +7,7 @@ except ImportError:
 	import cookielib as cookiejar
 
 
-from orm import CreateTable,Column
+from orm import CreateTable,Column,References
 
 class Tables:
 	domains = CreateTable(
@@ -40,7 +40,7 @@ def selins(name,*uniques):
 		def get(self,*uniquevals):
 			id = db.execute(
 				"SELECT id FROM "+name+" WHERE "
-				+ " AND ".join(val + " = ?" for val in uniques)
+				+ " AND ".join(val + " = ?" for val in uniques),
 				uniquevals)
 			if id:
 				return id[0][0]
@@ -108,8 +108,9 @@ def cookies_for_request(self,urlid,**values):
 class Cookie(int): pass
 
 class Jar(cookiejar.CookieJar):
-	def __init__(self, args):
-		"docstring"
+	def __init__(self, policy=None):
+		super().__init__(policy)
+		del self.cookies # just to keep us honest
 
 	def _cookies_for_domain(self, baseDomain, request):
 		for urlid,path in db.execute(
@@ -133,4 +134,4 @@ class Jar(cookiejar.CookieJar):
 					 port=cookie.port,
 					 **cookie)
 
-return Jar()
+print(Tables.cookies.sql())
