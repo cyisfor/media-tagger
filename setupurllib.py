@@ -62,8 +62,9 @@ if not 'skipcookies' in os.environ:
 	def lineProcessor(f):
 		@fileProcessor
 		def wrapper(path):
-			with textreader(open(path,'rb')) as inp:
-				creationTime = os.stat(inp).st_mtime
+			with open(path,'rb') as inp:
+				creationTime = os.stat(inp.fileno()).st_mtime
+				inp = textreader(inp)
 				for line in inp:
 					c = f(line)
 					if c:
