@@ -54,9 +54,9 @@ if not 'skipcookies' in os.environ:
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
-			jar.creationTime = os.stat(path).st_mtime
+			creationTime = os.stat(path).st_mtime
 			for c in f(path):
-				jar.set_cookie(c)
+				jar.set_cookie(c,creationTime)
 		return wrapper
 
 	def lineProcessor(f):

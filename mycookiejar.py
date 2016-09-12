@@ -28,18 +28,6 @@ class Tables:
 
 db = None
 selins = None
-def setup(place,name="cookies.sqlite"):
-	global db,selins,findDomain,findURL,cookieGetter
-	import sqlite3
-	db = sqlite3.connect(oj(place,name))
-	db.execute(Tables.domains)
-	db.execute(Tables.urls)
-	db.execute(Tables.cookies)
-	selins = make_selins(db)
-
-	findDomain = selins("domains","domain")()
-	findURL = selins("urls","domain","path")()
-	cookieGetter = selins("cookies","url","name") # don't commit insert
 
 def getCookie(url,name,value,etc):
 	@cookieGetter
@@ -70,7 +58,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 		if created:
 			doinsert()
 			return
-		
+
 		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
 		if r:
 			ident,oldcreation = r[0]
@@ -115,14 +103,30 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
-	def set_cookie(self,cookie,creationTime=None):
-		if creationTime is None:
-			creationTime = self.creationTime
+	def set_cookie(self,cookie,creationTime):
 		herderp = dict()
 		for n in dir(cookie):
 			if n.startswith('_'): continue
 			v = getattr(cookie,n)
+			if callable(v): continue
 			herderp[n] = v
 		update(creationTime=creationTime,
 					 **herderp)
 
+def setup(place,name="cookies.sqlite",policy=None):
+	global db,selins,findDomain,findURL,cookieGetter
+	import sqlite3
+	db = sqlite3.connect(oj(place,name))
+	db.execute(Tables.domains)
+	db.execute(Tables.urls)
+	db.execute(Tables.cookies)
+	selins = make_selins(db)
+
+	findDomain = selins("domains","domain")()
+	findURL = selins("urls","domain","path")()
+	cookieGetter = selins("cookies","url","name") # don't commit insert
+
+	return Jar(policy)
+
+import sys
+sys.modules[__name__] = setup
