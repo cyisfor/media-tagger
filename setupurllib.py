@@ -48,14 +48,56 @@ if not 'skipcookies' in os.environ:
 	except ImportError:
 		import cookielib as cookiejar
 
+	def left_is_older(left,right):
+		note("checking",left.name)
+		if left.expires is None:
+			note("old doesn't expire new?",right.expires)
+			return right.expires is None
+		elif right.expires is None:
+			note("new one doesn't expire...",left.expires)
+			return False
+		else:
+			note("comparing",left.expires,right.expires)
+			return left.expires < right.expires
+		
 	class myjar(cookiejar.CookieJar):
 		def _cookies_for_request(self, request):
 			cookies = super()._cookies_for_request(request)
-			note("Cookies:",cookies)
+			note("Cookies for",request.get_full_url(),cookies)
 			return cookies
+		def set_cookie(self, cookie):
+			# sigh, have to redo this entirely
+			c = self._cookies
+			need = 0
+			self._cookies_lock.acquire()
+			try:
+				if cookie.domain not in c:
+					c[cookie.domain] = {
+						cookie.path: {
+							cookie.name: cookie
+						}
+					}
+					return
+				c2 = c[cookie.domain]
+				if cookie.path not in c2:
+					c2[cookie.path] = {
+						cookie.name: cookie
+					}
+					return
+				c3 = c2[cookie.path]
+				if cookie.name not in c3:
+					c3[cookie.name] = cookie
+					return
+				old = c3[cookie.name]
+				if left_is_older(old,cookie):
+					c3[cookie.name] = old
+				# okay, we need to compare now
+			
+			finally:
+					
 		
 		
-	jar = cookiejar.CookieJar()
+	jar = myjar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
 	fields = [f.strip() for f in fields]
@@ -150,6 +192,8 @@ if not 'skipcookies' in os.environ:
 
 	get_text_cookies("/extra/user/tmp/cookies.txt")	
 	get_json_cookies("/extra/user/tmp/cookies.jsons")
+
+	jar.clear_expired_cookies()
 
 	with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
 		for cookie in jar:
