@@ -50,7 +50,15 @@ def update(domain,path,name,value,creationTime,**attrs):
 				+ ")",
 				[name,value,url,now(),creationTime] + values)
 		if created:
-			doinsert()
+			import sqlite3
+			try:
+				doinsert()
+			except sqlite3.IntegrityError:
+				print(name,url)
+				raise
+			# have to commit here, because selecting won't return the new rows
+			db.__exit__(None,None,None)
+			db.__enter__()
 			return
 
 		r = execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))

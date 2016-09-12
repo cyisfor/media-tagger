@@ -39,21 +39,28 @@ def setup(place,name="cookies.sqlite",policy=None):
 	jar.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_cookies ON cookies(name,url)")
 	
 
-	selins = make_selins(jar.db)
+	selins = make_selins(jar.execute)
 
 	def memoize(f):
 		from functools import lru_cache
 		f = lru_cache()(f)
 		# sigh
 		def wrapper(*a,**kw):
-			misses = f.cache_info.misses
+			hits = f.cache_info().hits
 			ret,created = f(*a,**kw)
-			if misses != f.cache_info.misses:
-				created = False
+			if created:
+				if hits != f.cache_info().hits:
+					print('cached',a,ret)
+					created = False
+				else:
+					print('truly created',a,ret)
+			else:
+				print('not created',a,ret)
 			return ret, created
+		return wrapper
 	jar.findDomain = memoize(selins("domains","domain")())
 	jar.findURL = memoize(selins("urls","domain","path")())
-	jar.cookieGetter = selins("cookies","url","name") # don't commit insert
+	#jar.cookieGetter = selins("cookies","url","name") # don't commit insert
 	jar.extra_fields = tuple(
 		set(c.name for c in Tables.cookies.columns)
 		-

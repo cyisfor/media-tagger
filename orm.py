@@ -327,11 +327,11 @@ class array(Group):
 		return 'array' + super().sql()
 	
 #################################################
-def make_selins(db):
+def make_selins(execute):
 	def selins(name,*uniques):
 		def provide_inserter(inserter=None):
 			def get(*uniquevals):
-				id = db.execute(
+				id = execute(
 					"SELECT id FROM "+name+" WHERE "
 					+ " AND ".join(val + " = ?" for val in uniques),
 					uniquevals)
@@ -346,7 +346,7 @@ def make_selins(db):
 					# no extra columns to insert
 					values = uniquevals
 					keys = uniques
-				r = db.execute("INSERT INTO "+name+" (" + ",".join(keys)
+				r = execute("INSERT INTO "+name+" (" + ",".join(keys)
 				               + ") VALUES (" + ",".join(("?",) * len(keys))
 				               + ")",
 				               values)
