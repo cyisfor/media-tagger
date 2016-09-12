@@ -77,11 +77,15 @@ def update(domain,path,name,value,creationTime,**attrs):
 
 class Cookie:
 	version = 0
-	fields = ['name','value','secure']
-	def __init__(self, r):
+	fields = ['name','value','secure','expires',
+	          'port','port_specified']
+	def __init__(self, domain, path, r):
+		self.domain = domain
+		self.path = path
 		for i,field in enumerate(self.fields):
 			setattr(self,field,r[i])
-
+	def is_expired(self,now):
+		return self.expires < now
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
@@ -96,7 +100,7 @@ class Jar(cookiejar.CookieJar):
 		return db.__exit__(*a)
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
-	def _cookies_for_domain(self, baseDomain, request):
+	def _cookies_for_domain(self, domain, baseDomain, request):
 		for urlid,path in execute(
 				"SELECT id,path FROM urls WHERE domain = ?1",
 				(baseDomain,)):
@@ -104,16 +108,16 @@ class Jar(cookiejar.CookieJar):
 			for cookie in execute("SELECT "+",".join(Cookie.fields)
 			                      +" FROM cookies WHERE url = ?",
 															 (urlid,)):
-				cookie = Cookie(cookie)
+				cookie = Cookie(domain,path,cookie)
 				if not self._policy.return_ok(cookie, request): continue
 				yield cookie
 	def __cookies_for_request(self, request):
 		for baseDomain,domain in execute("SELECT id,domain FROM domains"):
 			if not self._policy.domain_return_ok(domain, request): continue
-			yield from self._cookies_for_domain(baseDomain,request)
+			yield from self._cookies_for_domain(domain, baseDomain,request)
 	def _cookies_for_request(self, request):
-		# this MUST return a forward range
-		return tuple(self.__cookies_for_request(request))
+		# this MUST return a mutable list
+		return list(self.__cookies_for_request(request))
 	def clear_expired_cookies(self, request = None):
 		urls = "SELECT url FROM cookies WHERE expires < ?"
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"
