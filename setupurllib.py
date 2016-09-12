@@ -49,15 +49,17 @@ if not 'skipcookies' in os.environ:
 		import cookielib as cookiejar
 
 	def left_is_older(left,right):
-		note("checking",left.name)
 		if left.expires is None:
-			note("old doesn't expire new?",right.expires)
 			return right.expires is None
 		elif right.expires is None:
-			note("new one doesn't expire...",left.expires)
 			return False
 		else:
-			note("comparing",left.expires,right.expires)
+			if left.expires == right.expires:
+				if not left.value == right.value:
+					note.alarm("cookies differ, but same expires!",
+					           left.value,
+					           right.value)
+					return True
 			return left.expires < right.expires
 		
 	class myjar(cookiejar.CookieJar):
@@ -94,9 +96,8 @@ if not 'skipcookies' in os.environ:
 				# okay, we need to compare now
 			
 			finally:
-					
-		
-		
+				self._cookies_lock.release()
+
 	jar = myjar()
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
@@ -130,6 +131,7 @@ if not 'skipcookies' in os.environ:
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
+			jar.mtime = os.stat(path).st_mtime
 			for c in f(path):
 				jar.set_cookie(c)
 		return wrapper
@@ -175,6 +177,7 @@ if not 'skipcookies' in os.environ:
 			host = c['host']
 		except KeyError:
 			return
+		note.yellow('json cookie value',c['name'],c['value'])
 		return cookiejar.Cookie(
 			0, c['name'], c['value'],
 			None, False,
