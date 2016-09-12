@@ -9,10 +9,13 @@ except ImportError:
 def make(place,name="cookies.sqlite"):
 	db = sqlite3.connect(oj(place,name))
 	fields = ['name','value','host','path',
-	          'expires','isSecure','isHttpOnly']:
+	          'expires','isSecure','isHttpOnly']
+	infields = {'isSecure': 'secure',
+	            'maxAge': 'max-age', # eh...
+	            }
 	def update(self,**values):
 		baseDomain = ".".join(name.rsplit(".",2)[-2:])
-		values = tuple((values[n] for n in fields))
+		values = tuple((values[infields.get(n,n)] for n in fields))
 		with db:
 			r = db.execute(
 				"UPDATE cookies SET "
@@ -37,7 +40,10 @@ def make(place,name="cookies.sqlite"):
 			+"".join(" AND " + name + " = ?"+str(i+2) for i,name in enumerate(extra_names)),
 			(urlid)+extra_values)
 
+	class Cookie(int): pass
+	
 	class Jar(cookiejar.CookieJar):
+		
 		def _cookies_for_domain(self, baseDomain, request):
 			for urlid,path in db.execute(
 					"SELECT id,path FROM urls WHERE baseDomain = ?1",
@@ -46,6 +52,18 @@ def make(place,name="cookies.sqlite"):
 				for cookie in db.execute("SELECT id FROM cookies WHERE path = ?",
 				                         (urlid,)):
 					if not self._policy.return_ok(cookie, request): continue
-					yield cookie
+					yield Cookie(cookie)
+		def __cookies_for_request(self, request):
+			for baseDomain,domain in db.execute("SELECT id,domain FROM domains"):
+				if not self._policy.domain_return_ok(domain, request): continue
+				yield from self._cookies_for_domain(baseDomain,request)
+		def _cookies_for_request(self, request):
+			# this MUST return a forward range
+			return tuple(self.__cookies_for_request(request))
+		
+		def set_cookie(self,cookie):
+			update(name=cookie.key,
+			       value=cookie.value,
+			       **cookie)
 
 	return Jar()
