@@ -7,7 +7,7 @@ except ImportError:
 	import cookielib as cookiejar
 
 
-from orm import create_table,column,references
+from orm import create_table,column,references,make_selins
 
 class Tables:
 	domains = create_table(
@@ -28,38 +28,15 @@ class Tables:
 		column("secure","BOOLEAN"))
 
 db = None
+selins = None
 def setup(place,name="cookies.sqlite"):
-	global db
+	global db,selins
 	import sqlite3
 	db = sqlite3.connect(oj(place,name))
 	db.execute(Tables.domains)
 	db.execute(Tables.urls)
 	db.execute(Tables.cookies)
-
-def selins(name,*uniques):
-	def provide_inserter(inserter=None):
-		def get(self,*uniquevals):
-			id = db.execute(
-				"SELECT id FROM "+name+" WHERE "
-				+ " AND ".join(val + " = ?" for val in uniques),
-				uniquevals)
-			if id:
-				return id[0][0]
-			if inserter:
-				inserts = inserter().items()
-				values = uniquevals + tuple(i[1] for i in inserts)
-				keys = uniques + tuple(i[0] for i in inserts)
-			else:
-				# no extra columns to insert
-				values = uniquevals
-				keys = uniques
-			db.execute("INSERT INTO "+name+" (" + ",".join(keys)
-				           + ") VALUES (" + ",".join(("?",) * len(keys))
-				           + ")",
-				           values)
-			return db.lastrowid
-		return get
-	return provide_inserter
+	selins = make_selins(db)
 
 findDomain = selins("domains","domain")()
 findURL = selins("urls","domain","path")()

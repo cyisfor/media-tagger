@@ -315,9 +315,35 @@ class Type(SQL):
 class array(Group):
 	def sql(self):
 		return 'array' + super().sql()
-
-#################################################
 	
+#################################################
+def make_selins(db):
+	def selins(name,*uniques):
+		def provide_inserter(inserter=None):
+			def get(self,*uniquevals):
+				id = db.execute(
+					"SELECT id FROM "+name+" WHERE "
+					+ " AND ".join(val + " = ?" for val in uniques),
+					uniquevals)
+				if id:
+					return id[0][0]
+				if inserter:
+					inserts = inserter().items()
+					values = uniquevals + tuple(i[1] for i in inserts)
+					keys = uniques + tuple(i[0] for i in inserts)
+				else:
+					# no extra columns to insert
+					values = uniquevals
+					keys = uniques
+				db.execute("INSERT INTO "+name+" (" + ",".join(keys)
+										 + ") VALUES (" + ",".join(("?",) * len(keys))
+										 + ")",
+										 values)
+				return db.lastrowid
+			return get
+		return provide_inserter
+	return selins
+
 class argbuilder:
 	n = 1
 	def __init__(self):
