@@ -26,24 +26,27 @@ def execute(stmt,args):
 	print(args)
 	return db.execute(stmt,args)
 
+def now():
+	return time.time()
+
 def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	values = [None]*len(extra_fields)
 	for i,field in enumerate(extra_fields):
-		value = attrs[field]
-		if field == 'port' and value is None:
-			value = 0
-		values[i] = value
+		v = attrs[field]
+		if field == 'port' and v is None:
+			v = 0
+		values[i] = v
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
 		def doinsert():
 			execute(
 				"INSERT INTO cookies (lastAccessed,creationTime,name,url,value"
 				+ "".join((','+f) for f in extra_fields) + ")"
-				+ "VALUES (?1,?1,?2,?3,?4"
-				+ "".join(",?"+str(i+5) for i in range(len(extra_fields)))
+				+ "VALUES (?1,?2,?3,?4,?5"
+				+ "".join(",?"+str(i+6) for i in range(len(extra_fields)))
 				+ ")",
-				[time.time(),name,url,value] + values)
+				[creationTime,now(),name,url,value] + values)
 		if created:
 			doinsert()
 			return
@@ -55,10 +58,10 @@ def update(domain,path,name,value,creationTime,**attrs):
 			if oldcreation < creationTime:
 				return
 			r = execute(update_id_stmt,
-				[time.time(),ident] + values)
+				[creationTime,ident] + values)
 		else:
 			r = execute(update_stmt,
-			            [time.time(),url,name] + values)
+			            [creationTime,url,name] + values)
 		if r.rowcount == 0:
 			# it got deleted?
 			doinsert()
@@ -102,3 +105,5 @@ class Jar(cookiejar.CookieJar):
 			herderp[n] = v
 		update(creationTime=creationTime,
 					 **herderp)
+
+Jar.now = now

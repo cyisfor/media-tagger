@@ -54,19 +54,19 @@ if not 'skipcookies' in os.environ:
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
-			creationTime = os.stat(path).st_mtime
-			for c in f(path):
-				jar.set_cookie(c,creationTime)
+			for args in f(path):
+				jar.set_cookie(*args)
 		return wrapper
 
 	def lineProcessor(f):
 		@fileProcessor
 		def wrapper(path):
 			with textreader(open(path,'rb')) as inp:
+				creationTime = os.stat(inp).st_mtime
 				for line in inp:
 					c = f(line)
 					if c:
-						yield c
+						yield c,creationTime
 		return wrapper
 
 	@fileProcessor
@@ -76,14 +76,13 @@ if not 'skipcookies' in os.environ:
 			cur = con.cursor()
 			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies")
 			for item in cur.fetchall():
-				jar.creationTime = item[-1]
 				yield Cookie(0, item[4], item[5],
 					None, False,
 					item[0], item[0].startswith('.'), item[0].startswith('.'),
 					item[1], False,
 					item[2],
 					item[3], item[3]=="",
-					None, None, {})
+					None, None, {}),item[6]
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
