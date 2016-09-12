@@ -14,6 +14,8 @@ extra_fields = None
 update_id_stmt = None
 update_stmt = None
 
+importing = False
+
 def splitdict(d):
 	k = d.items()
 	# preserve order of keys and values
@@ -47,22 +49,20 @@ def update(domain,path,name,value,creationTime,**attrs):
 				+ "".join((",?",) * len(extra_fields))
 				+ ")",
 				[now(),creationTime,name,url,value] + values)
-		if created:
+		if created or importing:
 			doinsert()
 			return
 
-		r = db.execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
+		r = execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
 		r = r.fetchone()
-		if r:
-			ident,oldcreation = r
-			if oldcreation <= creationTime:
-				return
-			print('diff time',oldcreation-creationTime)
-			r = execute(update_id_stmt,
-				[creationTime,ident] + values)
-		else:
-			r = execute(update_stmt,
-			            [creationTime,url,name] + values)
+		if not r:
+			doinsert()
+			return
+		ident,oldcreation = r
+		if oldcreation <= creationTime:
+			return
+		r = execute(update_id_stmt,
+			[creationTime,ident] + values)
 		if r.rowcount == 0:
 			# it got deleted?
 			doinsert()
@@ -70,7 +70,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 def cookies_for_request(self,urlid,**values):
 	extra_names = tuple(values.keys())
 	extra_values = tuple(values[n] for n in extra_names)
-	return db.execute(
+	return execute(
 		"SELECT id FROM cookies WHERE path = ?1"
 		+"".join(" AND " + name + " = ?"+str(i+2) for i,name in enumerate(extra_names)),
 		(urlid)+extra_values)
@@ -86,16 +86,16 @@ class Jar(cookiejar.CookieJar):
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
 	def _cookies_for_domain(self, baseDomain, request):
-		for urlid,path in db.execute(
+		for urlid,path in execute(
 				"SELECT id,path FROM urls WHERE baseDomain = ?1",
 				baseDomain):
 			if not self._policy.path_return_ok(path, request): continue
-			for cookie in db.execute("SELECT id FROM cookies WHERE path = ?",
+			for cookie in execute("SELECT id FROM cookies WHERE path = ?",
 															 (urlid,)):
 				if not self._policy.return_ok(cookie, request): continue
 				yield Cookie(cookie)
 	def __cookies_for_request(self, request):
-		for baseDomain,domain in db.execute("SELECT id,domain FROM domains"):
+		for baseDomain,domain in execute("SELECT id,domain FROM domains"):
 			if not self._policy.domain_return_ok(domain, request): continue
 			yield from self._cookies_for_domain(baseDomain,request)
 	def _cookies_for_request(self, request):

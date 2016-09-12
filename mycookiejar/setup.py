@@ -27,6 +27,10 @@ def setup(place,name="cookies.sqlite",policy=None):
 	from mycookiejar import jar
 	import sqlite3
 	jar.db = sqlite3.connect(oj(place,name))
+	try:
+		jar.db.execute("SELECT id FROM cookies LIMIT 1")
+	except sqlite3.OperationalError:
+		jar.importing = True
 	jar.db.execute(Tables.domains)
 	jar.db.execute(Tables.urls)
 	jar.db.execute(Tables.cookies)
