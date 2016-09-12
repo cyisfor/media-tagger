@@ -26,7 +26,7 @@ def execute(stmt,args):
 	print(args)
 	return db.execute(stmt,args)
 
-def now():
+def now(*a):
 	return time.time()
 
 def update(domain,path,name,value,creationTime,**attrs):
@@ -43,10 +43,10 @@ def update(domain,path,name,value,creationTime,**attrs):
 			execute(
 				"INSERT INTO cookies (lastAccessed,creationTime,name,url,value"
 				+ "".join((','+f) for f in extra_fields) + ")"
-				+ "VALUES (?1,?2,?3,?4,?5"
-				+ "".join(",?"+str(i+6) for i in range(len(extra_fields)))
+				+ "VALUES (?,?,?,?,?"
+				+ "".join((",?",) * len(extra_fields))
 				+ ")",
-				[creationTime,now(),name,url,value] + values)
+				[now(),creationTime,name,url,value] + values)
 		if created:
 			doinsert()
 			return
@@ -55,8 +55,9 @@ def update(domain,path,name,value,creationTime,**attrs):
 		r = r.fetchone()
 		if r:
 			ident,oldcreation = r
-			if oldcreation < creationTime:
+			if oldcreation <= creationTime:
 				return
+			print('diff time',oldcreation-creationTime)
 			r = execute(update_id_stmt,
 				[creationTime,ident] + values)
 		else:
@@ -78,6 +79,10 @@ class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
 		del self._cookies # just to keep us honest
+	def __enter__(self):
+		return db.__enter__()
+	def __exit__(self,*a):
+		return db.__exit__(*a)
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
 	def _cookies_for_domain(self, baseDomain, request):

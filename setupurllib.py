@@ -54,8 +54,9 @@ if not 'skipcookies' in os.environ:
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
-			for args in f(path):
-				jar.set_cookie(*args)
+			with jar:
+				for args in f(path):
+					jar.set_cookie(*args)
 		return wrapper
 
 	def lineProcessor(f):
@@ -74,6 +75,7 @@ if not 'skipcookies' in os.environ:
 		import sqlite3
 		with closing(sqlite3.connect(ff_cookies)) as con:
 			cur = con.cursor()
+			# remember mozilla stores creationTime in microseconds
 			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies")
 			for item in cur.fetchall():
 				yield Cookie(0, item[4], item[5],
@@ -82,7 +84,7 @@ if not 'skipcookies' in os.environ:
 					item[1], False,
 					item[2],
 					item[3], item[3]=="",
-					None, None, {}),item[6]
+					None, None, {}),item[6]/1000000.0
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
