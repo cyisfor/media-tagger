@@ -19,6 +19,8 @@ class Tables:
 		column("value","TEXT"),
 		column("port","INTEGER","DEFAULT 0"),
 		column("port_specified","BOOLEAN"),
+		column("lastAccessed","REAL"),
+		column("commitTime","REAL"),
 		column("secure","BOOLEAN"))
 
 def setup(place,name="cookies.sqlite",policy=None):

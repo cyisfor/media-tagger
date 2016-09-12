@@ -28,6 +28,8 @@ def update(domain,path,name,value,creationTime,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
 	values = [None]*len(fields)
 	for i,field in enumerate(fields):
+		if field in {'url','name','value','lastAccessed','creationTime'}:
+			continue
 		values[i] = attrs[field]
 	with db:
 		url,created = findURL(findDomain(domain)[0],path)
@@ -36,9 +38,9 @@ def update(domain,path,name,value,creationTime,**attrs):
 				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
 				+ ",".join(fields) + ")"
 				+ "VALUES (?1,?1,?2,?3"
-				+ ",".join("?"+str(i+4) for i in range(len(fields)))
+				+ "".join(",?"+str(i+4) for i in range(len(fields)))
 				+ ")",
-				(time.time(),name,url) + values)
+				[time.time(),name,url] + values)
 		if created:
 			doinsert()
 			return

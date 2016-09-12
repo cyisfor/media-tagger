@@ -101,7 +101,10 @@ def create_table(name,*columns,temp=False,tail=None,idname='id'):
 	s += ')\n'
 	if tail is not None:
 		s += tail
-	return s
+	class introspect(str):
+		columns = None
+	introspect.columns = columns
+	return introspect(s)
 
 def column(name,type,*constraints,notNull=True):
 	if type.startswith("REFERENCES"):
@@ -112,7 +115,14 @@ def column(name,type,*constraints,notNull=True):
 		ret += " " + encode(constraints)
 	if notNull:
 		ret += " NOT NULL"
-	return ret
+	class introspect(str):
+		name = None
+		type = None
+		constraints = None
+	introspect.name = name
+	introspect.type = type
+	introspect.constraints = constraints
+	return introspect(ret)
 
 def references(table,*columns,cascade=True,default=None):
 	s = 'REFERENCES '+encode(table)
