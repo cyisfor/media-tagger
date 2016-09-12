@@ -31,6 +31,9 @@ db = None
 def setup(place,name="cookies.sqlite"):
 	global db
 	db = sqlite3.connect(oj(place,name))
+	db.setup(Tables.domains,
+	         Tables.urls,
+	         Tables.cookies)
 
 def selins(name,*uniques):
 	def provide_inserter(inserter=None):
@@ -66,25 +69,34 @@ def getCookie(url,name,value,etc):
 	def _():
 		return {'value': value, 'etc': etc}
 
-def update(self,**values):
+def splitdict(d):
+	k = d.items()
+	# preserve order of keys and values
+	v = tuple(e[1] for e in k)
+	k = tuple(e[0] for e in k)
+	return k,v
+
+def update(self,domain,path,name,value,**attrs):
 	baseDomain = ".".join(name.rsplit(".",2)[-2:])
-	values = tuple((values[infields.get(n,n)] for n in fields))
+	attrs['value'] = value
+	attrs = splitdict(attrs)
 	with db:
+		url = findURL(findDomain(domain),path)
 		r = db.execute(
 			"UPDATE cookies SET "
-			+ ",".join(n+" = ?"+str(i+6) for i,n in enumerate(fields))
-			+ """, baseDomain = ?1,
-			lastAccessed = ?2
-			WHERE name = ?3 AND host = ?4 AND path = ?5""",
-			(baseDomain, time.time()) + values)
+			+ ",".join(n+" = ?"+str(i+4) for i,n in enumerate(attrs[0]))
+			+ """, lastAccessed = ?1
+			WHERE name = ?2 AND url = ?3""",
+			(time.time(),name,url) + attrs[1])
 		if r.rowcount == 0:
 			db.execute(
-				"INSERT INTO cookies (lastAccessed,createdTime"
-				+ ",".join(fields) + ")"
-				+ "VALUES (?1,?1,"
-				+ ",".join("?"+str(i+2) for i in range(len(fields)))
+				"INSERT INTO cookies (lastAccessed,createdTime,name,url"
+				+ ",".join(attrs[0]) + ")"
+				+ "VALUES (?1,?1,?2,?3"
+				+ ",".join("?"+str(i+4) for i in range(len(attrs[0])))
 				+ ")",
-				(time.time(),) + values)
+				(time.time(),name,url) + attrs[1])
+
 def cookies_for_request(self,urlid,**values):
 	extra_names = tuple(values.keys())
 	extra_values = tuple(values[n] for n in extra_names)
@@ -115,7 +127,6 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a forward range
 		return tuple(self.__cookies_for_request(request))
-
 	def set_cookie(self,cookie):
 		update(name=cookie.name,
 					 value=cookie.value,
