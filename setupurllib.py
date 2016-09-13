@@ -48,92 +48,16 @@ if not 'skipcookies' in os.environ:
 	from mycookiejar import jar
 	handlers.append(urllib.HTTPCookieProcessor(jar))
 
-	import json
-				
-	def fileProcessor(f):
-		def wrapper(path):
-			if not os.path.exists(path): return
-			print('getting',path)
-			with jar:
-				for args in f(path):
-					jar.set_cookie(*args)
-		return wrapper
+	from mycookiejar import retrieve
+	if retrieve:
+		retrieve.sqlite(oj(top,"cookies.sqlite"))
+		#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
+		ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
+		retrieve.sqlite(oj(ff,'cookies.sqlite'))
+		retrieve.json(oj(ff,'cookies.jsons'))
 
-	def lineProcessor(f):
-		@fileProcessor
-		def wrapper(path):
-			with open(path,'rb') as inp:
-				creationTime = os.stat(inp.fileno()).st_mtime
-				inp = textreader(inp)
-				cookies = []
-				for line in inp:
-					c = f(line)
-					if c:
-						cookies.append(c)
-				cookies.sort(key=lambda cookie:
-				           (cookie.domain,cookie.path,cookie.name))
-				for c in cookies:
-					yield c,creationTime
-		return wrapper
-
-	@fileProcessor
-	def get_cookies(ff_cookies):
-		import sqlite3
-		with closing(sqlite3.connect(ff_cookies)) as con:
-			cur = con.cursor()
-			# remember mozilla stores creationTime in microseconds
-			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies ORDER BY host, path, name")
-			for item in cur.fetchall():
-				host,path,isSecure,expiry,name,value,creationTime = item
-				if expiry < jar.now():
-					continue
-				yield Cookie(0, name, value,
-					None, False,
-					host, host.startswith('.'), host.startswith('.'),
-					path, False,
-					isSecure,
-					expiry, False,
-					None, None, {}), creationTime/1000000.0
-	@lineProcessor
-	def get_text_cookies(line):
-		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-		if expiry < jar.now():
-			return
-		return Cookie(
-			0, name, value,
-			None, False,
-			host, host.startswith('.'), host.startswith('.'),
-			path, False,
-			isSecure=='TRUE',
-			int(expiry), expiry=="",
-			None, None, {})
-	@lineProcessor
-	def get_json_cookies(line):
-		try:
-			c = json.loads(line)
-			host = c['host']
-		except KeyError:
-			return
-		if c['expires'] < jar.now():
-			return
-		note.yellow('json cookie value',c['name'],c['value'])
-		return Cookie(
-			0, c['name'], c['value'],
-			None, False,
-			host, host.startswith('.'), host.startswith('.'),
-			c['path'],not not c['path'],
-			c['isSecure'], c['expires'],not not c['expires'],
-			None, None, {})
-	
-	get_cookies(oj(top,"cookies.sqlite"))
-	
-	#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
-	ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
-	get_cookies(oj(ff,'cookies.sqlite'))
-	get_json_cookies(oj(ff,'cookies.jsons'))
-
-	get_text_cookies("/extra/user/tmp/cookies.txt")	
-	get_json_cookies("/extra/user/tmp/cookies.jsons")
+		retrieve.text("/extra/user/tmp/cookies.txt")	
+		retrieve.json("/extra/user/tmp/cookies.jsons")
 
 	jar.clear_expired_cookies()
 

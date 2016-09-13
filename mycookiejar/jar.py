@@ -5,30 +5,10 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-from db import db,Tables
+from db import db,execute,policy
 assert(db,"please setup before using this!")
 
-import os
-verbose = 'db_verbose' in os.environ
-
-def execute(stmt,args=()):
-	if verbose:
-		print(stmt)
-		print(args)
-	return db.execute(stmt,args)
-
-try:
-	execute("SELECT id FROM cookies LIMIT 1")
-except sqlite3.OperationalError:
-	importing = True
-else:
-	execute(Tables.domains)
-	execute(Tables.urls)
-	execute(Tables.cookies)
-	execute(Tables.info)
-	execute("CREATE INDEX IF NOT EXISTS byexpires ON cookies(expires)")
-	execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_urls ON urls(domain,path)")
-	execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_cookies ON cookies(name,url)")
+import setup
 
 selins = make_selins(execute)
 
@@ -44,9 +24,10 @@ def memoize(f):
 				created = False
 		return ret, created
 	return wrapper
+
 jar.findDomain = memoize(selins("domains","domain")())
 jar.findURL = memoize(selins("urls","domain","path")())
-#jar.cookieGetter = selins("cookies","url","name") # don't commit insert
+
 jar.extra_fields = tuple(
 	set(c.name for c in Tables.cookies.columns)
 	-
@@ -142,6 +123,7 @@ class Cookie:
 			setattr(self,field,r[i])
 	def is_expired(self,now):
 		return self.expires < now
+	
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
 		super().__init__(policy)
@@ -188,7 +170,7 @@ class Jar(cookiejar.CookieJar):
 			(currentTime,))
 			execute("DELETE FROM domains WHERE id IN (" + domains + ")",
 			(currentTime,))
-	def set_cookie(self,cookie,creationTime):
+	def set_cookie(self,fields,creationTime):
 		herderp = dict()
 		for n in dir(cookie):
 			if n.startswith('_'): continue
@@ -199,3 +181,6 @@ class Jar(cookiejar.CookieJar):
 					 **herderp)
 
 Jar.now = now
+
+import sys
+sys.modules[__name__] = Jar(policy)
