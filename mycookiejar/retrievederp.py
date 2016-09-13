@@ -1,6 +1,10 @@
 from mycookiejar.db import db
 from mycookiejar import jar
-import os,json
+
+from mysix import textreader
+
+import json as JSON
+import os
 from contextlib import closing
 
 def move(item,dest,src):
@@ -32,6 +36,7 @@ def lineProcessor(f):
 			cookies.sort(key=lambda cookie:
 								 (cookie['domain'],cookie['path'],cookie['name']))
 			for c in cookies:
+				c['creationTime'] = creationTime
 				yield c
 	return wrapper
 
@@ -62,7 +67,8 @@ def sqlite(ff_cookies):
 			startdot = item['domain'].startswith('.')
 			item['domain_specified'] = startdot # XXX: is this true?
 			item['domain_initial_dot'] = startdot
-			print(item)
+			item['port'] = 0
+			item['port_specified'] = False
 			yield item
 
 @lineProcessor
@@ -88,7 +94,7 @@ def text(line):
 @lineProcessor
 def json(line):
 	try:
-		item = json.loads(line)
+		item = JSON.loads(line)
 		domain = move(item,'domain','host')
 	except KeyError:
 		return
@@ -98,4 +104,6 @@ def json(line):
 	startdot = domain.startswith('.')
 	item['domain_specified'] = startdot
 	item['domain_initial_dot'] = startdot
+	item['port'] = 0
+	item['port_specified'] = False
 	return item

@@ -8,3 +8,4 @@ if time.time() - setup.lastChecked < 6:
 else:
 	from . import retrievederp
 	sys.modules[__name__] = retrievederp
+	setup.checked()

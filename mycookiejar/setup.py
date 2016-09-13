@@ -48,6 +48,7 @@ info = execute("SELECT lastChecked FROM info").fetchone()
 assert(info)
 lastChecked = info[0]
 def checked():
+	import time
 	execute("UPDATE info SET lastChecked = ?",(time.time(),))
 
 selins = make_selins(execute)

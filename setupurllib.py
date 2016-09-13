@@ -29,7 +29,6 @@ import glob
 import re
 
 from six import raise_from
-from mysix import textreader
 
 print('bou',time.time()-start)
 sys.stdout.flush()
