@@ -40,7 +40,8 @@ else:
 	execute("CREATE INDEX IF NOT EXISTS byexpires ON cookies(expires)")
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_urls ON urls(domain,path)")
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_cookies ON cookies(name,url)")
-	execute("CREATE UNIQUE INDEX IF NOT EXISTS info ON info(singleton)")
+	execute("CREATE UNIQUE INDEX IF NOT EXISTS one_info ON info(singleton)")
+	import time
 	execute("INSERT INTO info (lastChecked) VALUES (?)",(time.time(),))
 
 info = execute("SELECT lastChecked FROM info").fetchone()
@@ -49,7 +50,7 @@ lastChecked = info[0]
 def checked():
 	execute("UPDATE info SET lastChecked = ?",(time.time(),))
 
-selins = make_selins(db)
+selins = make_selins(execute)
 	
 def memoize(f):
 	from functools import lru_cache
@@ -74,8 +75,9 @@ extra_fields = tuple(
 
 def updoot(off):
 	return ("UPDATE cookies SET "
-			+ ",".join(n+" = ?"+str(i+off) for i,n in enumerate(jar.extra_fields))
+			+ ",".join(n+" = ?"+str(i+off) for i,n in enumerate(extra_fields))
 			+ ", lastAccessed = ?1")
 update_id_stmt = updoot(3) + "\n WHERE id = ?2"
 
 
+policy = None

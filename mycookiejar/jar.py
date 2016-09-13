@@ -5,10 +5,10 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-from .db import db,execute,policy
+from .db import db,execute
 assert(db,"please setup before using this!")
 
-from setup import extra_fields,findDomain,findURL,extra_fields,update_id_stmt,importing
+from .setup import extra_fields,findDomain,findURL,extra_fields,update_id_stmt,importing,policy
 
 def splitdict(d):
 	k = d.items()
@@ -132,4 +132,7 @@ class Jar(cookiejar.CookieJar):
 Jar.now = now
 
 import sys
-sys.modules[__name__] = Jar(policy)
+jar = Jar(policy)
+sys.modules[__name__] = jar
+import mycookiejar
+mycookiejar.jar = jar
