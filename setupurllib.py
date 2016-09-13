@@ -42,96 +42,64 @@ space = re.compile('[ \t]+')
 
 if not 'skipcookies' in os.environ:
 	# this can take a while...
-
-	try:
-		import http.cookiejar as cookiejar
-	except ImportError:
-		import cookielib as cookiejar
-
-	def left_is_older(left,right):
-		note("checking",left.name)
-		if left.expires is None:
-			note("old doesn't expire new?",right.expires)
-			return right.expires is None
-		elif right.expires is None:
-			note("new one doesn't expire...",left.expires)
-			return False
-		else:
-			note("comparing",left.expires,right.expires)
-			return left.expires < right.expires
-		
-	class myjar(cookiejar.CookieJar):
-		def _cookies_for_request(self, request):
-			cookies = super()._cookies_for_request(request)
-			note("Cookies for",request.get_full_url())
-			for cookie in cookies:
-				note.blue(cookie.name,cookie.value)
-			return cookies
-	jar = cookiejar.CookieJar()
+	import mycookiejar.setup
+	from http.cookiejar import Cookie
+	mycookiejar.setup(oj(top,"temp"))
+	from mycookiejar import jar
 	handlers.append(urllib.HTTPCookieProcessor(jar))
-	fields = 'version, name, value, port, port_specified, domain, domain_specified, domain_initial_dot, path, path_specified, secure, expires, discard, comment, comment_url, rfc2109'.split(',')
-	fields = [f.strip() for f in fields]
-	def typefield():
-		for f in fields:
-			if f in {'port_specified',
-					 'domain_specified',
-					 'domain_initial_dot',
-					 'path_specified',
-					 'discard'}:
-				yield f + ' BOOLEAN';
-			else:
-				yield f + ' TEXT';
 
-	import sqlite3
 	import json
 				
-	with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
-		db.execute('CREATE TABLE IF NOT EXISTS cookies ('+',\n'.join(typefield())+'\n)')
-		with closing(db.cursor()) as c:
-			c.execute('SELECT '+','.join(fields)+' FROM cookies');
-			for row in c:
-				jar.set_cookie(cookiejar.Cookie(*row))
-			for cookie in jar:
-				c.execute('INSERT INTO cookies ('+','.join(fields)+') VALUES ('+
-						   ','.join('?' for f in fields) + ')',
-						  tuple(getattr(cookie,f) for f in fields))	
-		
 	def fileProcessor(f):
 		def wrapper(path):
 			if not os.path.exists(path): return
 			print('getting',path)
-			for c in f(path):
-				jar.set_cookie(c)
+			with jar:
+				for args in f(path):
+					jar.set_cookie(*args)
 		return wrapper
 
 	def lineProcessor(f):
 		@fileProcessor
 		def wrapper(path):
-			with textreader(open(path,'rb')) as inp:
+			with open(path,'rb') as inp:
+				creationTime = os.stat(inp.fileno()).st_mtime
+				inp = textreader(inp)
+				cookies = []
 				for line in inp:
 					c = f(line)
 					if c:
-						yield c
+						cookies.append(c)
+				cookies.sort(key=lambda cookie:
+				           (cookie.domain,cookie.path,cookie.name))
+				for c in cookies:
+					yield c,creationTime
 		return wrapper
 
 	@fileProcessor
 	def get_cookies(ff_cookies):
+		import sqlite3
 		with closing(sqlite3.connect(ff_cookies)) as con:
 			cur = con.cursor()
-			cur.execute("SELECT host, path, isSecure, expiry, name, value FROM moz_cookies")
+			# remember mozilla stores creationTime in microseconds
+			cur.execute("SELECT host, path, isSecure, expiry, name, value, creationTime FROM moz_cookies ORDER BY host, path, name")
 			for item in cur.fetchall():
-				note("ff cookie",item[4],item[5])
-				yield cookiejar.Cookie(0, item[4], item[5],
+				host,path,isSecure,expiry,name,value,creationTime = item
+				if expiry < jar.now():
+					continue
+				yield Cookie(0, name, value,
 					None, False,
-					item[0], item[0].startswith('.'), item[0].startswith('.'),
-					item[1], False,
-					item[2],
-					item[3], item[3]=="",
-					None, None, {})
+					host, host.startswith('.'), host.startswith('.'),
+					path, False,
+					isSecure,
+					expiry, False,
+					None, None, {}), creationTime/1000000.0
 	@lineProcessor
 	def get_text_cookies(line):
 		host, isSession, path, isSecure, expiry, name, value = space.split(line,6)
-		return cookiejar.Cookie(
+		if expiry < jar.now():
+			return
+		return Cookie(
 			0, name, value,
 			None, False,
 			host, host.startswith('.'), host.startswith('.'),
@@ -146,7 +114,10 @@ if not 'skipcookies' in os.environ:
 			host = c['host']
 		except KeyError:
 			return
-		return cookiejar.Cookie(
+		if c['expires'] < jar.now():
+			return
+		note.yellow('json cookie value',c['name'],c['value'])
+		return Cookie(
 			0, c['name'], c['value'],
 			None, False,
 			host, host.startswith('.'), host.startswith('.'),
@@ -154,25 +125,17 @@ if not 'skipcookies' in os.environ:
 			c['isSecure'], c['expires'],not not c['expires'],
 			None, None, {})
 	
-	#get_cookies(oj(top,"cookies.sqlite"))
+	get_cookies(oj(top,"cookies.sqlite"))
 	
 	#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
 	ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
 	get_cookies(oj(ff,'cookies.sqlite'))
-	#get_json_cookies(oj(ff,'cookies.jsons'))
+	get_json_cookies(oj(ff,'cookies.jsons'))
 
-	#get_text_cookies("/extra/user/tmp/cookies.txt")	
-	#get_json_cookies("/extra/user/tmp/cookies.jsons")
+	get_text_cookies("/extra/user/tmp/cookies.txt")	
+	get_json_cookies("/extra/user/tmp/cookies.jsons")
 
 	jar.clear_expired_cookies()
-
-	with closing(sqlite3.connect(oj(top,"temp","cookies.sqlite"))) as db:
-		for cookie in jar:
-			stmt = 'INSERT INTO cookies ('+','.join(fields)+') VALUES ('+ ','.join('?' for f in fields)+')'
-			args = tuple(getattr(cookie,f) for f in fields)
-			#print(stmt,tuple(enumerate(args)))
-			db.execute(stmt,args)
-					   
 
 class HeaderWatcher(urllib.HTTPHandler):
 	class Client(http.HTTPConnection):
