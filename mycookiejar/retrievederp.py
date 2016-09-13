@@ -1,6 +1,7 @@
 from mycookiejar.db import db
 from mycookiejar import jar
-import json
+import os,json
+from contextlib import closing
 
 def move(item,dest,src):
 	v = item[src]
@@ -34,11 +35,17 @@ def lineProcessor(f):
 				yield c
 	return wrapper
 
+def regular_dict(cursor,row):
+	d = {}
+	for idx, col in enumerate(cursor.description):
+		d[col[0]] = row[idx]
+	return d
+
 @fileProcessor
 def sqlite(ff_cookies):
 	import sqlite3
 	with closing(sqlite3.connect(ff_cookies)) as con:
-		con.row_factory = sqlite3.Row
+		con.row_factory = regular_dict
 		cur = con.cursor()
 		# remember mozilla stores creationTime in microseconds
 		cur.execute("""SELECT
@@ -47,7 +54,7 @@ def sqlite(ff_cookies):
 		isSecure AS secure,
 		expiry AS expires,
 		name, value,
-		creationTime / 1000000.0
+		creationTime / 1000000.0 AS creationTime
 		FROM moz_cookies ORDER BY domain, path, name""")
 		for item in cur.fetchall():
 			if item['expires'] < jar.now():
@@ -55,6 +62,7 @@ def sqlite(ff_cookies):
 			startdot = item['domain'].startswith('.')
 			item['domain_specified'] = startdot # XXX: is this true?
 			item['domain_initial_dot'] = startdot
+			print(item)
 			yield item
 
 @lineProcessor

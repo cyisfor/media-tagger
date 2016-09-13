@@ -1,10 +1,10 @@
 from mycookiejar import setup
-import sys
+import sys,time
 
-if time.time() - setup.lastChecked < 600:
+if time.time() - setup.lastChecked < 6:
 	import note
 	note("only check for cookies every 10min")
 	sys.modules[__name__] = False
 else:
-	import retrievederp
-	sys.modules[__name__] = retrievederp-
+	from . import retrievederp
+	sys.modules[__name__] = retrievederp

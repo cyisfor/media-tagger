@@ -5,7 +5,7 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-from .db import db,execute
+from .db import db,execute,verbose
 assert(db,"please setup before using this!")
 
 from .setup import extra_fields,findDomain,findURL,extra_fields,update_id_stmt,importing,policy
@@ -119,15 +119,8 @@ class Jar(cookiejar.CookieJar):
 			(currentTime,))
 			execute("DELETE FROM domains WHERE id IN (" + domains + ")",
 			(currentTime,))
-	def set_cookie(self,fields,creationTime):
-		herderp = dict()
-		for n in dir(cookie):
-			if n.startswith('_'): continue
-			v = getattr(cookie,n)
-			if callable(v): continue
-			herderp[n] = v
-		update(creationTime=creationTime,
-					 **herderp)
+	def set_cookie(self,fields):
+		update(**fields)
 
 Jar.now = now
 

@@ -31,8 +31,6 @@ try:
 	execute("SELECT id FROM cookies LIMIT 1")
 except sqlite3.OperationalError:
 	importing = True
-else:
-	importing = False
 	execute(Tables.domains)
 	execute(Tables.urls)
 	execute(Tables.cookies)
@@ -43,6 +41,8 @@ else:
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS one_info ON info(singleton)")
 	import time
 	execute("INSERT INTO info (lastChecked) VALUES (?)",(time.time(),))
+else:
+	importing = False
 
 info = execute("SELECT lastChecked FROM info").fetchone()
 assert(info)
