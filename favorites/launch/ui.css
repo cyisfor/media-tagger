@@ -1,0 +1,4 @@
+#progress {
+		min-width: 32px;
+		-GtkProgressBar-min-horizontal-bar-width: 32;
+}
