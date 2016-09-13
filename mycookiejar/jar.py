@@ -5,61 +5,10 @@ try:
 except ImportError:
 	import cookielib as cookiejar
 
-from db import db,execute,policy
+from .db import db,execute,policy
 assert(db,"please setup before using this!")
 
-import setup
-
-selins = make_selins(execute)
-
-def memoize(f):
-	from functools import lru_cache
-	f = lru_cache()(f)
-	# sigh
-	def wrapper(*a,**kw):
-		hits = f.cache_info().hits
-		ret,created = f(*a,**kw)
-		if created:
-			if hits != f.cache_info().hits:
-				created = False
-		return ret, created
-	return wrapper
-
-jar.findDomain = memoize(selins("domains","domain")())
-jar.findURL = memoize(selins("urls","domain","path")())
-
-jar.extra_fields = tuple(
-	set(c.name for c in Tables.cookies.columns)
-	-
-	{'url', 'name','value', 'lastAccessed', 'creationTime'})
-
-def updoot(off):
-	return ("UPDATE cookies SET "
-			+ ",".join(n+" = ?"+str(i+off) for i,n in enumerate(jar.extra_fields))
-			+ ", lastAccessed = ?1")
-jar.update_id_stmt = updoot(3) + "\n WHERE id = ?2"
-
-
-name= jar.__name__
-jar = jar.Jar(policy)
-sys.modules[name] = jar
-import mycookiejar
-mycookiejar.jar = jar
-# let's not do this a second time, thx
-def pythonsucks(*a):
-	raise RuntimeError("don't setup twice!")
-sys.modules[__name__] = pythonsucks
-
-	
-# set in setup.py
-db = None
-findDomain = None
-findURL = None
-cookieGetter = None
-extra_fields = None
-update_id_stmt = None
-
-importing = False
+from setup import extra_fields,findDomain,findURL,extra_fields,update_id_stmt,importing
 
 def splitdict(d):
 	k = d.items()

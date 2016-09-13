@@ -1,5 +1,6 @@
-from db import db
+from .db import execute
 
+import sqlite3
 from orm import create_table,column,references,make_selins
 
 class Tables:
@@ -42,8 +43,39 @@ else:
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS info ON info(singleton)")
 	execute("INSERT INTO info (lastChecked) VALUES (?)",(time.time(),))
 
-info = db.execute("SELECT lastChecked FROM info").fetchone()
+info = execute("SELECT lastChecked FROM info").fetchone()
 assert(info)
 lastChecked = info[0]
 def checked():
-	db.execute("UPDATE info SET lastChecked = ?",(time.time(),))
+	execute("UPDATE info SET lastChecked = ?",(time.time(),))
+
+selins = make_selins(db)
+	
+def memoize(f):
+	from functools import lru_cache
+	f = lru_cache()(f)
+	# sigh
+	def wrapper(*a,**kw):
+		hits = f.cache_info().hits
+		ret,created = f(*a,**kw)
+		if created:
+			if hits != f.cache_info().hits:
+				created = False
+		return ret, created
+	return wrapper
+
+findDomain = memoize(selins("domains","domain")())
+findURL = memoize(selins("urls","domain","path")())
+
+extra_fields = tuple(
+	set(c.name for c in Tables.cookies.columns)
+	-
+	{'url', 'name','value', 'lastAccessed', 'creationTime'})
+
+def updoot(off):
+	return ("UPDATE cookies SET "
+			+ ",".join(n+" = ?"+str(i+off) for i,n in enumerate(jar.extra_fields))
+			+ ", lastAccessed = ?1")
+update_id_stmt = updoot(3) + "\n WHERE id = ?2"
+
+

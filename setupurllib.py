@@ -42,7 +42,7 @@ space = re.compile('[ \t]+')
 
 if not 'skipcookies' in os.environ:
 	# this can take a while...
-	import mycookiejar.setup
+	import mycookiejar
 	from http.cookiejar import Cookie
 	mycookiejar.setup(oj(top,"temp"))
 	from mycookiejar import jar
@@ -58,7 +58,9 @@ if not 'skipcookies' in os.environ:
 
 		retrieve.text("/extra/user/tmp/cookies.txt")	
 		retrieve.json("/extra/user/tmp/cookies.jsons")
-
+	else:
+		print("too soon to check for new cookies")
+		
 	jar.clear_expired_cookies()
 
 class HeaderWatcher(urllib.HTTPHandler):
