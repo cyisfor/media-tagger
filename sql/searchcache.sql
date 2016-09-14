@@ -1,5 +1,15 @@
 CREATE SCHEMA IF NOT EXISTS searchcache;
 
+CREATE TABLE IF NOT EXISTS searchcache.queries (
+id SERIAL PRIMARY KEY,
+name TEXT UNIQUE);
+
+CREATE TABLE IF NOT EXISTS searchcache.tree (
+id SERIAL PRIMARY KEY,
+child INTEGER REFERENCES searchcache.queries(id) NOT NULL ON DELETE CASCADE ON UPDATE CASCADE,
+parent INTEGER REFERENCES searchcache.queries(id) NOT NULL ON DELETE CASCADE ON UPDATE CASCADE,
+UNIQUE(child,parent));
+
 create or replace function searchcache.lookup(_name TEXT)
 RETURNS int
 AS $$
@@ -32,7 +42,7 @@ BEGIN
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
 	END IF;
-	EXECUTE 'CREATE TABLE ' || _ab || ' AS SELECT id FROM ' || _a || ' ' _op || ' ' || 'SELECT id FROM ' || _b;
+	EXECUTE 'CREATE TABLE ' || _ab || ' AS SELECT id FROM ' || _a || ' ' || _op || ' ' || 'SELECT id FROM ' || _b;
 	_abid = searchcache.lookup(_ab);
 	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_a), _abid);
 	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_b), _abid);
@@ -83,15 +93,16 @@ AS $$
 DECLARE
 _result text;
 _negresult text;
+_tag bigint;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
 		_result := searchcache.reduce_implications(_result, _tag, 'INTERSECT');
-	END;
+	END LOOP;
 	FOREACH _tag IN ARRAY _nega LOOP
 		_negresult := searchcache.reduce_implications(_negresult, _tag, 'UNION');
-	END;
+	END LOOP;
 	IF _negresult IS NOT NULL THEN
-		 _result := searchcache.reduce(_result,_negresult,'EXCEPT')
+		 _result := searchcache.reduce(_result,_negresult,'EXCEPT');
 	END IF;
 	return _result;
 END;
@@ -114,10 +125,12 @@ $$ LANGUAGE 'plpgsql';
 
 create or replace function searchcache.follow_expire(_query int)
 RETURNS int
+AS $$
 DECLARE
 _count int;
-AS $$
-	 FOR _sub IN SELECT parent FROM searchcache.tree WHERE parent = _query; LOOP
+_sub int;
+BEGIN
+	FOR _sub IN SELECT parent FROM searchcache.tree WHERE parent = _query LOOP
 	 		_count := _count + searchcache.follow_expire(_sub);
 	 END LOOP;
 	 PERFORM searchcache.really_expire(_query);
@@ -130,8 +143,9 @@ RETURNS int
 AS $$
 DECLARE
 _count int;
+_base int;
 BEGIN
-	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_newtags); LOOP
+	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_newtags) LOOP
 		_count := _count + searchcache.follow_expire(_base);
 		PERFORM searchcache.really_expire(_base);
 	END LOOP;
