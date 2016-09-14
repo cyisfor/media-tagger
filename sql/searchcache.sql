@@ -113,3 +113,44 @@ BEGIN
 END;
 $$
 language 'plpgsql';
+
+
+create or replace function searchcache.really_expire(_query int)
+RETURNS void
+AS $$
+DECLARE
+_name text;
+BEGIN
+	 DELETE FROM searchcache.tree WHERE child = _query;
+	 SELECT name INTO _name FROM searchcache.queries WHERE id = _query;
+	 DELETE FROM searchcache.queries WHERE id = _query;
+	 EXECUTE 'DROP TABLE ' || _name || ' CASCADE';
+END
+$$ LANGUAGE 'plpgsql';
+
+create or replace function searchcache.follow_expire(_query int)
+RETURNS int
+DECLARE
+_count int;
+AS $$
+	 FOR _sub IN SELECT parent FROM searchcache.tree WHERE parent = _query; LOOP
+	 		_count := _count + searchcache.follow_expire(_sub);
+	 END LOOP;
+	 PERFORM searchcache.really_expire(_query);
+	 RETURN _count;
+END;
+$$ language 'plpgsql';
+
+create or replace function searchcache.expire(_newtags bigint[])
+RETURNS int
+AS $$
+DECLARE
+_count int;
+BEGIN
+	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_newtags); LOOP
+		_count := _count + searchcache.follow_expire(_base);
+		PERFORM searchcache.really_expire(_base);
+	END LOOP;
+	RETURN _count;
+END;
+$$ language 'plpgsql';
