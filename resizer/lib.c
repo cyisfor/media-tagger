@@ -53,7 +53,7 @@ VipsImage* lib_thumbnail(context* ctx) {
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
 			// no thumbnailing needed
-      return NULL;
+      return in;
     }
   }
 

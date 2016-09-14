@@ -40,7 +40,7 @@ v.setup()
 def currentUser():
 	return User
 
-defaultTags = '-rating:explicit, -gore'
+defaultTags = '-rating:explicit, -gore, -foalcon, -loli'
 dtags = tags.parse(defaultTags)
 
 @contextify

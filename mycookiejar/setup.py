@@ -16,7 +16,7 @@ class Tables:
 		column("url",references("urls")),
 		column("name","TEXT"),
 		column("value","TEXT"),
-		column("expires","REAL"),
+		column("expires","REAL",notNull=False),
 		column("port","INTEGER",notNull=False),
 		column("port_specified","BOOLEAN"),
 		column("lastAccessed","REAL"),
@@ -40,7 +40,7 @@ except sqlite3.OperationalError:
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS unique_cookies ON cookies(name,url)")
 	execute("CREATE UNIQUE INDEX IF NOT EXISTS one_info ON info(singleton)")
 	import time
-	execute("INSERT INTO info (lastChecked) VALUES (?)",(time.time(),))
+	execute("INSERT INTO info (lastChecked) VALUES (?)",(0,))
 else:
 	importing = False
 

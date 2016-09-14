@@ -191,10 +191,11 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = tags.parse("apple, smile, -evil")
+		bags = tags.parse("-evil, -red-")
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args)
+		return
 		for tag in searchForTags(bags):
 			print(tag)
 	except db.ProgrammingError as e:

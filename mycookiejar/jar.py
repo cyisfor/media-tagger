@@ -71,7 +71,7 @@ class Cookie:
 		for i,field in enumerate(self.fields):
 			setattr(self,field,r[i])
 	def is_expired(self,now):
-		return self.expires < now
+		return self.expires is not None and self.expires < now
 	
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
@@ -119,8 +119,16 @@ class Jar(cookiejar.CookieJar):
 			(currentTime,))
 			execute("DELETE FROM domains WHERE id IN (" + domains + ")",
 			(currentTime,))
-	def set_cookie(self,fields):
-		update(**fields)
+	def set_cookie(self,item):
+		if(isinstance(item,cookiejar.Cookie)):
+			d = {'domain': item.domain,
+			     'path': item.path,
+			     'creationTime': time.time()
+			}
+			for key in Cookie.fields:
+				d[key] = getattr(item,key)
+			item = d
+		update(**item)
 
 Jar.now = now
 
