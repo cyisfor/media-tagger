@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS searchcache;
+
 create or replace function searchcache.lookup(_name TEXT)
 RETURNS int
 AS $$
@@ -6,7 +8,7 @@ _id int;
 BEGIN
 LOOP
 	SELECT id INTO _id FROM searchcache.queries WHERE name = _name;
-	IF found; THEN
+	IF found THEN
 		RETURN _id;
 	END IF;
 	BEGIN
@@ -20,26 +22,6 @@ END LOOP;
 END;
 $$ language 'plpgsql';
 
-
-create or replace function searchcache.find_query(_name TEXT, _query TEXT)
-RETURNS int
-AS $$
-DECLARE
-_id int;
-BEGIN
-
-		 RETURN NULL;
-	END IF;
-	BEGIN
-		EXECUTE 'CREATE TABLE ' || _name || ' AS SELECT ' || _query;
-		INSERT INTO searchcache.queries (name) VALUES (_name) RETURNING id INTO  _id;
-	END;
-	RETURN _id;
-END;
-$$ language 'plpgsql';
-
-
-
 create or replace function searchcache.reduce(_a TEXT, _b TEXT, _op TEXT)
 RETURNS text
 AS $$
@@ -47,10 +29,10 @@ DECLARE
 _ab TEXT DEFAULT _a || '_' || _b || '_' || _isand || _negating;
 _abid INTEGER;
 BEGIN
-	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab); THEN
+	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
 	END IF;
-	EXECUTE 'CREATE TABLE ' || _ab || ' AS SELECT id FROM ' || _a || ' ' _op || ' ' || 'SELECT id FROM ' || _b);
+	EXECUTE 'CREATE TABLE ' || _ab || ' AS SELECT id FROM ' || _a || ' ' _op || ' ' || 'SELECT id FROM ' || _b;
 	_abid = searchcache.lookup(_ab);
 	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_a), _abid);
 	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_b), _abid);
@@ -66,12 +48,13 @@ DECLARE
 _result text;
 BEGIN
 	_result := _tag;
-	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result); THEN
+	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result) THEN
 		RETURN _result;
 	END IF;
 	EXECUTE 'CREATE TABLE ' || _name || ' AS SELECT id FROM tags WHERE name = $1',_tag;
 	RETURN _result;
-END IF;
+END;
+$$ language 'plpgsql';
 
 create or replace function searchcache.reduce_implications(_result text, _tag bigint, _op text)
 RETURNS text
@@ -80,18 +63,19 @@ DECLARE
 _subresult text;
 BEGIN
 		FOR _tag IN SELECT implications FROM implications(_tag) ORDER BY implications LOOP
-			IF _subresult IS NULL; THEN
+			IF _subresult IS NULL THEN
 				_subresult := searchcache.one_tag(_tag);
 			ELSE
 				_subresult := searchcache.reduce(_result, one_tag(_tag), 'UNION');
 			END IF;
 		END LOOP;
-		IF _result IS NULL; THEN
+		IF _result IS NULL THEN
 			 return _subresult;
 		ELSE
 			return searchcache.reduce(_result,_subresult,_op);
 		END IF;
 END;
+$$ language 'plpgsql';
 
 create or replace function searchcache.query(_posi bigint[], _nega bigint[])
 RETURNS text
@@ -100,13 +84,13 @@ DECLARE
 _result text;
 _negresult text;
 BEGIN
-	FOR _tag IN SELECT unnest FROM unnest(_posi) LOOP
+	FOREACH _tag IN ARRAY _posi LOOP
 		_result := searchcache.reduce_implications(_result, _tag, 'INTERSECT');
 	END;
-	FOR _tag IN SELECT unnest FROM unnest(_nega) LOOP
+	FOREACH _tag IN ARRAY _nega LOOP
 		_negresult := searchcache.reduce_implications(_negresult, _tag, 'UNION');
 	END;
-	IF _negresult IS NOT NULL; THEN
+	IF _negresult IS NOT NULL THEN
 		 _result := searchcache.reduce(_result,_negresult,'EXCEPT')
 	END IF;
 	return _result;
