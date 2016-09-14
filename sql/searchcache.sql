@@ -6,8 +6,8 @@ name TEXT UNIQUE);
 
 CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
-child INTEGER REFERENCES searchcache.queries(id) NOT NULL ON DELETE CASCADE ON UPDATE CASCADE,
-parent INTEGER REFERENCES searchcache.queries(id) NOT NULL ON DELETE CASCADE ON UPDATE CASCADE,
+child INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
+parent INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
 UNIQUE(child,parent));
 
 create or replace function searchcache.lookup(_name TEXT)
@@ -36,9 +36,12 @@ create or replace function searchcache.reduce(_a TEXT, _b TEXT, _op TEXT)
 RETURNS text
 AS $$
 DECLARE
-_ab TEXT DEFAULT _a || '_' || _b || '_' || _isand || _negating;
+_ab TEXT DEFAULT _a || '_' || _b || '_' || _op;
 _abid INTEGER;
 BEGIN
+	IF _ab IS NULL THEN
+		 RAISE EXCEPTION 'fail';
+	END IF;
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
 	END IF;
@@ -57,11 +60,15 @@ AS $$
 DECLARE
 _result text;
 BEGIN
-	_result := _tag;
+	_result := 't' || _tag::text;
+	IF _result IS NULL THEN
+		 RAISE EXCEPTION 'fail';
+	END IF;
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result) THEN
 		RETURN _result;
 	END IF;
-	EXECUTE 'CREATE TABLE ' || _name || ' AS SELECT id FROM tags WHERE name = $1',_tag;
+	EXECUTE 'CREATE TABLE ' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
+	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_result), NULL);
 	RETURN _result;
 END;
 $$ language 'plpgsql';
@@ -75,8 +82,11 @@ BEGIN
 		FOR _tag IN SELECT implications FROM implications(_tag) ORDER BY implications LOOP
 			IF _subresult IS NULL THEN
 				_subresult := searchcache.one_tag(_tag);
+				IF _result IS NULL THEN
+					 _result := _subresult;
+				END IF;
 			ELSE
-				_subresult := searchcache.reduce(_result, one_tag(_tag), 'UNION');
+				_subresult := searchcache.reduce(_result, searchcache.one_tag(_tag), 'UNION');
 			END IF;
 		END LOOP;
 		IF _result IS NULL THEN
