@@ -191,10 +191,12 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = tags.parse("-evil, -red-")
+		bags = tags.parse("evil, red")
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
-		print(args)
+		print(args.args)
+		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
+			print(thing[0]);
 		return
 		for tag in searchForTags(bags):
 			print(tag)
