@@ -61,21 +61,17 @@ tagsWhat = (
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
-	negaWanted = Select('id','unwanted')
-	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
-	if not (tags.posi or tags.nega):
+	if tags.posi:
+		for tag in tags.posi:
+			posi = db.execute("tagcache.query(implications($1))",tags.posi)[0][0]
+		From = InnerJoin(From, posi, EQ('things.id',posi+'.id'))
+	if tags.nega:
+		nega = db.execute("tagcache.query($1::bigint[])",tags.nega)[0][0]
+		negaid = nega + '.id'
+		From = OuterJoin(From,nega,EQ('things.id',negaid))
+		where = negaid + " IS NULL"
+	else:
 		where = None
-	elif tags.posi:
-		where = Group(Select(EVERY(Intersects('neighbors','tags')),'wanted'))
-
-		if tags.nega:
-			negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
-			where = AND(where,negaClause)
-	elif tags.nega:
-		# only negative tags
-		negaWanted.where = None
-		where = negaClause
-
 	if User.noComics:
 		first_page = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 		if where is None:
@@ -94,24 +90,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 
 	if wantRelated:
-		mainOrdered = EQ('things.id',ANY(mainOrdered))
-		if tags.posi:
-			mainOrdered = AND(
-							NOT(EQ('tags.id',ANY(posi))),
-				mainOrdered)
-
-		tagStuff = Select(
-			['tags.id','first(tags.name) as name'],
-			InnerJoin('tags','things',
-					  EQ('tags.id','ANY(things.neighbors)')),
-			mainOrdered)
-		stmt = Select(['derp.id','derp.name'],
-					  AS(
-						  Limit(GroupBy(tagStuff,'tags.id'),
-								limit=arg(taglimit)),
-						  'derp'))
-
-		stmt = Order(stmt,'derp.name')
+		# ...
 	else:
 		mainCriteria.what = tagsWhat
 		if User.noComics:
@@ -121,33 +100,13 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
 		stmt = mainOrdered
 
-	# we MIGHT need a with statement...
-	clauses = {}
-
-	if tags.nega:
-		nega = db.execute("tagcache.query($1::bigint[])",tags.nega)[0][0]
-		notWanted = EQ('things.id',ANY(nega))
-		if tags.posi:
-			notWanted = AND(notWanted,
-							NOT(EQ('things.id',ANY(posi))))
-		herp = AS(Func('unnest',nega),'id')
-
-		clauses['unwanted'] = (
-			'id',
-			Union(Select('tags.id',
-						 InnerJoin('tags','things',
-								   EQ('tags.id','things.id')),
-									 notWanted),
-				  Select('id',herp)))
-	else:
-		notWanted = None
-
 	if tags.posi:
 		# make sure positive tags don't override negative ones
 		noOverride = NOT(EQ('things.id',ANY(posi)))
 		notWanted = AND(notWanted,noOverride) if notWanted else noOverride
 		# MUST separate implications to separate arrays
 		# for the AND requirement a & b & c = (a|a2|a3)&(b|b2|b3)&...
+		# blehhhhgghh
 		clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
 										   Func('unnest',posi)))
 												 

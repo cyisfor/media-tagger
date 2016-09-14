@@ -191,7 +191,7 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = tags.parse("evil, red")
+		bags = tags.parse("evil, red, -apple, -wagon")
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args.args)
