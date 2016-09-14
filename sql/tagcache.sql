@@ -6,13 +6,14 @@ $$
 DECLARE
 _name text;
 BEGIN
-	_name := 'tagcache.q' || array_to_string(_tags,',');
+	_name := 'tagcache.q' || array_to_string(_tags,'_');
 	UPDATE tagcache.queries SET created = clock_timestamp() WHERE tags = _tags;
 	IF found THEN
 		RETURN _name;
-	END;
+	END IF;
 	BEGIN
-		EXECUTE 'CREATE TABLE ' || _name || ' AS SELECT unnest(neighbors) FROM things WHERE id = ANY($1)', _tags;
+		EXECUTE 'CREATE TABLE ' || _name || ' AS SELECT derp.unnest AS id FROM (SELECT unnest(neighbors) FROM things WHERE id = ANY($1)) AS derp'
+		USING _tags;
 		INSERT INTO tagcache.queries (tags) VALUES (_tags);
 	EXCEPTION
 		WHEN unique_violation THEN
