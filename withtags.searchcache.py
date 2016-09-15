@@ -1,5 +1,5 @@
 from user import User
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS, With
 import db
 import os
 
@@ -29,9 +29,7 @@ fullWhat = (
 			'media.id',
 			'media.name',
 			'media.type',
-			array(Select('tags.name',
-						 InnerJoin('tags',AS(Select('unnest(neighbors)'),'neigh'),
-								   EQ('neigh.unnest','tags.id'))))
+			array(Select('tags.name','tags',IN('id',Select('unnest(neighbors)','thingies'))))
 			)
 
 
@@ -47,20 +45,18 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
 	result = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))[0][0]
+	thingies = Select('id',result.table)
 	if User.noComics:
-		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
-	else:
-		where = None
-
-	From = InnerJoin('media','things',EQ('things.id','media.id'))
-
-	if result.negative:
-		where = combine(where,NOT(IS('things.id',IN('id',result.table))),AND)
-	else:
-		where = combine(where,IN('things.id',Select('id',result.table)),AND)
-
-	mainCriteria = Select('things.id',From,where)
-	# don't limit here. It actually makes the things/media join a hundred times slower!
+		nocomics = Select('medium','comicPage','which != 0')
+		if result.negative:
+			thingies = Union(thingies,nocomics)
+		else:
+			thingies = Except(thingies,nocomics)
+	with_clauses = {
+		'thingies': thingies
+	}
+			
+	mainCriteria = Select('id','media',IN('id',Select('id','thingies')))
 	mainOrdered = Order(mainCriteria,'media.added DESC')
 	if wantRelated:
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
@@ -90,12 +86,11 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			# we need a little extra info provided to show a glaringly obvious border
 			mainCriteria.what += (
 				EXISTS(Select(
-					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
+					'medium','comicPage',EQ("media.id","comicPage.medium"))),)
 		stmt = mainOrdered
 	# we shouldn't ever need a with statement
-	stmt = Limit(stmt, (arg(offset) if offset else False),arg(limit))
+	stmt = With(Limit(stmt, (arg(offset) if offset else False),arg(limit)),**with_clauses)
 	return stmt,arg,result.count
-
 
 class CountedRange:
 	"A range whose first element is the (finite) length of it."
@@ -145,7 +140,7 @@ def test():
 		from pprint import pprint
 		bags = ', '.join(sys.argv[1:])
 		bags = tags.parse(bags)
-		result = searchForTags(bags)
+		result = searchForTags(bags,limit=3)
 		print('count:', result.count)
 		for id,name,typ,tags,*iscomic in result:
 			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,','.join(tags).replace(' ','-'),id))
