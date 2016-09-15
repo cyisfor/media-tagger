@@ -142,7 +142,7 @@ def test():
 		from pprint import pprint
 		bags = ', '.join(sys.argv[1:])
 		bags = tags.parse(bags)
-		result = searchForTags(bags,limit=3)
+		result = searchForTags(bags,limit=3,wantRelated=True)
 		print('count:', result.count)
 		for id,name,typ,tags,*iscomic in result:
 			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,','.join(tags).replace(' ','-'),id))

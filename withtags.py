@@ -1,5 +1,5 @@
 from user import User
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS,With,Except,Union
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS,With,Except,Union,ANY
 import db
 import os
 
@@ -45,7 +45,13 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
 	result = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))[0][0]
-	thingies = Select('id',result.table)
+	if wantRelated:
+		# we want related tags, not literally the tags we're specifying
+		where = NOT(EQ('id',ANY(posi)))
+	else:
+		where = None
+
+	thingies = Select('id',result.table,where)
 	if User.noComics:
 		nocomics = Select('medium','comicPage','which != 0')
 		if result.negative:
@@ -58,19 +64,11 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			
 	mainCriteria = Select('id','media',IN('id',Select('id','thingies')))
 	mainOrdered = Order(mainCriteria,'media.added DESC')
+
 	if wantRelated:
-		mainOrdered = EQ('things.id',ANY(mainOrdered))
-		if posi:
-			# we want related tags, not literally the tags we're specifying
-			mainOrdered = AND(
-							NOT(EQ('tags.id',ANY(posi))),
-				mainOrdered)
 		# nearby tags to the results for our query...
-		tagStuff = Select(
-			['tags.id','first(tags.name) as name'],
-			InnerJoin('tags','things',
-					  EQ('tags.id','ANY(things.neighbors)')),
-			mainOrdered)
+		tagStuff = Select('unnest(neighbors)','things',IN('id',Select('id',thingies)))
+		tagStuff = Select(['tags.id','first(tags.name) as name'],'tags',IN('id',tagStuff))
 		# limit results in a scope that the database can avoid calculating them all for 30s then throwing away 98% of them
 		stmt = Select(['derp.id','derp.name'],
 					  AS(
@@ -140,7 +138,7 @@ def test():
 		from pprint import pprint
 		bags = ', '.join(sys.argv[1:])
 		bags = tags.parse(bags)
-		result = searchForTags(bags,limit=3)
+		result = searchForTags(bags,limit=3,wantRelated=True)
 		print('count:', result.count)
 		for id,name,typ,tags,*iscomic in result:
 			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,','.join(tags).replace(' ','-'),id))
