@@ -30,13 +30,18 @@ create or replace function searchcache.reduce(_a int, _b int, _op TEXT)
 RETURNS int
 AS $$
 DECLARE
-_at TEXT DEFAULT SELECT name FROM searchcache.queries WHERE id = _a;
-_bt TEXT DEFAULT SELECT name FROM searchcache.queries WHERE id = _b;
+_at TEXT;
+_bt TEXT;
 _name TEXT;
 _result INTEGER;
 BEGIN
-  if _at IS NULL OR _bt IS NULL THEN
-	  RAISE EXCEPTION 'Should not be null! % %',_at,_bt;
+  _at := name FROM searchcache.queries WHERE id = _a;
+  if NOT FOUND THEN
+	  RAISE EXCEPTION 'Should not be null! % %',_a,_b;
+  END IF;
+	_bt := name FROM searchcache.queries WHERE id = _b; 
+  if NOT FOUND THEN
+	  RAISE EXCEPTION 'B Should not be null! % %',_at,_b;
   END IF;
 	_name := 's' || _a || '_' || _b || '_' || _op;
 	RAISE NOTICE '% + % => %', _at, _bt, _name;
@@ -45,8 +50,8 @@ BEGIN
 	END IF;
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-	GET DIAGNOSTICS _rowcount = ROW_COUNT;
-	INSERT INTO searchcache.queries (count,name) VALUES (_rowcount,_name) RETURNING id INTO _result;
+	GET DIAGNOSTICS _result = ROW_COUNT;
+	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
 	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _result);
 	INSERT INTO searchcache.tree (child,parent) VALUES (_b, _result);
 	-- when unique violation...?
@@ -60,7 +65,6 @@ AS $$
 DECLARE
 _result int;
 _name text;
-_rowcount int;
 BEGIN
 	_name := 't' || _tag;
 	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
@@ -68,8 +72,8 @@ BEGIN
 		RETURN _result;
 	END IF;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
-	GET DIAGNOSTICS _rowcount = ROW_COUNT;
-	INSERT INTO searchcache.queries (count,name) VALUES (_count,_name) RETURNING id INTO _result;
+	GET DIAGNOSTICS _result = ROW_COUNT;
+	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
 	-- just leave this empty, never need to cascade into the base tags.
 	--	INSERT INTO searchcache.tree (child,parent) VALUES (NULL,searchcache.lookup(_result));
 	RETURN _result;
@@ -105,6 +109,7 @@ RETURNS text
 AS $$
 DECLARE
 _result int;
+_name TEXT;
 _negresult int;
 _tag bigint;
 BEGIN
@@ -117,7 +122,8 @@ BEGIN
 	IF _negresult IS NOT NULL THEN
 		 _result := searchcache.reduce(_result,_negresult,'EXCEPT');
 	END IF;
-	return SELECT name FROM searchcache.queries WHERE id = _result;
+	SELECT name INTO _name FROM searchcache.queries WHERE id = _result;
+	return _name;
 END;
 $$
 language 'plpgsql';
