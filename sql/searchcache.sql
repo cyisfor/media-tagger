@@ -49,13 +49,7 @@ BEGIN
 	  RAISE EXCEPTION 'B Should not be null! % %',_at,_b;
   END IF;
 	_name = 's' || _a || '_' || _b || '_' || _op;
-	RAISE NOTICE '% + % => %', _at, _bt, _name;
-	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
-	IF FOUND THEN
-		RETURN _result;
-	END IF;
---	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-  IF _op = 0 THEN
+	IF _op = 0 THEN
 	  _sop = ' UNION ';
 	ELSIF _op = 1 THEN
 	  _sop = ' INTERSECT ';
@@ -64,6 +58,13 @@ BEGIN
 	ELSE
 		RAISE EXCEPTION 'what operations is %?',_op;
 	END IF;
+
+	RAISE NOTICE '% % % => %', _at, _sop, _bt, _name;
+	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
+	IF FOUND THEN
+		RETURN _result;
+	END IF;
+--	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || _sop || 'SELECT id FROM searchcache.' || _bt;
 	GET DIAGNOSTICS _result = ROW_COUNT;
 	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
@@ -137,15 +138,13 @@ _imp bigint[]; -- don't let any implications of positives end up in implications
 _tag bigint;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
-		PERFORM unsafeImplications(_tag); -- see implications.sql
 		-- we need to follow positive implications multiple times, because they're AND'd
 		-- if you search for "character, mario" and a medium has character:mario, character will imply character:mario
 		-- then looking up mario, it will imply character mario, and then eliminate it if you delete from _imp here
 		-- now you have (character | character:mario) & (mario) so something tagged character:mario will fail.
 		-- do nothing here, and you'll have (character | character:mario) & (mario | character:mario) which will match everything you want.
 		-- DELETE from impresult WHERE tag = ANY(_imp);
-	  _curimp = array(SELECT tag FROM impresult ORDER BY tag);
-		DELETE from impresult; -- uhhh yeah.
+	  _curimp = array(SELECT implications FROM implications(_tag));
 		_posresult = searchcache.reduce_implications(_posresult, _tag, _curimp, 1); -- intersect
 		_imp = _imp || _curimp;
 	END LOOP;
@@ -154,20 +153,14 @@ BEGIN
 	-- just a pointless attempt to optimize prematurely
 	_imp = array(SELECT DISTINCT unnest FROM unnest(_imp));
 	FOREACH _tag IN ARRAY _nega LOOP
-		PERFORM unsafeImplications(_tag);
 		-- do delete it here though, because "-character, -mario" -> !((character | character:mario)|(mario))
 		-- so redoing implications doesn't add anything but wasted time.
 		-- for that matter "character:mario -mario" -> (character:mario) & !(mario | character:mario)
 		-- so positive implications must be ignored even if negative, since they will eliminate everything. (a & !(b|a)) -> (a & !a & !b)
-		DELETE from impresult WHERE tag = ANY(_imp);
-		_curimp = array(SELECT tag FROM impresult ORDER BY tag);
-		DELETE from impresult; -- uhhh yeah.
+		_curimp = array(SELECT implications from implications(_tag));
 		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 0); -- union
 		_imp = _imp || _curimp; -- negative implications still cancel out
 	END LOOP;
-	IF _curimp IS NOT NULL THEN
-		 DROP TABLE impresult; -- I am such a hack
-	END IF;
 	IF _negresult IS NOT NULL THEN
 		 _posresult = searchcache.reduce(_posresult,_negresult,2); -- except
 	END IF;
