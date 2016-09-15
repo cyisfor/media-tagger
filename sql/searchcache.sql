@@ -108,11 +108,8 @@ BEGIN
 		FOREACH _tag IN ARRAY _implications LOOP
 			IF _subresult IS NULL THEN
 				_subresult = searchcache.one_tag(_tag);
-				IF _result IS NULL THEN
-					 _result = _subresult;
-				END IF;
 			ELSE
-				_subresult = searchcache.reduce(_result, searchcache.one_tag(_tag), 0); -- union
+				_subresult = searchcache.reduce(_subresult, searchcache.one_tag(_tag), 0); -- union
 			END IF;
 		END LOOP;
 		IF _result IS NULL THEN
@@ -123,7 +120,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TYPE searchcache.result AS (name text, count int);
+CREATE TYPE searchcache.result AS (name text, count int, negative BOOLEAN NOT NULL DEFAULT FALSE);
 
 create or replace function searchcache.query(_posi bigint[], _nega bigint[])
 RETURNS searchcache.result
@@ -161,11 +158,22 @@ BEGIN
 		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 0); -- union
 		_imp = _imp || _curimp; -- negative implications still cancel out
 	END LOOP;
-	IF _negresult IS NOT NULL THEN
+	IF _posresult IS NULL THEN
+		 IF _negresult IS NULL THEN
+		 		_result.name ='media';
+				_result.count = count(1) from media;
+				RETURN _result;
+		 ELSE
+				_result.negative = TRUE; -- meh!
+				_posresult = _negresult;
+		 END IF;
+	ELSIF _negresult IS NOT NULL THEN
 		 _posresult = searchcache.reduce(_posresult,_negresult,2); -- except
 	END IF;
+	-- it's a searchcache result if it gets this far.
 	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _posresult;
 	_result.name = 'searchcache.' || _result.name;
+
 	return _result;
 END;
 $$

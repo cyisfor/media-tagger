@@ -8,10 +8,12 @@ db.setup(source='sql/implications.sql')
 db.setup(source='sql/searchcache.sql')
 
 def decode_search(s):
+	print('uhhhm',s)
 	r = s[1:-1].decode().split(',')
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
+		negative = r[2] == 'TRUE'
 		def __repr__(self):
 			return 'Search<'+self.table+','+str(self.count)+'>'
 	return SearchResult()
@@ -37,8 +39,8 @@ fullWhat = (
 def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	arg = argbuilder()
 	def prepareTags(ids):
-		if not ids: return None
-		res = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]
+		if not ids: return ()
+		res = [getTag(tag) if isinstance(tag,str) else tag for tag in ids]
 		res.sort()
 		return res
 
@@ -49,7 +51,11 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
 		where = None
-	From = InnerJoin('things',result.table,EQ('things.id',result.table+'.id'))
+	if result.negative:
+		From = InnerJoin('things',result.table,NOT(EQ('things.id',result.table+'.id')))
+	else:
+		From = result.table
+	From = InnerJoin('things',From,EQ('things.id',result.table+'.id'))
 	From = InnerJoin(From,'media',EQ('things.id','media.id'))
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,
@@ -129,20 +135,16 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			yield row
 
 def test():
+	import sys
 	try:
 		import tags
 		from pprint import pprint
-		bags = tags.parse("evil, red, -apple, -wagon")
-		stmt,args,count = assemble(bags)
-		print(count)
-		print(stmt.sql())
-		print(args.args)
-		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
-			print(thing[0]);
+		bags = ', '.join(sys.argv[1:])
+		bags = tags.parse(bags)
 		result = searchForTags(bags)
 		print('count:', result.count)
 		for id,name,typ,tags,*iscomic in result:
-			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,name,id))
+			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,','.join(tags).replace(' ','-'),id))
 	except db.ProgrammingError as e:
 		print(e.info['message'].decode('utf-8'))
 
