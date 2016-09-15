@@ -124,12 +124,15 @@ BEGIN
 		_result = searchcache.reduce_implications(_result, _tag, _curimp, 'INTERSECT');
 		_imp = _imp || _curimp;
 	END LOOP;
+	-- don't let any implications of positives end up in implications of negatives.
+	-- so don't clear _imp here, and they'll carry over as "already checked"
+	-- just a pointless attempt to optimize prematurely
 	_imp = array(SELECT DISTINCT unnest FROM unnest(_imp));
 	FOREACH _tag IN ARRAY _nega LOOP
-		-- don't let any implications of positives end up in implications of negatives.
 		PERFORM unsafeImplications(_tag);
 		DELETE from impresult WHERE tag = ANY(_imp);
-		_negresult = searchcache.reduce_implications(_negresult, _tag, array(SELECT DISTINCT id FROM impresult), 'UNION');
+		_curimp = array(SELECT id FROM impresult);
+		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 'UNION');
 		_imp = _imp || _curimp;
 	END LOOP;
 	IF _curimp IS NOT NULL THEN
