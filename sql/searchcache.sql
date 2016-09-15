@@ -117,15 +117,24 @@ _imp bigint[]; -- don't let any implications of positives end up in implications
 _tag bigint;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
-	  _curimp = array(SELECT id FROM impresult)
-		_result = searchcache.reduce_implications(_result, _tag, _posimp, 'INTERSECT');
-		_imp = _imp | _curimp;
+		PERFORM unsafeImplications(_tag);
+		-- no need to follow positive implications twice!
+		DELETE from impresult WHERE tag = ANY(_imp);
+	  _curimp = array(SELECT id FROM impresult);
+		_result = searchcache.reduce_implications(_result, _tag, _curimp, 'INTERSECT');
+		_imp = _imp || _curimp;
 	END LOOP;
+	_imp = array(SELECT DISTINCT unnest FROM unnest(_imp));
 	FOREACH _tag IN ARRAY _nega LOOP
 		-- don't let any implications of positives end up in implications of negatives.
-		_curimp = array(select implications from implications(_nega) EXCEPT select unnest from unnest(_imp));
-		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 'UNION');
+		PERFORM unsafeImplications(_tag);
+		DELETE from impresult WHERE tag = ANY(_imp);
+		_negresult = searchcache.reduce_implications(_negresult, _tag, array(SELECT DISTINCT id FROM impresult), 'UNION');
+		_imp = _imp || _curimp;
 	END LOOP;
+	IF _curimp IS NOT NULL THEN
+		 DROP TABLE impresult; -- I am such a hack
+	END IF;
 	IF _negresult IS NOT NULL THEN
 		 _result = searchcache.reduce(_result,_negresult,'EXCEPT');
 	END IF;
