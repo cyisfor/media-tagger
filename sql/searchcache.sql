@@ -64,9 +64,11 @@ BEGIN
 	IF FOUND THEN
 		RETURN _result;
 	END IF;
+	RAISE NOTICE 'STARTING %',_name;
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || _sop || 'SELECT id FROM searchcache.' || _bt;
 	GET DIAGNOSTICS _result = ROW_COUNT;
+	RAISE NOTICE 'COUNTED % => %',_name,_result;
 	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
 	INSERT INTO searchcache.tree (child,parent,op) VALUES (_a, _result,_op);
 	INSERT INTO searchcache.tree (child,parent,op) VALUES (_b, _result,_op);

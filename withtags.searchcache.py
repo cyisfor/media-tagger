@@ -1,5 +1,5 @@
 from user import User
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS
 import db
 import os
 
@@ -13,7 +13,7 @@ def decode_search(s):
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
-		negative = r[2] != ''
+		negative = r[2] != 'f'
 		def __repr__(self):
 			return 'Search<'+self.table+','+str(self.count)+'>'
 	return SearchResult()
@@ -51,15 +51,17 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
 		where = None
-	on = EQ('things.id',result.table+'.id')
+
+	From = InnerJoin('media','things',EQ('things.id','media.id'))
+
 	if result.negative:
-		on = NOT(on)
-	From = InnerJoin('things',result.table,on)
-	From = InnerJoin(From,'media',EQ('things.id','media.id'))
+		where = combine(where,NOT(IS('things.id',IN('id',result.table))),AND)
+	else:
+		where = combine(where,IN('things.id',Select('id',result.table)),AND)
+
 	mainCriteria = Select('things.id',From,where)
-	mainOrdered = Limit(Order(mainCriteria,
-	                          'media.added DESC'),
-					(arg(offset) if offset else False),arg(limit))
+	# don't limit here. It actually makes the things/media join a hundred times slower!
+	mainOrdered = Order(mainCriteria,'media.added DESC')
 	if wantRelated:
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
 		if posi:
@@ -91,6 +93,7 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
 		stmt = mainOrdered
 	# we shouldn't ever need a with statement
+	stmt = Limit(stmt, (arg(offset) if offset else False),arg(limit))
 	return stmt,arg,result.count
 
 
@@ -115,7 +118,9 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if explain:
 		print(stmt)
 		print(args)
+		print('explaining...')
 		stmt = "EXPLAIN ANALYZE "+stmt
+		yield count
 	else:
 		# yield count first of all
 		yield count
