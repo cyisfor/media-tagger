@@ -88,6 +88,21 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	# we shouldn't ever need a with statement
 	return stmt,arg,result.count
 
+
+class CountedRange:
+	"A range whose first element is the (finite) length of it."
+	def __init__(self, iter):
+		self.count = next(iter)
+		self.__iter__ = iter
+		
+	    
+
+def nabcount(f):
+	def wrap(*a,**kw):
+		iter = f(*a,**kw)
+		return CountedRange(iter)
+
+@nabcount
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	stmt,args,count = assemble(tags,offset,limit,taglimit,wantRelated)
 	stmt = stmt.sql()
@@ -125,9 +140,9 @@ def test():
 		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
 			print(thing[0]);
 		result = searchForTags(bags)
-		print('count:', next(result))
-		for tag in result:
-			print(tag)
+		print('count:', result.count)
+		for id, in result:
+			print('<a href="http://cy.h/art/~page/{:x}"><img src="http://cy.h/thumb/{:x}" /></a>'.format(id,id))
 	except db.ProgrammingError as e:
 		print(e.info['message'].decode('utf-8'))
 

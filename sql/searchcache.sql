@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
 child INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
 parent INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
-op INTEGER NOT NULL
+op INTEGER NOT NULL,
 UNIQUE(child,parent,op));
 
 create or replace function searchcache.lookup(_name TEXT)
@@ -27,7 +27,7 @@ END LOOP;
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce(_a int, _b int, _op TEXT)
+create or replace function searchcache.reduce(_a int, _b int, _op int)
 RETURNS int
 AS $$
 DECLARE
@@ -37,7 +37,10 @@ _name TEXT;
 _result INTEGER;
 _sop TEXT;
 BEGIN
-  SELECt name INTO _at FROM searchcache.queries WHERE id = _a;
+  IF _a = _b THEN
+	  RETURN _a;
+	END IF;
+  SELECT name INTO _at FROM searchcache.queries WHERE id = _a;
   if NOT FOUND THEN
 	  RAISE EXCEPTION 'Should not be null! % %',_a,_b;
   END IF;
@@ -52,11 +55,11 @@ BEGIN
 		RETURN _result;
 	END IF;
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-  IF _op == 0 THEN
+  IF _op = 0 THEN
 	  _sop = ' UNION ';
-	ELSIF _op == 1 THEN
+	ELSIF _op = 1 THEN
 	  _sop = ' INTERSECT ';
-	ELSIF _op == 2 THEN
+	ELSIF _op = 2 THEN
 		_sop = ' EXCEPT ';
 	ELSE
 		RAISE EXCEPTION 'what operations is %?',_op;
@@ -81,6 +84,9 @@ BEGIN
 	_name = 't' || _tag;
 	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
 	IF found THEN
+		IF _result IS NULL THEN
+		  RAISE EXCEPTION 'fuck %',_tag;
+		END IF;
 		RETURN _result;
 	END IF;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
@@ -92,7 +98,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce_implications(_result int, _tag bigint, _implications bigint[],  _op text)
+create or replace function searchcache.reduce_implications(_result int, _tag bigint, _implications bigint[],  _op int)
 RETURNS int
 AS $$
 DECLARE
