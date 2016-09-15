@@ -99,7 +99,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	else:
 		# yield count first of all
 		yield count
-	for row in db.execute(stmt):
+	for row in db.execute(stmt,args):
 		if explain:
 			print(row[0])
 			continue

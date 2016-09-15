@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
 child INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
 parent INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
-UNIQUE(child,parent));
+op INTEGER NOT NULL
+UNIQUE(child,parent,op));
 
 create or replace function searchcache.lookup(_name TEXT)
 RETURNS int
@@ -34,6 +35,7 @@ _at TEXT;
 _bt TEXT;
 _name TEXT;
 _result INTEGER;
+_sop TEXT;
 BEGIN
   SELECt name INTO _at FROM searchcache.queries WHERE id = _a;
   if NOT FOUND THEN
@@ -50,11 +52,20 @@ BEGIN
 		RETURN _result;
 	END IF;
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
+  IF _op == 0 THEN
+	  _sop = ' UNION ';
+	ELSIF _op == 1 THEN
+	  _sop = ' INTERSECT ';
+	ELSIF _op == 2 THEN
+		_sop = ' EXCEPT ';
+	ELSE
+		RAISE EXCEPTION 'what operations is %?',_op;
+	END IF;
+	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || _sop || 'SELECT id FROM searchcache.' || _bt;
 	GET DIAGNOSTICS _result = ROW_COUNT;
 	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
-	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _result);
-	INSERT INTO searchcache.tree (child,parent) VALUES (_b, _result);
+	INSERT INTO searchcache.tree (child,parent,op) VALUES (_a, _result,_op);
+	INSERT INTO searchcache.tree (child,parent,op) VALUES (_b, _result,_op);
 	-- when unique violation...?
 	RETURN _result;
 END;
@@ -94,7 +105,7 @@ BEGIN
 					 _result = _subresult;
 				END IF;
 			ELSE
-				_subresult = searchcache.reduce(_result, searchcache.one_tag(_tag), 'UNION');
+				_subresult = searchcache.reduce(_result, searchcache.one_tag(_tag), 0); -- union
 			END IF;
 		END LOOP;
 		IF _result IS NULL THEN
@@ -129,7 +140,7 @@ BEGIN
 		-- DELETE from impresult WHERE tag = ANY(_imp);
 	  _curimp = array(SELECT tag FROM impresult ORDER BY tag);
 		DELETE from impresult; -- uhhh yeah.
-		_posresult = searchcache.reduce_implications(_posresult, _tag, _curimp, 'INTERSECT');
+		_posresult = searchcache.reduce_implications(_posresult, _tag, _curimp, 1); -- intersect
 		_imp = _imp || _curimp;
 	END LOOP;
 	-- don't let any implications of positives end up in implications of negatives.
@@ -145,14 +156,14 @@ BEGIN
 		DELETE from impresult WHERE tag = ANY(_imp);
 		_curimp = array(SELECT tag FROM impresult ORDER BY tag);
 		DELETE from impresult; -- uhhh yeah.
-		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 'UNION');
+		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 0); -- union
 		_imp = _imp || _curimp; -- negative implications still cancel out
 	END LOOP;
 	IF _curimp IS NOT NULL THEN
 		 DROP TABLE impresult; -- I am such a hack
 	END IF;
 	IF _negresult IS NOT NULL THEN
-		 _posresult = searchcache.reduce(_posresult,_negresult,'EXCEPT');
+		 _posresult = searchcache.reduce(_posresult,_negresult,2); -- except
 	END IF;
 	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _posresult;
 	_result.name = 'searchcache.' || _result.name;
