@@ -7,7 +7,7 @@ name TEXT UNIQUE);
 CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
 child INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
-parent INTEGER REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
+parent INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
 UNIQUE(child,parent));
 
 create or replace function searchcache.lookup(_name TEXT)
@@ -69,7 +69,8 @@ BEGIN
 		RETURN _result;
 	END IF;
 	EXECUTE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
-	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_result), NULL);
+	-- just leave this empty, never need to cascade into the base tags.
+	--	INSERT INTO searchcache.tree (child,parent) VALUES (NULL,searchcache.lookup(_result));
 	RETURN _result;
 END;
 $$ language 'plpgsql';
@@ -127,10 +128,13 @@ AS $$
 DECLARE
 _name text;
 BEGIN
-	 DELETE FROM searchcache.tree WHERE child = _query;
-	 SELECT name INTO _name FROM searchcache.queries WHERE id = _query;
+	--	 DELETE FROM searchcache.tree WHERE child = _query;
+	raise NOTICE 'expire (%)',_query;
+
+	 FOR _name IN SELECT name FROM searchcache.queries WHERE id = _query LOOP
+	 	 EXECUTE 'DROP TABLE searchcache.' || _name || ' CASCADE';
+	 END LOOP;
 	 DELETE FROM searchcache.queries WHERE id = _query;
-	 EXECUTE 'DROP TABLE ' || _name || ' CASCADE';
 END
 $$ LANGUAGE 'plpgsql';
 
@@ -138,10 +142,11 @@ create or replace function searchcache.follow_expire(_query int)
 RETURNS int
 AS $$
 DECLARE
-_count int;
+_count int DEFAULT 1;
 _sub int;
 BEGIN
-	FOR _sub IN SELECT parent FROM searchcache.tree WHERE parent = _query LOOP
+	FOR _sub IN SELECT DISTINCT parent FROM searchcache.tree WHERE child = _query LOOP
+			raise NOTICE 'uhh % -> %',_query,_sub;
 	 		_count := _count + searchcache.follow_expire(_sub);
 	 END LOOP;
 	 PERFORM searchcache.really_expire(_query);
@@ -153,11 +158,11 @@ create or replace function searchcache.expire(_newtags bigint[])
 RETURNS int
 AS $$
 DECLARE
-_count int;
+_count int DEFAULT 0;
 _base int;
-_basequeries text[] DEFAULT array(SELECT id FROM searchcache.queries INNER JOIN unnest(ARRAY[_newtags]) AS tag ON queries.name = 't' || tag.tag);
+_basequeries int[] DEFAULT array(SELECT id FROM searchcache.queries INNER JOIN (select implications(unnest) from unnest(_newtags) UNION SELECT unnest(_newtags)) AS imps ON queries.name = 't' || tag.tag);
 BEGIN
-	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_newtags) LOOP
+	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_basequeries) LOOP
 		_count := _count + searchcache.follow_expire(_base);
 		PERFORM searchcache.really_expire(_base);
 	END LOOP;
