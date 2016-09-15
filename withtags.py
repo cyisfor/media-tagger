@@ -60,8 +60,6 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	mainOrdered = Order(mainCriteria,'media.added DESC')
 	if wantRelated:
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
-		print(mainOrdered.sql())
-		raise SystemExit
 		if posi:
 			# we want related tags, not literally the tags we're specifying
 			mainOrdered = AND(
