@@ -1,5 +1,5 @@
 from user import User
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS, With
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS,With,Except,Union
 import db
 import os
 
@@ -13,7 +13,7 @@ def decode_search(s):
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
-		negative = r[2] != 'f'
+		negative = r[2] != b'f'
 		def __repr__(self):
 			return 'Search<'+self.table+','+str(self.count)+'>'
 	return SearchResult()
@@ -29,7 +29,7 @@ fullWhat = (
 			'media.id',
 			'media.name',
 			'media.type',
-			array(Select('tags.name','tags',IN('id',Select('unnest(neighbors)','thingies'))))
+			array(Select('tags.name','tags',IN('id',Select('unnest(neighbors)','things',EQ('things.id','media.id')))))
 			)
 
 
@@ -53,7 +53,7 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		else:
 			thingies = Except(thingies,nocomics)
 	with_clauses = {
-		'thingies': thingies
+		'thingies': (None,thingies)
 	}
 			
 	mainCriteria = Select('id','media',IN('id',Select('id','thingies')))

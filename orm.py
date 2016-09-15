@@ -313,11 +313,17 @@ class Func(SQL):
 	def sql(self):
 		return encode(self.name) + '(' + ', '.join(encode(arg) for arg in self.args) + ')';
 
-class Union(SQL):
-	def __init__(self, *selects):
-		self.selects = selects
-	def sql(self):
-		return '\nUNION\n'.join(encode(s) for s in self.selects)
+def Conjunction(name):
+	class Conjunction(SQL):
+		def __init__(self, *selects):
+			self.name = name;
+			self.selects = selects
+		def sql(self):
+			return ('\n'+encode(self.name)+'\n').join(encode(s) for s in self.selects)
+	return Conjunction
+
+class Union(Conjunction('UNION')): pass
+class Except(Conjunction('EXCEPT')): pass
 
 class Type(SQL):
 	def __init__(self, clause, Type):
