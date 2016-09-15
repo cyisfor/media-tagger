@@ -17,7 +17,7 @@ import sqlparse
 sqlparse.debugging = True
 stmts = db.source('sql/withtags.sql')
 db.setup(*db.source('sql/connect.sql',False))
-
+db.setup(source='sql/implications.sql')
 def derp():
 	print('-'*60)
 	for stmt in stmts.items():

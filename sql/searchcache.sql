@@ -117,10 +117,15 @@ _imp bigint[]; -- don't let any implications of positives end up in implications
 _tag bigint;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
-		PERFORM unsafeImplications(_tag);
-		-- no need to follow positive implications twice!
-		DELETE from impresult WHERE tag = ANY(_imp);
+		PERFORM unsafeImplications(_tag); -- see implications.sql
+		-- we need to follow positive implications multiple times, because they're AND'd
+		-- if you search for "character, mario" and a medium has character:mario, character will imply character:mario
+		-- then looking up mario, it will imply character mario, and then eliminate it if you delete from _imp here
+		-- now you have (character | character:mario) & (mario) so something tagged character:mario will fail.
+		-- do nothing here, and you'll have (character | character:mario) & (mario | character:mario) which will match everything you want.
+		-- DELETE from impresult WHERE tag = ANY(_imp);
 	  _curimp = array(SELECT id FROM impresult);
+		DELETE from impresult; -- uhhh yeah.
 		_result = searchcache.reduce_implications(_result, _tag, _curimp, 'INTERSECT');
 		_imp = _imp || _curimp;
 	END LOOP;
@@ -130,10 +135,15 @@ BEGIN
 	_imp = array(SELECT DISTINCT unnest FROM unnest(_imp));
 	FOREACH _tag IN ARRAY _nega LOOP
 		PERFORM unsafeImplications(_tag);
+		-- do delete it here though, because "-character, -mario" -> !((character | character:mario)|(mario))
+		-- so redoing implications doesn't add anything but wasted time.
+		-- for that matter "character:mario -mario" -> (character:mario) & !(mario | character:mario)
+		-- so positive implications must be ignored even if negative, since they will eliminate everything. (a & !(b|a)) -> (a & !a & !b)
 		DELETE from impresult WHERE tag = ANY(_imp);
 		_curimp = array(SELECT id FROM impresult);
+		DELETE from impresult; -- uhhh yeah.
 		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 'UNION');
-		_imp = _imp || _curimp;
+		_imp = _imp || _curimp; -- negative implications still cancel out
 	END LOOP;
 	IF _curimp IS NOT NULL THEN
 		 DROP TABLE impresult; -- I am such a hack
