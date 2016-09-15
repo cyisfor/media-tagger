@@ -46,6 +46,7 @@ BEGIN
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
 	END IF;
+	RAISE NOTICE 'CREATE TABLE searchcache.' || _ab || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _ab || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	_abid = searchcache.lookup(_ab);
 	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _abid);
@@ -68,6 +69,7 @@ BEGIN
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result) THEN
 		RETURN _result;
 	END IF;
+	RAISE NOTICE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = %',_tag;
 	EXECUTE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
 	INSERT INTO searchcache.queries (name) VALUES (_result);
 	-- just leave this empty, never need to cascade into the base tags.
