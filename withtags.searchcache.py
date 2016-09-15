@@ -13,7 +13,7 @@ def decode_search(s):
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
-		negative = r[2] == 'TRUE'
+		negative = r[2] != ''
 		def __repr__(self):
 			return 'Search<'+self.table+','+str(self.count)+'>'
 	return SearchResult()
@@ -51,11 +51,10 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
 		where = None
+	on = EQ('things.id',result.table+'.id')
 	if result.negative:
-		From = InnerJoin('things',result.table,NOT(EQ('things.id',result.table+'.id')))
-	else:
-		From = result.table
-	From = InnerJoin('things',From,EQ('things.id',result.table+'.id'))
+		on = NOT(on)
+	From = InnerJoin('things',result.table,on)
 	From = InnerJoin(From,'media',EQ('things.id','media.id'))
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,

@@ -120,7 +120,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TYPE searchcache.result AS (name text, count int, negative BOOLEAN NOT NULL DEFAULT FALSE);
+CREATE TYPE searchcache.result AS (name text, count int, negative BOOLEAN);
 
 create or replace function searchcache.query(_posi bigint[], _nega bigint[])
 RETURNS searchcache.result
@@ -158,13 +158,16 @@ BEGIN
 		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 0); -- union
 		_imp = _imp || _curimp; -- negative implications still cancel out
 	END LOOP;
+	raise notice 'RESULLT % %',_posresult,_negresult;
 	IF _posresult IS NULL THEN
 		 IF _negresult IS NULL THEN
 		 		_result.name ='media';
 				_result.count = count(1) from media;
+				_result.negative = FALSE;
 				RETURN _result;
 		 ELSE
 				_result.negative = TRUE; -- meh!
+				raise Notice 'mehhhhh';
 				_posresult = _negresult;
 		 END IF;
 	ELSIF _negresult IS NOT NULL THEN
@@ -173,6 +176,7 @@ BEGIN
 	-- it's a searchcache result if it gets this far.
 	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _posresult;
 	_result.name = 'searchcache.' || _result.name;
+	_result.negative = FALSE;
 
 	return _result;
 END;

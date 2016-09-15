@@ -141,8 +141,9 @@ def references(table,*columns,cascade=True,default=None):
 
 @complex
 class Select(SQL):
-	def __init__(self, what, From=None, where=None):
+	def __init__(self, what, From=None, where=None, distinct=False):
 		self.what = what
+		self.distinct = distinct
 		while isinstance(From,Group):
 			From = From.clause
 		self.From = From
@@ -154,7 +155,10 @@ class Select(SQL):
 			try: args = ', '.join(encode(arg) for arg in self.what)
 			except TypeError:
 				args = encode(self.what)
-		s = 'SELECT '+args
+		s = 'SELECT '
+		if self.distinct:
+			s += 'DISTINCT '
+		s += args
 		if self.From:
 			s += '\nFROM '+encode(self.From)
 			if self.where:
