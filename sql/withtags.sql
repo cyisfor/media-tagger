@@ -33,6 +33,14 @@ $$
 LANGUAGE 'plpgsql'
 }
 implicationsderp {
+CREATE OR REPLACE FUNCTION unsafeImplications(_tag bigint) RETURNS void AS $$
+BEGIN
+		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
+		DELETE FROM impresult;
+		PERFORM implications( _tag, 0, 0);
+END;
+$$ language 'plpgsql';
+-- note: implications caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
 CREATE OR REPLACE FUNCTION implications(_tag bigint) RETURNS SETOF bigint AS $$
 DECLARE
 _dest text;
@@ -40,9 +48,7 @@ BEGIN
 	_dest := 'implications' || _tag;
 	BEGIN
 		EXECUTE format('CREATE TEMPORARY TABLE %I (tag BIGINT)',_dest);
-		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
-		DELETE FROM impresult;
-		PERFORM implications( _tag, 0, 0);
+		PERFORM unsafeImplications(_tag);
 		EXECUTE format('INSERT INTO %I SELECT DISTINCT tag FROM impresult',_dest);
 		DROP TABLE impresult;
 	EXCEPTION
