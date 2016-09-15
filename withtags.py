@@ -31,7 +31,7 @@ v = Versioner('tag')
 def setup():
 	db.execute(stmts['complextagalter'])
 	db.execute(stmts['complextagindex'])
-db.execute(stmts['implications'])
+#db.execute(stmts['implications'])
 class scalartuple(tuple):
 	def __add__(self,other):
 		if not isinstance(other,tuple):
