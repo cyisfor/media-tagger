@@ -68,6 +68,9 @@ BEGIN
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || _sop || 'SELECT id FROM searchcache.' || _bt;
 	GET DIAGNOSTICS _result = ROW_COUNT;
+	EXECUTE 'ALTER TABLE ONLY searchcache.' || _name || '
+    ADD CONSTRAINT searchcache_fkey_' || _name || ' FOREIGN KEY (id) REFERENCES media(id) ON UPDATE CASCADE ON DELETE CASCADE';
+
 	RAISE NOTICE 'COUNTED % => %',_name,_result;
 	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
 	INSERT INTO searchcache.tree (child,parent,op) VALUES (_a, _result,_op);
@@ -92,7 +95,7 @@ BEGIN
 		END IF;
 		RETURN _result;
 	END IF;
-	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
+	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS select id FROM media where id IN (SELECT unnest(neighbors) AS id FROM things WHERE id = $1)' USING _tag;
 	GET DIAGNOSTICS _result = ROW_COUNT;
 	INSERT INTO searchcache.queries (count,name) VALUES (_result,_name) RETURNING id INTO _result;
 	-- just leave this empty, never need to cascade into the base tags.
