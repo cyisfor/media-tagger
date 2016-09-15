@@ -7,7 +7,7 @@ name TEXT UNIQUE);
 CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
 child INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
-parent INTEGER NOT NULL REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
+parent INTEGER REFERENCES searchcache.queries(id) ON DELETE CASCADE ON UPDATE CASCADE,
 UNIQUE(child,parent));
 
 create or replace function searchcache.lookup(_name TEXT)
@@ -32,23 +32,24 @@ END LOOP;
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce(_a TEXT, _b TEXT, _op TEXT)
+create or replace function searchcache.reduce(_at TEXT, _bt TEXT, _op TEXT)
 RETURNS text
 AS $$
 DECLARE
-_ab TEXT DEFAULT _a || '_' || _b || '_' || _op;
+_ab TEXT;
+_a int DEFAULT searchcache.lookup(_at);
+_b int DEFAULT searchcache.lookup(_bt);
 _abid INTEGER;
 BEGIN
-	IF _ab IS NULL THEN
-		 RAISE EXCEPTION 'fail';
-	END IF;
+	_ab := 's' || _a || '_' || _b;
+	RAISE NOTICE '% + % => %', _at, _bt, _ab;
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
 	END IF;
-	EXECUTE 'CREATE TABLE ' || _ab || ' AS SELECT id FROM ' || _a || ' ' || _op || ' ' || 'SELECT id FROM ' || _b;
+	EXECUTE 'CREATE TABLE searchcache.' || _ab || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	_abid = searchcache.lookup(_ab);
-	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_a), _abid);
-	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_b), _abid);
+	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _abid);
+	INSERT INTO searchcache.tree (child,parent) VALUES (_b, _abid);
 	-- when unique violation...?
 	RETURN _ab;
 END;
@@ -67,7 +68,7 @@ BEGIN
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result) THEN
 		RETURN _result;
 	END IF;
-	EXECUTE 'CREATE TABLE ' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
+	EXECUTE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
 	INSERT INTO searchcache.tree (child,parent) VALUES (searchcache.lookup(_result), NULL);
 	RETURN _result;
 END;
@@ -154,6 +155,7 @@ AS $$
 DECLARE
 _count int;
 _base int;
+_basequeries text[] DEFAULT array(SELECT id FROM searchcache.queries INNER JOIN unnest(ARRAY[_newtags]) AS tag ON queries.name = 't' || tag.tag);
 BEGIN
 	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_newtags) LOOP
 		_count := _count + searchcache.follow_expire(_base);
