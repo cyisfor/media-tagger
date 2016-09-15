@@ -45,8 +45,9 @@ BEGIN
   END IF;
 	_name = 's' || _a || '_' || _b || '_' || _op;
 	RAISE NOTICE '% + % => %', _at, _bt, _name;
-	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _name) THEN
-		RETURN _name;
+	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
+	IF FOUND THEN
+		RETURN _result;
 	END IF;
 --	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
 	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
@@ -86,7 +87,7 @@ AS $$
 DECLARE
 _subresult int;
 BEGIN
-		FOR _tag IN SELECT implications FROM implications(_tag) ORDER BY implications LOOP
+		FOREACH _tag IN ARRAY _implications LOOP
 			IF _subresult IS NULL THEN
 				_subresult = searchcache.one_tag(_tag);
 				IF _result IS NULL THEN
@@ -126,7 +127,7 @@ BEGIN
 		-- now you have (character | character:mario) & (mario) so something tagged character:mario will fail.
 		-- do nothing here, and you'll have (character | character:mario) & (mario | character:mario) which will match everything you want.
 		-- DELETE from impresult WHERE tag = ANY(_imp);
-	  _curimp = array(SELECT id FROM impresult);
+	  _curimp = array(SELECT tag FROM impresult ORDER BY tag);
 		DELETE from impresult; -- uhhh yeah.
 		_posresult = searchcache.reduce_implications(_posresult, _tag, _curimp, 'INTERSECT');
 		_imp = _imp || _curimp;
@@ -142,7 +143,7 @@ BEGIN
 		-- for that matter "character:mario -mario" -> (character:mario) & !(mario | character:mario)
 		-- so positive implications must be ignored even if negative, since they will eliminate everything. (a & !(b|a)) -> (a & !a & !b)
 		DELETE from impresult WHERE tag = ANY(_imp);
-		_curimp = array(SELECT id FROM impresult);
+		_curimp = array(SELECT tag FROM impresult ORDER BY tag);
 		DELETE from impresult; -- uhhh yeah.
 		_negresult = searchcache.reduce_implications(_negresult, _tag, _curimp, 'UNION');
 		_imp = _imp || _curimp; -- negative implications still cancel out
@@ -153,7 +154,7 @@ BEGIN
 	IF _negresult IS NOT NULL THEN
 		 _posresult = searchcache.reduce(_posresult,_negresult,'EXCEPT');
 	END IF;
-	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _result;
+	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _posresult;
 	return _result;
 END;
 $$

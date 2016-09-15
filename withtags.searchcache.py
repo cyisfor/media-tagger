@@ -4,6 +4,15 @@ import db
 db.setup(source='sql/implications.sql')
 db.setup(source='sql/searchcache.sql')
 
+def decode_search(self, s):
+	r = s[1:-1].decode().split(',')
+	class SearchResult:
+		table = r[0]
+		count = int(r[1])
+	return SearchResult
+
+db.registerDecoder(decode_search,'result','searchcache')
+
 def combine(base,arg,op):
 	if base is None:
 		return arg
@@ -19,6 +28,7 @@ fullWhat = (
 			)
 
 
+
 def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	arg = argbuilder()
 	def prepareTags(ids):
@@ -30,6 +40,8 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
 	table = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))
+	print(table)
+	raise SystemExit
 	if User.noComics:
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
