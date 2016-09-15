@@ -155,6 +155,7 @@ BEGIN
 		 _posresult = searchcache.reduce(_posresult,_negresult,'EXCEPT');
 	END IF;
 	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _posresult;
+	_result.name = 'searchcache.' || _result.name;
 	return _result;
 END;
 $$

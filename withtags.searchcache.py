@@ -1,6 +1,9 @@
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type
+from user import User
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS
 import db
+import os
 
+explain = 'explain' in os.environ
 db.setup(source='sql/implications.sql')
 db.setup(source='sql/searchcache.sql')
 
@@ -41,14 +44,12 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
-	table = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))
-	print(table)
-	raise SystemExit
+	result = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))[0][0]
 	if User.noComics:
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
 		where = None
-	From = InnerJoin('things',table,EQ('things.id',table+'.id'))
+	From = InnerJoin('things',result.table,EQ('things.id',result.table+'.id'))
 	From = InnerJoin(From,'media',EQ('things.id','media.id'))
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,
@@ -85,16 +86,19 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
 		stmt = mainOrdered
 	# we shouldn't ever need a with statement
-	return stmt,arg
+	return stmt,arg,result.count
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	stmt,args = assemble(tags,offset,limit,taglimit,wantRelated)
+	stmt,args,count = assemble(tags,offset,limit,taglimit,wantRelated)
 	stmt = stmt.sql()
 	args = args.args
 	if explain:
 		print(stmt)
 		print(args)
 		stmt = "EXPLAIN ANALYZE "+stmt
+	else:
+		# yield count first of all
+		yield count
 	for row in db.execute(stmt):
 		if explain:
 			print(row[0])
@@ -114,13 +118,15 @@ def test():
 		import tags
 		from pprint import pprint
 		bags = tags.parse("evil, red, -apple, -wagon")
-		stmt,args = assemble(bags)
+		stmt,args,count = assemble(bags)
+		print(count)
 		print(stmt.sql())
 		print(args.args)
 		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
 			print(thing[0]);
-		return
-		for tag in searchForTags(bags):
+		result = searchForTags(bags)
+		print('count:', next(result))
+		for tag in result:
 			print(tag)
 	except db.ProgrammingError as e:
 		print(e.info['message'].decode('utf-8'))
