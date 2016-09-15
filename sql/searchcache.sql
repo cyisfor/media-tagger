@@ -41,7 +41,7 @@ _a int DEFAULT searchcache.lookup(_at);
 _b int DEFAULT searchcache.lookup(_bt);
 _abid INTEGER;
 BEGIN
-	_ab := 's' || _a || '_' || _b;
+	_ab := 's' || _a || '_' || _b || '_' || _op;
 	RAISE NOTICE '% + % => %', _at, _bt, _ab;
 	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
 		RETURN _ab;
@@ -69,6 +69,7 @@ BEGIN
 		RETURN _result;
 	END IF;
 	EXECUTE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
+	INSERT INTO searchcache.queries (name) VALUES (_result);
 	-- just leave this empty, never need to cascade into the base tags.
 	--	INSERT INTO searchcache.tree (child,parent) VALUES (NULL,searchcache.lookup(_result));
 	RETURN _result;
@@ -133,8 +134,8 @@ BEGIN
 
 	 FOR _name IN SELECT name FROM searchcache.queries WHERE id = _query LOOP
 	 	 EXECUTE 'DROP TABLE searchcache.' || _name || ' CASCADE';
+	 	 DELETE FROM searchcache.queries WHERE id = _query;
 	 END LOOP;
-	 DELETE FROM searchcache.queries WHERE id = _query;
 END
 $$ LANGUAGE 'plpgsql';
 
@@ -160,9 +161,10 @@ AS $$
 DECLARE
 _count int DEFAULT 0;
 _base int;
-_basequeries int[] DEFAULT array(SELECT id FROM searchcache.queries INNER JOIN (select implications(unnest) from unnest(_newtags) UNION SELECT unnest(_newtags)) AS imps ON queries.name = 't' || tag.tag);
+_basequeries int[] DEFAULT array(SELECT id FROM searchcache.queries INNER JOIN (select implications(unnest) AS tag from unnest(_newtags) UNION SELECT unnest(_newtags) AS tag) AS imps ON queries.name = 't' || imps.tag);
 BEGIN
-	FOR _base IN SELECT child FROM searchcache.tree WHERE child = ANY(_basequeries) LOOP
+  raise NOTICE 'clearing tags %',_basequeries;
+	FOREACH _base IN ARRAY _basequeries LOOP
 		_count := _count + searchcache.follow_expire(_base);
 		PERFORM searchcache.really_expire(_base);
 	END LOOP;
