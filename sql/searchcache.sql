@@ -2,7 +2,8 @@ CREATE SCHEMA IF NOT EXISTS searchcache;
 
 CREATE TABLE IF NOT EXISTS searchcache.queries (
 id SERIAL PRIMARY KEY,
-name TEXT UNIQUE);
+name TEXT NOT NULL UNIQUE,
+count int NOT NULL);
 
 CREATE TABLE IF NOT EXISTS searchcache.tree (
 id SERIAL PRIMARY KEY,
@@ -18,71 +19,68 @@ _id int;
 BEGIN
 LOOP
 	SELECT id INTO _id FROM searchcache.queries WHERE name = _name;
-	IF found THEN
-		RETURN _id;
+	IF NOT found THEN
+		RAISE EXCEPTION 'need to insert proactively to keep an accurate count';
 	END IF;
-	BEGIN
-		INSERT INTO searchcache.queries (name) VALUES (_name) RETURNING id INTO _id;
-		RETURN _id;
-	EXCEPTION
-		WHEN unique_violation THEN
-			-- do nothing
-	END;
 END LOOP;
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce(_at TEXT, _bt TEXT, _op TEXT)
-RETURNS text
+create or replace function searchcache.reduce(_a int, _b int, _op TEXT)
+RETURNS int
 AS $$
 DECLARE
-_ab TEXT;
-_a int DEFAULT searchcache.lookup(_at);
-_b int DEFAULT searchcache.lookup(_bt);
-_abid INTEGER;
+_at TEXT DEFAULT SELECT name FROM searchcache.queries WHERE id = _a;
+_bt TEXT DEFAULT SELECT name FROM searchcache.queries WHERE id = _b;
+_name TEXT;
+_result INTEGER;
 BEGIN
-	_ab := 's' || _a || '_' || _b || '_' || _op;
-	RAISE NOTICE '% + % => %', _at, _bt, _ab;
-	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _ab) THEN
-		RETURN _ab;
+  if _at IS NULL OR _bt IS NULL THEN
+	  RAISE EXCEPTION 'Should not be null! % %',_at,_bt;
+  END IF;
+	_name := 's' || _a || '_' || _b || '_' || _op;
+	RAISE NOTICE '% + % => %', _at, _bt, _name;
+	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _name) THEN
+		RETURN _name;
 	END IF;
-	RAISE NOTICE 'CREATE TABLE searchcache.' || _ab || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-	EXECUTE 'CREATE TABLE searchcache.' || _ab || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
-	_abid = searchcache.lookup(_ab);
-	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _abid);
-	INSERT INTO searchcache.tree (child,parent) VALUES (_b, _abid);
+--	RAISE NOTICE '%','DERP CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
+	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT id FROM searchcache.' || _at || ' ' || _op || ' ' || 'SELECT id FROM searchcache.' || _bt;
+	GET DIAGNOSTICS _rowcount = ROW_COUNT;
+	INSERT INTO searchcache.queries (count,name) VALUES (_rowcount,_name) RETURNING id INTO _result;
+	INSERT INTO searchcache.tree (child,parent) VALUES (_a, _result);
+	INSERT INTO searchcache.tree (child,parent) VALUES (_b, _result);
 	-- when unique violation...?
-	RETURN _ab;
+	RETURN _result;
 END;
 $$ language 'plpgsql';
 
 create or replace function searchcache.one_tag(_tag bigint)
-RETURNS text
+RETURNS int
 AS $$
 DECLARE
-_result text;
+_result int;
+_name text;
+_rowcount int;
 BEGIN
-	_result := 't' || _tag::text;
-	IF _result IS NULL THEN
-		 RAISE EXCEPTION 'fail';
-	END IF;
-	IF EXISTS (SELECT 1 FROM searchcache.queries WHERE name = _result) THEN
+	_name := 't' || _tag;
+	SELECT id INTO _result FROM searchcache.queries WHERE name = _name;
+	IF found THEN
 		RETURN _result;
 	END IF;
-	RAISE NOTICE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = %',_tag;
-	EXECUTE 'CREATE TABLE searchcache.' || _result || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
-	INSERT INTO searchcache.queries (name) VALUES (_result);
+	EXECUTE 'CREATE TABLE searchcache.' || _name || ' AS SELECT unnest(neighbors) AS id FROM things WHERE id = $1' USING _tag;
+	GET DIAGNOSTICS _rowcount = ROW_COUNT;
+	INSERT INTO searchcache.queries (count,name) VALUES (_count,_name) RETURNING id INTO _result;
 	-- just leave this empty, never need to cascade into the base tags.
 	--	INSERT INTO searchcache.tree (child,parent) VALUES (NULL,searchcache.lookup(_result));
 	RETURN _result;
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce_implications(_result text, _tag bigint, _op text)
-RETURNS text
+create or replace function searchcache.reduce_implications(_result int, _tag bigint, _op text)
+RETURNS int
 AS $$
 DECLARE
-_subresult text;
+_subresult int;
 BEGIN
 		FOR _tag IN SELECT implications FROM implications(_tag) ORDER BY implications LOOP
 			IF _subresult IS NULL THEN
@@ -106,8 +104,8 @@ create or replace function searchcache.query(_posi bigint[], _nega bigint[])
 RETURNS text
 AS $$
 DECLARE
-_result text;
-_negresult text;
+_result int;
+_negresult int;
 _tag bigint;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
@@ -119,7 +117,7 @@ BEGIN
 	IF _negresult IS NOT NULL THEN
 		 _result := searchcache.reduce(_result,_negresult,'EXCEPT');
 	END IF;
-	return _result;
+	return SELECT name FROM searchcache.queries WHERE id = _result;
 END;
 $$
 language 'plpgsql';
