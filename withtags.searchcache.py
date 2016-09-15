@@ -4,12 +4,14 @@ import db
 db.setup(source='sql/implications.sql')
 db.setup(source='sql/searchcache.sql')
 
-def decode_search(self, s):
+def decode_search(s):
 	r = s[1:-1].decode().split(',')
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
-	return SearchResult
+		def __repr__(self):
+			return 'Search<'+self.table+','+str(self.count)+'>'
+	return SearchResult()
 
 db.registerDecoder(decode_search,'result','searchcache')
 

@@ -32,7 +32,8 @@ class DBProxy:
 		return pg.transaction(self.c)
 	@export
 	def registerDecoder(self,decoder,name,namespace='public'):
-		return pg.registerDecoder(decoder,name,namespace)
+		if not self.c: self.reopen()
+		return self.c.registerDecoder(decoder,name,namespace)
 	@export
 	@contextmanager
 	def temporaryTable(self, columns,notSoTemp=False):
