@@ -1,5 +1,5 @@
 from user import User
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS,With,Except,Union,ANY
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type,Limit,Order,EXISTS,IS,With,Except,Intersect,ANY,GroupBy
 import db
 import os
 
@@ -8,12 +8,11 @@ db.setup(source='sql/implications.sql')
 db.setup(source='sql/searchcache.sql')
 
 def decode_search(s):
-	print('uhhhm',s)
 	r = s[1:-1].decode().split(',')
 	class SearchResult:
 		table = r[0]
 		count = int(r[1])
-		negative = r[2] != b'f'
+		negative = r[2] != 'f'
 		def __repr__(self):
 			return 'Search<'+self.table+','+str(self.count)+'>'
 	return SearchResult()
@@ -45,19 +44,13 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
 	result = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))[0][0]
-	if wantRelated:
-		# we want related tags, not literally the tags we're specifying
-		where = NOT(EQ('id',ANY(posi)))
-	else:
-		where = None
-
-	thingies = Select('id',result.table,where)
+	thingies = Select('id',result.table)
 	if User.noComics:
 		nocomics = Select('medium','comicPage','which != 0')
 		if result.negative:
-			thingies = Union(thingies,nocomics)
+			thingies = Except(thingies,Select('medium','comicPage',EQ('which',0)))
 		else:
-			thingies = Except(thingies,nocomics)
+			thingies = Except(thingies,Select('medium','comicPage','which != 0'))
 	with_clauses = {
 		'thingies': (None,thingies)
 	}
@@ -67,8 +60,11 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	if wantRelated:
 		# nearby tags to the results for our query...
-		tagStuff = Select('unnest(neighbors)','things',IN('id',Select('id',thingies)))
-		tagStuff = Select(['tags.id','first(tags.name) as name'],'tags',IN('id',tagStuff))
+		tagStuff = Select('unnest(neighbors)','things',IN('id',Select('id','thingies')))
+		tagStuff = Select(['tags.id','first(tags.name) as name'],'tags',AND(IN('id',tagStuff),
+		# we want related tags, not literally the tags we're specifying
+		                                                                    NOT(EQ('id',ANY(arg(posi))))))
+
 		# limit results in a scope that the database can avoid calculating them all for 30s then throwing away 98% of them
 		stmt = Select(['derp.id','derp.name'],
 					  AS(
@@ -138,7 +134,10 @@ def test():
 		from pprint import pprint
 		bags = ', '.join(sys.argv[1:])
 		bags = tags.parse(bags)
-		result = searchForTags(bags,limit=3,wantRelated=True)
+		for rec in searchForTags(bags,limit=3,wantRelated=True):
+			print('related',rec)
+			
+		result = searchForTags(bags,limit=3)
 		print('count:', result.count)
 		for id,name,typ,tags,*iscomic in result:
 			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,','.join(tags).replace(' ','-'),id))

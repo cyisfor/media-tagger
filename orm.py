@@ -324,6 +324,7 @@ def Conjunction(name):
 
 class Union(Conjunction('UNION')): pass
 class Except(Conjunction('EXCEPT')): pass
+class Intersect(Conjunction('INTERSECT')): pass
 
 class Type(SQL):
 	def __init__(self, clause, Type):
