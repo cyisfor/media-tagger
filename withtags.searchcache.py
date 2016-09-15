@@ -93,14 +93,14 @@ class CountedRange:
 	"A range whose first element is the (finite) length of it."
 	def __init__(self, iter):
 		self.count = next(iter)
-		self.__iter__ = iter
-		
-	    
+		self.iter = iter;
+	def __iter__(self): return self.iter
 
 def nabcount(f):
 	def wrap(*a,**kw):
 		iter = f(*a,**kw)
 		return CountedRange(iter)
+	return wrap
 
 @nabcount
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
@@ -141,8 +141,8 @@ def test():
 			print(thing[0]);
 		result = searchForTags(bags)
 		print('count:', result.count)
-		for id, in result:
-			print('<a href="http://cy.h/art/~page/{:x}"><img src="http://cy.h/thumb/{:x}" /></a>'.format(id,id))
+		for id,name,typ,tags,*iscomic in result:
+			print('<a href="http://cy.h/art/~page/{:x}"><img title={} src="http://cy.h/thumb/{:x}" /></a>'.format(id,name,id))
 	except db.ProgrammingError as e:
 		print(e.info['message'].decode('utf-8'))
 
