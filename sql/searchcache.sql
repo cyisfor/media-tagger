@@ -104,12 +104,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE TYPE searchcache.result AS (name text, count int);
+
 create or replace function searchcache.query(_posi bigint[], _nega bigint[])
-RETURNS text
+RETURNS searchcache.result
 AS $$
 DECLARE
-_result int;
-_name TEXT;
+_result searchcache.result;
+_posresult int;
 _negresult int;
 _curimp bigint[];
 _imp bigint[]; -- don't let any implications of positives end up in implications of negatives.
@@ -126,7 +128,7 @@ BEGIN
 		-- DELETE from impresult WHERE tag = ANY(_imp);
 	  _curimp = array(SELECT id FROM impresult);
 		DELETE from impresult; -- uhhh yeah.
-		_result = searchcache.reduce_implications(_result, _tag, _curimp, 'INTERSECT');
+		_posresult = searchcache.reduce_implications(_posresult, _tag, _curimp, 'INTERSECT');
 		_imp = _imp || _curimp;
 	END LOOP;
 	-- don't let any implications of positives end up in implications of negatives.
@@ -149,10 +151,10 @@ BEGIN
 		 DROP TABLE impresult; -- I am such a hack
 	END IF;
 	IF _negresult IS NOT NULL THEN
-		 _result = searchcache.reduce(_result,_negresult,'EXCEPT');
+		 _posresult = searchcache.reduce(_posresult,_negresult,'EXCEPT');
 	END IF;
-	SELECT name INTO _name FROM searchcache.queries WHERE id = _result;
-	return _name;
+	SELECT name,count INTO _result FROM searchcache.queries WHERE id = _result;
+	return _result;
 END;
 $$
 language 'plpgsql';

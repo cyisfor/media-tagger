@@ -1,4 +1,4 @@
-from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN
+from orm import InnerJoin,OuterJoin,Select,AND,NOT,IN,array,AS,EQ,argbuilder,Type
 import db
 
 db.setup(source='sql/implications.sql')
@@ -25,11 +25,11 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		if not ids: return None
 		res = [getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]
 		res.sort()
-		return Type(arg(res),'bigint[]')
+		return res
 
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
-	table = db.execute("searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))
+	table = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))
 	if User.noComics:
 		where = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 	else:
@@ -94,3 +94,22 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 				db.execute("DELETE FROM tags WHERE id = $1",(id,))
 		else:
 			yield row
+
+def test():
+	try:
+		import tags
+		from pprint import pprint
+		bags = tags.parse("evil, red, -apple, -wagon")
+		stmt,args = assemble(bags)
+		print(stmt.sql())
+		print(args.args)
+		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
+			print(thing[0]);
+		return
+		for tag in searchForTags(bags):
+			print(tag)
+	except db.ProgrammingError as e:
+		print(e.info['message'].decode('utf-8'))
+
+if __name__ == '__main__':
+	test()
