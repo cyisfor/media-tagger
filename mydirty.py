@@ -13,6 +13,14 @@ makeE('video')
 makeE('source')
 makeE('embed')
 
+def nocycles(o,e):
+	for sub in e:
+		if id(sub) == id(o): raise RuntimeError("cycle adding",o)
+		try:
+			if type(sub[0]) == type(sub): continue
+			nocycles(o,sub)
+		except TypeError: pass
+
 def maybecommit(e):
 	if hasattr(e,'committed') and e.committed is not None:
 		return e.committed
@@ -25,12 +33,15 @@ class Element:
 		self.name = name
 		self.contents = ()
 		self.kw = {}
+		print('parento',ContextDirty.current_element)
 		self.parent = ContextDirty.current_element
-		if self.parent:
+		if ContextDirty.derping and self.parent:
+			nocycles(self,self.parent.contents)
 			self.parent(self)
 	def __repr__(self):
 		return "<"+self.name+repr(self.kw)+'>'
 	def __call__(self,*a,**kw):
+		nocycles(self,a)
 		self.contents += a
 		self.kw.update(kw)
 		return self
@@ -51,17 +62,20 @@ class Element:
 
 class NoParent:
 	parent = None
+	derping = False
 	def __enter__(self):
 		self.parent = ContextDirty.current_element
 		ContextDirty.current_element = None
 	def __exit__(self,*a):
+		print('none done',self.parent)
 		ContextDirty.current_element = self.parent
-	
 class ContextDirty:
 	current_element = None
+	derping = True
 #	RawString = sub.RawString
 	def __getattr__(self,name):
 		return Element(name)
 	NoParent = NoParent()
 import sys
-sys.modules[__name__] = ContextDirty()
+ContextDirty = ContextDirty()
+sys.modules[__name__] = ContextDirty

@@ -622,14 +622,15 @@ def desktop_base(history,base,progress,pageLink,n):
 	def makeDesktopLinks():
 		nonlocal pageLink
 		allexists = True
-		for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
-			fid,exists = filedb.check(id)
-			if progress:
-				pageLink = progress(fid,name,exists)
-			allexists = allexists and exists
-			with d.td as td, d.a(href=pageLink(id)):
-				d.img(title=name,src=base+"thumb/"+fid)
-				yield td
+		with d.NoParent:
+			for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
+				fid,exists = filedb.check(id)
+				if progress:
+					pageLink = progress(fid,name,exists)
+				allexists = allexists and exists
+				with d.td as td, d.a(href=pageLink(id)):
+					d.img(title=name,src=base+"thumb/"+fid)
+					yield td
 		Session.refresh = not allexists
 	with makePage("Current Desktop"):
 		if n == 0x10:
@@ -646,8 +647,9 @@ def desktop_base(history,base,progress,pageLink,n):
 			d.hr()
 
 			d.p("Past Desktops")
-			with d.div, d.table:
+			with d.div, d.table as table:
 				for links in clump(makeDesktopLinks(),8):
+					d.current_element = table # hax
 					d.tr(*links)
 	Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
 
