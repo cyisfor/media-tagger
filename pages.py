@@ -447,8 +447,8 @@ def page(info,path,params):
 	def pageURL(id):
 		return '../{:x}'.format(id)
 
-	with Links(), makePage("Page info for "+fid):
-		d.comment("Tags: "+boorutags)
+	with Links(), makePage("Page info for "+fid) as page:
+		page(comment("Tags: "+boorutags))
 		link = checkExplain(id,link,width,height,thing)
 		d.div(link)
 		maybeDesc(id)
@@ -463,17 +463,17 @@ def page(info,path,params):
 				prev = pageURL(prev)
 				if not Links.prev:
 					Links.prev = prev
-		with d.p("Comic: ") as p:
-			d.a(title,href=comicURL(comic))
-			p.append(' ')
-			if prev:
-				d.a('<<',href=prev)
-			if next:
-				d.a('>>',href=next)
+			with d.p("Comic: ") as p:
+				d.a(title,href=comicURL(comic))
+				p(' ')
+				if prev:
+					d.a('<<',href=prev)
+				if next:
+					d.a('>>',href=next)
 		if tags:
 			with d.p("Tags: ") as p:
 				for tag in tags:
-					p.append("\n")
+					p("\n")
 					d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))
 		if next and not Links.next:
 			Links.next = pageURL(next)+unparseQuery()
@@ -516,15 +516,17 @@ def info(info,path,params):
 
 	with makePage("Info about "+fid):
 		with d.p as top:
-			d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))
+			d.a(dd.img(src=thumbLink(id)),dd.br(),"Page",href=pageLink(id))
 			with d.table(Class='info'):
 				for key,value in keys.items():
-					d.tr(d.td(key),d.td(stringize(value),id=key))
+					with d.tr:
+						d.td(key)
+						d.td(stringize(value),id=key)
 			d.hr
 			top.append("Sources")
 			with d.div(id='sources'):
 				for id,source in sources:
-					d.p(d.a(source,href=source))
+					d.p(dd.a(source,href=source))
 
 def like(info):
 	return "Under construction!"
@@ -573,14 +575,14 @@ def media(url,query,offset,pageSize,info,related,basic):
 		with d.div(id='thumbs') as links:
 			makeLinks(info)
 		with makePage("Media "+str(basic)) as page:
-			d.p("You are ",d.a(User.ident,href=place+"/~user"))
+			d.p("You are ",dd.a(User.ident,href=place+"/~user"))
 			if links.contents:
 				page(links)
 			if related:
-				with d.div("Related tags",d.hr(),id='related'):
+				with d.div("Related tags",dd.hr(),id='related'):
 					doTags(url.path.rstrip('/'),related)
 			if basic.posi or basic.nega:
-				with d.div("Remove tags",d.hr(),id='remove'):
+				with d.div("Remove tags",dd.hr(),id='remove'):
 					for tag in spaceBetween(basic.posi):
 						d.a(tag,
 						    href=tagsURL(basic.posi.difference(set([tag])),
@@ -624,8 +626,10 @@ def desktop_base(history,base,progress,pageLink):
 			if progress:
 				pageLink = progress(fid,name,exists)
 			allexists = allexists and exists
-			yield d.td(d.a(d.img(title=name,src=base+"thumb/"+fid),
-			               href=pageLink(id)))
+			with d.NoParent:
+				with d.td as td, d.a(href=pageLink(id)):
+					d.img(title=name,src=base+"thumb/"+fid)
+					yield td
 		Session.refresh = not allexists
 	with makePage("Current Desktop"):
 		if n == 0x10:
@@ -653,27 +657,6 @@ def user(info,path,params):
 	if 'submit' in params:
 		process.user(path,params)
 		raise Redirect(place+'/~user')
-	iattr = {
-			'type': 'checkbox',
-			'name': 'rescale'}
-	if User.rescaleImages:
-		iattr['checked'] = True
-	rescalebox = d.input(iattr)
-	iattr = {
-		'type': 'checkbox',
-		'name': 'comic',
-	}
-	if not User.noComics:
-		iattr['checked'] = True
-	comicbox = d.input(iattr)
-
-	iattr = {
-		'type': 'checkbox',
-		'name': 'navigate'
-	}
-	if User.navigate:
-		iattr['checked'] = True
-	navbox = d.input(iattr)
 	if User.defaultTags:
 		def makeResult():
 			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
@@ -693,18 +676,31 @@ def user(info,path,params):
 			name = '-'+name
 		tagnames.append(name)
 	tagnames = ', '.join(tagnames)
-	note('tagnames',tagnames)
-	def li(name,*a,**kw):
-		d.tr(d.td(name),d.td(*a,**kw))
+
+	def checkbox(question, name,checked):
+		iattr = {
+			'type': 'checkbox',
+			'name': 'rescale'}
+		if checked:
+			iattr['checked'] = True
+		with d.tr:
+			d.td(question)
+			with d.td:
+				d.input(iattr)
 	with makePage("User Settings",douser=False):
 		with d.form(action=place+'/~user/',
-	                   type='application/x-www-form-urlencoded',
-	                   method="post"),d.table:
-			li("Rescale Media? ",rescalebox)
-			li("Comic pages on main listing? ",comicbox)
-			li("Javascript navigation?",navbox,title="(This requires javascript!)")
-			li("Implied Tags",d.input(type='text',name='tags',value=tagnames))
-			li(d.input(type="submit",value="Submit"))
+		            type='application/x-www-form-urlencoded',
+		            method="post"):
+			with d.table:
+				checkbox('rescale',User.rescaleImages)
+				checkbox('comic',User.noComics)
+				checkbox('navigate',User.navigate)
+				note('tagnames',tagnames)
+				with d.tr:
+					d.td("Implied Tags")
+					with d.td:
+						d.input(type='text',name='tags',value=tagnames)
+			d.input(type="submit",value="Submit")
 		with d.p:
 			d.a('Main Page',href=place)
 
