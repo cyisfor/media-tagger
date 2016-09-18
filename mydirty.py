@@ -33,7 +33,6 @@ class Element:
 		self.name = name
 		self.contents = ()
 		self.kw = {}
-		print('parento',ContextDirty.current_element)
 		self.parent = ContextDirty.current_element
 		if ContextDirty.derping and self.parent:
 			nocycles(self,self.parent.contents)
