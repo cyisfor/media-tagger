@@ -191,11 +191,12 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = tags.parse("evil, red, -apple, -wagon")
+		bags = os.environ.get('tags','evil, red, -apple, -wagon')
+		bags = tags.parse(bags)
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args.args)
-		for thing in db.execute("EXPLAIN "+stmt.sql(),args.args):
+		for thing in db.execute("EXPLAIN ANALYZE "+stmt.sql(),args.args):
 			print(thing[0]);
 		return
 		for tag in searchForTags(bags):

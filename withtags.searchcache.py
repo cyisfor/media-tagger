@@ -132,9 +132,9 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = ', '.join(sys.argv[1:])
+		bags = os.environ.get('tags','evil, red, -apple, -wagon')
 		bags = tags.parse(bags)
-		for rec in searchForTags(bags,wantRelated=True):
+		for rec in searchForTags(bags):
 			print('related',rec)
 			
 		result = searchForTags(bags)
