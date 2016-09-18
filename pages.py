@@ -21,7 +21,7 @@ import mydirty as d
 from dirty import RawString
 from place import place
 from itertools import count, chain
-from contextlib import contextmanager, nested
+from contextlib import contextmanager
 
 try:
 	from numpy import mean
@@ -424,7 +424,7 @@ def page(info,path,params):
 	def pageURL(id):
 		return '../{:x}'.format(id)
 
-	with nested(Links(), makePage("Page info for "+fid)):
+	with Links(), makePage("Page info for "+fid):
 		d.comment("Tags: "+boorutags)
 		link = checkExplain(id,link,width,height,thing)
 		d.div(link)
@@ -495,11 +495,11 @@ def info(info,path,params):
 			d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))
 			with d.table(Class='info'):
 				for key,value in keys.items():
-					d.tr(d.td(key),d.td(stringize(value),id=key)
-			d.hr()
+					d.tr(d.td(key),d.td(stringize(value),id=key))
+			d.hr
 			top.append("Sources")
 			with d.div(id='sources'):
-				for id,source in sources):
+				for id,source in sources:
 					d.p(d.a(source,href=source))
 
 def like(info):
@@ -575,7 +575,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 def notempty(it):
 	it = iter(it)
 	first = next(it)
-	return chain((first,)it)
+	return chain((first,),it)
 						
 def clump(it,n=8):
 	it = iter(it)
@@ -618,14 +618,14 @@ def desktop_base(history,base,progress,pageLink):
 			tags = [str(tag) for tag in tags]
 			type = stripPrefix(type)
 			d.p("Having tags ",doTags(place,tags))
-			with nested(d.p, d.a(href=pageLink(current,0))):
+			with d.p, d.a(href=pageLink(current,0)):
 				d.img(class_='wid',
 				      src=base+"/".join((
 					      "media",'{:x}'.format(current),type,name)))				
 			d.hr()
 
 			d.p("Past Desktops")
-			with nested(d.div, d.table):
+			with d.div, d.table:
 				for links in clump(makeDesktopLinks(),8):
 					d.tr(*links)
 	Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
@@ -679,11 +679,9 @@ def user(info,path,params):
 	def li(name,*a,**kw):
 		d.tr(d.td(name),d.td(*a,**kw))
 	with makePage("User Settings",douser=False):
-		with nested(
-	            d.form(action=place+'/~user/',
+		with d.form(action=place+'/~user/',
 	                   type='application/x-www-form-urlencoded',
-	                   method="post"),
-	            d.table):
+	                   method="post"),d.table:
 			li("Rescale Media? ",rescalebox)
 			li("Comic pages on main listing? ",comicbox)
 			li("Javascript navigation?",navbox,title="(This requires javascript!)")

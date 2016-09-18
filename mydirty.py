@@ -2,11 +2,11 @@
 
 import dirty.html as sub
 
-def makeE(tag):
-	tag = sub.Tag(tag)
+def makeE(name):
+	tag = sub.Tag(name)
 	def makeE(*a,**kw):
 		return sub.Element(tag,*a,**kw)
-	setattr(sub,tag,makeE)
+	setattr(sub,name,makeE)
 
 makeE('audio')
 makeE('video')
@@ -24,7 +24,8 @@ class Element:
 		self.contents = ()
 		self.kw = {}
 		self.parent = ContextDirty.current_element
-		self.parent(self)
+		if self.parent:
+			self.parent(self)
 	def __call__(self,*a,**kw):
 		if not a and not kw: return self.commit()
 		self.contents += a
@@ -33,9 +34,9 @@ class Element:
 		self.parent = ContextDirty.current_element
 		ContextDirty.current_element = self
 		return self
-	def __exit__(self):
-		if self.parent
-			self.parent.append(self.commit())
+	def __exit__(self,*a):
+		if self.parent:
+			self.parent(self.commit())
 		ContextDirty.current_element = self.parent
 	committed = None
 	def commit(self):
