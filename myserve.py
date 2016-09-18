@@ -280,15 +280,15 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 							@prevnext
 							def page():
 								disp.Links.next = None
-								return pages.makePage('No Results Found',
-								                      pages.d.p('No Results Found'))
+								pages.makePage('No Results Found',
+								               pages.d.p('No Results Found'))
+								return pages.derpage
 							return page
 					else:
 						@prevnext
 						def page():
 							return disp.page(
 								info.pageInfo(ident),path,params)
-							return page
 						return page
 				else:
 					if o:

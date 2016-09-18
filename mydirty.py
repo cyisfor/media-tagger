@@ -30,6 +30,7 @@ class Element:
 		if not a and not kw: return self.commit()
 		self.contents += a
 		self.kw.update(kw)
+		return self
 	def __enter__(self):
 		self.parent = ContextDirty.current_element
 		ContextDirty.current_element = self

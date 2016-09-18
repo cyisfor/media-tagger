@@ -45,6 +45,16 @@ import textwrap
 maxWidth = 800
 maxSize = 0x40000
 
+def notempty(it):
+	it = iter(it)
+	first = next(it)
+	return chain((first,),it)
+						
+def clump(it,n=8):
+	it = iter(it)
+	while True:
+		yield notempty(islice(it,n))
+
 def wrappit(s):
 	return textwrap.fill(s,width=0x40)
 
@@ -78,10 +88,10 @@ def spaceBetween(elements):
 		if first:
 			first = False
 		else:
-			d.current_element.append(' ')
+			d.current_element(' ')
 		yield e
 
-def doTags(tags):
+def doTags(top,tags):
 	for tag in spaceBetween(tags):
 		d.a(tag,href=top+'/'+quote(tag)+'/')
 
@@ -145,18 +155,13 @@ def makeLinks(info,linkfor=None):
 	row = []
 	rows = []
 	allexists = True
-	def row(id,name,type,tags,*is_comic):
+	def onelink(id,name,type,tags,*is_comic):
 		nonlocal allexists
 		if len(is_comic) >= 1:
 			is_comic = is_comic[0]
 		else:
 			is_comic = False
 		i = next(counter)
-		if i%thumbnailRowSize==0:
-			if row:
-				#rows.append(row)
-				rows.append((tuple(row)+(d.br(),)))
-			row = []
 		tags = [str(tag) for tag in tags]
 		if type == 'application/x-shockwave-flash':
 			src = '/flash.jpg'
@@ -178,13 +183,11 @@ def makeLinks(info,linkfor=None):
 		if is_comic:
 			klass += ' comic'
 		yield d.div(link,taginfo,class_=klass)
-	rows = (row(*r) for r in info)
-	if len(info) > 0:
-		rows = chain(rows,d.br)
-	@doneiterating(rows)
-	def result():
-		Session.refresh = not allexists
-	return result
+
+	for row in clump((onelink(*r) for r in info),thumbnailRowSize):
+		d.br
+		
+	Session.refresh = not allexists
 
 def makeBase():
 	# drop bass
@@ -230,6 +233,12 @@ def standardHead(title,*contents):
 		yield head
 
 derpage = None
+def pagemaker(f):
+	def wrapper(*a,**kw):
+		assert f(*a,**kw) is None
+		assert derpage is not None
+		return derpage.commit()
+	return wrapper
 		
 @contextmanager
 def makePage(title,custom_head=False,douser=True):
@@ -322,6 +331,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 def mediaLink(id,type):
 	return '/media/{:x}/{}'.format(id,type)
 
+@pagemaker
 def simple(info,path,params):
 	if Session.head: return
 	id,type = info
@@ -391,7 +401,8 @@ def maybeDesc(id):
 		return d.div([d.p(RawString(p)) for p in lines],
 					 id='desc')
 	return None
-	
+
+@pagemaker
 def page(info,path,params):
 	if Session.head:
 		id,modified,size = info
@@ -469,6 +480,7 @@ def stringize(key):
 def thumbLink(id):
 	return "/thumb/"+'{:x}'.format(id)
 
+@pagemaker
 def info(info,path,params):
 	Session.modified = info['sessmodified']
 	if Session.head: return
@@ -529,6 +541,7 @@ def tagsURL(tags,negatags):
 def stripGeneral(tags):
 	return [tag.replace('general:','') for tag in tags]
 
+@pagemaker
 def media(url,query,offset,pageSize,info,related,basic):
 	#related = tags.names(related) should already be done
 	basic = tags.names(basic)
@@ -545,11 +558,12 @@ def media(url,query,offset,pageSize,info,related,basic):
 		if offset > 0:
 			query['o'] = offset - 1
 			Links.prev = url.path+unparseQuery(query)
-		links = makeLinks(info)
-		with makePage("Media "+str(basic)):
+		with d.div(id='thumbs') as links:
+			makeLinks(info)
+		with makePage("Media "+str(basic)) as page:
 			d.p("You are ",d.a(User.ident,href=place+"/~user"))
-			if links:
-				d.div(links,id='thumbs')
+			if links.contents:
+				page.append(links)
 			if related:
 				with d.div("Related tags",d.hr(),id='related'):
 					doTags(url.path.rstrip('/'),related)
@@ -572,16 +586,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 					if Links.next:
 						d.a('Next',href=Links.next)
 
-def notempty(it):
-	it = iter(it)
-	first = next(it)
-	return chain((first,),it)
-						
-def clump(it,n=8):
-	it = iter(it)
-	while True:
-		yield notempty(islice(it,n))
-						
+@pagemaker
 def desktop(raw,path,params):
 	if 'n' in params:
 		n = int(params['n'][0],0x10)
@@ -630,6 +635,7 @@ def desktop_base(history,base,progress,pageLink):
 					d.tr(*links)
 	Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
 
+@pagemaker
 def user(info,path,params):
 	if Session.head: return
 	if 'submit' in params:
@@ -797,9 +803,9 @@ def showPages(path,params):
 			Links.next = unparseQuery({'p':page+1})
 		with makePage(title + " - Comics"):
 			d.h1(title)
-			consume(makeLinks(
+			makeLinks(
 				getInfos(),
-				lambda medium,i: '{:x}/'.format(i+offset)))
+				lambda medium,i: '{:x}/'.format(i+offset))
 
 			d.p(RawString(description)),
 			d.p("Tags:",", ".join(tags)),
@@ -849,6 +855,7 @@ def showComicPage(path):
 					d.a("Medium",href=link)
 			d.p("Tags: ",", ".join(tags))
 
+@pagemaker
 def showComic(info,path,params):
 	path = path[1:]
 	if len(path) == 0:
