@@ -18,6 +18,7 @@ import explanations
 from schlorp import schlorp
 
 import mydirty as d
+import dirty.html as dd
 from dirty import RawString
 from place import place
 from itertools import count, chain, islice
@@ -175,20 +176,18 @@ def makeLinks(info,linkfor=None):
 		link = linkfor(id,i)
 		if name is None:
 			name = fixName(id,type)
-		#row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
 		thingy = "(i)";
 		klass = 'thumb'
 		if is_comic:
 			klass += ' comic'
 		with d.div(class_=klass):
-			d.a(d.img(src=src,title=' '+name+' '),href=link)
+			d.a(dd.img(src=src,title=' '+name+' '),href=link)
 			if tags:
 				d.span(thingy,title=wrappit(', '.join(tags)
 			                            if tags else ''),
 						 href=link,
 						 class_='taghi')
 
-	print('onelink',len(info),thumbnailRowSize)
 	for row in clump((onelink(*r) for r in info),thumbnailRowSize):
 		consume(row)
 #		print('row',tuple(row))
@@ -260,7 +259,7 @@ def makePage(title,custom_head=False,douser=True):
 			with d.body as body:
 				yield body
 				if not douser:
-					d.p(d.a("User Settings",href=("/art/~user")))
+					d.p(dd.a("User Settings",href=("/art/~user")))
 
 def makeStyle(s):
 	res = ''
@@ -297,42 +296,42 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 	thing = '/'.join(('/media',fid,type,name))
 
 	if type.startswith('text'):
-		return fid, d.pre(thing), thing
+		return fid, dd.pre(thing), thing
 	if type.startswith('image'):
 		if doScale:
 			height = width = None # already resized the pixels
 		if resized:
-		  return fid, d.img(class_='wid',src=resized,alt='Still resizing...'), thing
+		  return fid, dd.img(class_='wid',src=resized,alt='Still resizing...'), thing
 		else:
-			return fid, d.img(class_='wid',src=thing,style=style), thing
+			return fid, dd.img(class_='wid',src=thing,style=style), thing
 	# can't scale videos, so just adjust their width/height in CSS
 	wrapper = None
 	if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
 		if type.endswith('webm') or type.endswith('ogg'):
 			if type[0]=='a':
-				wrapper = d.audio
+				wrapper = dd.audio
 			else:
-				wrapper = d.video
-			return fid,wrapper(d.source(src=thing,type=type),
-					d.object(
-						d.embed(src=thing,style=style,type=type),
+				wrapper = dd.video
+			return fid,wrapper(dd.source(src=thing,type=type),
+					dd.object(
+						dd.embed(src=thing,style=style,type=type),
 						width=width, height=height,
 						data=thing,style=style,type=type),
 						autoplay=True,loop=True), thing
 		else:
-			return fid,(d.object(
-					d.embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
-					d.param(name='src',value=thing),
+			return fid,(dd.object(
+					dd.embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
+					dd.param(name='src',value=thing),
 						style=style,
 						type=type,
 						loop=True,
 						autoplay=True,
 						width=width,
-						height=height),d.br(),"Download"),thing
+						height=height),dd.br(),"Download"),thing
 	if type == 'application/x-shockwave-flash':
-		return fid,(d.object(d.param(name='SRC',value=thing),
+		return fid,(dd.object(dd.param(name='SRC',value=thing),
 				embed(' ',src=thing,style=style),
-				style=style),d.br(),'Download'),thing
+				style=style),dd.br(),'Download'),thing
 	raise RuntimeError("What is "+type)
 
 def mediaLink(id,type):
@@ -447,7 +446,7 @@ def page(info,path,params):
 		link = checkExplain(id,link,width,height,thing)
 		d.div(link)
 		maybeDesc(id)
-		d.p(d.a('Info',href=place+"/~info/"+fid))
+		d.p(dd.a('Info',href=place+"/~info/"+fid))
 		if comic:
 			comic, title, prev, next = comic
 			if next:

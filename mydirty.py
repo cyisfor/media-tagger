@@ -51,6 +51,7 @@ class ContextDirty:
 #	RawString = sub.RawString
 	def __getattr__(self,name):
 		return Element(name)
-		
+	class NoAppending:
+		def __init__(self
 import sys
 sys.modules[__name__] = ContextDirty()
