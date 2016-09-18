@@ -307,31 +307,37 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 	# can't scale videos, so just adjust their width/height in CSS
 	wrapper = None
 	if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
-		if type.endswith('webm') or type.endswith('ogg'):
-			if type[0]=='a':
-				wrapper = dd.audio
+		with d.NoParent:
+			if type.endswith('webm') or type.endswith('ogg'):
+				if type[0]=='a':
+					wrapper = d.audio
+				else:
+					wrapper = d.video
+				with wrapper(autoplay=True,loop=True):
+					d.source(src=thing,type=type)
+					with d.object(width=width, height=height,
+					              data=thing,style=style,type=type):
+						d.embed(src=thing,style=style,type=type)
 			else:
-				wrapper = dd.video
-			return fid,wrapper(dd.source(src=thing,type=type),
-					dd.object(
-						dd.embed(src=thing,style=style,type=type),
-						width=width, height=height,
-						data=thing,style=style,type=type),
-						autoplay=True,loop=True), thing
-		else:
-			return fid,(dd.object(
-					dd.embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
-					dd.param(name='src',value=thing),
-						style=style,
+				with d.object(
+					style=style,
 						type=type,
 						loop=True,
 						autoplay=True,
 						width=width,
-						height=height),dd.br(),"Download"),thing
+						height=height) as o:
+					d.embed(' ',
+					        src=thing,style=style,
+					        type=type,loop=True,autoplay=True)
+					d.param(name='src',value=thing)
+				wrapper = (o,dd.br,"Download")
+		return fid,wrapper,thing
 	if type == 'application/x-shockwave-flash':
-		return fid,(dd.object(dd.param(name='SRC',value=thing),
-				embed(' ',src=thing,style=style),
-				style=style),dd.br(),'Download'),thing
+		with d.NoParent:
+			with d.object(style=style) as o:
+				d.param(name='SRC',value=thing),
+				d.embed(' ',src=thing,style=style)
+		return fid, (o,dd.br,"Download"), thing
 	raise RuntimeError("What is "+type)
 
 def mediaLink(id,type):

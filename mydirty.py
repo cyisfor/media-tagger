@@ -46,12 +46,19 @@ class Element:
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed
 
+class NoParent:
+	parent = None
+	def __enter__(self):
+		self.parent = ContextDirty.current_element
+		ContextDirty.current_element = None
+	def __exit__(self,*a):
+		ContextDirty.current_element = self.parent
+	
 class ContextDirty:
 	current_element = None
 #	RawString = sub.RawString
 	def __getattr__(self,name):
 		return Element(name)
-	class NoAppending:
-		def __init__(self
+	NoParent = NoParent()
 import sys
 sys.modules[__name__] = ContextDirty()
