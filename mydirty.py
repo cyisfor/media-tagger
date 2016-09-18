@@ -13,8 +13,6 @@ makeE('video')
 makeE('source')
 makeE('embed')
 
-current_element = None
-
 def maybecommit(e):
 	if hasattr(e,'commit'):
 		return e.commit()
@@ -25,27 +23,30 @@ class Element:
 		self.name = name
 		self.contents = ()
 		self.kw = {}
-		self.parent = current_element
+		self.parent = ContextDirty.current_element
+		self.parent(self)
 	def __call__(self,*a,**kw):
 		if not a and not kw: return self.commit()
-		a = tuple(maybecommit(e) for e in a)
 		self.contents += a
 		self.kw.update(kw)
 	def __enter__(self):
-		global current_element
-		self.parent = current_element
-		current_element = self
+		self.parent = ContextDirty.current_element
+		ContextDirty.current_element = self
+		return self
 	def __exit__(self):
 		if self.parent
 			self.parent.append(self.commit())
-		current_element = self.parent
+		ContextDirty.current_element = self.parent
 	committed = None
 	def commit(self):
 		if self.committed is None:
-			self.committed = getattr(sub,self.name)(*self.contents,**self.kw)
+			contents = tuple(maybecommit(e) for e in self.contents)
+			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed
 
 class ContextDirty:
+	current_element = None
+#	RawString = sub.RawString
 	def __getattr__(self,name):
 		return Element(name)
 		

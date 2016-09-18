@@ -20,7 +20,8 @@ from schlorp import schlorp
 import mydirty as d
 from dirty import RawString
 from place import place
-from itertools import count
+from itertools import count, chain
+from contextlib import contextmanager
 
 try:
 	from numpy import mean
@@ -57,6 +58,7 @@ def quote(s):
 
 def comment(s):
 	return RawString('<!-- '+s+' -->')
+
 def stripPrefix(type):
 	if type:
 		a = type.split('/',1)
@@ -70,23 +72,18 @@ def degeneralize(tag):
 		return tag[len('general:'):]
 	return tag
 
-def tuplize(f):
-	def wrapper(*a,**kw):
-		return tuple(f(*a,**kw))
-	return wrapper
-
-@tuplize
 def spaceBetween(elements):
 	first = True
 	for e in elements:
 		if first:
 			first = False
 		else:
-			yield ' '
+			d.current_element.append(' ')
 		yield e
 
-def doTags(top,tags):
-	return spaceBetween([d.a(tag,href=top+'/'+quote(tag)+'/') for tag in tags])
+def doTags(tags):
+	for tag in spaceBetween(tags):
+		d.a(tag,href=top+'/'+quote(tag)+'/')
 
 def pageLink(id,i=0):
 	return place+'/~page/'+'{:x}/'.format(id)
@@ -134,6 +131,13 @@ def fixName(id,type):
 	db.execute("UPDATE media SET name = $1 WHERE id = $2",(name,id))
 	return name
 
+def doneiterating(iter):
+	def deco(final):
+		for item in iter:
+			yield item
+		final()
+	return deco
+
 def makeLinks(info,linkfor=None):
 	if linkfor is None:
 		linkfor = pageLink
@@ -141,7 +145,8 @@ def makeLinks(info,linkfor=None):
 	row = []
 	rows = []
 	allexists = True
-	for id,name,type,tags,*is_comic in info:
+	def row(id,name,type,tags,*is_comic):
+		nonlocal allexists
 		if len(is_comic) >= 1:
 			is_comic = is_comic[0]
 		else:
@@ -172,11 +177,14 @@ def makeLinks(info,linkfor=None):
 		klass = 'thumb'
 		if is_comic:
 			klass += ' comic'
-		row.append(d.div(link,taginfo,class_=klass))
-					
-	if row: rows.append((tuple(row)+(d.br(),)))
-	Session.refresh = not allexists
-	return rows
+		yield d.div(link,taginfo,class_=klass)
+	rows = (row(*r) for r in info)
+	if len(info) > 0:
+		rows = chain(rows,d.br)
+	@doneiterating(rows)
+	def result():
+		Session.refresh = not allexists
+	return result
 
 def makeBase():
 	# drop bass
@@ -191,33 +199,36 @@ class Links:
 # meh
 # style = schlorp(os.path.join(filedb.base,"style.css"),text=False)
 
+@contextmanager
 def standardHead(title,*contents):
 	# oembed sucks:
 	if Links.id:
 		url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
-	return d.head(
-		d.title(title),
-		d.meta(charset='utf-8'),
-		d.meta(name="og:title",value=title),
-		d.meta(name="og:type",value="website"),
-		d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id) if Links.id else "/thumb/5d359")),
-		d.meta(name="og:url",value=url if Links.id else makeBase()),
-		d.link(rel="icon",type="image/png",href="/favicon.png"),
-		d.link(rel='stylesheet',type='text/css',href="/style/art.css"),
-		(d.link(rel='next',href=Links.next) if Links.next else ''),
-		(d.link(rel='prev',href=Links.prev) if Links.prev else ''),
-		(d.script(src="/stuff/navigation.js",type="text/javascript")
-		 if User.navigate else ""),
+	with d.head as head:
+		d.title(title)
+		d.meta(charset='utf-8')
+		d.meta(name="og:title",value=title)
+		d.meta(name="og:type",value="website")
+		d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id) if Links.id else "/thumb/5d359"))
+		d.meta(name="og:url",value=url if Links.id else makeBase())
+		d.link(rel="icon",type="image/png",href="/favicon.png")
+		d.link(rel='stylesheet',type='text/css',href="/style/art.css")
+		if Links.next:
+			d.link(rel='next',href=Links.next)
+		if Links.prev:
+			d.link(rel='prev',href=Links.prev)
+		if User.navigate:
+			d.script(src="/stuff/navigation.js",type="text/javascript")
 
-		d.link(rel='alternate',
-		       type='application/json+oembed',
-		       href='/art/~oembed/{:x}?url={}'.format(
-			       Links.id,
-			       # oembed sucks:
-			       quote(url))) if Links.id else '',
-	*contents)
+		if Links.id:
+			d.link(rel='alternate',
+			       type='application/json+oembed',
+			       href='/art/~oembed/{:x}?url={}'.format(
+				       Links.id,
+				       # oembed sucks:
+				       quote(url)))
+		yield head
 
-from contextlib import contextmanager
 @contextmanager
 def makePage(title,custom_head=False):
 	if kw.get('nouser') is None:
@@ -225,13 +236,12 @@ def makePage(title,custom_head=False):
 			d.p(d.a("User Settings",href=("/art/~user"))),)
 	with d.xhtml:
 		if custom_head:
-			with standardHead(title):
-				yield d.body
+			with standardHead(title) as head:
+				yield head,d.body
 		else:
 			standardHead(title)
-			with d.body:
-				yield
-
+			with d.body as body:
+				yield body
 
 def makeStyle(s):
 	res = ''
@@ -281,18 +291,18 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 	if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
 		if type.endswith('webm') or type.endswith('ogg'):
 			if type[0]=='a':
-				wrapper = audio
+				wrapper = d.audio
 			else:
-				wrapper = video
-			return fid,wrapper(source(src=thing,type=type),
+				wrapper = d.video
+			return fid,wrapper(d.source(src=thing,type=type),
 					d.object(
-						embed(src=thing,style=style,type=type),
+						d.embed(src=thing,style=style,type=type),
 						width=width, height=height,
 						data=thing,style=style,type=type),
 						autoplay=True,loop=True), thing
 		else:
 			return fid,(d.object(
-					embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
+					d.embed(' ',src=thing,style=style,type=type,loop=True,autoplay=True),
 					d.param(name='src',value=thing),
 						style=style,
 						type=type,
@@ -312,7 +322,7 @@ def mediaLink(id,type):
 def simple(info,path,params):
 	if Session.head: return
 	id,type = info
-	return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id)))
+	return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id))).commit()
 
 def resized(info,path,params):
 	id = int(path[1],0x10)
@@ -405,39 +415,42 @@ def page(info,path,params):
 	boorutags = " ".join(tag[0].replace(' ','_') for tag in tags)
 	# even if not rescaling, sets img width unless ns in params
 	fid,link,thing = makeLink(id,type,name,doScale,width,height)
-	tail = []
+
 	def pageURL(id):
 		return '../{:x}'.format(id)
-	def updateComic(comic):
-		def comicURL(id):
-			return '/art/~comic/{:x}/'.format(id)
-		comic, title, prev, next = comic
-		if next:
-			next = pageURL(next)
-			if not Links.next:
-				Links.next = next
-		if prev:
-			prev = pageURL(prev)
-			if not Links.prev:
-				Links.prev = prev
-		tail.append(d.p("Comic: ",d.a(title,href=comicURL(comic)),' ',d.a('<<',href=prev) if prev else None,d.a('>>',href=next) if next else None))
-	with Links():
+
+	with Links(), makePage("Page info for "+fid):
+		d.comment("Tags: "+boorutags)
+		link = checkExplain(id,link,width,height,thing)
+		d.div(link)
+		maybeDesc(id)
+		d.p(d.a('Info',href=place+"/~info/"+fid))
 		if comic:
-			updateComic(comic)
+			comic, title, prev, next = comic
+			if next:
+				next = pageURL(next)
+				if not Links.next:
+					Links.next = next
+			if prev:
+				prev = pageURL(prev)
+				if not Links.prev:
+					Links.prev = prev
+		with d.p("Comic: ") as p:
+			d.a(title,href=comicURL(comic))
+			p.append(' ')
+			if prev:
+				d.a('<<',href=prev)
+			if next:
+				d.a('>>',href=next)
 		if tags:
-			tail.append(d.p("Tags: ",((' ',d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))) for tag in tags)))
+			with d.p("Tags: ") as p:
+				for tag in tags:
+					p.append("\n")
+					d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))
 		if next and not Links.next:
 			Links.next = pageURL(next)+unparseQuery()
 		if prev and not Links.prev:
 			Links.prev = pageURL(prev)+unparseQuery()
-
-		link = checkExplain(id,link,width,height,thing)
-		return makePage("Page info for "+fid,
-				comment("Tags: "+boorutags),
-										d.div(link),
-						maybeDesc(id),
-						d.p(d.a('Info',href=place+"/~info/"+fid)),
-						tail)
 
 def stringize(key):
 	if hasattr(key,'isoformat'):
@@ -472,13 +485,17 @@ def info(info,path,params):
 	tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
 	info['tags'] = ', '.join(tags)
 
-	return makePage("Info about "+fid,
-			d.p(d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))),
-			d.table((d.tr(d.td(key),d.td(stringize(info[key]),id=key)) for key in keys),Class='info'),
-			d.hr(),
-			"Sources",
-			d.span((d.p(d.a(source,href=source)) for id,source in sources),id='sources'))
-
+	with makePage("Info about "+fid):
+		with d.p as top:
+			d.a(d.img(src=thumbLink(id)),d.br(),"Page",href=pageLink(id))
+			with d.table(Class='info'):
+				for key,value in keys.items():
+					d.tr(d.td(key),d.td(stringize(value),id=key)
+			d.hr()
+			top.append("Sources")
+			with d.div(id='sources'):
+				for id,source in sources):
+					d.p(d.a(source,href=source))
 
 def like(info):
 	return "Under construction!"
@@ -513,10 +530,6 @@ def media(url,query,offset,pageSize,info,related,basic):
 	related=stripGeneral(related)
 
 	removers = []
-	for tag in basic.posi:
-		removers.append(d.a(tag,href=tagsURL(basic.posi.difference(set([tag])),basic.nega)))
-	for tag in basic.nega:
-		removers.append(d.a('-'+tag,href=tagsURL(basic.posi,basic.nega.difference(set([tag])))))
 
 	with Links():
 		info = tuple(info)
@@ -528,14 +541,36 @@ def media(url,query,offset,pageSize,info,related,basic):
 			query['o'] = offset - 1
 			Links.prev = url.path+unparseQuery(query)
 		links = makeLinks(info)
-		return makePage("Media "+str(basic),
-				d.p("You are ",d.a(User.ident,href=place+"/~user")),
-				#d.table(makeLinks(info)),
-						d.div(links,id='thumbs') if links else '',
-				(d.div("Related tags",d.hr(),doTags(url.path.rstrip('/'),related),id='related') if related else ''),
-				(d.div("Remove tags",d.hr(),spaceBetween(removers),id='remove') if removers else ''),
-				d.p((d.a('Prev',href=Links.prev),' ') if Links.prev else '',(d.a('Next',href=Links.next) if Links.next else '')))
+		with makePage("Media "+str(basic)):
+			d.p("You are ",d.a(User.ident,href=place+"/~user"))
+			if links:
+				d.div(links,id='thumbs')
+			if related:
+				with d.div("Related tags",d.hr(),id='related'):
+					doTags(url.path.rstrip('/'),related)
+			if basic.posi or basic.nega:
+				with d.div("Remove tags",d.hr(),id='remove'):
+					for tag in spaceBetween(basic.posi):
+						d.a(tag,
+						    href=tagsURL(basic.posi.difference(set([tag])),
+						                 basic.nega))
+					for tag in spaceBetween(tags.nega):
+						d.a('-'+tag,
+						    href=tagsURL(basic.posi,
+						                 basic.nega.difference(set([tag]))))
+			if Links.prev or Links.next:
+				with d.p as p:
+					if Links.prev:
+						d.a('Prev',href=Links.prev)
+						if Links.next:
+							p.append(' ')
+					if Links.next:
+						d.a('Next',href=Links.next)
 
+def clump(iter,n=8):
+	while True:
+		yield islice(iter,n)
+						
 def desktop(raw,path,params):
 	if 'n' in params:
 		n = int(params['n'][0],0x10)
@@ -570,17 +605,18 @@ def desktop_base(history,base,progress,pageLink):
 		middle = ''
 	def makeDesktopLinks():
 		nonlocal pageLink
-		links = []
 		allexists = True
 		for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
 			fid,exists = filedb.check(id)
 			if progress:
 				pageLink = progress(fid,name,exists)
 			allexists = allexists and exists
-			links.append(d.td(d.a(d.img(title=name,src=base+"thumb/"+fid),
-							href=pageLink(id))))
+			yield d.td(d.a(d.img(title=name,src=base+"thumb/"+fid),
+			               href=pageLink(id)))
 		Session.refresh = not allexists
-		return links
+	with makePage("Current Desktop"):
+		for links in clump(makeDesktopLinks()):
+			
 	links = makeDesktopLinks()
 	def makeDesktopRows():
 		row = []
@@ -593,7 +629,7 @@ def desktop_base(history,base,progress,pageLink):
 			yield d.tr(row)
 
 	Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
-	return makePage("Current Desktop",
+	return 
 			middle,
 			d.p("Past Desktops"),
 			d.div(
