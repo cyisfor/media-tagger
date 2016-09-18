@@ -20,7 +20,7 @@ from schlorp import schlorp
 import mydirty as d
 from dirty import RawString
 from place import place
-from itertools import count, chain
+from itertools import count, chain, islice
 from contextlib import contextmanager
 
 try:
@@ -55,6 +55,9 @@ def clump(it,n=8):
 	while True:
 		yield notempty(islice(it,n))
 
+def consume(it):
+	for _ in it: pass
+		
 def wrappit(s):
 	return textwrap.fill(s,width=0x40)
 
@@ -174,17 +177,21 @@ def makeLinks(info,linkfor=None):
 			name = fixName(id,type)
 		#row.append(d.td(d.a(d.img(src=src,alt="h",title=' '+name+' '),href=link),d.br(),d.sup('(i)',title=wrappit(', '.join(tags))) if tags else '',href=link))
 		thingy = "(i)";
-		taginfo = d.span(thingy,title=wrappit(', '.join(tags)
-										   if tags else ''),
-						 href=link,
-						 class_='taghi')
-		link = d.a(d.img(src=src,title=' '+name+' '),href=link)
 		klass = 'thumb'
 		if is_comic:
 			klass += ' comic'
-		yield d.div(link,taginfo,class_=klass)
+		with d.div(class_=klass):
+			d.a(d.img(src=src,title=' '+name+' '),href=link)
+			if tags:
+				d.span(thingy,title=wrappit(', '.join(tags)
+			                            if tags else ''),
+						 href=link,
+						 class_='taghi')
 
+	print('onelink',len(info),thumbnailRowSize)
 	for row in clump((onelink(*r) for r in info),thumbnailRowSize):
+		consume(row)
+#		print('row',tuple(row))
 		d.br
 		
 	Session.refresh = not allexists
@@ -249,7 +256,7 @@ def makePage(title,custom_head=False,douser=True):
 			with standardHead(title) as head:
 				yield head,d.body
 		else:
-			standardHead(title)
+			with standardHead(title): pass
 			with d.body as body:
 				yield body
 				if not douser:
@@ -563,7 +570,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 		with makePage("Media "+str(basic)) as page:
 			d.p("You are ",d.a(User.ident,href=place+"/~user"))
 			if links.contents:
-				page.append(links)
+				page(links)
 			if related:
 				with d.div("Related tags",d.hr(),id='related'):
 					doTags(url.path.rstrip('/'),related)
