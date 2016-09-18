@@ -575,13 +575,12 @@ def media(url,query,offset,pageSize,info,related,basic):
 def notempty(it):
 	it = iter(it)
 	first = next(it)
-	yield chain((first,)it)
+	return chain((first,)it)
 						
 def clump(it,n=8):
 	it = iter(it)
 	while True:
 		yield notempty(islice(it,n))
-
 						
 def desktop(raw,path,params):
 	if 'n' in params:
@@ -800,16 +799,20 @@ def showPages(path,params):
 			Links.next = unparseQuery({'p':page+1})
 		with makePage(title + " - Comics"):
 			d.h1(title)
-			if numPages and links:
-				makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
-				links if numPages and links else '',
-				d.p(RawString(description)),
-				d.p("Tags:",", ".join(tags)),
-				d.p(d.a('Source',href=source)) if source else '',
-				d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
-					d.a("Index",href=".."),
-					(d.a(" Next",href=Links.next)if Links.next else '')))
+			consume(makeLinks(
+				getInfos(),
+				lambda medium,i: '{:x}/'.format(i+offset)))
 
+			d.p(RawString(description)),
+			d.p("Tags:",", ".join(tags)),
+			if source:
+				d.p(d.a('Source',href=source))
+			with d.p:
+				if Links.prev:
+					d.a("Prev ",href=Links.prev)
+				d.a("Index",href="..")
+				if Links.next:
+					d.a(" Next",href=Links.next)
 
 def showComicPage(path):
 	com = int(path[0],0x10)
@@ -832,16 +835,21 @@ def showComicPage(path):
 		fid,link,thing = makeLink(medium,typ,name,
 				doScale,style='width: 100%')
 		link = checkExplain(medium,link,width,height,Links.next)
-		return makePage("{:x} page ".format(which)+title,
-		                custom_head=True) as head,body:
-		
-				d.div(link),
-		maybeDesc(medium),
-				d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
-					d.a("Index",href=".."),
-					(d.a(" Next",href=Links.next)if Links.next else '')),
-				d.p(d.a("Page",href="/art/~page/"+fid),(' ',d.a("Medium",href=link)) if doScale else None),
-						d.p("Tags: ",", ".join(tags)))
+		with makePage("{:x} page ".format(which)+title):
+			d.div(link)
+			maybeDesc(medium)
+			with d.p:
+				if Links.prev:
+					d.a("Prev ",href=Links.prev)
+				d.a("Index",href="..")
+				if Links.next:
+					d.a(" Next",href=Links.next)
+			with d.p:
+				d.a("Page",href="/art/~page/"+fid)
+				p.append(' ')
+				if doScale:
+					d.a("Medium",href=link)
+			d.p("Tags: ",", ".join(tags))
 
 def showComic(info,path,params):
 	path = path[1:]
