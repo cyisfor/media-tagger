@@ -11,10 +11,10 @@ div.clear {
     margin-right: auto;
     clear: both;
 }
-/*
-table {
-	margin-left: auto;
-	margin-right: auto;
+table.info {
+		margin-bottom: 1em;
+		margin-left: auto;
+		margin-right: auto;
 }
 
 table.info td {
@@ -24,7 +24,7 @@ table.info td {
 div.thumb { 
 	display: inline;
 }
-*/
+
 img.wid {
 	max-width: 100%;
 }

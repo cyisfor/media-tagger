@@ -26,18 +26,19 @@ class Element:
 		self.parent = ContextDirty.current_element
 		if self.parent:
 			self.parent(self)
+	def __repr__(self):
+		return "<"+self.name+repr(self.kw)+'>'
 	def __call__(self,*a,**kw):
-		if not a and not kw: return self.commit()
 		self.contents += a
 		self.kw.update(kw)
 		return self
 	def __enter__(self):
 		self.parent = ContextDirty.current_element
+		print('going down',self,self.parent)
 		ContextDirty.current_element = self
 		return self
 	def __exit__(self,*a):
-		if self.parent:
-			self.parent(self.commit())
+		print('going up',self,self.parent)
 		ContextDirty.current_element = self.parent
 	committed = None
 	def commit(self):

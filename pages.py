@@ -449,8 +449,8 @@ def page(info,path,params):
 
 	with Links(), makePage("Page info for "+fid) as page:
 		page(comment("Tags: "+boorutags))
-		link = checkExplain(id,link,width,height,thing)
-		d.div(link)
+		with d.div:
+			checkExplain(id,link,width,height,thing)
 		maybeDesc(id)
 		d.p(dd.a('Info',href=place+"/~info/"+fid))
 		if comic:
@@ -691,10 +691,10 @@ def user(info,path,params):
 		with d.form(action=place+'/~user/',
 		            type='application/x-www-form-urlencoded',
 		            method="post"):
-			with d.table:
-				checkbox('rescale',User.rescaleImages)
-				checkbox('comic',User.noComics)
-				checkbox('navigate',User.navigate)
+			with d.table(Class="info"):
+				checkbox("Rescale Images?",'rescale',User.rescaleImages)
+				checkbox("Only First Comic Page?",'comic',User.noComics)
+				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				note('tagnames',tagnames)
 				with d.tr:
 					d.td("Implied Tags")
@@ -846,9 +846,9 @@ def showComicPage(path):
 		doScale = User.rescaleImages and size >= maxSize
 		fid,link,thing = makeLink(medium,typ,name,
 				doScale,style='width: 100%')
-		link = checkExplain(medium,link,width,height,Links.next)
 		with makePage("{:x} page ".format(which)+title):
-			d.div(link)
+			with d.div:
+				checkExplain(medium,link,width,height,Links.next)
 			maybeDesc(medium)
 			with d.p:
 				if Links.prev:
