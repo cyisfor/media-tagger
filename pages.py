@@ -464,6 +464,8 @@ def page(info,path,params):
 				prev = pageURL(prev)
 				if not Links.prev:
 					Links.prev = prev
+			def comicURL(id):
+				return '/art/~comic/{:x}/'.format(id)
 			with d.p("Comic: ") as p:
 				d.a(title,href=comicURL(comic))
 				p(' ')
@@ -595,7 +597,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 					if Links.prev:
 						d.a('Prev',href=Links.prev)
 						if Links.next:
-							p.append(' ')
+							p(' ')
 					if Links.next:
 						d.a('Next',href=Links.next)
 
@@ -611,9 +613,9 @@ def desktop(raw,path,params):
 		return "No desktops yet!?"
 	if 'd' in params:
 		raise Redirect(pageLink(0,history[0]))
-	return desktop_base(history,"/",None,pageLink)
+	return desktop_base(history,"/",None,pageLink,n)
 	
-def desktop_base(history,base,progress,pageLink):
+def desktop_base(history,base,progress,pageLink,n):
 	if Session.head:
 		Session.modified = db.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
 		return
@@ -625,10 +627,9 @@ def desktop_base(history,base,progress,pageLink):
 			if progress:
 				pageLink = progress(fid,name,exists)
 			allexists = allexists and exists
-			with d.NoParent:
-				with d.td as td, d.a(href=pageLink(id)):
-					d.img(title=name,src=base+"thumb/"+fid)
-					yield td
+			with d.td as td, d.a(href=pageLink(id)):
+				d.img(title=name,src=base+"thumb/"+fid)
+				yield td
 		Session.refresh = not allexists
 	with makePage("Current Desktop"):
 		if n == 0x10:
@@ -637,11 +638,11 @@ def desktop_base(history,base,progress,pageLink):
 			name,type,tags = db.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
 			tags = [str(tag) for tag in tags]
 			type = stripPrefix(type)
-			d.p("Having tags ",doTags(place,tags))
 			with d.p, d.a(href=pageLink(current,0)):
 				d.img(class_='wid',
 				      src=base+"/".join((
 					      "media",'{:x}'.format(current),type,name)))				
+			d.p("Having tags ",doTags(place,tags))
 			d.hr()
 
 			d.p("Past Desktops")
@@ -771,7 +772,7 @@ def showAllComics(params):
 				return '{:x}/'.format(comics[i][0])
 			return '{:x}/0/'.format(comics[i][0])
 		with makePage("{:x} Page Comics".format(page),
-		              custom_head=True) as head,body:
+		              custom_head=True) as (head,body):
 			with head:
 				makeLinks(getInfos(),formatLink)
 			with body:
@@ -779,7 +780,7 @@ def showAllComics(params):
 					if Links.prev:
 						d.a("Prev",href=Links.prev)
 						if Links.next:
-							p.append(' ')
+							p(' ')
 					if Links.next:
 						d.a("Next",href=Links.next)
 
@@ -855,9 +856,9 @@ def showComicPage(path):
 				d.a("Index",href="..")
 				if Links.next:
 					d.a(" Next",href=Links.next)
-			with d.p:
+			with d.p as p:
 				d.a("Page",href="/art/~page/"+fid)
-				p.append(' ')
+				p(' ')
 				if doScale:
 					d.a("Medium",href=link)
 			d.p("Tags: ",", ".join(tags))

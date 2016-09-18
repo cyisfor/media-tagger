@@ -21,10 +21,6 @@ table.info td {
 	text-align: left;
 }
 
-div.thumb { 
-	display: inline;
-}
-
 img.wid {
 	max-width: 100%;
 }
@@ -52,7 +48,7 @@ img.wid {
 }
 
 div#thumbs {
-	width: 100vw;
+	width: 98vw; /* 100 causes a useless horizontal scroll bar */
 	clear: both;
 	overflow: auto;
 	margin: auto;

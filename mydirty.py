@@ -14,6 +14,8 @@ makeE('source')
 makeE('embed')
 
 def maybecommit(e):
+	if hasattr(e,'committed') and e.committed is not None:
+		return e.committed
 	if hasattr(e,'commit'):
 		return e.commit()
 	return e
