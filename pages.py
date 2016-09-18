@@ -217,23 +217,21 @@ def standardHead(title,*contents):
 			       quote(url))) if Links.id else '',
 	*contents)
 
-def makePage(title,*content,**kw):
+from contextlib import contextmanager
+@contextmanager
+def makePage(title,custom_head=False):
 	if kw.get('nouser') is None:
 		content = content + (
 			d.p(d.a("User Settings",href=("/art/~user"))),)
-	return d.xhtml(standardHead(title),d.body(
-#		d.p(d.a(d.img(src="/stuff/derp.gif"),href="/stuff/derp.html")),
-		*content))
+	with d.xhtml:
+		if custom_head:
+			with standardHead(title):
+				yield d.body
+		else:
+			standardHead(title)
+			with d.body:
+				yield
 
-def makeE(tag):
-	tag = d.Tag(tag)
-	def makeE(*a,**kw):
-		return d.Element(tag,*a,**kw)
-	return makeE
-audio = makeE('audio')
-video = makeE('video')
-source = makeE('source')
-embed = makeE('embed')
 
 def makeStyle(s):
 	res = ''
@@ -649,19 +647,19 @@ def user(info,path,params):
 	tagnames = ', '.join(tagnames)
 	note('tagnames',tagnames)
 	def li(name,*a,**kw):
-		return d.tr(d.td(name),d.td(*a,**kw))
-	return makePage("User Settings",
-		d.form(
-			d.table(
-				li("Rescale Media? ",rescalebox),
-				li("Comic pages on main listing? ",comicbox),
-				li("Javascript navigation?",navbox,title="(This requires javascript!)"),
-				li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
-				li(d.input(type="submit",value="Submit"))),
-			action=place+'/~user/',
-			type='application/x-www-form-urlencoded',
-			method="post"),
-	d.p(d.a('Main Page',href=place)),
+		d.tr(d.td(name),d.td(*a,**kw)).commit()
+	form = d.form(action=place+'/~user/',
+	              type='application/x-www-form-urlencoded',
+	              method="post"),
+	with form:
+		with d.table:
+			li("Rescale Media? ",rescalebox)
+			li("Comic pages on main listing? ",comicbox)
+			li("Javascript navigation?",navbox,title="(This requires javascript!)")
+			li("Implied Tags",d.input(type='text',name='tags',value=tagnames))
+			li(d.input(type="submit",value="Submit"))
+	with d.p:
+		d.a('Main Page',href=place)
 
 		nouser=True)
 
