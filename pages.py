@@ -21,7 +21,7 @@ import mydirty as d
 from dirty import RawString
 from place import place
 from itertools import count, chain
-from contextlib import contextmanager
+from contextlib import contextmanager, nested
 
 try:
 	from numpy import mean
@@ -229,12 +229,13 @@ def standardHead(title,*contents):
 				       quote(url)))
 		yield head
 
+derpage = None
+		
 @contextmanager
-def makePage(title,custom_head=False):
-	if kw.get('nouser') is None:
-		content = content + (
-			d.p(d.a("User Settings",href=("/art/~user"))),)
-	with d.xhtml:
+def makePage(title,custom_head=False,douser=True):
+	global derpage
+	derpage = d.xhtml
+	with derpage:
 		if custom_head:
 			with standardHead(title) as head:
 				yield head,d.body
@@ -242,6 +243,8 @@ def makePage(title,custom_head=False):
 			standardHead(title)
 			with d.body as body:
 				yield body
+				if not douser:
+					d.p(d.a("User Settings",href=("/art/~user")))
 
 def makeStyle(s):
 	res = ''
@@ -322,7 +325,9 @@ def mediaLink(id,type):
 def simple(info,path,params):
 	if Session.head: return
 	id,type = info
-	return makePage("derp",d.a(d.img(class_='wid',src=mediaLink(id,type)),href=pageLink(id))).commit()
+	with makePage("derp"), d.a(href=pageLink(id)):
+		d.img(class_='wid',
+		      src=mediaLink(id,type))
 
 def resized(info,path,params):
 	id = int(path[1],0x10)
@@ -419,7 +424,7 @@ def page(info,path,params):
 	def pageURL(id):
 		return '../{:x}'.format(id)
 
-	with Links(), makePage("Page info for "+fid):
+	with nested(Links(), makePage("Page info for "+fid)):
 		d.comment("Tags: "+boorutags)
 		link = checkExplain(id,link,width,height,thing)
 		d.div(link)
@@ -567,9 +572,16 @@ def media(url,query,offset,pageSize,info,related,basic):
 					if Links.next:
 						d.a('Next',href=Links.next)
 
-def clump(iter,n=8):
+def notempty(it):
+	it = iter(it)
+	first = next(it)
+	yield chain((first,)it)
+						
+def clump(it,n=8):
+	it = iter(it)
 	while True:
-		yield islice(iter,n)
+		yield notempty(islice(it,n))
+
 						
 def desktop(raw,path,params):
 	if 'n' in params:
@@ -588,21 +600,6 @@ def desktop_base(history,base,progress,pageLink):
 	if Session.head:
 		Session.modified = db.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
 		return
-	if n == 0x10:
-		current = history[0]
-		history = history[1:]
-		name,type,tags = db.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
-		tags = [str(tag) for tag in tags]
-		type = stripPrefix(type)
-		middle = (
-			d.p("Having tags ",doTags(place,tags)),
-			d.p(d.a(d.img(class_='wid',
-			              src=base+"/".join((
-				              "media",'{:x}'.format(current),type,name))),
-				href=pageLink(current,0))),
-			d.hr())
-	else:
-		middle = ''
 	def makeDesktopLinks():
 		nonlocal pageLink
 		allexists = True
@@ -615,26 +612,24 @@ def desktop_base(history,base,progress,pageLink):
 			               href=pageLink(id)))
 		Session.refresh = not allexists
 	with makePage("Current Desktop"):
-		for links in clump(makeDesktopLinks()):
-			
-	links = makeDesktopLinks()
-	def makeDesktopRows():
-		row = []
-		for td in links:
-			row.append(td)
-			if len(row) == 8:
-				yield d.tr(row)
-				row = []
-		if len(row):
-			yield d.tr(row)
+		if n == 0x10:
+			current = history[0]
+			history = history[1:]
+			name,type,tags = db.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
+			tags = [str(tag) for tag in tags]
+			type = stripPrefix(type)
+			d.p("Having tags ",doTags(place,tags))
+			with nested(d.p, d.a(href=pageLink(current,0))):
+				d.img(class_='wid',
+				      src=base+"/".join((
+					      "media",'{:x}'.format(current),type,name)))				
+			d.hr()
 
+			d.p("Past Desktops")
+			with nested(d.div, d.table):
+				for links in clump(makeDesktopLinks(),8):
+					d.tr(*links)
 	Session.modified = db.execute("SELECT EXTRACT (epoch from MAX(added)) FROM media")[0][0]
-	return 
-			middle,
-			d.p("Past Desktops"),
-			d.div(
-				d.table(
-					makeDesktopRows())))
 
 def user(info,path,params):
 	if Session.head: return
@@ -683,21 +678,20 @@ def user(info,path,params):
 	tagnames = ', '.join(tagnames)
 	note('tagnames',tagnames)
 	def li(name,*a,**kw):
-		d.tr(d.td(name),d.td(*a,**kw)).commit()
-	form = d.form(action=place+'/~user/',
-	              type='application/x-www-form-urlencoded',
-	              method="post"),
-	with form:
-		with d.table:
+		d.tr(d.td(name),d.td(*a,**kw))
+	with makePage("User Settings",douser=False):
+		with nested(
+	            d.form(action=place+'/~user/',
+	                   type='application/x-www-form-urlencoded',
+	                   method="post"),
+	            d.table):
 			li("Rescale Media? ",rescalebox)
 			li("Comic pages on main listing? ",comicbox)
 			li("Javascript navigation?",navbox,title="(This requires javascript!)")
 			li("Implied Tags",d.input(type='text',name='tags',value=tagnames))
 			li(d.input(type="submit",value="Submit"))
-	with d.p:
-		d.a('Main Page',href=place)
-
-		nouser=True)
+		with d.p:
+			d.a('Main Page',href=place)
 
 def getPage(params):
 	page = params.get('p')
@@ -766,12 +760,18 @@ def showAllComics(params):
 			if comic.pages(comics[i][0]) == 0:
 				return '{:x}/'.format(comics[i][0])
 			return '{:x}/0/'.format(comics[i][0])
-		links = makeLinks(getInfos(),formatLink)
-		return makePage("{:x} Page Comics".format(page),
-				links if links else '',
-				d.p((d.a("Prev",href=Links.prev) if Links.prev else ''),
-					(' ' if Links.prev and Links.next else ''),
-					(d.a("Next",href=Links.next)if Links.next else '')))
+		with makePage("{:x} Page Comics".format(page),
+		              custom_head=True) as head,body:
+			with head:
+				makeLinks(getInfos(),formatLink)
+			with body:
+				with d.p as p:
+					if Links.prev:
+						d.a("Prev",href=Links.prev)
+						if Links.next:
+							p.append(' ')
+					if Links.next:
+						d.a("Next",href=Links.next)
 
 def showPages(path,params):
 	com = int(path[0],0x10)
@@ -798,9 +798,10 @@ def showPages(path,params):
 			Links.prev = unparseQuery({'p':page-1})
 		if page + 1 < numPages:
 			Links.next = unparseQuery({'p':page+1})
-		links = makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
-		return makePage(title + " - Comics",
-				d.h1(title),
+		with makePage(title + " - Comics"):
+			d.h1(title)
+			if numPages and links:
+				makeLinks(getInfos(),lambda medium,i: '{:x}/'.format(i+offset))
 				links if numPages and links else '',
 				d.p(RawString(description)),
 				d.p("Tags:",", ".join(tags)),
@@ -832,6 +833,8 @@ def showComicPage(path):
 				doScale,style='width: 100%')
 		link = checkExplain(medium,link,width,height,Links.next)
 		return makePage("{:x} page ".format(which)+title,
+		                custom_head=True) as head,body:
+		
 				d.div(link),
 		maybeDesc(medium),
 				d.p((d.a("Prev ",href=Links.prev) if Links.prev else ''),
