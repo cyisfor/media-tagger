@@ -34,11 +34,11 @@ class Element:
 		return self
 	def __enter__(self):
 		self.parent = ContextDirty.current_element
-		print('going down',self,self.parent)
+		#print('going down',self,self.parent)
 		ContextDirty.current_element = self
 		return self
 	def __exit__(self,*a):
-		print('going up',self,self.parent)
+		#print('going up',self,self.parent)
 		ContextDirty.current_element = self.parent
 	committed = None
 	def commit(self):

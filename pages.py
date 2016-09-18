@@ -258,7 +258,7 @@ def makePage(title,custom_head=False,douser=True):
 			with standardHead(title): pass
 			with d.body as body:
 				yield body
-				if not douser:
+				if douser:
 					d.p(dd.a("User Settings",href=("/art/~user")))
 
 def makeStyle(s):
@@ -385,18 +385,19 @@ def checkExplain(id,link,width,height,thing):
 				'height': h,
 			}))
 
-			yield d.div(d.div(text),
+			yield dd.div(dd.div(text),
 						{'class': 'exp',
 						 'id': 'i'+str(i),
 						 'data-id':aid})
 
-	link = d.a(link,id='mediumu',href=thing)
 	areas = tuple(getareas())
 	if areas:
 		imgmap = (makeStyle(style),)+areas
-		return d.div(link,id='img',*imgmap)
+		div = d.div(*imgmap)
 	else:
-		return d.div(link,id='img')
+		div = d.div
+	with div:
+		d.a(link,id='mediumu',href=thing)
 
 linepat = re.compile('[ \t]*\n+\s*')
 	
@@ -505,10 +506,8 @@ def info(info,path,params):
 	else:
 		sources = ((id,derp.source(id)) for id in sources)
 		sources = [pair for pair in sources if pair[1]]
-	keys = set(info.keys())
-	keys.discard('id')
-	keys.discard('sources')
-	keys = sorted(keys)
+	info.pop('id',None)
+	info.pop('sources',None)
 	fid,exists = filedb.check(id)
 	Session.refresh = not exists
 	tags = [str(tag) if not isinstance(tag,str) else tag for tag in info['tags']]
@@ -518,12 +517,12 @@ def info(info,path,params):
 		with d.p as top:
 			d.a(dd.img(src=thumbLink(id)),dd.br(),"Page",href=pageLink(id))
 			with d.table(Class='info'):
-				for key,value in keys.items():
+				for key,value in sorted(info.items()):
 					with d.tr:
 						d.td(key)
 						d.td(stringize(value),id=key)
 			d.hr
-			top.append("Sources")
+			top("Sources")
 			with d.div(id='sources'):
 				for id,source in sources:
 					d.p(dd.a(source,href=source))
@@ -587,7 +586,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 						d.a(tag,
 						    href=tagsURL(basic.posi.difference(set([tag])),
 						                 basic.nega))
-					for tag in spaceBetween(tags.nega):
+					for tag in spaceBetween(basic.nega):
 						d.a('-'+tag,
 						    href=tagsURL(basic.posi,
 						                 basic.nega.difference(set([tag]))))
