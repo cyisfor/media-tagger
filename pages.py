@@ -17,7 +17,7 @@ import explanations
 
 from schlorp import schlorp
 
-import dirty.html as d
+import mydirty as d
 from dirty import RawString
 from place import place
 from itertools import count
@@ -648,18 +648,21 @@ def user(info,path,params):
 		tagnames.append(name)
 	tagnames = ', '.join(tagnames)
 	note('tagnames',tagnames)
+	def li(name,*a,**kw):
+		return d.tr(d.td(name),d.td(*a,**kw))
 	return makePage("User Settings",
 		d.form(
-		d.ul(
-			d.li("Rescale Media? ",rescalebox),
-			d.li("Comic pages on main listing? ",comicbox),
-			d.li("Navigate prev/next by hitting left/right? ",navbox,title="(This requires javascript!)"),
-			d.li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
-			d.li(d.input(type="submit",value="Submit"))),
-		action=place+'/~user/',
-		type='application/x-www-form-urlencoded',
-		method="post"),
-		d.p(d.a('Main Page',href=place)),
+			d.table(
+				li("Rescale Media? ",rescalebox),
+				li("Comic pages on main listing? ",comicbox),
+				li("Javascript navigation?",navbox,title="(This requires javascript!)"),
+				li("Implied Tags",d.input(type='text',name='tags',value=tagnames)),
+				li(d.input(type="submit",value="Submit"))),
+			action=place+'/~user/',
+			type='application/x-www-form-urlencoded',
+			method="post"),
+	d.p(d.a('Main Page',href=place)),
+
 		nouser=True)
 
 def getPage(params):
