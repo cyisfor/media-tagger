@@ -70,7 +70,14 @@ class HeaderWatcher(urllib.HTTPHandler):
 	def http_open(self, req):
 		return self.do_open(self.Client, req)
 
+class RedirectNoter(urllib.HTTPRedirectHandler):
+	def http_error_302(self, req, fp, code, msg, headers):
+		print("being redirected",code,msg,headers.get("location"))
+		print(fp.read())
+		super().http_error_302(req,fp,code,msg,headers)
+	
 handlers.append(HeaderWatcher())
+handlers.append(RedirectNoter())
 
 opener = urllib.build_opener(*handlers)
 opener.addheaders = [

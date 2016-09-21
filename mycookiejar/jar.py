@@ -105,6 +105,9 @@ class Jar(cookiejar.CookieJar):
 	def _cookies_for_request(self, request):
 		# this MUST return a mutable list
 		return list(self.__cookies_for_request(request))
+	def clear(self,domain,path,name):
+		print("deletion request for ",domain,path,name)
+		execute("DELETE FROM cookies WHERE url = (SELECT id FROM urls WHERE domain = (select id from domains where domain = ?) AND path = ?) AND name = ?",(domain,path,name))
 	def clear_expired_cookies(self, request = None):
 		urls = "SELECT url FROM cookies WHERE expires < ?"
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"

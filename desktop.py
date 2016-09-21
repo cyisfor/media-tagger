@@ -60,4 +60,5 @@ if __name__ == '__main__':
 	if not os.environ.get('DISPLAY'):
 		os.environ['DISPLAY'] = ':0.0'
 	os.environ.setdefault('XAUTHORITY','/home/.Xauthority')
-	os.execlp("xfdesktop","xfdesktop","--reload")
+	os.execlp("habak","habak","-mS","-hi","/home/.config/desktop")
+	#os.execlp("xfdesktop","xfdesktop","--reload")

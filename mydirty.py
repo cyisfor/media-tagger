@@ -17,6 +17,7 @@ def nocycles(o,e):
 	for sub in e:
 		if id(sub) == id(o): raise RuntimeError("cycle adding",o)
 		try:
+			if not sub: continue
 			if type(sub[0]) == type(sub): continue
 			nocycles(o,sub)
 		except TypeError: pass
