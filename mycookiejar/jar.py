@@ -43,7 +43,7 @@ def update(domain,path,name,value,creationTime,**attrs):
 				print(name,url)
 				raise
 			# have to commit here, because selecting won't return the new rows
-			if db.in_transaction():
+			if db.in_transaction:
 				db.__exit__(None,None,None)
 				db.__enter__()
 			return
@@ -110,13 +110,17 @@ class Jar(cookiejar.CookieJar):
 		print("deletion request for ",domain,path,name)
 		domain = execute("select id FROM domains WHERE domain = ?",
 										 (domain,))
-		domain = domain.fetchone()[0]
-		path = execute("SELECT id FROM uris WHERE path = ? AND domain = ?",
+		domain = domain.fetchone()
+		if not domain: return
+		domain = domain[0]
+		path = execute("SELECT id FROM urls WHERE path = ? AND domain = ?",
 									 (path, domain))
-		path = path.fetchone()[0]
+		path = path.fetchone()
+		if not path: return
+		path = path[0]
 		r = execute("DELETE FROM cookies WHERE url = ? AND name = ?",(path,name))
 		print("deleted",r.rowcount);
-		execute("DELETE FROM uris WHERE id = ?",
+		execute("DELETE FROM urls WHERE id = ?",
 						(path,))
 		execute("DELETE FROM domains WHERE id = ?",
 						(domain,))
