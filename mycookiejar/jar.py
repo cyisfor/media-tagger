@@ -6,7 +6,7 @@ except ImportError:
 	import cookielib as cookiejar
 
 from .db import db,execute,verbose
-assert(db,"please setup before using this!")
+assert db,"please setup before using this!"
 
 from .setup import extra_fields,findDomain,findURL,extra_fields,update_id_stmt,importing,policy
 
@@ -43,8 +43,9 @@ def update(domain,path,name,value,creationTime,**attrs):
 				print(name,url)
 				raise
 			# have to commit here, because selecting won't return the new rows
-			db.__exit__(None,None,None)
-			db.__enter__()
+			if db.in_transaction():
+				db.__exit__(None,None,None)
+				db.__enter__()
 			return
 
 		r = execute("SELECT id,creationTime FROM cookies WHERE url = ? AND name = ?", (url, name))
@@ -107,7 +108,18 @@ class Jar(cookiejar.CookieJar):
 		return list(self.__cookies_for_request(request))
 	def clear(self,domain,path,name):
 		print("deletion request for ",domain,path,name)
-		execute("DELETE FROM cookies WHERE url = (SELECT id FROM urls WHERE domain = (select id from domains where domain = ?) AND path = ?) AND name = ?",(domain,path,name))
+		domain = execute("select id FROM domains WHERE domain = ?",
+										 (domain,))
+		domain = domain.fetchone()[0]
+		path = execute("SELECT id FROM uris WHERE path = ? AND domain = ?",
+									 (path, domain))
+		path = path.fetchone()[0]
+		r = execute("DELETE FROM cookies WHERE url = ? AND name = ?",(path,name))
+		print("deleted",r.rowcount);
+		execute("DELETE FROM uris WHERE id = ?",
+						(path,))
+		execute("DELETE FROM domains WHERE id = ?",
+						(domain,))
 	def clear_expired_cookies(self, request = None):
 		urls = "SELECT url FROM cookies WHERE expires < ?"
 		domains = "SELECT domain FROM urls WHERE id IN (" + urls + ")"
