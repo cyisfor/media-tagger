@@ -72,7 +72,7 @@ def parse(primarySource,noCreate=False):
 			normalize = lambda url: url
 		primarySource = normalize(primarySource)
 		if 'json' in handlers:
-			derp = handlers['jsonuri'](primarySource)
+			derp = handlers['json'](primarySource)
 		else:
 			derp = primarySource
 		with myopen(derp) as inp:
@@ -103,7 +103,9 @@ def parse(primarySource,noCreate=False):
 		name = None
 		try:
 			if 'json' in handlers:
-				results = handlers['json'](primarySource,headers,json.decode(doc))
+				print(doc.decode('utf-8'))
+				results = handlers['extract'](primarySource,headers,
+				                              json.loads(doc.decode('utf-8')))
 			else:
 				doc = BeautifulSoup(doc)
 				setattr(doc,'url',primarySource)
