@@ -17,9 +17,14 @@ def fixCloudflareIdiocy(url):
 	return url
 
 def extract(primarySource, headers, doc):
-	import pprint
-	pprint.pprint((headers,doc))
-	raise SystemExit
+	for tag in doc['tags'].split(', '):
+		if ':' in tag:
+			yield Tag(*tag.split(':',1))
+		else:
+			yield Tag(tag)
+	yield Name(doc['file_name'])
+	# yield Type(doc['mime_type']) this gets sent during the request anyway
+	yield Media(doc['image'])
 
 import sys,os
 here = os.path.dirname(sys.modules[__name__].__file__)

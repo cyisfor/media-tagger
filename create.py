@@ -187,8 +187,9 @@ def getanId(sources,uniqueSources,download,name):
 				# so download it!
 	note("downloading to get an id")
 	with filedb.mediaBecomer() as data:
-		created = download(data)
+		created,mimetype = download(data)
 		note('cerated',created)
+		data.seek(0,0)
 		digest = mediaHash(data)
 		result = db.execute("SELECT id FROM media WHERE hash = $1",(digest,))
 		if result:
@@ -214,27 +215,23 @@ def getanId(sources,uniqueSources,download,name):
 			image = None
 			data.seek(0,0)
 			savedData = data
-#			if data.name[-1] == 'z':
-#				try:
-#					data = gzip.open(data)
-#				except IOError as e:
-#					raise
-			image,mimetype = openImage(data)
-			if not image:
-				note('we hafe to guess')
-				try:
-					mimetype = magic.guess_type(data.name)[0]
-				except TypeError:
-					mimetype = manuallyGetType(data, mimetype)
-				else:
-					if mimetype is None or mimetype == 'binary':
-						mimetype = manuallyGetType(data,mimetype)
+			if mimetype is None:
+				image,mimetype = openImage(data)
+				if not image:
+					note('we hafe to guess')
+					try:
+						mimetype = magic.guess_type(data.name)[0]
+					except TypeError:
+						mimetype = manuallyGetType(data, mimetype)
 					else:
-						mimetype = mimetype.split('\\012')[0]
+						if mimetype is None or mimetype == 'binary':
+							mimetype = manuallyGetType(data,mimetype)
+						else:
+							mimetype = mimetype.split('\\012')[0]
 
-				note.blue('guessed mimetype',repr(mimetype),type(mimetype))
-			if not isGood(mimetype):
-				mimetype = manuallyGetType(data,mimetype)
+					note.blue('guessed mimetype',repr(mimetype),type(mimetype))
+				if not isGood(mimetype):
+					mimetype = manuallyGetType(data,mimetype)
 			if not '.' in name:
 				name += '.' + magic.guess_extension(mimetype)
 			note("New {} with id {:x} ({})".format(mimetype,id,name))

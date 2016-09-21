@@ -150,6 +150,15 @@ def myretrieve(request,dest):
 			if progress:
 				sofar += amt
 				progress(sofar,total)
+		if 'Last-Modified' in headers:
+			import email.utils as eut
+			import datetime
+			modified = eut.parsedate(headers['Last-Modified'])
+			modified = datetime.datetime(*modified[:6])
+			os.utime(dest.name,(eut,eut))
+			inp.headers.modified = modified
+		else:
+			inp.headers.modified = None
 		return inp.headers
 
 print('urllib has been setup for proxying')

@@ -142,12 +142,10 @@ def parse(primarySource,noCreate=False):
 			media.headers['Referer'] = primarySource
 			def download(dest):
 				print('download',media.url)
-				myretrieve(Request(media.url,
+				response = myretrieve(Request(media.url,
 					headers=media.headers),
 					dest)
-				dest.seek(0,0)
-				mtime = os.fstat(dest.fileno()).st_mtime
-				return datetime.datetime.fromtimestamp(mtime)
+				return response.modified, response["Content-Type"]
 			# def download(dest):
 			#	 with open('/tmp/derp.image','rb') as inp:
 			#		 shutil.copyfileobj(inp,dest)
