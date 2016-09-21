@@ -17,47 +17,8 @@ def fixCloudflareIdiocy(url):
 	return url
 
 def extract(primarySource, headers, doc):
-	tags = doc
-	for taglist in doc.findAll('div',{'class': 'tagsauce'}):	
-		for tag in taglist.findAll('span'):
-			if not 'tag' in tag.get('class',()): continue
-			namespace = tag.get('data-tag-namespace')
-			try: name = tag['data-tag-name-in-namespace']
-			except KeyError:
-				print('tag is',tag)
-				raise
-			if namespace is None:
-				if 'tag-system' in tag['class']:
-					if name in {'safe','explicit','questionable','suggestive'}:
-						namespace = 'rating'			
-			yield Tag(namespace,name)
-	sauce = doc.find('span',{'class': 'source_url'})
-	if sauce:
-		yield Source(sauce.find('a')['href'])
-	foundImage = False
-	for a in doc.findAll('a'):
-		rel = a.get('rel')
-		if not rel:
-			continue
-		if 'nofollow' in rel and a.contents[0].strip and a.contents[0].strip().lower()=='download':
-			href = a.get('href')
-			yield Image(fixCloudflareIdiocy(href))
-			foundImage = True
-	if not foundImage:
-		imgr = doc.find('div',id='image_target')
-		if not imgr:
-			return
-			with open('/tmp/derp.html','wt') as out:
-				out.write(doc.prettify())
-			raise RuntimeError('derp')
-		try:
-			yield Image(fixCloudflareIdiocy(imgr.attrs['data-download-uri']))
-		except:
-			print("fail?",imgr)
-			raise
-
-
-	print(headers,doc)
+	import pprint
+	pprint.pprint((headers,doc))
 	raise SystemExit
 
 import sys,os

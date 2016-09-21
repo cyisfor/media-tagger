@@ -103,7 +103,6 @@ def parse(primarySource,noCreate=False):
 		name = None
 		try:
 			if 'json' in handlers:
-				print(doc.decode('utf-8'))
 				results = handlers['extract'](primarySource,headers,
 				                              json.loads(doc.decode('utf-8')))
 			else:
