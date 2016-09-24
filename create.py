@@ -10,7 +10,7 @@ import note
 
 from imagecheck import NoGood,isGood
 from weirdui import manuallyGetType
-	
+
 import imageInfo
 
 from hashlib import sha1 as SHA,md5 as MD5
@@ -53,7 +53,7 @@ class writer:
 	def __init__(self, write):
 		# pythoooon
 		self.write = write
-		
+
 def mediaHash(data):
 	digest = SHA()
 	shutil.copyfileobj(data,writer(digest.update))
@@ -122,7 +122,7 @@ class SourceImpl:
 			self.path = thing
 	def lookup_id(self):
 		if self.id: return self.id
-		
+
 		if self.uri:
 			return sourceId(self.uri,self.isUnique,self.hasTags)
 		assert(self.path)
@@ -166,7 +166,7 @@ class Source:
 			return self.id
 		else:
 			return getattr(self.impl,name)
-	
+
 def getanId(sources,uniqueSources,download,name):
 	for uniqueSource in uniqueSources:
 		result = db.execute("SELECT id FROM media where media.sources @> ARRAY[$1::integer]",(uniqueSource.id,))
@@ -215,8 +215,10 @@ def getanId(sources,uniqueSources,download,name):
 			image = None
 			data.seek(0,0)
 			savedData = data
+			image,derp = openImage(data)
 			if mimetype is None:
-				image,mimetype = openImage(data)
+				mimetype = derp
+			if mimetype is None:
 				if not image:
 					note('we hafe to guess')
 					try:
@@ -244,7 +246,8 @@ def getanId(sources,uniqueSources,download,name):
 				if mimetype.startswith('video'):
 					movie.isMovie(id,data)
 				else:
-					print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE %x'.format(id)))
+					print(RuntimeError('WARNING NOT AN IMAGE OR MOVIE {:x}'
+					                   .format(id)))
 			data.flush()
 			if hasattr(created,'timestamp'):
 				timestamp = created.timestamp()
@@ -253,7 +256,7 @@ def getanId(sources,uniqueSources,download,name):
 				timestamp = time.mktime(created.timetuple())
 			os.utime(data.name,(timestamp,timestamp))
 			data.become(id)
-			
+
 
 			# create thumbnail proactively
 			# don't bother waiting for it to appear
@@ -266,7 +269,7 @@ def update(id,sources,tags,name):
 	donetags = []
 	with db.transaction():
 		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
-		
+
 	tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
@@ -300,4 +303,3 @@ def copyMe(source):
 		shutil.copy2(source,dest.name)
 		return datetime.datetime.fromtimestamp(os.fstat(dest.fileno()).st_mtime)
 	return download
-

@@ -47,16 +47,20 @@ def set_busy(is_busy=True):
 # whyyyyy
 def watch_catchup():
 	while True:
-		type,mess = catchup.get()
-		if type == catchup.PROGRESS:
-			GLib.idle_add(lambda mess=mess: gui_progress(*mess))
-		elif type == catchup.IDLE:
-			GLib.idle_add(lambda idle=mess: set_busy(not idle))
-		elif type == catchup.COMPLETE:
-			GLib.idle_add(lambda remaining=mess: set_remaining(remaining))
+		type = catchup.get()
+		if type == catchup.DONE:
+			print("Catchup died, will restart.")
 		else:
-			print(type,mess)
-			raise SystemExit("wat")
+			type,mess = type
+			if type == catchup.PROGRESS:
+				GLib.idle_add(lambda mess=mess: gui_progress(*mess))
+			elif type == catchup.IDLE:
+				GLib.idle_add(lambda idle=mess: set_busy(not idle))
+			elif type == catchup.COMPLETE:
+				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
+			else:
+				print(type,mess)
+				raise SystemExit("wat")
 import threading
 t = threading.Thread(target=watch_catchup)
 t.setDaemon(True)

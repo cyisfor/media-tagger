@@ -21,7 +21,7 @@ def extract(primarySource, headers, doc):
 		if ':' in tag:
 			yield Tag(*tag.split(':',1))
 		else:
-			yield Tag(tag)
+			yield Tag(None, tag)
 	yield Name(doc['file_name'])
 	# yield Type(doc['mime_type']) this gets sent during the request anyway
 	yield Media(doc['image'])

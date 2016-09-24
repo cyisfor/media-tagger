@@ -155,7 +155,7 @@ def myretrieve(request,dest):
 			import datetime
 			modified = eut.parsedate(headers['Last-Modified'])
 			modified = datetime.datetime(*modified[:6])
-			os.utime(dest.name,(eut,eut))
+			os.utime(dest.name,(modified.timestamp(),modified.timestamp()))
 			inp.headers.modified = modified
 		else:
 			inp.headers.modified = None

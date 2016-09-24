@@ -62,6 +62,7 @@ def findComicByTitle(title,getinfo):
 	rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
 	if len(rows) == 0:
 		print("Couldn't find title",title)
+		assert(getinfo is not None)
 		@getinfo
 		def handle(description):
 			nonlocal rows

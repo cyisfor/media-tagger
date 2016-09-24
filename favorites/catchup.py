@@ -17,7 +17,7 @@ import fixprint
 
 from ctypes import c_bool
 
-PROGRESS, IDLE, COMPLETE = range(3)
+PROGRESS, IDLE, COMPLETE, DONE = range(4)
 
 class Catchupper(Process):
 	def __init__(self,provide_progress=None):
@@ -51,6 +51,8 @@ class Catchupper(Process):
 					self.poked.wait()
 		except SystemExit: pass
 		except KeyboardInterrupt: pass
+		finally:
+			self.q.put(DONE)
 	def squeak(self,*a):
 		import urllib.error
 		import setupurllib
@@ -117,6 +119,7 @@ class Catchup:
 	PROGRESS = PROGRESS
 	COMPLETE = COMPLETE
 	IDLE = IDLE # meh
+	DONE = DONE # mehhh
 	# provide_progress=True means we'll pull from self.progress
 	def __init__(self,provide_progress=False):
 		self.provide_progress = provide_progress
@@ -130,7 +133,6 @@ class Catchup:
 		print('poke')
 		if not self.process.is_alive():
 			print('died?')
-			self.process = Catchupper(self.provide_progress)
 			self.start()
 		try:
 			with self.process.poked:
