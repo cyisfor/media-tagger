@@ -210,40 +210,44 @@ class Links:
 
 @contextmanager
 def standardHead(title,*contents):
-	# oembed sucks:
-	if Links.id:
-		url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
 	with d.head as head:
 		d.title(title)
 		d.meta(charset='utf-8')
 		d.meta(name="og:title",value=title)
 		d.meta(name="og:type",value="website")
-		d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id) if Links.id else "/thumb/5d359"))
-		d.meta(name="og:url",value=url if Links.id else makeBase())
 		d.link(rel="icon",type="image/png",href="/favicon.png")
 		d.link(rel='stylesheet',type='text/css',href="/style/art.css")
-		if Links.next:
-			d.link(rel='next',href=Links.next)
-		if Links.prev:
-			d.link(rel='prev',href=Links.prev)
-		if User.navigate:
-			d.script(src="/stuff/navigation.js",type="text/javascript")
 
-		if Links.id:
-			d.link(rel='alternate',
-			       type='application/json+oembed',
-			       href='/art/~oembed/{:x}?url={}'.format(
-				       Links.id,
-				       # oembed sucks:
-				       quote(url)))
-		yield head
-
+		@head.commiting
+		def _():
+			# oembed sucks:
+			if Links.id:
+				url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
+				d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id)))
+				d.meta(name="og:url",value=url)
+				d.link(rel='alternate',
+				       type='application/json+oembed',
+							 href='/art/~oembed/{:x}?url={}'.format(
+								 Links.id,
+								 # oembed sucks:
+								 quote(url)))
+			else:
+				d.meta(name="og:image",value="/thumb/5d359")
+				d.meta(name="og:image",value=makeBase())
+			if Links.next:
+				d.link(rel='next',href=Links.next)
+			if Links.prev:
+				d.link(rel='prev',href=Links.prev)
+			if User.navigate:
+				d.script(src="/stuff/navigation.js",type="text/javascript")
+		
 derpage = None
 def pagemaker(f):
 	def wrapper(*a,**kw):
-		assert f(*a,**kw) is None
-		assert derpage is not None
-		return derpage.commit()
+		with Links():
+			assert f(*a,**kw) is None
+			assert derpage is not None
+			return derpage.commit()
 	return wrapper
 		
 @contextmanager
@@ -448,7 +452,7 @@ def page(info,path,params):
 	def pageURL(id):
 		return '../{:x}'.format(id)
 
-	with Links(), makePage("Page info for "+fid) as page:
+	with makePage("Page info for "+fid) as page:
 		page(comment("Tags: "+boorutags))
 		with d.div:
 			checkExplain(id,link,width,height,thing)
@@ -564,34 +568,36 @@ def media(url,query,offset,pageSize,info,related,basic):
 
 	removers = []
 
-	with Links():
-		info = tuple(info)
-		print('oooooo',offset)
-		if len(info)>=pageSize:
-			query['o'] = offset + 1
-			Links.next = url.path+unparseQuery(query)
-		if offset > 0:
-			query['o'] = offset - 1
-			Links.prev = url.path+unparseQuery(query)
-		with d.div(id='thumbs') as links:
-			makeLinks(info)
-		with makePage("Media "+str(basic)) as page:
-			d.p("You are ",dd.a(User.ident,href=place+"/~user"))
-			if links.contents:
-				page(links)
-			if related:
-				with d.div("Related tags",dd.hr(),id='related'):
-					doTags(url.path.rstrip('/'),related)
-			if basic.posi or basic.nega:
-				with d.div("Remove tags",dd.hr(),id='remove'):
-					for tag in spaceBetween(basic.posi):
-						d.a(tag,
-						    href=tagsURL(basic.posi.difference(set([tag])),
-						                 basic.nega))
-					for tag in spaceBetween(basic.nega):
-						d.a('-'+tag,
-						    href=tagsURL(basic.posi,
-						                 basic.nega.difference(set([tag]))))
+
+	info = tuple(info)
+	print('oooooo',offset)
+	if len(info)>=pageSize:
+		query['o'] = offset + 1
+		Links.next = url.path+unparseQuery(query)
+	if offset > 0:
+		query['o'] = offset - 1
+		Links.prev = url.path+unparseQuery(query)
+	with d.div(id='thumbs') as links:
+		makeLinks(info)
+	with makePage("Media "+str(basic)) as page:
+		d.p("You are ",dd.a(User.ident,href=place+"/~user"))
+		if links.contents:
+			page(links)
+		if related:
+			with d.div("Related tags",dd.hr(),id='related'):
+				doTags(url.path.rstrip('/'),related)
+		if basic.posi or basic.nega:
+			with d.div("Remove tags",dd.hr(),id='remove'):
+				for tag in spaceBetween(basic.posi):
+					d.a(tag,
+							href=tagsURL(basic.posi.difference(set([tag])),
+													 basic.nega))
+				for tag in spaceBetween(basic.nega):
+					d.a('-'+tag,
+							href=tagsURL(basic.posi,
+													 basic.nega.difference(set([tag]))))
+		@page.committing
+		def _():
 			if Links.prev or Links.next:
 				with d.p as p:
 					if Links.prev:
@@ -764,21 +770,23 @@ def showAllComics(params):
 	if Session.head:
 		for stuff in getInfos(): pass
 		return
-	with Links():
-		if page > 0:
-			Links.prev = unparseQuery({'p':page-1})
-		if page + 1 < comic.numComics() / 0x20:
-			Links.next = unparseQuery({'p':page+1})
-		def formatLink(medium,i):
-			if comic.pages(comics[i][0]) == 0:
-				return '{:x}/'.format(comics[i][0])
-			return '{:x}/0/'.format(comics[i][0])
-		with makePage("{:x} Page Comics".format(page),
-		              custom_head=True) as (head,body):
-			with head:
-				makeLinks(getInfos(),formatLink)
-			with body:
-				with d.p as p:
+
+	if page > 0:
+		Links.prev = unparseQuery({'p':page-1})
+	if page + 1 < comic.numComics() / 0x20:
+		Links.next = unparseQuery({'p':page+1})
+	def formatLink(medium,i):
+		if comic.pages(comics[i][0]) == 0:
+			return '{:x}/'.format(comics[i][0])
+		return '{:x}/0/'.format(comics[i][0])
+	with makePage("{:x} Page Comics".format(page),
+								custom_head=True) as (head,body):
+		with head:
+			makeLinks(getInfos(),formatLink)
+		with body:
+			with d.p as p:
+				@p.committing
+				def _():
 					if Links.prev:
 						d.a("Prev",href=Links.prev)
 						if Links.next:
@@ -806,22 +814,24 @@ def showPages(path,params):
 	def getInfos():
 		for medium,which in getMedia():
 			yield medium,title + ' page {}'.format(which),getType(medium),()
-	with Links():
-		if page > 0:
-			Links.prev = unparseQuery({'p':page-1})
-		if page + 1 < numPages:
-			Links.next = unparseQuery({'p':page+1})
-		with makePage(title + " - Comics"):
-			d.h1(title)
-			makeLinks(
-				getInfos(),
-				lambda medium,i: '{:x}/'.format(i+offset))
 
-			d.p(RawString(description)),
-			d.p("Tags:",", ".join(tags)),
-			if source:
-				d.p(d.a('Source',href=source))
-			with d.p:
+	if page > 0:
+		Links.prev = unparseQuery({'p':page-1})
+	if page + 1 < numPages:
+		Links.next = unparseQuery({'p':page+1})
+	with makePage(title + " - Comics"):
+		d.h1(title)
+		makeLinks(
+			getInfos(),
+			lambda medium,i: '{:x}/'.format(i+offset))
+
+		d.p(RawString(description)),
+		d.p("Tags:",", ".join(tags)),
+		if source:
+			d.p(d.a('Source',href=source))
+		with d.p as p:
+			@p.committing
+			def _():
 				if Links.prev:
 					d.a("Prev ",href=Links.prev)
 				d.a("Index",href="..")
@@ -837,33 +847,33 @@ def showComicPage(path):
 	title,description,source,tags = comic.findInfoDerp(com)[0]
 	typ,size,width,height = getStuff(medium)
 	name = title + '.' + typ.rsplit('/',1)[-1]
-	with Links():
-		if which > 0:
-			Links.prev = comicPageLink(which-1)()
-		if comic.pages(com) > which+1:
-			Links.next = comicPageLink(which+1)()
-		else:
-			Links.next = ".."
-		medium = comic.findMedium(com,which)
-		doScale = User.rescaleImages and size >= maxSize
-		fid,link,thing = makeLink(medium,typ,name,
-				doScale,style='width: 100%')
-		with makePage("{:x} page ".format(which)+title):
-			with d.div:
-				checkExplain(medium,link,width,height,Links.next)
-			maybeDesc(medium)
-			with d.p:
-				if Links.prev:
-					d.a("Prev ",href=Links.prev)
-				d.a("Index",href="..")
-				if Links.next:
-					d.a(" Next",href=Links.next)
-			with d.p as p:
-				d.a("Page",href="/art/~page/"+fid)
-				p(' ')
-				if doScale:
-					d.a("Medium",href=link)
-			d.p("Tags: ",", ".join(tags))
+
+	if which > 0:
+		Links.prev = comicPageLink(which-1)()
+	if comic.pages(com) > which+1:
+		Links.next = comicPageLink(which+1)()
+	else:
+		Links.next = ".."
+	medium = comic.findMedium(com,which)
+	doScale = User.rescaleImages and size >= maxSize
+	fid,link,thing = makeLink(medium,typ,name,
+			doScale,style='width: 100%')
+	with makePage("{:x} page ".format(which)+title):
+		with d.div:
+			checkExplain(medium,link,width,height,Links.next)
+		maybeDesc(medium)
+		with d.p:
+			if Links.prev:
+				d.a("Prev ",href=Links.prev)
+			d.a("Index",href="..")
+			if Links.next:
+				d.a(" Next",href=Links.next)
+		with d.p as p:
+			d.a("Page",href="/art/~page/"+fid)
+			p(' ')
+			if doScale:
+				d.a("Medium",href=link)
+		d.p("Tags: ",", ".join(tags))
 
 @pagemaker
 def showComic(info,path,params):

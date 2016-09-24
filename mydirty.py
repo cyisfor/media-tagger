@@ -34,6 +34,7 @@ class Element:
 		self.name = name
 		self.contents = ()
 		self.kw = {}
+		self.pending = ()
 		self.parent = ContextDirty.current_element
 		if ContextDirty.derping and self.parent:
 			nocycles(self,self.parent.contents)
@@ -53,9 +54,13 @@ class Element:
 	def __exit__(self,*a):
 		#print('going up',self,self.parent)
 		ContextDirty.current_element = self.parent
+	def committing(self,f):
+		self.pending += (f,)
 	committed = None
 	def commit(self):
 		if self.committed is None:
+			for commit in self.pending:
+				commit()
 			contents = tuple(maybecommit(e) for e in self.contents)
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed

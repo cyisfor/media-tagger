@@ -1,6 +1,7 @@
 import syspath
 from comic import findComicByTitle, findMedium
-from favorites.parse import parse,parsers as _
+from favorites.parse import parse
+import favorites.parsers as _
 import db
 
 from setupurllib import myretrieve
@@ -9,7 +10,7 @@ import re,tempfile,json,io
 
 comic = findComicByTitle("Anon's Pie Adventure")
 
-which,medium = db.execute("SELECT which,medium FROM comicPage WHERE comic = $1 ORDER BY medium DESC LIMIT 1",
+which,medium = db.execute("SELECT which,medium FROM comicPage WHERE comic = $1 ORDER BY which DESC LIMIT 1",
 													(comic,))[0]
 
 # sigh
@@ -43,15 +44,15 @@ m = re.compile('[0-9]+').search(source)
 m = int(m.group(0))
 source = Source(m)
 
-dpat = re.compile("Next: >>([0-9]+)")
+dpat = re.compile("Next: *>>([0-9]+)")
 
 def find_next(source):
 	temp = io.BytesIO()
 	myretrieve(source.json(),temp)
 	doc = json.loads(temp.getvalue().decode('utf-8'))
 	description = doc['description']
-	m = dpat.match(description)
-	assert m
+	m = dpat.search(description)
+	assert m, description
 	source.advance(int(m.group(1)))
 
 while True:
