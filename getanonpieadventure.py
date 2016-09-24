@@ -1,6 +1,6 @@
 import syspath
 from comic import findComicByTitle, findMedium
-from favorites.parse import parse
+from favorites.parse import parse,parsers as _
 import db
 
 from setupurllib import myretrieve
@@ -25,22 +25,40 @@ source = db.execute("SELECT uri FROM urisources WHERE id IN (select unnest(sourc
 assert(len(source) == 1)
 source = source[0][0]
 
+# sighhhh
+class Source:
+	def __init__(self,source):
+		self.source = overrides.get(source,source)
+	def uri(self):
+		return "https://derpibooru.org/"+str(self.source)
+	def json(self):
+		return "https://derpibooru.org/"+str(self.source)+'.json'
+	def advance(self,source):
+		self.source = overrides.get(source,source)
+	def __repr__(self):
+		return repr(self.source)
+	
+print('initial source',source)
+m = re.compile('[0-9]+').search(source)
+m = int(m.group(0))
+source = Source(m)
+
 dpat = re.compile("Next: >>([0-9]+)")
 
 def find_next(source):
 	temp = io.BytesIO()
-	myretrieve(source+'.json',temp)
+	myretrieve(source.json(),temp)
 	doc = json.loads(temp.getvalue().decode('utf-8'))
 	description = doc['description']
 	m = dpat.match(description)
 	assert m
-	return "https://derpibooru.org/"+m.group(1)
+	source.advance(int(m.group(1)))
 
 while True:
 	which += 1
 	print("Looking for page",hex(which))
-	source = find_next(source)
-	print(source)
-	medium = parse(source)
+	find_next(source)
+	print('found source',source)
+	medium = parse(source.uri())
 	print("got it!",medium)
 	findMedium(comic,which,medium)
