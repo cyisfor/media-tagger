@@ -59,8 +59,9 @@ class Element:
 	committed = None
 	def commit(self):
 		if self.committed is None:
-			for commit in self.pending:
-				commit()
+			with self:
+				for commit in self.pending:
+					commit()
 			contents = tuple(maybecommit(e) for e in self.contents)
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed

@@ -218,7 +218,7 @@ def standardHead(title,*contents):
 		d.link(rel="icon",type="image/png",href="/favicon.png")
 		d.link(rel='stylesheet',type='text/css',href="/style/art.css")
 
-		@head.commiting
+		@head.committing
 		def _():
 			# oembed sucks:
 			if Links.id:
@@ -240,6 +240,7 @@ def standardHead(title,*contents):
 				d.link(rel='prev',href=Links.prev)
 			if User.navigate:
 				d.script(src="/stuff/navigation.js",type="text/javascript")
+		yield head
 		
 derpage = None
 def pagemaker(f):
@@ -459,24 +460,24 @@ def page(info,path,params):
 		maybeDesc(id)
 		d.p(dd.a('Info',href=place+"/~info/"+fid))
 		if comic:
-			comic, title, prev, next = comic
-			if next:
-				next = pageURL(next)
+			comic, title, comicprev, comicnext = comic
+			if comicnext:
+				comicnext = pageURL(comicnext)
 				if not Links.next:
-					Links.next = next
-			if prev:
-				prev = pageURL(prev)
+					Links.next = comicnext
+			if comicprev:
+				comicprev = pageURL(comicprev)
 				if not Links.prev:
-					Links.prev = prev
+					Links.prev = comicprev
 			def comicURL(id):
 				return '/art/~comic/{:x}/'.format(id)
 			with d.p("Comic: ") as p:
 				d.a(title,href=comicURL(comic))
 				p(' ')
-				if prev:
-					d.a('<<',href=prev)
-				if next:
-					d.a('>>',href=next)
+				if comicprev:
+					d.a('<<',href=comicprev)
+				if comicnext:
+					d.a('>>',href=comicnext)
 		if tags:
 			with d.p("Tags: ") as p:
 				for tag in tags:
