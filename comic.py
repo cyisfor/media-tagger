@@ -58,7 +58,7 @@ def withC(f):
 			f(*a,**kw)
 	return wrapper
 
-def findComicByTitle(title,getinfo):
+def findComicByTitle(title,getinfo=None):
 	rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
 	if len(rows) == 0:
 		print("Couldn't find title",title)

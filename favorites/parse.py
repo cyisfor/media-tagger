@@ -96,9 +96,6 @@ def parse(primarySource,noCreate=False):
 				return Tag(*(tag.split(':')))
 			return Tag(None,tag)
 		tags = [generalize(tag) for tag in handlers.get('tags',[])]
-		if skip and db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,)):
-			note('skipping',primarySource)
-			return
 		sources = [primarySource]
 		name = None
 		try:
