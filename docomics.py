@@ -138,9 +138,13 @@ def gotURL(url):
 		note.yellow('find mediaum',c,w,m)
 
 		try:
-			comic.findMedium(c,w,m)
+			_,created = comic.findMediumDerp(c,w,m)
+			if created:
+				note.yellow("something changed",m)
+				something_changed()
+			else:
+				note("nothing changed",m)
 		except Redirect: pass
-		something_changed()
 		
 		foreground(lambda: wentry.set_text("{:x}".format(w+1)))
 	yield background

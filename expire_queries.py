@@ -7,14 +7,18 @@ import threading
 class Expirer(threading.Thread):
 	def __init__(self):
 		self.cond = threading.Condition()
+		super().__init__()
 	def run(self):
-		import expire_queries
+		import note
+		import time
 		while True:
-			self.cond.wait()
+			with self.cond:
+				self.cond.wait()
 			# expire 10 seconds after the first time we're poked
 			# ignore intermediate pokes
 			time.sleep(10)
 			with self.cond:
+				note.red("expiring queries")
 				expire_queries()
 	def poke(self):
 		with self.cond:

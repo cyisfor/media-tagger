@@ -99,15 +99,17 @@ def findMediumDerp(comic,which,medium=None):
 			with db.transaction():
 				db.execute("INSERT INTO comicPage (comic,which,medium) VALUES ($1,$2,$3)",(comic,which,medium))
 				db.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
-		return medium
+			return medium,True
+		return None,False
 	note.yellow('medium existed',rows,medium)
-	return rows[0][0]
+	return rows[0][0],False
 
 def findMedium(comic,which,medium=None):
 	if medium:
-		return findMediumDerp(comic,which,medium)
+		medium,created = findMediumDerp(comic,which,medium)
+		return medium 
 	for tries in range(2):
-		medium = findMediumDerp(comic,which)
+		medium,created = findMediumDerp(comic,which)
 		if medium:
 			return medium
 		else:
