@@ -22,7 +22,8 @@ BEGIN
 		RAISE NOTICE 'name % % %',_name,_genrefs,_ungen;
 
 		-- ref update triggers disabled for speed
-		UPDATE things SET  refs = refs + _genrefs, neighbors = array(SELECT DISTINCT unnest(array_cat(neighbors,(SELECT neighbors FROM things WHERE id = _general)))) WHERE id = _ungen RETURNING refs INTO _ungenrefs;
+		UPDATE things SET  refs = refs + _genrefs, neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(neighbors) FROM things WHERE id = _general)
+		WHERE id = _ungen RETURNING refs INTO _ungenrefs;
 		IF clock_timestamp()-_start > '10 seconds'::interval THEN
 		   RAISE NOTICE 'merge %',_ungenrefs;
 		END IF;
