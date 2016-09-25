@@ -5,6 +5,9 @@ from bgworker import makeWorker
 from redirect import Redirect
 from mygi import GLib
 
+import expire_queries
+something_changed = expire_queries()
+
 foreground = GLib.idle_add
 
 def initBG():
@@ -137,6 +140,7 @@ def gotURL(url):
 		try:
 			comic.findMedium(c,w,m)
 		except Redirect: pass
+		something_changed()
 		
 		foreground(lambda: wentry.set_text("{:x}".format(w+1)))
 	yield background
@@ -147,22 +151,3 @@ def gotURL(url):
 
 import gtkclipboardy as clipboardy
 clipboardy(gotURL,lambda piece: b'http' == piece[:4]).run()
-
-import threading
-class Expirer(threading.Thread):
-	def __init__(self):
-		self.cond = threading.Condition()
-	def run(self):
-		import expire_queries
-		while True:
-			self.cond.wait()
-			# expire 10 seconds after the first time we're poked
-			# ignore intermediate pokes
-			time.sleep(10)
-			with self.cond:
-				expire_queries()
-	def poke(self):
-		with self.cond:
-			self.cond.notify_all()
-
-expirer = Expirer()

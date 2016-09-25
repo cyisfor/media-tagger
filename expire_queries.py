@@ -24,5 +24,10 @@ if __name__ == '__main__':
 	expire_queries()
 else:
 	import sys
-	sys.modules[__name__] = Expirer()
+	def startup():
+		e = Expirer()
+		e.start()
+		return e.poke
+	sys.modules[__name__] = startup
+
 	
