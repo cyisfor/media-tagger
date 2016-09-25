@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import note
-from bgworker import makeWorker
+from bgworker import makeWorkers
 
 from redirect import Redirect
 from mygi import GLib
@@ -8,14 +8,12 @@ from mygi import GLib
 import expire_queries
 something_changed = expire_queries()
 
-foreground = GLib.idle_add
-
-def initBG():
+def databaseInit():
 	import comic,db
 	from favorites.parse import parse, ParseError, normalize
 	import favorites.parsers # side effects galore!
 
-dually,background = makeWorker(initBG,foreground)
+foreground,background = makeWorkers(GLib.idle_add, databaseInit)
 
 from mygi import Gtk,Gdk,GObject
 import sys
@@ -74,12 +72,12 @@ def getinfo(next):
 	window.connect('destroy',partial(herp,title,description,source,tags))
 	window.show_all()
 			
-@dually
+@foreground
 def gotURL(url):
 	url = url.strip()
-	yield background
 	print("Trying {}".format(url))
 	sys.stdout.flush()
+	yield background
 	from favorites.parse import parse,normalize,ParseError
 	try:
 		m = parse(normalize(url),noCreate=True)
