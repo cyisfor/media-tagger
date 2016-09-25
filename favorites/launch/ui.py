@@ -76,13 +76,6 @@ def gotPiece(piece):
 	catchup.poke()
 	print("poked")
 print('Ready to parse')
-def seriouslyQuit(win,e):
-	print("Gettin' outta here!",e.button,dir(e.button))
-	Gtk.main_quit()
-	catchup.terminate()
-	raise SystemExit
-win.connect("button-release-event",seriouslyQuit)
-win.connect('destroy',Gtk.main_quit)
 win.set_title('parse')
 win.show_all()
 
@@ -103,5 +96,21 @@ else:
 	application.add_window(win)
 
 import gtkclipboardy as clipboardy
-clipboardy(gotPiece,lambda piece: b'http' == piece[:4]).start()
-print('Ready!')
+
+c = clipboardy(gotPiece,lambda piece: b'http' == piece[:4])
+
+def seriouslyQuit():
+	print("gettin' outta here")
+	catchup.terminate()
+	c.quit()
+
+def button_release(win,e):
+	if e.state & Gdk.ModifierType.CONTROL_MASK:
+		return seriouslyQuit()
+	if e.state & Gdk.ModifierType.RELEASE_MASK:
+		win.begin_move_drag(e.button, e.x_root, e.y_root, e.time)
+	
+win.connect("button-release-event",seriouslyQuit)
+win.connect('destroy',c.quit)
+
+c.run()

@@ -15,8 +15,8 @@ if not os.path.exists(exe):
 
 def makeProcess():
     return subprocess.Popen([
-            "cgexec","-g","memory:/image_manipulation",
-            exe],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
+			"cgexec","-g","memory:/image_manipulation",
+			exe],stdin=subprocess.PIPE,stdout=subprocess.PIPE)
 process = makeProcess()
 def getProcess():
     global process
@@ -61,4 +61,5 @@ def get(path):
         process.terminate()
         process.wait()
         process = None
-        raise Error("Subprocess got out of sync!")
+        raise Error({
+	        'reason': "Subprocess got out of sync!"})
