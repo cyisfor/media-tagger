@@ -2,18 +2,19 @@
 import note
 from bgworker import makeWorkers
 
-from redirect import Redirect
 from mygi import GLib
-
-import expire_queries
-something_changed = expire_queries()
 
 def databaseInit():
 	import comic,db
 	from favorites.parse import parse, ParseError, normalize
 	import favorites.parsers # side effects galore!
+	
+foreground = GLib.idle_add
+in_foreground,background = makeWorkers(foreground, databaseInit)
 
-foreground,background = makeWorkers(GLib.idle_add, databaseInit)
+from redirect import Redirect
+import expire_queries
+something_changed = expire_queries()
 
 from mygi import Gtk,Gdk,GObject
 import sys
@@ -72,7 +73,7 @@ def getinfo(next):
 	window.connect('destroy',partial(herp,title,description,source,tags))
 	window.show_all()
 			
-@foreground
+@in_foreground
 def gotURL(url):
 	url = url.strip()
 	print("Trying {}".format(url))

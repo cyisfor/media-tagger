@@ -5,27 +5,27 @@ class Queue(queue.Queue):
 		return 
 		
 def makeWorkers(foreground,*inits):
-	initsem = threading.Semaphore(-len(inits))
+	initsem = threading.Semaphore(0)
 	def drain_foreground(g):
 		for q in g:
-			if q is inForeground: continue
+			if q is foreground: continue
 			q.put(g)
 			# we have to trust q to return to us at some point...
 			break
-	def inForeground(f):
+	def in_foreground(f):
 		def wrapper(*a,**kw):
 			g = f(*a,**kw)
 			drain_foreground(g)
-	class Thread:
+	class Thread(threading.Thread):
 		def __init__(self, init, q):
 			super().__init__(daemon=True)
+			print('boop',init)
 			self.init = init
 			self.q = q
 		def run(self):
 			print('background worker going')
 			self.init()
-			with initsem:
-				initsem.release()
+			initsem.release()
 			while True:
 				try: gen = self.q.get()
 				except queue.Empty:
@@ -35,7 +35,7 @@ def makeWorkers(foreground,*inits):
 				try:
 					print('dequeue',gen)
 					for q in gen:
-						if q is inForeground:
+						if q is foreground:
 							# HAX
 							# foreground is like Glib.idle_add
 							# so resumes our generator in the foreground
@@ -52,8 +52,9 @@ def makeWorkers(foreground,*inits):
 				finally:
 					self.q.task_done()
 	qs = tuple(Queue() for _ in range(len(inits)))
-	with initsem:
-		for i,init in enumerate(inits):
-			Thread(init,qs[i]).start()
+	print('boop?',len(inits))
+	for i,init in enumerate(inits):
+		Thread(init,qs[i]).start()
+	for i in range(len(inits)):
 		initsem.acquire()
-	return inForeground,*qs
+	return (in_foreground,)+qs
