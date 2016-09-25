@@ -19,7 +19,7 @@ something_changed = expire_queries()
 from mygi import Gtk,Gdk,GObject
 import sys
 window = Gtk.Window()
-window.connect('destroy',Gtk.main_quit)
+
 window.set_keep_above(True)
 box = Gtk.VBox()
 window.add(box)
@@ -153,4 +153,8 @@ def gotURL(url):
 				   gotcomic)
 
 import gtkclipboardy as clipboardy
-clipboardy(gotURL,lambda piece: b'http' == piece[:4]).run()
+
+
+c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
+window.connect('destroy',c.quit)
+c.run()

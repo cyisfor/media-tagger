@@ -1,6 +1,9 @@
 body {
 	text-align: center;
 }
+div#desc pre {
+		font-size: 2em;
+}
 div.t {
     float: left;
 }
@@ -83,4 +86,9 @@ div#thumbs {
 
 .thumb:hover span.taghi {
 	display: inline;
+}
+
+.spoiler {
+	color: black;
+	background-color: black;
 }

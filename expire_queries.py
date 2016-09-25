@@ -6,8 +6,8 @@ def expire_queries():
 import threading
 class Expirer(threading.Thread):
 	def __init__(self):
+		super().__init__(daemon=True)
 		self.cond = threading.Condition()
-		super().__init__()
 	def run(self):
 		import note
 		import time

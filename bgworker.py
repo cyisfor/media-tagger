@@ -19,7 +19,6 @@ def makeWorkers(foreground,*inits):
 	class Thread(threading.Thread):
 		def __init__(self, init, q):
 			super().__init__(daemon=True)
-			print('boop',init)
 			self.init = init
 			self.q = q
 		def run(self):

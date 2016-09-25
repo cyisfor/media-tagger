@@ -35,16 +35,24 @@ def make(handler,check=None):
 		clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 		clipboard.set_text('',0)
 		GLib.timeout_add(200,derp(checkClip))
-	
+
+	oldint = None
 	def run():
 		GLib.timeout_add(200,derp(start))
 		import signal
-		signal.signal(signal.SIGINT, signal.SIG_DFL)
+		nonlocal oldint
+		oldint = signal.signal(signal.SIGINT, signal.SIG_DFL)
 		Gtk.main()
+	def quit():
+		import signal
+		signal.signal(signal.SIGINT, oldint)
+		Gtk.main_quit()
 		
 	class BothOrStart(tuple):
 		def start(self):
 			return start()
+		def quit(self,*a):
+			return quit()
 		def run(self,derphandler=None):
 			nonlocal handler
 			if derphandler:

@@ -416,8 +416,9 @@ def maybeDesc(id):
 			             id='desc')
 		lines = linepat.split(blurb)
 		# assuming blurb is trusted!
-		return d.div([d.p(RawString(p)) for p in lines],
-					 id='desc')
+		with d.div(id='desc'):
+			for p in lines:
+				d.p(RawString(p)) 
 	return None
 
 @pagemaker
