@@ -26,31 +26,29 @@ def makeWorkers(foreground,*inits):
 			print('background worker going')
 			self.init()
 			initsem.release()
-			def drain_queue():
+			def drain_task(gen):
 				print('dequeue',gen)
+				if gen is foreground:
+					# HAX
+					# foreground is like Glib.idle_add
+					# so resumes our generator in the foreground
+					foreground(lambda: drain_foreground(gen))
+					return
 				for q in gen:
-					if q is foreground:
-						# HAX
-						# foreground is like Glib.idle_add
-						# so resumes our generator in the foreground
-						foreground(lambda: drain_foreground(gen))
-						return
-					elif q is not self.q:
+					if q is not self.q:
+						# switch to a different thread...
 						q.put(gen)
 						return
-					# else: stay in this thread b/c yielded our own queue
+					# or continue to drain this generator ourself
 				
 				print("something finished. exit here?")
-
 			while True:
-				try: gen = self.q.get()
+				try:
+					gen = self.q.get()
+					drain_task(gen)
 				except queue.Empty:
 					# huh? but blocking?
 					time.sleep(1)
-					continue
-
-					assert hasattr(q,'put'),q
-
 				finally:
 					self.q.task_done()
 	qs = tuple(Queue() for _ in range(len(inits)))
