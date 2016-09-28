@@ -103,14 +103,15 @@ def seriouslyQuit():
 	print("gettin' outta here")
 	catchup.terminate()
 	c.quit()
+	raise SystemExit
 
 def button_release(win,e):
 	if e.state & Gdk.ModifierType.CONTROL_MASK:
 		return seriouslyQuit()
-	if e.state & Gdk.ModifierType.RELEASE_MASK:
-		win.begin_move_drag(e.button, e.x_root, e.y_root, e.time)
+	# when begin on release, no need to hold the button to drag
+	win.begin_move_drag(e.button, e.x_root, e.y_root, e.time)
 	
-win.connect("button-release-event",seriouslyQuit)
+win.connect("button-release-event",button_release)
 win.connect('destroy',c.quit)
 
 c.run()

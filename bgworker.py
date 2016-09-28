@@ -16,6 +16,7 @@ def makeWorkers(foreground,*inits):
 		def wrapper(*a,**kw):
 			g = f(*a,**kw)
 			drain_foreground(g)
+		return wrapper
 	class Thread(threading.Thread):
 		def __init__(self, init, q):
 			super().__init__(daemon=True)
@@ -25,29 +26,31 @@ def makeWorkers(foreground,*inits):
 			print('background worker going')
 			self.init()
 			initsem.release()
+			def drain_queue():
+				print('dequeue',gen)
+				for q in gen:
+					if q is foreground:
+						# HAX
+						# foreground is like Glib.idle_add
+						# so resumes our generator in the foreground
+						foreground(lambda: drain_foreground(gen))
+						return
+					elif q is not self.q:
+						q.put(gen)
+						return
+					# else: stay in this thread b/c yielded our own queue
+				
+				print("something finished. exit here?")
+
 			while True:
 				try: gen = self.q.get()
 				except queue.Empty:
 					# huh? but blocking?
 					time.sleep(1)
 					continue
-				try:
-					print('dequeue',gen)
-					for q in gen:
-						if q is foreground:
-							# HAX
-							# foreground is like Glib.idle_add
-							# so resumes our generator in the foreground
-							foreground(lambda: drain_foreground(gen))
-							break
-						elif q is not self.q:
-							break
-						# else stay in this thread b/c yielded our own queue
-					else:
-						print("something finished. exit here?")
-						continue
-					# gen yielded q, (not us) so it wants in this queue
-					q.put(gen)
+
+					assert hasattr(q,'put'),q
+
 				finally:
 					self.q.task_done()
 	qs = tuple(Queue() for _ in range(len(inits)))
