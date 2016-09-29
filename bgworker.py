@@ -34,13 +34,21 @@ def makeWorkers(foreground,*inits):
 					# so resumes our generator in the foreground
 					foreground(lambda: drain_foreground(gen))
 					return
-				for q in gen:
-					if q is not self.q:
-						# switch to a different thread...
-						q.put(gen)
-						return
-					# or continue to drain this generator ourself
-				
+				try:
+					for q in gen:
+						if q is foreground:
+							# sigh
+							foreground(lambda: drain_foreground(gen))
+							return
+						if q is not self.q:
+							# switch to a different thread...
+							q.put(gen)
+							return
+						# or continue to drain this generator ourself
+				except TypeError:
+					# must have put a lambda into our queue
+					return gen()
+					
 				print("something finished. exit here?")
 			while True:
 				try:
