@@ -10,6 +10,7 @@ from favorites import parsers
 from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
 import db
 
+import json.decoder
 from multiprocessing import Process, Condition, Value, Event, Queue
 from queue import Empty
 import time
@@ -109,6 +110,9 @@ class Catchupper(Process):
 				return True
 			print(e)
 			raise
+		except json.decoder.JSONDecodeError:
+			megafail(uri)
+			print("No JSON at this URI?",uri)
 		except Exception as e:
 			print("huh?",uri,type(e))
 			raise

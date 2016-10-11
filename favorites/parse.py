@@ -115,6 +115,8 @@ def parse(primarySource,noCreate=False):
 					sources.append(thing)
 				elif isinstance(thing,Name):
 					name = thing
+		except KeyError as e:
+			continue
 		except AttributeError as e:
 			raise ParseError("Bad attribute") from e
 		if not medias:

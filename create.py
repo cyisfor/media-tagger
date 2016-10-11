@@ -301,5 +301,5 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
 def copyMe(source):
 	def download(dest):
 		shutil.copy2(source,dest.name)
-		return datetime.datetime.fromtimestamp(os.fstat(dest.fileno()).st_mtime)
+		return datetime.datetime.fromtimestamp(os.fstat(dest.fileno()).st_mtime), None
 	return download
