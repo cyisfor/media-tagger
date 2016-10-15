@@ -81,7 +81,10 @@ class With(SQL):
 				if n == 'clauses':
 					add(v)
 				else:
-					args,body = v
+					try: args,body = v
+					except TypeError:
+						args = None
+						body = v
 					body = encode(body)
 					if args:
 						clauses.append(n+'('+encode(args)+') AS ('+body+ ')')

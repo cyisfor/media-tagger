@@ -64,16 +64,31 @@ def lookup_tags(l):
 			l[i] = getTag(tag)
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+	notWanted = None
+	if tags.nega:
+		lookup_tags(tags.nega)
+		if len(tags.nega) == 1:
+			if not tags.nega[0] in tags.posi:
+				notWanted = Type(arg(tags.nega[0]),'bigint')
+		else:
+			diff = tags.nega - tags.posi
+			if len(diff) == 1:
+				notWanted = Type(arg(tuple(diff)[0]),'bigint')
+			elif diff:
+				notWanted = Type(arg(diff),'bigint[]',array=True)
+	
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
-	negaWanted = Select('id','unwanted')
-	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
+	if tags.nega:
+		if len(tags.nega) == 1:
+			negaClause = NOT(Contains('neighbors',notWanted))
+		else:
+			negaClause = NOT(Intersects('neighbors',notWanted))
 	if not (tags.posi or tags.nega):
 		where = None
 	elif tags.posi:
 		where = Group(Select(EVERY(Intersects('neighbors','tags')),'wanted'))
 
 		if tags.nega:
-			negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
 			where = AND(where,negaClause)
 	elif tags.nega:
 		# only negative tags
@@ -131,26 +146,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	# we MIGHT need a with statement...
 	clauses = {}
-
-	notWanted = None
-	if tags.nega:
-		lookup_tags(tags.nega)
-		if len(tags.nega) == 1:
-			if tags.nega[0] in tags.posi:
-				clauses['unwanted'] = 'select'
-			else:
-				notWanted = Type(arg(tags.nega[0]),'bigint')
-				clauses['unwanted'] = Select(notWanted)
-		else:
-			diff = tags.nega - tags.posi
-			if len(diff) == 1:
-				notWanted = Type(arg(tuple(diff)[0]),'bigint')
-				clauses['unwanted'] = Select(notWanted)
-			elif diff:
-				notWanted = Type(arg(diff),'bigint[]',array=True)
-				clauses['unwanted'] = Select(Func('unnest',notWanted))
-			else:
-				clauses['unwanted'] = 'select'				
 
 	if tags.posi:
 		# MUST separate implications to separate arrays

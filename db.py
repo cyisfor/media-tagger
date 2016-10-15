@@ -16,6 +16,7 @@ place = os.path.dirname(__file__)
 # @threadify
 class DBProxy:
 	ProgrammingError = pg.SQLError
+	SQLError = pg.SQLError
 	c = None
 	def __init__(self):
 		self.reopen()		

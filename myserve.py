@@ -7,6 +7,8 @@ print('setupurllib imported in',time.time()-start)
 import botkilla
 import filedb # sigh...
 
+from db import SQLError
+
 from redirect import Redirect
 
 import info
@@ -211,6 +213,12 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 			self.send_header('Content-Length',0)
 			self.end_headers()
 	def get(self):
+		try:
+			return self.fooget()
+		except SQLError as e:
+			note(e.stmt)
+			note.alarm(e.info['connection'].decode('utf-8'))
+	def fooget(self):
 		json,path,pathurl,params = parsePath(self.path)
 		Session.handler = self
 		Session.params = params
