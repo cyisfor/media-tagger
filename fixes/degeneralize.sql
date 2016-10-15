@@ -24,14 +24,18 @@ BEGIN
 		-- ref update triggers disabled for speed
 		UPDATE things SET  refs = refs + _genrefs, neighbors = array(SELECT unnest(neighbors) UNION SELECT unnest(neighbors) FROM things WHERE id = _general)
 		WHERE id = _ungen RETURNING refs INTO _ungenrefs;
+		
 		IF clock_timestamp()-_start > '10 seconds'::interval THEN
 		   RAISE NOTICE 'merge %',_ungenrefs;
 		END IF;
-		WITH updoot AS (UPDATE things SET neighbors =  array_append(array_remove(neighbors,_general),_ungen) WHERE neighbors @> ARRAY[_general] RETURNING 1)
+		
+		WITH updoot AS (UPDATE things SET neighbors =  array_append(array_remove(neighbors,_general),_ungen) WHERE neighbors @> ARRAY[_general] AND NOT neighbors @> ARRAY[_ungen] RETURNING 1)
 			SELECT count(*) INTO _ungenrefs FROM updoot;
+			
 		IF clock_timestamp()-_start > '10 seconds'::interval THEN
 		   RAISE NOTICE 'fixneighb %',_ungenrefs;
 		END IF;
+		
 		DELETE FROM things WHERE id = _general;
 	END LOOP;
 END;

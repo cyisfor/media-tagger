@@ -58,6 +58,10 @@ tagsWhat = (
 								   EQ('neigh.unnest','tags.id'))))
 			)
 
+def lookup_tags(l):
+	for i,tag in enumerate(l):
+		if isinstance(tag,str):
+			l[i] = getTag(tag)
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
@@ -90,7 +94,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					(arg(offset) if offset else False),arg(limit))
 
 	if tags.posi:
-		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
+		lookup_tags(tags.posi)
+		if len(tags.posi) == 1:
+			posi = Type(arg(tags.posi[0]),'bigint')
+		else:
+			posi = Type(arg([tags.posi]),'bigint[]',array=True)
 
 
 	if wantRelated:
@@ -125,7 +133,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	clauses = {}
 
 	if tags.nega:
-		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
+		lookup_tags(tags.nega)
+		if len(tags.nega) == 1:
+			nega = Type(arg(tags.nega[0]),'bigint')
+		else:
+			nega = Type(arg([tags.nega]),'bigint[]',array=True)
 		notWanted = EQ('things.id',ANY(nega))
 		if tags.posi:
 			notWanted = AND(notWanted,

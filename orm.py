@@ -300,6 +300,19 @@ class EXISTS(Unary):
 class ANY(Unary):
 	def __init__(self, clause):
 		super().__init__(Group(clause))
+		def is_array():
+			if hasattr(clause,'is_array'):
+				return clause.is_array
+			elif hasattr(clause,'encode') or hasattr(clause,'decode'):
+				# some string thing
+				return True
+			try:
+				iter(clause)
+				return True
+			except TypeError:
+				return False
+		if not is_array():
+			self.sql = clause.sql
 	def sql(self):
 		return ' ANY ' + super().sql()
 
@@ -327,9 +340,11 @@ class Except(Conjunction('EXCEPT')): pass
 class Intersect(Conjunction('INTERSECT')): pass
 
 class Type(SQL):
-	def __init__(self, clause, Type):
+	is_array = False
+	def __init__(self, clause, Type, array=False):
 		self.clause = clause
 		self.Type = Type
+		self.is_array = array
 	def sql(self):
 		return encode(self.clause) + '::' + encode(self.Type)
 
