@@ -299,7 +299,6 @@ class EXISTS(Unary):
 @grouping
 class ANY(Unary):
 	def __init__(self, clause):
-		super().__init__(Group(clause))
 		def is_array():
 			if hasattr(clause,'is_array'):
 				return clause.is_array
@@ -311,8 +310,11 @@ class ANY(Unary):
 				return True
 			except TypeError:
 				return False
-		if not is_array():
-			self.sql = clause.sql
+		if is_array():
+			super().__init__(Group(clause))
+		else:
+			super().__init__(clause)
+			self.sql = super().sql
 	def sql(self):
 		return ' ANY ' + super().sql()
 
@@ -392,8 +394,6 @@ class argbuilder:
 				return self.names[name]
 		num = '$'+str(self.n)
 		self.n += 1
-		if isinstance(arg,int):
-			num = Type(num,'int')
 		self.args.append(arg)
 		if name is not None:
 			self.names[name] = num

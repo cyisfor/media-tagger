@@ -96,7 +96,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if tags.posi:
 		lookup_tags(tags.posi)
 		if len(tags.posi) == 1:
-			posi = Type(arg(tags.posi[0]),'bigint')
+			posi = Type(arg(tuple(tags.posi)[0]),'bigint')
 		else:
 			posi = Type(arg([tags.posi]),'bigint[]',array=True)
 
@@ -135,22 +135,17 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if tags.nega:
 		lookup_tags(tags.nega)
 		if len(tags.nega) == 1:
-			nega = Type(arg(tags.nega[0]),'bigint')
+			nega = Type(arg(tuple(tags.nega)[0]),'bigint')
 		else:
 			nega = Type(arg([tags.nega]),'bigint[]',array=True)
 		notWanted = EQ('things.id',ANY(nega))
 		if tags.posi:
 			notWanted = AND(notWanted,
 							NOT(EQ('things.id',ANY(posi))))
-		herp = AS(Func('unnest',nega),'id')
 
 		clauses['unwanted'] = (
 			'id',
-			Union(Select('tags.id',
-						 InnerJoin('tags','things',
-								   EQ('tags.id','things.id')),
-									 notWanted),
-				  Select('id',herp)))
+			Select('id','things',notWanted)
 	else:
 		notWanted = None
 
@@ -160,8 +155,12 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		notWanted = AND(notWanted,noOverride) if notWanted else noOverride
 		# MUST separate implications to separate arrays
 		# for the AND requirement a & b & c = (a|a2|a3)&(b|b2|b3)&...
-		clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
-										   Func('unnest',posi)))
+		if len(tags.posi) == 1:
+			wanted = Select(array(Select(Func('implications',posi))))
+		else:
+			wanted = Select(array(Select('implications(unnest)')),
+										   Func('unnest',posi))
+		clauses['wanted'] = ('tags',wanted)
 												 
 
 
