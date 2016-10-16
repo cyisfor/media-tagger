@@ -59,7 +59,7 @@ def withC(f):
 	return wrapper
 
 def findWhich(com, which):
-	res = db.execute("SELECT $2 % MAX(which) FROM comicPage WHERE comic = $1",
+	res = db.execute("SELECT (MAX(which) + $2) % MAX(which) FROM comicPage WHERE comic = $1",
 									 (com,which))
 	print(res)
 	return res[0][0]

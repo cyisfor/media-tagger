@@ -817,8 +817,11 @@ def showPages(path,params):
 		for medium,which in getMedia():
 			yield medium,title + ' page {}'.format(which),getType(medium),()
 
+	latest = unparseQuery({'p':numPages-1})
 	if page > 0:
 		Links.prev = unparseQuery({'p':page-1})
+	else:
+		Links.prev = latest
 	if page + 1 < numPages:
 		Links.next = unparseQuery({'p':page+1})
 	with makePage(title + " - Comics"):
@@ -839,12 +842,14 @@ def showPages(path,params):
 				d.a("Index",href="..")
 				if Links.next:
 					d.a(" Next",href=Links.next)
+				d.a(" Latest", href=latest)
 
 def showComicPage(path):
 	com = int(path[0],0x10)
 	which = int(path[1],0x10)
 	if which < 0:
 		which = comic.findWhich(com,which)
+		raise Redirect("/art/~comic/"+path[0]+"/"+("%x"%which)+"/")
 	medium = comic.findMedium(com,which)
 	checkModified(medium)
 	if Session.head: return
@@ -872,6 +877,7 @@ def showComicPage(path):
 			d.a("Index",href="..")
 			if Links.next:
 				d.a(" Next",href=Links.next)
+			d.a(" Latest",href=comicPageLink(-1)())
 		with d.p as p:
 			d.a("Page",href="/art/~page/"+fid)
 			p(' ')

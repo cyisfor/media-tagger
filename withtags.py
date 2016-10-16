@@ -151,7 +151,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		# MUST separate implications to separate arrays
 		# for the AND requirement a & b & c = (a|a2|a3)&(b|b2|b3)&...
 		if len(tags.posi) == 1:
-			wanted = Select(array(Select(Func('implications',posi))))
+			wanted = Select(AS(array(Select(Func('implications',posi))),"tags"))
 		else:
 			wanted = Select(AS(array(Select('implications(unnest)')),"tags"),
 										   Func('unnest',posi))
