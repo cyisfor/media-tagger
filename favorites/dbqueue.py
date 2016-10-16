@@ -14,7 +14,7 @@ db.setup(
 
 def host(uri):
     host = urllib.parse.urlsplit(uri).netloc
-    colon = host.find(':')
+    colon = host.rfind(':')
     if colon > 0:
         host = host[:colon]
     r = db.execute('SELECT id FROM hosts WHERE host = $1',(host,))

@@ -19,7 +19,10 @@ class DBProxy:
 	SQLError = pg.SQLError
 	c = None
 	def __init__(self):
-		self.reopen()		
+		self.reopen()
+	@export
+	def copy(self,*a,**kw):
+		return self.c.copy(*a,**kw)
 	@export
 	def execute(self,*a,**kw):
 		if not hasattr(self,'c'):
