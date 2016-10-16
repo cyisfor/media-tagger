@@ -843,6 +843,8 @@ def showPages(path,params):
 def showComicPage(path):
 	com = int(path[0],0x10)
 	which = int(path[1],0x10)
+	if which < 0:
+		which = comic.findWhich(com,which)
 	medium = comic.findMedium(com,which)
 	checkModified(medium)
 	if Session.head: return

@@ -1,4 +1,4 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group,Contains
 #ehhh
 
 from user import User
@@ -64,19 +64,21 @@ def lookup_tags(l):
 			l[i] = getTag(tag)
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+	arg = argbuilder()
+
 	notWanted = None
 	if tags.nega:
 		lookup_tags(tags.nega)
 		if len(tags.nega) == 1:
-			if not tags.nega[0] in tags.posi:
-				notWanted = Type(arg(tags.nega[0]),'bigint')
+			tag = tuple(tags.nega)[0]
+			if not tag in tags.posi:
+				notWanted = Type(arg(tag),'bigint')
 		else:
 			diff = tags.nega - tags.posi
 			if len(diff) == 1:
 				notWanted = Type(arg(tuple(diff)[0]),'bigint')
 			elif diff:
 				notWanted = Type(arg(diff),'bigint[]',array=True)
-	
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
 	if tags.nega:
 		if len(tags.nega) == 1:
@@ -92,7 +94,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			where = AND(where,negaClause)
 	elif tags.nega:
 		# only negative tags
-		negaWanted.where = None
 		where = negaClause
 
 	if User.noComics:
@@ -101,7 +102,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			where = first_page
 		else:
 			where = AND(where,first_page)
-	arg = argbuilder()
 
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,
@@ -117,7 +117,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 
 	if wantRelated:
-		mainOrdered = EQ('things.id',ANY(mainOrdered))
+		mainOrdered = IN('things.id',mainOrdered)
 		if tags.posi:
 			mainOrdered = AND(
 							NOT(EQ('tags.id',ANY(posi))),
@@ -153,14 +153,16 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		if len(tags.posi) == 1:
 			wanted = Select(array(Select(Func('implications',posi))))
 		else:
-			wanted = Select(array(Select('implications(unnest)')),
+			wanted = Select(AS(array(Select('implications(unnest)')),"tags"),
 										   Func('unnest',posi))
 		# make sure positive tags don't override negative ones
 		if notWanted:
-			wanted.where = NOT(EQ('implications',ANY(notWanted)))
+			if notWanted.is_array:
+				derp = Intersects('tags',notWanted)
+			else:
+				derp = Contains('tags',notWanted)
+			wanted = Select("tags",AS(wanted,"derp"),NOT(derp))
 		clauses['wanted'] = ('tags',wanted)
-												 
-
 
 	#sel = stmt.clause.clause
 	#sel.what = 'media.id, neighbors'

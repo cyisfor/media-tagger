@@ -58,6 +58,12 @@ def withC(f):
 			f(*a,**kw)
 	return wrapper
 
+def findWhich(com, which):
+	res = db.execute("SELECT $2 % MAX(which) FROM comicPage WHERE comic = $1",
+									 (com,which))
+	print(res)
+	return res[0][0]
+
 def findComicByTitle(title,getinfo=None):
 	rows = db.execute("SELECT id FROM comics WHERE title = $1",(title,));
 	if len(rows) == 0:
