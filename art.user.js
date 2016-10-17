@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded',function() {
 	status.style.top = '1%';
 	status.style.left = '1%';
 	var selection = document.createElement('div');
-	selection.style.display = 'none';
+	//selection.style.display = 'none';
 	selection.style.border = 'thin solid black';
 	selection.style.backgroundColor = 'rgba(255,255,255,0.3)';
 	selection.style.position = 'absolute';
@@ -36,7 +36,8 @@ document.addEventListener('DOMContentLoaded',function() {
 
 	var text = document.createElement('input');
 	text.setAttribute('type','text');
-	img.parentNode.insertBefore(text,img.nextSibling);
+	var inserto = img.parentNode.parentNode;
+	inserto.insertBefore(text,img.nextSibling);
 
 	function updatePopup() {
 		while(popup.firstChild) {
@@ -93,7 +94,7 @@ document.addEventListener('DOMContentLoaded',function() {
 	}
 	document.body.appendChild(status);
 	document.body.appendChild(popup);
-	img.appendChild(selection);
+	inserto.appendChild(selection);
 	var save = {};
 	img.addEventListener('click',function(e) {
 		e.preventDefault();
@@ -105,9 +106,9 @@ document.addEventListener('DOMContentLoaded',function() {
 			popup.style.display = 'none';
 			// return; no, this is annoying
 		}
-		var x = e.clientX - img.offsetLeft + window.pageXOffset;
-		var y = e.clientY - img.offsetTop + window.pageYOffset;
-		console.log("got click",e.clientX, img.offsetLeft, window.pageXOffset);
+		console.log(e);
+		var x = e.layerX - img.offsetLeft;
+		var y = e.layerY - img.offsetTop;
 		if(!selection.started) {
 			status.style.backgroundColor = '#ff2';
 			selection.started = true;
@@ -137,8 +138,8 @@ document.addEventListener('DOMContentLoaded',function() {
 	},false);
 	img.addEventListener('mousemove',function(e) {
 		status.style.display = 'inline';
-		var left = (e.clientX-img.offsetLeft+window.pageXOffset);
-		var top = (e.clientY-img.offsetTop+window.pageYOffset);
+		var left = (e.layerX-img.offsetLeft+window.pageXOffset);
+		var top = (e.layerY-img.offsetTop+window.pageYOffset);
 		var w = img.clientWidth;
 		var h = img.clientHeight;
 		if(save.left) {
