@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded',function() {
 	popup.style.textAlign='left';
 	popup.style.backgroundColor = 'white';
 
-	var img = document.getElementById('img');
+	var img = document.querySelector("#medium img");
 
 	var text = document.createElement('input');
 	text.setAttribute('type','text');
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded',function() {
 		}
 		var x = e.clientX - img.offsetLeft + window.pageXOffset;
 		var y = e.clientY - img.offsetTop + window.pageYOffset;
-
+		console.log("got click",e.clientX, img.offsetLeft, window.pageXOffset);
 		if(!selection.started) {
 			status.style.backgroundColor = '#ff2';
 			selection.started = true;

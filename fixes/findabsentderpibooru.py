@@ -25,9 +25,6 @@ def readtobuf(buf):
 
 with db.transaction():
 	db.execute("CREATE TEMPORARY TABLE absentderpi (uri TEXT)")
-	db.execute("SELECT 23")
 	db.copy("COPY absentderpi (uri) FROM STDIN WITH encoding 'utf8'",readtobuf)
-with db.transaction():
-	print(db.execute("SELECT uri from absentderpi limit 1"))
-	#db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,uri FROM absentderpi WHERE NOT EXISTS(select 1 from parseQueue where parseQueue.uri = absentderpi.uri)", (host,))
+	db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,uri FROM absentderpi WHERE NOT EXISTS(select 1 from parseQueue where parseQueue.uri = absentderpi.uri)", (host,))
 	print("go")

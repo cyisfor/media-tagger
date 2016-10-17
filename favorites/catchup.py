@@ -4,7 +4,9 @@ if __name__ == '__main__':
 	import syspath
 
 import note
-	
+
+import imagecheck
+
 from favorites.parse import alreadyHere,parse,ParseError
 from favorites import parsers
 from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
@@ -64,9 +66,9 @@ class Catchupper(Process):
 			return
 		ah = alreadyHere(uri)
 		if ah:
-			print("WHEN I AM ALREADY HERE")
 			import os
 			if 'noupdate' in os.environ:
+				print("WHEN I AM ALREADY HERE",uri)
 				win(uri)
 				return True
 		try:
@@ -84,7 +86,7 @@ class Catchupper(Process):
 						time.sleep(3)
 				else:
 					print("Could not parse",uri)
-			except ParseError:
+			except (ParseError,imagecheck.NoGood):
 				print('megafail')
 				megafail(uri)
 				return True

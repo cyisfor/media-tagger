@@ -367,17 +367,17 @@ tagsModule = tags # sigh
 
 def checkExplain(id,link,width,height,thing):
 	style = [
-			('#img', {
+			('#medium', {
 				'width': str(width)+'px',
 				'height': str(height)+'px',
 				}),
-			('#img .exp', {
+			('#medium .exp', {
 							'position': 'absolute',
 				}),
-			('#img .exp div', {
+			('#medium .exp div', {
 				'visibility': 'hidden',
 				}),
-			('#img .exp:hover div', {
+			('#medium .exp:hover div', {
 							'visibility': 'visible',
 				})]
 
@@ -398,11 +398,11 @@ def checkExplain(id,link,width,height,thing):
 	areas = tuple(getareas())
 	if areas:
 		imgmap = (makeStyle(style),)+areas
-		div = d.div(*imgmap)
+		div = d.div(*imgmap,id='medium')
 	else:
-		div = d.div
+		div = d.div(id='medium')
 	with div:
-		d.a(link,id='mediumu',href=thing)
+		d.a(link,href=thing)
 
 linepat = re.compile('[ \t]*\n+\s*')
 	

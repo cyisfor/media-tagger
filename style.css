@@ -28,12 +28,12 @@ img.wid {
 	max-width: 100%;
 }
 
-#img {
+#medium {
 	margin: auto;
 	position: relative;
 }
 
-#img .exp div {
+#medium .exp div {
 	padding: 1px;
 	background-color: rgba(224,224,255,0.8);
 	font-weight: bold;
