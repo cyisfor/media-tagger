@@ -20,6 +20,6 @@ with open(os.path.expanduser("~/.local/share/clipit/history"),"rb") as inp:
 		except UnicodeDecodeError: continue
 		if 'http://' in data or 'https://' in data:
 			print("got",data)
-			remote.write(data+b'\n')
+			remote.write((data+'\n').encode('utf-8'))
 
 

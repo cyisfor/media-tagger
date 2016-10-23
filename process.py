@@ -11,6 +11,7 @@ def user(path,params,data):
 	if rescale:
 		rescale = rescale[0]
 		if rescale:
+			print('yay rescale',rescale)
 			rescale = True
 		else:
 			rescale = False
@@ -23,6 +24,7 @@ def user(path,params,data):
 	if comic:
 		comic = comic[0]
 		if comic:
+			print('yaycomic',comic);
 			noComics = False
 		else:
 			noComics = True

@@ -690,20 +690,21 @@ def user(info,path,params):
 	def checkbox(question, name,checked):
 		iattr = {
 			'type': 'checkbox',
-			'name': 'rescale'}
+			'name': name}
 		if checked:
 			iattr['checked'] = True
 		with d.tr:
 			d.td(question)
 			with d.td:
-				d.input(iattr)
+				print(iattr)
+				d.input(**iattr)
 	with makePage("User Settings",douser=False):
 		with d.form(action=place+'/~user/',
 		            type='application/x-www-form-urlencoded',
 		            method="post"):
 			with d.table(Class="info"):
 				checkbox("Rescale Images?",'rescale',User.rescaleImages)
-				checkbox("Only First Comic Page?",'comic',User.noComics)
+				checkbox("Only First Comic Page?",'comic',not User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				note('tagnames',tagnames)
 				with d.tr:

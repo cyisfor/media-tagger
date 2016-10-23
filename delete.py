@@ -77,10 +77,10 @@ def dupe(good, bad, inferior=True):
 		dbdelete(good,bad,None,inferior)
 		filedelete(bad)
 
-def delete(thing, reason=None):
+def delete(bad, reason=None):
 	print('deleting',thing,reason)
 	with db.transaction():
-		dbdelete(None, thing, reason, False)
+		dbdelete(None, bad, reason, False)
 		filedelete(thing)
 
 def findId(uri):
@@ -89,19 +89,24 @@ def findId(uri):
 	return int(uri,0x10)
 
 if __name__ == '__main__':
+	def deleteordupe(bad, reasonorgood):
+		if 'dupe' in os.environ:
+			dupe(findId(reasonorgood),bad,'inferior' in os.environ)
+		else:
+			delete(bad, reasonorgood)
 	if len(sys.argv)==3:
-		delete(findId(sys.argv[1]),sys.argv[2])
+		deleteordupe(findId(sys.argv[1]),sys.argv[2])
 	elif os.environ.get('stdin'):
 		reason = sys.stdin.readline()
 		for line in sys.stdin:
-			delete(findId(line),reason)
+			deleteordupe(findId(line),reason)
 	else:
 		import clipboardy
 		reason = os.environ['reason']
 		def gotPiece(piece):
 			print('derp',piece)
 			try:
-				delete(findId(piece),reason)
+				deleteordupe(findId(piece),reason)
 			except ValueError: pass
 		try: clipboardy(gotPiece).run()
 		except KeyboardInterrupt: pass
