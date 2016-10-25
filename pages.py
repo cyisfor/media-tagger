@@ -704,7 +704,7 @@ def user(info,path,params):
 		            method="post"):
 			with d.table(Class="info"):
 				checkbox("Rescale Images?",'rescale',User.rescaleImages)
-				checkbox("Only First Comic Page?",'comic',not User.noComics)
+				checkbox("Only First Comic Page?",'comic',User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				note('tagnames',tagnames)
 				with d.tr:
