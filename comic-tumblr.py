@@ -1,4 +1,5 @@
 from setupurllib import myretrieve
+import tags,comic
 
 import re
 
@@ -9,18 +10,31 @@ def upres(m):
 		return "1280" + m.group(2)
 	return m.group(0)
 
-import sys
+import sys,os
 readline = sys.stdin.readline
 
+title = readline()
+def description():
+	for line in readline():
+		if line == '.\n': return
+		yield line
+description = ''.join(description())
+tags = tags.parse(readline())
+tags.posi
+
+@partial(comic.findComicByTitle,title)
+def c(handle):
+	handle(description)
+
 while True:
-	link = readline()
+	link = readline().rstrip()
+	if not link: break
+	headers = {'Referer': link}
 	
 	while True:
-		image = readline()
+		image = readline().rstrip()
 		if not image: break
 		image = re.sub(up_resolution,upres,image)
-		print(image,link)
-		continue
 		def download(dest):
 			response = myretrieve(Request(image,headers,dest))
 			return response.modified, response["Content-Type"]
