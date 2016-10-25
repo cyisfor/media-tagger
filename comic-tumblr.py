@@ -15,11 +15,6 @@ import sys,os
 readline = sys.stdin.readline
 
 title = readline()
-def description():
-	for line in readline():
-		if line == '.\n': return
-		yield line
-description = ''.join(description())
 def derp():
 	t = tags.parse(readline())
 	t.posi.add(tags.makeTag("tumblr"))
@@ -27,14 +22,26 @@ def derp():
 	return t
 tags = derp()
 
+def description():
+	for line in sys.stdin:
+		print('uhh',line)
+		if line == '.\n': return
+		yield line
+description = ''.join(description())
+
 @partial(comic.findComicByTitle,title)
 def c(handle):
 	handle(description)
 
-print(title,tags,description)
+print((title,tags,description,hex(c)))
+raise SystemExit
+
+main_link = None
 	
 while True:
 	link = readline().rstrip()
+	if main_link is None:
+		main_link = link
 	if not link: break
 	headers = {'Referer': link}
 	
@@ -45,4 +52,4 @@ while True:
 		def download(dest):
 			response = myretrieve(Request(image,headers,dest))
 			return response.modified, response["Content-Type"]
-		id, was_created = create.internet(download,image,tags,image,(link,))
+		id, was_created = create.internet(download,image,tags,image,set((main_link,link)))
