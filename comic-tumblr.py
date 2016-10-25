@@ -1,8 +1,9 @@
-from setupurllib import myretrieve
-import tags,comic
+from setupurllib import myretrieve,Request
+import tags,comic,create
 
 import re
 from functools import partial
+from itertools import count
 
 up_resolution = re.compile("([0-9]+)(\.[^\.]+)")
 def upres(m):
@@ -24,7 +25,6 @@ tags = derp()
 
 def description():
 	for line in sys.stdin:
-		print('uhh',line)
 		if line == '.\n': return
 		yield line
 description = ''.join(description())
@@ -33,11 +33,15 @@ description = ''.join(description())
 def c(handle):
 	handle(description)
 
-print((title,tags,description,hex(c)))
-raise SystemExit
+import db
+db.execute("UPDATE comics SET description = $2 WHERE id = $1",(c,description))
+
+print(title,hex(c))
 
 main_link = None
-	
+
+whiches = count(0)
+
 while True:
 	link = readline().rstrip()
 	if main_link is None:
@@ -50,6 +54,14 @@ while True:
 		if not image: break
 		image = re.sub(up_resolution,upres,image)
 		def download(dest):
-			response = myretrieve(Request(image,headers,dest))
+			response = myretrieve(Request(image,headers),dest)
 			return response.modified, response["Content-Type"]
-		id, was_created = create.internet(download,image,tags,image,set((main_link,link)))
+		which = next(whiches)
+		print("Trying for",which,image)
+		derpimage = create.Source(image)
+		medium, was_created = create.internet(download,
+																					derpimage,
+																					tags,
+																					derpimage,
+																					(create.Source(link) for link in set((main_link,link))))
+		comic.findMedium(c,which,medium)
