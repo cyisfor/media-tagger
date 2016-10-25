@@ -78,9 +78,18 @@ def findComicByTitle(title,getinfo=None):
 				if rows:
 					# nehh, race condition, something else created this comic!
 					return rows[0][0]
-				rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
-								  (title,
-								   description))
+				try:
+					rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+														(title,
+														 description))
+				except db.ProgrammingError:
+					db.retransaction(rollback=True)
+					# the counter doesn't get auto-incremented when we specify the comic ID ourselves
+					db.execute("SELECT setval('comics_id_seq'::regclass,MAX(id),true) FROM comics")
+					rows = db.execute("INSERT INTO comics (title,description) VALUES ($1,$2) RETURNING id",
+														(title,
+														 description))
+										 
 	return rows[0][0]
 
 def findInfoDerp(id):

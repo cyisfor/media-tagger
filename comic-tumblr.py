@@ -2,6 +2,7 @@ from setupurllib import myretrieve
 import tags,comic
 
 import re
+from functools import partial
 
 up_resolution = re.compile("([0-9]+)(\.[^\.]+)")
 def upres(m):
@@ -19,13 +20,19 @@ def description():
 		if line == '.\n': return
 		yield line
 description = ''.join(description())
-tags = tags.parse(readline())
-tags.posi
+def derp():
+	t = tags.parse(readline())
+	t.posi.add(tags.makeTag("tumblr"))
+	t.posi.add(tags.makeTag("comic"))
+	return t
+tags = derp()
 
 @partial(comic.findComicByTitle,title)
 def c(handle):
 	handle(description)
 
+print(title,tags,description)
+	
 while True:
 	link = readline().rstrip()
 	if not link: break
