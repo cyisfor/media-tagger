@@ -44,30 +44,25 @@ def set_busy(is_busy=True):
 
 # whyyyyy
 @catchup
-def watch_catchup(poke,stop):
-	# XXX: ehhhhh
-	global catchup_poke, catchup_stop
-	catchup_poke = poke
-	catchup_stop = stop
-	def handle_message(message):
-		type = message[0]
-		if type == catchup.DONE:
-			print("Catchup died, will restart.")
+def catchup(message):
+	type = message[0]
+	if type == catchup.DONE:
+		print("Catchup died, will restart?")
+		// uhhhh
+	else:
+		if type == catchup.PROGRESS:
+			cur,total = struct.unpack("HH",message[1:])
+			GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
+		elif type == catchup.IDLE:
+			idle = message[1] == 1
+			GLib.idle_add(lambda idle=idle: set_busy(not idle))
+		elif type == catchup.COMPLETE:
+			remaining = struct.unpack("H",message[1:])
+			GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
 		else:
-			if type == catchup.PROGRESS:
-				cur,total = struct.unpack("HH",message[1:])
-				GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
-			elif type == catchup.IDLE:
-				idle = message[1] == 1
-				GLib.idle_add(lambda idle=idle: set_busy(not idle))
-			elif type == catchup.COMPLETE:
-				remaining = struct.unpack("H",message[1:])
-				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
-			else:
-				print(type,message)
-				raise SystemExit("wat")
-	return handle_message
-	
+			print(type,message)
+			raise SystemExit("wat")
+
 img = ui.get_object("image")
 def gotPiece(piece):
 	import sys
@@ -75,7 +70,7 @@ def gotPiece(piece):
 	print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 	sys.stdout.flush()
 	enqueue(piece.strip())
-	catchup_poke()
+	catchup.poke()
 	print("poked")
 print('Ready to parse')
 win.set_title('parse')
@@ -103,7 +98,7 @@ c = clipboardy(gotPiece,lambda piece: b'http' == piece[:4])
 
 def seriouslyQuit():
 	print("gettin' outta here")
-	catchup_stop()
+	catchup.stop()
 	c.quit()
 	raise SystemExit
 

@@ -112,25 +112,22 @@ class Catchupper:
 			raise
 		return True
 
-def catchup(with_catching_up):
-	def handle(q):
+def catchup(on_message):
+	q = node.connect_silly("catchup",Catchupper)
+	q.session = on_message
+	class Poker:
 		def poke():
 			q.send(struct.pack("B",POKE))
 		def stop():
 			q.send(struct.pack("B",DONE))
-		return with_catching_up(poke,stop)
-	node.connect("catchup",handle,Catchupper)
+	return Poker
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
-	@catchup
-	def _(poke,stop):
-		if "stop" in os.environ:
-			stop()
-		raise SystemExit
-		def derp(message):
-			print(bytes(message))
-		return derp
+	poker = catchup()
+	if "stop" in os.environ:
+		poker.stop()
+	raise SystemExit
 else:
 	import sys
 	sys.modules[__name__] = catchup

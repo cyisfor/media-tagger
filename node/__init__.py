@@ -57,6 +57,8 @@ def connect_silly(name,backend_session):
 				try:
 					queue = SocketQueue(sess)
 				except BrokenPipeError: continue
+				# to allow initialization in the backend process:
+				queue.session = backend_session(queue)
 				sessno = sess.fileno()
 				poll.register(sessno, select.POLLIN)
 				sessions[sessno] = queue
@@ -67,7 +69,7 @@ def connect_silly(name,backend_session):
 					continue
 				queue = sessions[fd]
 				try:
-					queue.read_some(backend_session)
+					queue.read_some(queue.session)
 				except BrokenPipeError:
 					poll.unregister(fd)
 					os.close(fd)
@@ -80,21 +82,23 @@ class SocketQueue:
 		self.sock = sock
 		self.buf = bytearray()
 		self.writepoint = 0
-	def read_all(self,session):
+	def read_all(self,session=None):
+		if session:
+			self.session = session
 		while True:
-			self.read_some(session)
-	def read_some(self,session):
+			self.read_some()
+	def read_some(self):
 		if len(self.buf) - self.writepoint < 0x1000:
 			self.buf.extend(0 for a in range(0x1000)) # meh python sucks
 		view = memoryview(self.buf)[self.writepoint:]
 		nbytes = self.sock.recv_into(view)
 		if not nbytes: return
 		self.writepoint += nbytes
-		self.parse_some(session)
+		self.parse_some()
 	def send(self,message):
 		self.sock.send(struct.pack("H",len(message)) + message)
 	length = None
-	def parse_some(self,session):
+	def parse_some(self):
 		def readlen():
 			self.length = struct.unpack("H",self.buf[:2])[0]
 			self.buf = self.buf[2:]
@@ -105,7 +109,7 @@ class SocketQueue:
 		while True:
 			if self.writepoint < self.length: return
 			message = memoryview(self.buf)[:self.length]
-			session(message)
+			self.session(message)
 			self.buf = self.buf[:self.length]
 			self.writepoint -= self.length
 			if self.writepoint < 2:
@@ -115,7 +119,7 @@ class SocketQueue:
 
 def example():
 	@connect("test")
-	def queue():
+	def queue(queue):
 		count = 0
 		def session(message):
 			nonlocal count
