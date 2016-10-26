@@ -10,7 +10,17 @@ import struct
 def address(name):
 	return os.path.join(filedb.temp,"socket-"+name)
 
-def connect(name,frontend_session,backend_session):
+def connect(name):
+	def connect_back(backend_session):
+		def connect_front(frontend_session):
+			return connect_silly(name,frontend_session,backend_session)
+		return connect_front
+	return connect_back
+
+def connect_silly(name,frontend_session,backend_session):
+	# since frontend returns the queue as "self" this is cleaner:
+	frontend_session = lambda self: frontend_session
+	# can just use the return value in your frontend_session message handler
 	import socket,select
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	addy = address(name)
@@ -109,7 +119,8 @@ class SocketQueue:
 			readlen()
 
 def example():
-	def backend_session(queue):
+	@connect("test")
+	def connect_front(queue):
 		count = 0
 		def session(message):
 			nonlocal count
@@ -118,19 +129,17 @@ def example():
 			count += int(message)
 			queue.send(str(count).encode())
 		return session
-	def frontend_session(queue):
-		derp = 10
+	derp = 10
+	@connect_front
+	def queue(message):
+		nonlocal derp
+		if derp <= 0:
+			print("all done")
+			raise SystemExit
+		derp -= 1
+		print("got count",int(message))
 		queue.send(str(derp).encode())
-		def session(message):
-			nonlocal derp
-			if derp <= 0:
-				print("all done")
-				raise SystemExit
-			derp -= 1
-			print("got count",int(message))
-			queue.send(str(derp).encode())
-		return session
-	connect("test",frontend_session, backend_session)
+	queue.send(str(derp).encode())
 			
 if __name__ == '__main__':
 	example()
