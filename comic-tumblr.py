@@ -5,11 +5,11 @@ import re
 from functools import partial
 from itertools import count
 
-up_resolution = re.compile("([0-9]+)(\.[^\.]+)")
+up_resolution = re.compile("_([0-9]+)(\.[^\.]+)")
 def upres(m):
 	num = int(m.group(1))
 	if num < 1280:
-		return "1280" + m.group(2)
+		return "_1280" + m.group(2)
 	return m.group(0)
 
 import sys,os
@@ -54,7 +54,7 @@ while True:
 		if not image: break
 		image = re.sub(up_resolution,upres,image)
 		def download(dest):
-			response = myretrieve(Request(image,headers),dest)
+			response = myretrieve(Request(image,headers=headers),dest)
 			return response.modified, response["Content-Type"]
 		which = next(whiches)
 		print("Trying for",which,image)

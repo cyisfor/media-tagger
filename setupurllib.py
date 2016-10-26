@@ -34,8 +34,10 @@ print('bou',time.time()-start)
 sys.stdout.flush()
 oj = os.path.join
 
-proxy = urllib.ProxyHandler({"http": "http://127.0.0.1:8123"})
-handlers = [proxy]
+# how has this been working... at all?
+#proxy = urllib.ProxyHandler({"http": "http://127.0.0.1:8123"})
+#handlers = [proxy]
+handlers = []
 
 space = re.compile('[ \t]+')
 
