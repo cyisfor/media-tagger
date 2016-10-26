@@ -8,22 +8,24 @@ oj = os.path.join
 base = os.path.expanduser("/home/.local/filedb")
 top = base
 
+temp = oj(base,'temp')
+
 def _incoming(id,contents=None):
-    target = oj(base,'temp',id)
-    with open(target,'wb') as out:
-        if contents:
-            out.write(contents.encode('utf-8'))
-    os.rename(target,oj(base,'incoming',id))
+	target = oj(temp,id)
+	with open(target,'wb') as out:
+		if contents:
+			out.write(contents.encode('utf-8'))
+	os.rename(target,oj(base,'incoming',id))
 
 def incoming(id,contents=None):
-    return _incoming('{:x}'.format(id),contents)
-    
+	return _incoming('{:x}'.format(id),contents)
+	
 def _check(id,category,create=True,contents=None,delay=0.1):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
     if os.path.exists(medium): return id,True
     if not create:
-        return id, False
+	    return id, False
     _incoming(id,contents)
     exists = False
     for i in range(10):
