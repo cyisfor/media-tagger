@@ -12,22 +12,19 @@ def address(name):
 
 def connect(name):
 	def connect_back(backend_session):
-		def connect_front(frontend_session):
-			return connect_silly(name,frontend_session,backend_session)
-		return connect_front
+		return connect_silly(name,backend_session)
 	return connect_back
 
-def connect_silly(name,frontend_session,backend_session):
-	# since frontend returns the queue as "self" this is cleaner:
-	frontend_session = lambda self: frontend_session
-	# can just use the return value in your frontend_session message handler
+def connect_silly(name,backend_session):
+	# since decorator returns the queue 
+	# can just use the return value in your session handler
 	import socket,select
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	addy = address(name)
 	err = sock.connect_ex(addy)
 	if err == 0:
 		print("found existing backend node",name)
-		return SocketQueue(sock, frontend_session).read_all()
+		return SocketQueue(sock)
 	is_ready,ready = os.pipe()
 	pid = os.fork()
 	assert pid >= 0
@@ -38,7 +35,7 @@ def connect_silly(name,frontend_session,backend_session):
 		print("ready!",addy)
 		sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 		sock.connect(addy)
-		return SocketQueue(sock,frontend_session).read_all()
+		return SocketQueue(sock)
 	os.close(is_ready)
 	try: os.unlink(addy)
 	except OSError: pass
@@ -58,7 +55,7 @@ def connect_silly(name,frontend_session,backend_session):
 				sess,addr = sock.accept()
 				print("got connect from",addr)
 				try:
-					queue = SocketQueue(sess, backend_session)
+					queue = SocketQueue(sess)
 				except BrokenPipeError: continue
 				sessno = sess.fileno()
 				poll.register(sessno, select.POLLIN)
@@ -70,7 +67,7 @@ def connect_silly(name,frontend_session,backend_session):
 					continue
 				queue = sessions[fd]
 				try:
-					queue.read_some()
+					queue.read_some(backend_session)
 				except BrokenPipeError:
 					poll.unregister(fd)
 					os.close(fd)
@@ -78,28 +75,26 @@ def connect_silly(name,frontend_session,backend_session):
 			else:
 				print("Strange fd?",fd);
 
-
 class SocketQueue:
-	def __init__(self, sock, make_session):
+	def __init__(self, sock):
 		self.sock = sock
 		self.buf = bytearray()
 		self.writepoint = 0
-		self.session = make_session(self)
-	def read_all(self):
+	def read_all(self,session):
 		while True:
-			self.read_some()
-	def read_some(self):
+			self.read_some(session)
+	def read_some(self,session):
 		if len(self.buf) - self.writepoint < 0x1000:
 			self.buf.extend(0 for a in range(0x1000)) # meh python sucks
 		view = memoryview(self.buf)[self.writepoint:]
 		nbytes = self.sock.recv_into(view)
 		if not nbytes: return
 		self.writepoint += nbytes
-		self.parse_some()
+		self.parse_some(session)
 	def send(self,message):
 		self.sock.send(struct.pack("H",len(message)) + message)
 	length = None
-	def parse_some(self):
+	def parse_some(self,session):
 		def readlen():
 			self.length = struct.unpack("H",self.buf[:2])[0]
 			self.buf = self.buf[2:]
@@ -110,7 +105,7 @@ class SocketQueue:
 		while True:
 			if self.writepoint < self.length: return
 			message = memoryview(self.buf)[:self.length]
-			self.session(message)
+			session(message)
 			self.buf = self.buf[:self.length]
 			self.writepoint -= self.length
 			if self.writepoint < 2:
@@ -120,7 +115,7 @@ class SocketQueue:
 
 def example():
 	@connect("test")
-	def connect_front(queue):
+	def queue():
 		count = 0
 		def session(message):
 			nonlocal count
@@ -130,8 +125,9 @@ def example():
 			queue.send(str(count).encode())
 		return session
 	derp = 10
-	@connect_front
-	def queue(message):
+	queue.send(str(derp).encode())
+	@queue.read_all
+	def _(message):
 		nonlocal derp
 		if derp <= 0:
 			print("all done")
@@ -139,7 +135,6 @@ def example():
 		derp -= 1
 		print("got count",int(message))
 		queue.send(str(derp).encode())
-	queue.send(str(derp).encode())
 			
 if __name__ == '__main__':
 	example()
