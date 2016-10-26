@@ -24,11 +24,12 @@ elif 'stdin' in os.environ:
 	import settitle
 	settitle.set('parse')
 	from favorites import catchup
-	catchup = catchup()
-	for line in sys.stdin:
-		enqueue(line.strip())
-		catchup.poke()
-	catchup.finish()
+	@catchup
+	def _(poke,stop):
+		for line in sys.stdin:
+			enqueue(line.strip())
+			poke()
+		#stop()
 else:
 	if not 'ferrets' in os.environ:
 		os.environ['ferrets'] = '1'

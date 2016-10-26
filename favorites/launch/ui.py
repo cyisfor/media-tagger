@@ -1,7 +1,5 @@
 from favorites import catchup
 
-catchup = catchup(provide_progress=True)
-
 import fcntl,os,time
 from itertools import count
 from mygi import Gtk, GLib, GdkPixbuf, Gdk, GObject
@@ -45,26 +43,30 @@ def set_busy(is_busy=True):
 	progress.set_fraction(0)
 
 # whyyyyy
-def watch_catchup():
-	while True:
-		type = catchup.get()
+@catchup
+def watch_catchup(poke,stop):
+	# XXX: ehhhhh
+	global catchup_poke, catchup_stop
+	catchup_poke = poke
+	catchup_stop = stop
+	def handle_message(message):
+		type = message[0]
 		if type == catchup.DONE:
 			print("Catchup died, will restart.")
 		else:
-			type,mess = type
 			if type == catchup.PROGRESS:
-				GLib.idle_add(lambda mess=mess: gui_progress(*mess))
+				cur,total = struct.unpack("HH",message[1:])
+				GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
 			elif type == catchup.IDLE:
-				GLib.idle_add(lambda idle=mess: set_busy(not idle))
+				idle = message[1] == 1
+				GLib.idle_add(lambda idle=idle: set_busy(not idle))
 			elif type == catchup.COMPLETE:
+				remaining = struct.unpack("H",message[1:])
 				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
 			else:
-				print(type,mess)
+				print(type,message)
 				raise SystemExit("wat")
-import threading
-t = threading.Thread(target=watch_catchup)
-t.setDaemon(True)
-t.start()
+	return handle_message
 	
 img = ui.get_object("image")
 def gotPiece(piece):
@@ -73,7 +75,7 @@ def gotPiece(piece):
 	print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 	sys.stdout.flush()
 	enqueue(piece.strip())
-	catchup.poke()
+	catchup_poke()
 	print("poked")
 print('Ready to parse')
 win.set_title('parse')
@@ -101,7 +103,7 @@ c = clipboardy(gotPiece,lambda piece: b'http' == piece[:4])
 
 def seriouslyQuit():
 	print("gettin' outta here")
-	catchup.terminate()
+	catchup_stop()
 	c.quit()
 	raise SystemExit
 
