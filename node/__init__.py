@@ -47,9 +47,11 @@ def connect(name,frontend_session,backend_session):
 			if fd == sockno:
 				sess,addr = sock.accept()
 				print("got connect from",addr)
+				try:
+					queue = SocketQueue(sess, backend_session)
+				except BrokenPipeError: continue
 				sessno = sess.fileno()
 				poll.register(sessno, select.POLLIN)
-				queue = SocketQueue(sess, backend_session)
 				sessions[sessno] = queue
 			elif fd in sessions:
 				if event & select.POLLHUP:
@@ -57,7 +59,12 @@ def connect(name,frontend_session,backend_session):
 					os.close(fd)
 					continue
 				queue = sessions[fd]
-				queue.read_some()
+				try:
+					queue.read_some()
+				except BrokenPipeError:
+					poll.unregister(fd)
+					os.close(fd)
+					continue
 			else:
 				print("Strange fd?",fd);
 

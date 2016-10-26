@@ -13,13 +13,15 @@ import struct
 from ctypes import c_bool
 
 PROGRESS, IDLE, COMPLETE, DONE = range(4)
-POKE, = range(1)
+POKE,  = range(1)
 
 class Catchupper:
 	def __init__(self,q,provide_progress=None):
 		print("Starting up catchup backend")
 		self.provide_progress = provide_progress
 		self.q = q
+		import db
+		from favorites.dbqueue import remaining
 		db.reopen()
 		self.send(COMPLETE,"H",remaining())
 	def send(self,message,pack,*a):
@@ -28,10 +30,14 @@ class Catchupper:
 		message = struct.unpack("B",message)
 		if message == POKE:
 			self.squeak()
+		elif message == DONE:
+			self.send(DONE,"")
+			raise SystemExit
 	def squeak(self):
 		self.send(IDLE,"B",0)
 		try:
 			while self.catch_one() is True:
+				from favorites.dbqueue import remaining
 				self.send(COMPLETE,"H",remaining())
 		finally:
 			self.send(IDLE,"B",1)
@@ -40,8 +46,7 @@ class Catchupper:
 	def catch_one(self,*a):
 		from favorites.parse import alreadyHere,parse,ParseError
 		from favorites import parsers
-		from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
-		import db
+		from favorites.dbqueue import top,fail,win,megafail,delay,host
 		import imagecheck
 
 		import json.decoder
@@ -111,13 +116,21 @@ def catchup(with_catching_up):
 	def handle(q):
 		def poke():
 			q.send(struct.pack("B",POKE))
-		with_catching_up(poke)
+		def stop():
+			q.send(struct.pack("B",DONE))
+		return with_catching_up(poke,stop)
 	node.connect("catchup",handle,Catchupper)
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
 	@catchup
-	def _(poke): pass
+	def _(poke,stop):
+		if "stop" in os.environ:
+			stop()
+		raise SystemExit
+		def derp(message):
+			print(bytes(message))
+		return derp
 else:
 	import sys
 	sys.modules[__name__] = catchup
