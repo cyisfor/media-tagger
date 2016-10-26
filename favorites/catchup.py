@@ -3,66 +3,53 @@ if __name__ == '__main__':
 	import sys,os
 	import syspath
 
+import node
 import note
 
-import imagecheck
-
-from favorites.parse import alreadyHere,parse,ParseError
-from favorites import parsers
-from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
-import db
-
-import json.decoder
-from multiprocessing import Process, Condition, Value, Event, Queue
-from queue import Empty
 import time
 import fixprint
+import struct
 
 from ctypes import c_bool
 
 PROGRESS, IDLE, COMPLETE, DONE = range(4)
+POKE, = range(1)
 
-class Catchupper(Process):
-	def __init__(self,provide_progress=None):
-		super().__init__()
-		self.done = Value(c_bool,False)
+class Catchupper:
+	def __init__(self,q,provide_progress=None):
+		print("Starting up catchup backend")
 		self.provide_progress = provide_progress
-		self.poked = Condition()
-		self.q = Queue()
-	def send_progress(self,block,total):
-		self.q.put((PROGRESS,(block,total)))
-	def run(self):
-		import urllib.error
-
-		if self.provide_progress:
-			import setupurllib
-			setupurllib.progress = self.send_progress
+		self.q = q
 		db.reopen()
+		self.send(COMPLETE,"H",remaining())
+	def send(self,message,pack,*a):
+		self.q.send(struct.pack("B"+pack,message,*a))
+	def __call__(self,message):
+		message = struct.unpack("B",message)
+		if message == POKE:
+			self.squeak()
+	def squeak(self):
+		self.send(IDLE,"B",0)
 		try:
-			import signal
-			signal.signal(signal.SIGUSR1, lambda sig: None)
-			# ehhhh a done, before we start, to transmit remaining?
-			self.q.put((COMPLETE,remaining()))
-			while True:
-				self.q.put((IDLE,False))
-				while self.squeak() is True:
-					self.q.put((COMPLETE,remaining()))
-				self.q.put((IDLE,True))
-				if self.done.value: break
-				print('waiting for pokes')
-				with self.poked:
-					self.poked.wait()
-		except SystemExit: pass
-		except KeyboardInterrupt: pass
+			while self.catch_one() is True:
+				self.send(COMPLETE,"H",remaining())
 		finally:
-			self.q.put(DONE)
-	def squeak(self,*a):
+			self.send(IDLE,"B",1)
+	def send_progress(self,block,total):
+		self.send(PROGRESS,"HH",block,total)
+	def catch_one(self,*a):
+		from favorites.parse import alreadyHere,parse,ParseError
+		from favorites import parsers
+		from favorites.dbqueue import top,fail,win,megafail,delay,host,remaining
+		import db
+		import imagecheck
+
+		import json.decoder
 		import urllib.error
 		import setupurllib
 		uri = top()
 		if uri is None:
 			print('none dobu')
-			if self.done.value: raise SystemExit
 			return
 		ah = alreadyHere(uri)
 		if ah:
@@ -120,51 +107,17 @@ class Catchupper(Process):
 			raise
 		return True
 
-
-class Catchup:
-	PROGRESS = PROGRESS
-	COMPLETE = COMPLETE
-	IDLE = IDLE # meh
-	DONE = DONE # mehhh
-	# provide_progress=True means we'll pull from self.progress
-	def __init__(self,provide_progress=False):
-		self.provide_progress = provide_progress
-		self.start()
-	def start(self):
-		self.process = Catchupper(self.provide_progress)
-		self.process.start()
-		self.terminate = self.process.terminate
-		self.get = self.process.q.get
-	def poke(self):
-		print('poke')
-		if not self.process.is_alive():
-			print('died?')
-			self.start()
-		try:
-			with self.process.poked:
-				self.process.poked.notify_all()
-		except AssertionError:
-			# bug...
-			self.process.terminate()
-			self.process = Catchupper(self.provide_progresss)
-			self.start()
-	def finish(self):
-		self.process.done.value = True
-		while True:
-			self.poke()
-			try:
-				while True:
-					print('ignored message',self.process.q.get(False))
-			except queue.Empty: pass
-			self.process.join(1)
-			if not self.is_alive(): break
-			self.process.done.value = True
+def catchup(with_catching_up):
+	def handle(q):
+		def poke():
+			q.send(struct.pack("B",POKE))
+		with_catching_up(poke)
+	node.connect("catchup",handle,Catchupper)
 
 if __name__ == '__main__':
-	# no subprocess here
-
-	instance = Catchupper()
-	while instance.squeak() is True: pass
+	# just run the backend, leave the rest alone
+	@catchup
+	def _(poke): pass
 else:
 	import sys
-	sys.modules[__name__] = Catchup
+	sys.modules[__name__] = catchup

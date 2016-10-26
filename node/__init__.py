@@ -15,18 +15,20 @@ def connect(name,frontend_session,backend_session):
 	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 	addy = address(name)
 	err = sock.connect_ex(addy)
-	if err == 0: return SocketQueue(sock, frontend_session)
+	if err == 0:
+		print("found existing backend node",name)
+		return SocketQueue(sock, frontend_session).read_all()
 	is_ready,ready = os.pipe()
 	pid = os.fork()
 	assert pid >= 0
-	if pid == 0:
+	if pid > 0:
 		os.close(ready)
 		select.select([is_ready],[],[])
 		os.close(is_ready)
 		print("ready!",addy)
 		sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 		sock.connect(addy)
-		return SocketQueue(sock,frontend_session)
+		return SocketQueue(sock,frontend_session).read_all()
 	os.close(is_ready)
 	try: os.unlink(addy)
 	except OSError: pass
@@ -39,14 +41,21 @@ def connect(name,frontend_session,backend_session):
 	print("ready?")
 	os.close(ready)
 	while True:
+		print("polling")
 		for fd,event in poll.poll():
+			print("got event",fd,event)
 			if fd == sockno:
 				sess,addr = sock.accept()
+				print("got connect from",addr)
 				sessno = sess.fileno()
 				poll.register(sessno, select.POLLIN)
 				queue = SocketQueue(sess, backend_session)
 				sessions[sessno] = queue
 			elif fd in sessions:
+				if event & select.POLLHUP:
+					poll.unregister(fd)
+					os.close(fd)
+					continue
 				queue = sessions[fd]
 				queue.read_some()
 			else:
@@ -59,6 +68,9 @@ class SocketQueue:
 		self.buf = bytearray()
 		self.writepoint = 0
 		self.session = make_session(self)
+	def read_all(self):
+		while True:
+			self.read_some()
 	def read_some(self):
 		if len(self.buf) - self.writepoint < 0x1000:
 			self.buf.extend(0 for a in range(0x1000)) # meh python sucks
@@ -68,12 +80,11 @@ class SocketQueue:
 		self.writepoint += nbytes
 		self.parse_some()
 	def send(self,message):
-		self.sock.send(struct.pack("H",len(message)))
-		self.sock.send(message)
+		self.sock.send(struct.pack("H",len(message)) + message)
 	length = None
 	def parse_some(self):
 		def readlen():
-			self.length = struct.unpack("H",self.buf[:2])
+			self.length = struct.unpack("H",self.buf[:2])[0]
 			self.buf = self.buf[2:]
 			self.writepoint -= 2
 		if self.length is None:
@@ -82,7 +93,7 @@ class SocketQueue:
 		while True:
 			if self.writepoint < self.length: return
 			message = memoryview(self.buf)[:self.length]
-			session(message)
+			self.session(message)
 			self.buf = self.buf[:self.length]
 			self.writepoint -= self.length
 			if self.writepoint < 2:
@@ -90,11 +101,12 @@ class SocketQueue:
 				return
 			readlen()
 
-def test():
+def example():
 	def backend_session(queue):
 		count = 0
 		def session(message):
 			nonlocal count
+			message = bytes(message).decode()
 			print("got message",message)
 			count += int(message)
 			queue.send(str(count).encode())
@@ -104,11 +116,14 @@ def test():
 		queue.send(str(derp).encode())
 		def session(message):
 			nonlocal derp
-			if derp <= 0: raise SystemExit
+			if derp <= 0:
+				print("all done")
+				raise SystemExit
 			derp -= 1
 			print("got count",int(message))
 			queue.send(str(derp).encode())
+		return session
 	connect("test",frontend_session, backend_session)
 			
 if __name__ == '__main__':
-	test()
+	example()
