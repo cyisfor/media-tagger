@@ -1,3 +1,4 @@
+import note
 from favorites import catchup
 
 import fcntl,os,time
@@ -45,27 +46,33 @@ def set_busy(is_busy=True):
 catchup = catchup(provide_progress=True)
 # whyyyyy
 def watch_catchup():
+	import struct
 	@catchup.run
 	def _(message):
+		from favorites import catchup # wheeeeee
 		type = message[0]
+		note("type",type)
 		if type == catchup.DONE:
 			print("Catchup died, will restart?")
 			# uhhhh
 		else:
 			if type == catchup.PROGRESS:
-				cur,total = struct.unpack("HH",message[1:])
+				print(bytes(message),catchup.PROGRESS)
+				cur,total = struct.unpack("II",message[1:])
 				GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
 			elif type == catchup.IDLE:
 				idle = message[1] == 1
 				GLib.idle_add(lambda idle=idle: set_busy(not idle))
 			elif type == catchup.COMPLETE:
-				remaining = struct.unpack("H",message[1:])
-				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
+				remaining = struct.unpack("H",message[1:])[0]
+				GLib.idle_add(lambda remaining=remaining: set_remaining(remaining))		
 			else:
 				print(type,message)
 				raise SystemExit("wat")
 import threading
-threading.Thread(target=watch_catchup)
+t = threading.Thread(target=watch_catchup,daemon=True)
+t.start()
+
 
 img = ui.get_object("image")
 def gotPiece(piece):

@@ -26,9 +26,9 @@ class Catchupper:
 		self.send(COMPLETE,"H",remaining())
 		self.squeak()
 	def send(self,message,pack,*a):
-		self.q.send(struct.pack("B"+pack,message,*a))
+		self.q.send(struct.pack("=B"+pack,message,*a))
 	def __call__(self,message):
-		message = struct.unpack("B",message)[0]
+		message = message[0]
 		if message == POKE:
 			self.squeak()
 		elif message == DONE:
@@ -44,7 +44,7 @@ class Catchupper:
 		finally:
 			self.send(IDLE,"B",1)
 	def send_progress(self,block,total):
-		self.send(PROGRESS,"HH",block,total)
+		self.send(PROGRESS,"II",block,total)
 	def catch_one(self,*a):
 		from favorites.parse import alreadyHere,parse,ParseError
 		from favorites import parsers
@@ -124,7 +124,10 @@ def catchup(provide_progress=None):
 		def run(on_message):
 			return q.read_all(on_message)
 	return Poker
-
+catchup.DONE = DONE
+catchup.PROGRESS = PROGRESS
+catchup.COMPLETE = COMPLETE
+catchup.IDLE = IDLE
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
 	poker = catchup()

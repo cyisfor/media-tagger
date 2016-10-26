@@ -100,7 +100,10 @@ class SocketQueue:
 	length = None
 	def parse_some(self):
 		def readlen():
+			import note
 			self.length = struct.unpack("H",self.buf[:2])[0]
+			assert self.length > 0, self.buf
+			note("message length",self.length)
 			self.buf = self.buf[2:]
 			self.writepoint -= 2
 		if self.length is None:
