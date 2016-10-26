@@ -24,10 +24,12 @@ class Catchupper:
 		from favorites.dbqueue import remaining
 		db.reopen()
 		self.send(COMPLETE,"H",remaining())
+		self.squeak()
 	def send(self,message,pack,*a):
 		self.q.send(struct.pack("B"+pack,message,*a))
 	def __call__(self,message):
 		message = struct.unpack("B",message)
+		print("catchup message",message)
 		if message == POKE:
 			self.squeak()
 		elif message == DONE:
@@ -112,14 +114,15 @@ class Catchupper:
 			raise
 		return True
 
-def catchup(on_message):
-	q = node.connect_silly("catchup",Catchupper)
-	q.session = on_message
+def catchup(provide_progress=None):
+	q = node.connect_silly("catchup",lambda q: Catchupper(q,provide_progress))
 	class Poker:
 		def poke():
 			q.send(struct.pack("B",POKE))
 		def stop():
 			q.send(struct.pack("B",DONE))
+		def run(on_message):
+			return q.read_all(on_message)
 	return Poker
 
 if __name__ == '__main__':
@@ -127,6 +130,10 @@ if __name__ == '__main__':
 	poker = catchup()
 	if "stop" in os.environ:
 		poker.stop()
+		@poker
+		def _(message):
+			print(message)
+			raise SystemExit
 	raise SystemExit
 else:
 	import sys

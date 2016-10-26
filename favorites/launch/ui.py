@@ -48,7 +48,7 @@ def catchup(message):
 	type = message[0]
 	if type == catchup.DONE:
 		print("Catchup died, will restart?")
-		// uhhhh
+		# uhhhh
 	else:
 		if type == catchup.PROGRESS:
 			cur,total = struct.unpack("HH",message[1:])

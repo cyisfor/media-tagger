@@ -54,11 +54,11 @@ def connect_silly(name,backend_session):
 			if fd == sockno:
 				sess,addr = sock.accept()
 				print("got connect from",addr)
+				queue = SocketQueue(sess)
 				try:
-					queue = SocketQueue(sess)
+					# to allow initialization in the backend process:
+					queue.session = backend_session(queue)
 				except BrokenPipeError: continue
-				# to allow initialization in the backend process:
-				queue.session = backend_session(queue)
 				sessno = sess.fileno()
 				poll.register(sessno, select.POLLIN)
 				sessions[sessno] = queue
@@ -69,7 +69,7 @@ def connect_silly(name,backend_session):
 					continue
 				queue = sessions[fd]
 				try:
-					queue.read_some(queue.session)
+					queue.read_some()
 				except BrokenPipeError:
 					poll.unregister(fd)
 					os.close(fd)

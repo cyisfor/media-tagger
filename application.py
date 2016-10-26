@@ -2,7 +2,7 @@ import sys
 
 def application(name,ui,activate=None):
 	from mygi import Gtk,Gio
-	app = Gtk.Application(application_id=name,
+	app = Gtk.Application(application_id=name+'derp',
 	                      flags=Gio.ApplicationFlags.FLAGS_NONE)
 	def startup(app):
 		# HAX: change the meaning of import application for the ui module
