@@ -133,10 +133,7 @@ def myopen(request):
 	#			 request = Request(request)
 	#		 request.add_header('If-Modified-Since',email.utils.formatdate(stat.st_mtime))
 
-progress = None
-	
-def myretrieve(request,dest):
-	global progress
+def myretrieve(request,dest,progress=None):
 	with myopen(request) as inp:
 		headers = inp.headers
 		total = headers.get('Content-Length')

@@ -42,26 +42,30 @@ def set_busy(is_busy=True):
 	img.set_from_animation(busy)
 	progress.set_fraction(0)
 
+catchup = catchup(provide_progress=True)
 # whyyyyy
-@catchup
-def catchup(message):
-	type = message[0]
-	if type == catchup.DONE:
-		print("Catchup died, will restart?")
-		# uhhhh
-	else:
-		if type == catchup.PROGRESS:
-			cur,total = struct.unpack("HH",message[1:])
-			GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
-		elif type == catchup.IDLE:
-			idle = message[1] == 1
-			GLib.idle_add(lambda idle=idle: set_busy(not idle))
-		elif type == catchup.COMPLETE:
-			remaining = struct.unpack("H",message[1:])
-			GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
+def watch_catchup():
+	@catchup.run
+	def _(message):
+		type = message[0]
+		if type == catchup.DONE:
+			print("Catchup died, will restart?")
+			# uhhhh
 		else:
-			print(type,message)
-			raise SystemExit("wat")
+			if type == catchup.PROGRESS:
+				cur,total = struct.unpack("HH",message[1:])
+				GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
+			elif type == catchup.IDLE:
+				idle = message[1] == 1
+				GLib.idle_add(lambda idle=idle: set_busy(not idle))
+			elif type == catchup.COMPLETE:
+				remaining = struct.unpack("H",message[1:])
+				GLib.idle_add(lambda remaining=mess: set_remaining(remaining))		
+			else:
+				print(type,message)
+				raise SystemExit("wat")
+import threading
+threading.Thread(target=watch_catchup)
 
 img = ui.get_object("image")
 def gotPiece(piece):

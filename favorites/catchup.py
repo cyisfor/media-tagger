@@ -28,11 +28,11 @@ class Catchupper:
 	def send(self,message,pack,*a):
 		self.q.send(struct.pack("B"+pack,message,*a))
 	def __call__(self,message):
-		message = struct.unpack("B",message)
-		print("catchup message",message)
+		message = struct.unpack("B",message)[0]
 		if message == POKE:
 			self.squeak()
 		elif message == DONE:
+			print("done")
 			self.send(DONE,"")
 			raise SystemExit
 	def squeak(self):
@@ -70,7 +70,7 @@ class Catchupper:
 				for attempts in range(2):
 					print("Parsing",uri)
 					try:
-						parse(uri)
+						parse(uri,progress=self.send_progress if self.provide_progress else None)
 						win(uri)
 						break
 					except urllib.error.URLError as e:
@@ -130,10 +130,10 @@ if __name__ == '__main__':
 	poker = catchup()
 	if "stop" in os.environ:
 		poker.stop()
-		@poker
+		@poker.run
 		def _(message):
-			print(message)
-			raise SystemExit
+			if message[0] == DONE:
+				raise SystemExit
 	raise SystemExit
 else:
 	import sys

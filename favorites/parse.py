@@ -51,7 +51,7 @@ def locked(table):
 		return wrapper
 	return deco
 
-def parse(primarySource,noCreate=False):
+def parse(primarySource,noCreate=False,progress=None):
 	note.alarm("uhhh")
 	primarySource = primarySource.strip()
 	if (skip or noCreate):
@@ -142,8 +142,9 @@ def parse(primarySource,noCreate=False):
 			def download(dest):
 				print('download',media.url)
 				response = myretrieve(Request(media.url,
-					headers=media.headers),
-					dest)
+																			headers=media.headers),
+															dest,
+															progress=progress)
 				return response.modified, response["Content-Type"]
 			# def download(dest):
 			#	 with open('/tmp/derp.image','rb') as inp:
