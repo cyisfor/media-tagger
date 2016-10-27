@@ -12,13 +12,13 @@ import struct
 
 from ctypes import c_bool
 
-PROGRESS, IDLE, COMPLETE, DONE = range(4)
-POKE,  = range(1)
+PROGRESS, IDLE, COMPLETE, DONE = range(5)
+POKE, ENABLE_PROGRESS  = range(2)
 
 class Catchupper:
-	def __init__(self,q,provide_progress=None):
+	provide_progress = False
+	def __init__(self,q):
 		print("Starting up catchup backend")
-		self.provide_progress = provide_progress
 		self.q = q
 		import db
 		from favorites.dbqueue import remaining
@@ -27,7 +27,7 @@ class Catchupper:
 		self.squeak()
 	def send(self,message,pack,*a):
 		self.q.send(struct.pack("=B"+pack,message,*a))
-	def __call__(self,message):
+	def handle_regularly(self,message):
 		message = message[0]
 		if message == POKE:
 			self.squeak()
@@ -35,6 +35,13 @@ class Catchupper:
 			print("done")
 			self.send(DONE,"")
 			raise SystemExit
+	def __call__(self, message):
+		# some messages only need to get sent as initialization
+		if message == ENABLE_PROGRESS:
+			self.provide_progress = True
+		else:
+			self.__call__ = self.handle_regularly
+			return self.handle_regularly(message)
 	def squeak(self):
 		self.send(IDLE,"B",0)
 		try:
@@ -114,17 +121,23 @@ class Catchupper:
 			raise
 		return True
 
-def catchup(provide_progress=None):
-	q = node.connect_silly("catchup",lambda q: Catchupper(q,provide_progress))
+def catchup(provide_progress=False):
+	q = node.connect_silly("catchup",lambda q: Catchupper(q))
+	def send(what):
+		q.send(struct.pack("B",what))
+	if provide_progress:
+		q.send(ENABLE_PROGRESS)
 	class Poker:
 		def poke():
-			q.send(struct.pack("B",POKE))
+			q.send(POKE)
 		def stop():
-			q.send(struct.pack("B",DONE))
-		def run(on_message):
+			q.send(DONE)
+		def run(on_message=None):
 			return q.read_all(on_message)
 	return Poker
+# mehhh
 catchup.DONE = DONE
+catchup.ENABLE_PROGRESS = ENABLE_PROGRESS
 catchup.PROGRESS = PROGRESS
 catchup.COMPLETE = COMPLETE
 catchup.IDLE = IDLE

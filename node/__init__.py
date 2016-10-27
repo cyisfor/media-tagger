@@ -96,7 +96,8 @@ class SocketQueue:
 		self.writepoint += nbytes
 		self.parse_some()
 	def send(self,message):
-		self.sock.send(struct.pack("H",len(message)) + message)
+		assert len(message) != 0
+		assert self.sock.send(struct.pack("H",len(message)) + message) == 2 + len(message)
 	length = None
 	def parse_some(self):
 		def readlen():
