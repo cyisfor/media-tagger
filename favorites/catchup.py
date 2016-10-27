@@ -12,8 +12,7 @@ import struct
 
 from ctypes import c_bool
 
-PROGRESS, IDLE, COMPLETE, DONE = range(5)
-POKE, ENABLE_PROGRESS  = range(2)
+from build_catchup_params import *
 
 class Catchupper:
 	provide_progress = False
@@ -126,12 +125,12 @@ def catchup(provide_progress=False):
 	def send(what):
 		q.send(struct.pack("B",what))
 	if provide_progress:
-		q.send(ENABLE_PROGRESS)
+		send(ENABLE_PROGRESS)
 	class Poker:
 		def poke():
-			q.send(POKE)
+			send(POKE)
 		def stop():
-			q.send(DONE)
+			send(DONE)
 		def run(on_message=None):
 			return q.read_all(on_message)
 	return Poker

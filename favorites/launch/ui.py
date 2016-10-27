@@ -49,6 +49,7 @@ def watch_catchup():
 	import struct
 	@catchup.run
 	def _(message):
+		global catchup
 		from favorites import catchup as C # wheeeeee
 		type = message[0]
 		note("type",type)
