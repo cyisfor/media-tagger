@@ -1,6 +1,8 @@
 if __name__ == '__main__':
 	import syspath
 import filedb
+import note
+
 import os
 import struct
 
@@ -23,7 +25,7 @@ def connect_silly(name,backend_session,dofork=True):
 	addy = address(name)
 	err = sock.connect_ex(addy)
 	if err == 0:
-		print("found existing backend node",name)
+		note.blue("found existing backend node",name)
 		return SocketQueue(sock)
 	if dofork:
 		is_ready,ready = os.pipe()
@@ -33,7 +35,7 @@ def connect_silly(name,backend_session,dofork=True):
 			os.close(ready)
 			select.select([is_ready],[],[])
 			os.close(is_ready)
-			print("ready!",addy)
+			note("ready!",addy)
 			sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 			sock.connect(addy)
 			return SocketQueue(sock)
@@ -47,15 +49,14 @@ def connect_silly(name,backend_session,dofork=True):
 	poll.register(sockno,select.POLLIN)
 	sessions = dict()
 	if dofork:
-		print("ready?")
+		note.yellow("ready?")
 		os.close(ready)
 	while True:
-		print("polling")
+		note.blue("polling")
 		for fd,event in poll.poll():
-			print("got event",fd,event)
 			if fd == sockno:
 				sess,addr = sock.accept()
-				print("got connect from",addr)
+				note("got connect from",addr)
 				queue = SocketQueue(sess)
 				try:
 					# to allow initialization in the backend process:
@@ -77,7 +78,7 @@ def connect_silly(name,backend_session,dofork=True):
 					os.close(fd)
 					continue
 			else:
-				print("Strange fd?",fd);
+				note.alarm("Strange fd?",fd);
 
 class SocketQueue:
 	def __init__(self, sock):
@@ -130,7 +131,7 @@ def example():
 		def session(message):
 			nonlocal count
 			message = bytes(message).decode()
-			print("got message",message)
+			note.yellow("got message",message)
 			count += int(message)
 			queue.send(str(count).encode())
 		return session

@@ -17,11 +17,10 @@ from favorites.build_catchup_states import *
 class Catchupper:
 	provide_progress = False
 	def __init__(self,q):
-		print("Starting up catchup backend")
+		note("Starting up catchup backend")
 		self.q = q
 		import db
 		from favorites.dbqueue import remaining
-		print("aoeu3")
 		db.reopen()
 		self.send(COMPLETE,"H",remaining())
 		self.squeak()
@@ -34,7 +33,6 @@ class Catchupper:
 		if message == POKE:
 			self.squeak()
 		elif message == DONE:
-			print("done")
 			self.send(DONE,"")
 			raise SystemExit
 	def __call__(self, message):
@@ -55,10 +53,7 @@ class Catchupper:
 	def send_progress(self,block,total):
 		self.send(PROGRESS,"II",block,total)
 	def catch_one(self,*a):
-		print("aoeu4")
-
 		from favorites.parse import alreadyHere,parse,ParseError
-		print("aoeu5")
 		from favorites import parsers
 		from favorites.dbqueue import top,fail,win,megafail,delay,host
 		import imagecheck
@@ -69,19 +64,18 @@ class Catchupper:
 		uri = top()
 		note.yellow(uri)
 		if uri is None:
-			print('none dobu')
 			return
 		ah = alreadyHere(uri)
 		if ah:
 			import os
 			if 'noupdate' in os.environ:
-				print("WHEN I AM ALREADY HERE",uri)
+				note.red("WHEN I AM ALREADY HERE",uri)
 				win(uri)
 				return True
 		try:
 			try:
 				for attempts in range(2):
-					print("Parsing",uri)
+					note("Parsing",uri)
 					try:
 						parse(uri,progress=self.send_progress if self.provide_progress else None)
 						win(uri)
@@ -129,8 +123,9 @@ class Catchupper:
 
 def catchup(provide_progress=False,dofork=True):
 	q = node.connect_silly("catchup",lambda q: Catchupper(q),dofork=dofork)
+	note.alarm("foop",provide_progress)
 	def send(what):
-		note.red("SEND",what,lookup_client[what])
+		note.red("SEND",what,lookup_server[what])
 		q.send(struct.pack("B",what))
 	assert provide_progress
 	if provide_progress:
