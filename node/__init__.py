@@ -92,7 +92,7 @@ class SocketQueue:
 			self.read_some()
 	def read_some(self):
 		if len(self.buf) - self.writepoint < 0x1000:
-			self.buf.extend(0 for a in range(0x1000)) # meh python sucks
+			self.buf.extend(b'Q'[0] for a in range(0x1000)) # meh python sucks
 		view = memoryview(self.buf)[self.writepoint:]
 		nbytes = self.sock.recv_into(view)
 		if not nbytes: return
@@ -100,14 +100,15 @@ class SocketQueue:
 		self.parse_some()
 	def send(self,message):
 		assert len(message) != 0
-		assert self.sock.send(struct.pack("H",len(message)) + message) == 2 + len(message)
+		blob = struct.pack("H",len(message)) + message
+		note.purple("send blob",blob)
+		assert self.sock.send(blob) == 2 + len(message)
 	length = None
 	def parse_some(self):
 		def readlen():
 			import note
 			self.length = struct.unpack("H",self.buf[:2])[0]
 			assert self.length > 0, self.buf
-			note("message length",self.length)
 			self.buf = self.buf[2:]
 			self.writepoint -= 2
 		if self.length is None:
@@ -116,8 +117,9 @@ class SocketQueue:
 		while True:
 			if self.writepoint < self.length: return
 			message = memoryview(self.buf)[:self.length]
+			note("received message",self.length,bytes(message))
 			self.session(message)
-			self.buf = self.buf[:self.length]
+			self.buf = self.buf[self.length:]
 			self.writepoint -= self.length
 			if self.writepoint < 2:
 				self.length = None

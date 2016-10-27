@@ -23,7 +23,6 @@ class Catchupper:
 		from favorites.dbqueue import remaining
 		db.reopen()
 		self.send(COMPLETE,"H",remaining())
-		self.squeak()
 	def send(self,message,pack,*a):
 		note("sending",lookup_client[message],a)
 		self.q.send(struct.pack("=B"+pack,message,*a))
@@ -35,13 +34,16 @@ class Catchupper:
 		elif message == DONE:
 			self.send(DONE,"")
 			raise SystemExit
-	def __call__(self, message):
+	def __call__(self, derpmessage):
 		# some messages only need to get sent as initialization
+		message = derpmessage[0]
+		note.red("received",message,ENABLE_PROGRESS)
 		if message == ENABLE_PROGRESS:
+			note.yellow("enabling progress")
 			self.provide_progress = True
 		else:
 			self.__call__ = self.handle_regularly
-			return self.handle_regularly(message)
+			return self.handle_regularly(derpmessage)
 	def squeak(self):
 		self.send(IDLE,"B",0)
 		try:

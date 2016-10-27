@@ -6,6 +6,9 @@ import sys
 def application(name,ui,activate=None):
 	sys.modules[__name__] = name
 	__import__(ui)
-	activate()
+	from mygi import Gtk,GLib
+	GLib.idle_add(activate)
+	Gtk.main()
+	print("uhhh")
 
 sys.modules[__name__] = application

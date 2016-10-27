@@ -44,7 +44,7 @@ def set_busy(is_busy=True):
 	progress.set_fraction(0)
 
 catchup = catchup(provide_progress=True)
-raise SystemExit(23)
+
 # whyyyyy
 def watch_catchup():
 	import struct
@@ -99,9 +99,9 @@ styleContext.add_provider_for_screen(screen, css, Gtk.STYLE_PROVIDER_PRIORITY_AP
 
 try:
 	import application
-except ImportError: pass
-else:
 	application.add_window(win)
+except ImportError: pass
+except AttributeError: pass
 
 import gtkclipboardy as clipboardy
 
