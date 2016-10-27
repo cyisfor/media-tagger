@@ -12,7 +12,7 @@ import struct
 
 from ctypes import c_bool
 
-from build_catchup_params import *
+from build_catchup_states import *
 
 class Catchupper:
 	provide_progress = False
@@ -135,11 +135,6 @@ def catchup(provide_progress=False):
 			return q.read_all(on_message)
 	return Poker
 # mehhh
-catchup.DONE = DONE
-catchup.ENABLE_PROGRESS = ENABLE_PROGRESS
-catchup.PROGRESS = PROGRESS
-catchup.COMPLETE = COMPLETE
-catchup.IDLE = IDLE
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone

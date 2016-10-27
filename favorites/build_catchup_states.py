@@ -3,7 +3,9 @@ to_server = ["POKE","ENABLE_PROGRESS"]
 
 def dictify(l):
 	num = 0
-	d = {}
+	class derp(dict):
+		_keys = l
+	d = derp()
 	for name in l:
 		d[name] = num
 		num += 1
@@ -12,6 +14,15 @@ to_client = dictify(to_client)
 to_server = dictify(to_server)
 
 to_server["DONE"] = to_client["DONE"]
+to_server._keys.append("DONE")
+
+def undictify(d):
+	l = []
+	for k in d._keys:
+		l.append((k,d[k]))
+	return l
+to_server = undictify(to_server)
+to_client = undictify(to_client)
 
 import sys,os
 here = sys.modules[__name__].__file__
@@ -25,13 +36,14 @@ if othermod is None or othermod < heremod:
 	# need update
 	with open(other,"wt") as out:
 		for type,names in (("client",to_client),("server",to_server)):
-			for name,num in names.items():
+			for name,num in names:
 				out.write(name+" = "+str(num)+"\n")
 			out.write("lookup_"+type+" = {\n")
-			num = 0
-			for num,name in names.items():
+			for num,name in names:
 				out.write("\t"+repr(num)+": " + repr(name) + ",\n")
-				num += 1
-			out.write("\t"+repr(messages["DONE"])+": \"DONE\"\n")
 			out.write("}\n\n")
 
+import sys
+sys.path.append(filedb.temp)
+from catchup_states import *
+sys.path = sys.path[:-1]
