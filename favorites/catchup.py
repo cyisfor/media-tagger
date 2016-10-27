@@ -21,11 +21,12 @@ class Catchupper:
 		self.q = q
 		import db
 		from favorites.dbqueue import remaining
+		print("aoeu3")
 		db.reopen()
 		self.send(COMPLETE,"H",remaining())
 		self.squeak()
 	def send(self,message,pack,*a):
-		note("sending",lookup_client[message])
+		note("sending",lookup_client[message],a)
 		self.q.send(struct.pack("=B"+pack,message,*a))
 	def handle_regularly(self,message):
 		message = message[0]
@@ -54,7 +55,10 @@ class Catchupper:
 	def send_progress(self,block,total):
 		self.send(PROGRESS,"II",block,total)
 	def catch_one(self,*a):
+		print("aoeu4")
+
 		from favorites.parse import alreadyHere,parse,ParseError
+		print("aoeu5")
 		from favorites import parsers
 		from favorites.dbqueue import top,fail,win,megafail,delay,host
 		import imagecheck
@@ -63,6 +67,7 @@ class Catchupper:
 		import urllib.error
 		import setupurllib
 		uri = top()
+		note.yellow(uri)
 		if uri is None:
 			print('none dobu')
 			return
@@ -122,10 +127,12 @@ class Catchupper:
 			raise
 		return True
 
-def catchup(provide_progress=False):
-	q = node.connect_silly("catchup",lambda q: Catchupper(q))
+def catchup(provide_progress=False,dofork=True):
+	q = node.connect_silly("catchup",lambda q: Catchupper(q),dofork=dofork)
 	def send(what):
+		note.red("SEND",what,lookup_client[what])
 		q.send(struct.pack("B",what))
+	assert provide_progress
 	if provide_progress:
 		send(ENABLE_PROGRESS)
 	class Poker:
@@ -139,7 +146,7 @@ def catchup(provide_progress=False):
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
-	poker = catchup()
+	poker = catchup(dofork=False)
 	if "stop" in os.environ:
 		poker.stop()
 		@poker.run

@@ -3,8 +3,9 @@
 import db
 
 import hashlib,base64
-
+print("BAR")
 db.setup("sql/resultCache.sql",source=True,named=False)
+print("BAR")
 
 def encache(query,args,docache=True):
     #db.c.verbose = True

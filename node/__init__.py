@@ -15,7 +15,7 @@ def connect(name):
 		return connect_silly(name,backend_session)
 	return connect_back
 
-def connect_silly(name,backend_session):
+def connect_silly(name,backend_session,dofork=True):
 	# since decorator returns the queue 
 	# can just use the return value in your session handler
 	import socket,select
@@ -25,18 +25,19 @@ def connect_silly(name,backend_session):
 	if err == 0:
 		print("found existing backend node",name)
 		return SocketQueue(sock)
-	is_ready,ready = os.pipe()
-	pid = os.fork()
-	assert pid >= 0
-	if pid > 0:
-		os.close(ready)
-		select.select([is_ready],[],[])
+	if dofork:
+		is_ready,ready = os.pipe()
+		pid = os.fork()
+		assert pid >= 0
+		if pid > 0:
+			os.close(ready)
+			select.select([is_ready],[],[])
+			os.close(is_ready)
+			print("ready!",addy)
+			sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+			sock.connect(addy)
+			return SocketQueue(sock)
 		os.close(is_ready)
-		print("ready!",addy)
-		sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-		sock.connect(addy)
-		return SocketQueue(sock)
-	os.close(is_ready)
 	try: os.unlink(addy)
 	except OSError: pass
 	sock.bind(addy)
@@ -45,8 +46,9 @@ def connect_silly(name,backend_session):
 	sockno = sock.fileno()
 	poll.register(sockno,select.POLLIN)
 	sessions = dict()
-	print("ready?")
-	os.close(ready)
+	if dofork:
+		print("ready?")
+		os.close(ready)
 	while True:
 		print("polling")
 		for fd,event in poll.poll():

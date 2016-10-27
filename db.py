@@ -59,9 +59,10 @@ class DBProxy:
 				password = inp.read()
 		except IOError:
 			password = None
+		print("FOO")
 		self.c = pg.Connection(dbname='pics',port=5433,host="/home/run",password=password)
-		self.c.verbose = False
-		#self.c.out = open('/tmp/self.log','at')
+		self.c.verbose = True
+		self.c.out = open('/tmp/self.log','at')
 		password = None
 
 	@export
@@ -76,6 +77,7 @@ class DBProxy:
 		#execute("COMMIT")
 		for stmt in stmts:
 			try:
+				print("BAR",stmt)
 				self.execute(stmt)
 			except ProgrammingError as e:
 				if self.c.verbose:
@@ -83,6 +85,7 @@ class DBProxy:
 					print('')
 					sys.stdout.write(e.info['message'].decode('utf-8'))
 					print('')
+			print("BAR")
 	
 	# either returns {name=statement...} or [statement...] depending on file format...
 	@export
@@ -125,3 +128,4 @@ SELECT EXISTS (
 		return self.execute(stmt,(schema,table))[0][0]
 
 sys.modules[__name__] = DBProxy()
+print("aoeu")

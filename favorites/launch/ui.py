@@ -44,6 +44,7 @@ def set_busy(is_busy=True):
 	progress.set_fraction(0)
 
 catchup = catchup(provide_progress=True)
+raise SystemExit(23)
 # whyyyyy
 def watch_catchup():
 	import struct
