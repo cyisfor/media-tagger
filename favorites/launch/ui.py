@@ -49,26 +49,24 @@ def watch_catchup():
 	import struct
 	@catchup.run
 	def _(message):
-		from favorites import catchup # wheeeeee
+		from favorites import catchup as C # wheeeeee
 		type = message[0]
 		note("type",type)
-		if type == catchup.DONE:
+		if type == C.DONE:
 			print("Catchup died, will restart?")
-			# uhhhh
+			catchup = C(provide_progress=True)
+		elif type == C.PROGRESS:
+			cur,total = struct.unpack("II",message[1:])
+			GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
+		elif type == C.IDLE:
+			idle = message[1] == 1
+			GLib.idle_add(lambda idle=idle: set_busy(not idle))
+		elif type == C.COMPLETE:
+			remaining = struct.unpack("H",message[1:])[0]
+			GLib.idle_add(lambda remaining=remaining: set_remaining(remaining))		
 		else:
-			if type == catchup.PROGRESS:
-				print(bytes(message),catchup.PROGRESS)
-				cur,total = struct.unpack("II",message[1:])
-				GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
-			elif type == catchup.IDLE:
-				idle = message[1] == 1
-				GLib.idle_add(lambda idle=idle: set_busy(not idle))
-			elif type == catchup.COMPLETE:
-				remaining = struct.unpack("H",message[1:])[0]
-				GLib.idle_add(lambda remaining=remaining: set_remaining(remaining))		
-			else:
-				print(type,message)
-				raise SystemExit("wat")
+			print(type,message)
+			raise SystemExit("wat")
 import threading
 t = threading.Thread(target=watch_catchup,daemon=True)
 t.start()

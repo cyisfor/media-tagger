@@ -141,6 +141,7 @@ catchup.ENABLE_PROGRESS = ENABLE_PROGRESS
 catchup.PROGRESS = PROGRESS
 catchup.COMPLETE = COMPLETE
 catchup.IDLE = IDLE
+
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
 	poker = catchup()
