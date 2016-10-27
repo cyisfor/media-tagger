@@ -12,7 +12,7 @@ import struct
 
 from ctypes import c_bool
 
-from build_catchup_states import *
+from favorites.build_catchup_states import *
 
 class Catchupper:
 	provide_progress = False
@@ -25,9 +25,11 @@ class Catchupper:
 		self.send(COMPLETE,"H",remaining())
 		self.squeak()
 	def send(self,message,pack,*a):
+		note("sending",lookup_client[message])
 		self.q.send(struct.pack("=B"+pack,message,*a))
 	def handle_regularly(self,message):
 		message = message[0]
+		note("received",lookup_server[message])
 		if message == POKE:
 			self.squeak()
 		elif message == DONE:
@@ -134,7 +136,6 @@ def catchup(provide_progress=False):
 		def run(on_message=None):
 			return q.read_all(on_message)
 	return Poker
-# mehhh
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone

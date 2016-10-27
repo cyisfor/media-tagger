@@ -50,9 +50,9 @@ def watch_catchup():
 	@catchup.run
 	def _(message):
 		global catchup
-		from favorites import catchup as C # wheeeeee
+		from favorites import build_catchup_states as C # wheeeeee
 		type = message[0]
-		note("type",type)
+		note("type",C.lookup_client[type])
 		if type == C.DONE:
 			print("Catchup died, will restart?")
 			catchup = C(provide_progress=True)

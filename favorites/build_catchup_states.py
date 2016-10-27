@@ -40,7 +40,7 @@ if othermod is None or othermod < heremod:
 				out.write(name+" = "+str(num)+"\n")
 			out.write("lookup_"+type+" = {\n")
 			for num,name in names:
-				out.write("\t"+repr(num)+": " + repr(name) + ",\n")
+				out.write("\t"+repr(name)+": " + repr(num) + ",\n")
 			out.write("}\n\n")
 
 import sys
