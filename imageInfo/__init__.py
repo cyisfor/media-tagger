@@ -31,7 +31,7 @@ class Error(Exception):
 class TryAgain(Exception): pass
 			
 def readString(inp):
-    size = inp.read(1)[0]
+    size = struct.unpack('>H',inp.read(2))[0]
     return inp.read(size).decode('utf-8')
 
 def pythonsux(path):

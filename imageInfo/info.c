@@ -8,6 +8,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <unistd.h> // alarm
+#include <ctype.h> //isspace
+#include <assert.h>
 
 static void writeString(int fd, const char* s) {
 	uint16_t len;
