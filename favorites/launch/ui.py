@@ -83,7 +83,8 @@ def gotPiece(piece):
 	enqueue(piece.strip())
 	catchup.poke()
 	print("poked")
-print('Ready to parse')
+
+	print('Ready to parse')
 win.set_title('parse')
 win.show_all()
 
@@ -122,4 +123,5 @@ def button_release(win,e):
 win.connect("button-release-event",button_release)
 win.connect('destroy',c.quit)
 
+catchup.poke()
 c.run()

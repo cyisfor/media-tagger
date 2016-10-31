@@ -28,11 +28,13 @@ class Error(Exception):
     def __getitem__(self,key):
         return self.args[0][key]
 
+class TryAgain(Exception): pass
+			
 def readString(inp):
     size = inp.read(1)[0]
     return inp.read(size).decode('utf-8')
 
-def get(path):
+def pythonsux(path):
     global process
     getProcess()
     process.stdin.write((path+'\n').encode('utf-8'))
@@ -61,5 +63,12 @@ def get(path):
         process.terminate()
         process.wait()
         process = None
-        raise Error({
-	        'reason': "Subprocess got out of sync!"})
+        raise TryAgain
+
+def get(path):
+	import time
+	while True:
+		try:
+			return pythonsux(path)
+		except TryAgain:
+			time.sleep(0.1)

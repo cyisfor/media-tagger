@@ -10,15 +10,17 @@
 #include <fcntl.h>
 
 static void writeString(int fd, const char* s) {
-    uint8_t len;
-    if(!s) {
-        len = 0;
-        write(fd,&len,1);
-    } else {
-        len = strlen(s);
-        write(fd,&len,1);
-        write(fd,s,len);
-    }
+	uint16_t len;
+	if(!s) {
+		len = 0;
+		write(fd,&len,2);
+	} else {
+		uint32_t careful = strlen(s);
+		assert(careful < USHRT_MAX);
+		len = htons(careful);
+		write(fd,&len,2);
+		write(fd,s,len);
+	}
 }
 
 static void writeerr(const char* message, const char* description) {

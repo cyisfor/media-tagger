@@ -129,7 +129,6 @@ def catchup(provide_progress=False,dofork=True):
 	def send(what):
 		note.red("SEND",what,lookup_server[what])
 		q.send(struct.pack("B",what))
-	assert provide_progress
 	if provide_progress:
 		send(ENABLE_PROGRESS)
 	class Poker:
@@ -143,14 +142,17 @@ def catchup(provide_progress=False,dofork=True):
 
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
-	poker = catchup(dofork=False)
+	poker = catchup(dofork=('nofork' not in os.environ))
 	if "stop" in os.environ:
 		poker.stop()
 		@poker.run
 		def _(message):
 			if message[0] == DONE:
 				raise SystemExit
-	raise SystemExit
+	poker.poke()
+	@poker.run
+	def _(message):
+		print(message)
 else:
 	import sys
 	sys.modules[__name__] = catchup
