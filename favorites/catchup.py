@@ -16,44 +16,20 @@ from favorites.build_catchup_states import *
 
 class Catchupper:
 	provide_progress = False
-	def __init__(self,q):
-		note("Starting up catchup backend")
-		self.q = q
+	def __init__(self):
 		import db
 		from favorites.dbqueue import remaining
 		db.reopen()
-		self.send(COMPLETE,"H",remaining())
-	def send(self,message,pack,*a):
-		note("sending",lookup_client[message],a)
-		self.q.send(struct.pack("=B"+pack,message,*a))
-	def handle_regularly(self,message):
-		message = message[0]
-		note("received",lookup_server[message])
-		if message == POKE:
-			self.squeak()
-		elif message == DONE:
-			self.send(DONE,"")
-			raise SystemExit
-	def __call__(self, derpmessage):
-		# some messages only need to get sent as initialization
-		message = derpmessage[0]
-		note.red("received",message,ENABLE_PROGRESS)
-		if message == ENABLE_PROGRESS:
-			note.yellow("enabling progress")
-			self.provide_progress = True
-		else:
-			self.__call__ = self.handle_regularly
-			return self.handle_regularly(derpmessage)
-	def squeak(self):
-		self.send(IDLE,"B",0)
+	def stop(self):
+		raise SystemExit
+	def poke(self):
+		self.idle(False)
 		try:
 			while self.catch_one() is True:
 				from favorites.dbqueue import remaining
-				self.send(COMPLETE,"H",remaining())
+				self.complete(remaining())
 		finally:
-			self.send(IDLE,"B",1)
-	def send_progress(self,block,total):
-		self.send(PROGRESS,"II",block,total)
+			self.idle(False)
 	def catch_one(self,*a):
 		from favorites.parse import alreadyHere,parse,ParseError
 		from favorites import parsers
@@ -79,7 +55,7 @@ class Catchupper:
 				for attempts in range(2):
 					note("Parsing",uri)
 					try:
-						parse(uri,progress=self.send_progress if self.provide_progress else None)
+						parse(uri,progress=self.progress if self.provide_progress else None)
 						win(uri)
 						break
 					except urllib.error.URLError as e:
@@ -123,9 +99,30 @@ class Catchupper:
 			raise
 		return True
 
+class BackendCatchupper(Catchupper):
+	def __init__(self,q):
+		self.q = q
+	def send(self,message,pack,*a):
+		note("sending",lookup_client[message],a)
+		self.q.send(struct.pack("=B"+pack,message,*a))
+	def __call__(self, message):
+		message = message[0]
+		note("received",lookup_server[message])
+		if message == POKE:
+			self.poke()
+		elif message == DONE:
+			self.send(DONE,"")
+			raise SystemExit
+		elif message == ENABLE_PROGRESS:
+			note.yellow("enabling progress")
+			self.provide_progress = True
+	def progress(self,block,total):
+		self.send(PROGRESS,"II",block,total)
+	def complete(self,remaining):
+		send(COMPLETE,"H",remaining)
+
 def catchup(provide_progress=False,dofork=True):
-	q = node.connect_silly("catchup",lambda q: Catchupper(q),dofork=dofork)
-	note.alarm("foop",provide_progress)
+	q = node.connect_silly("catchup",BackendCatchupper,dofork=dofork)
 	def send(what):
 		note.red("SEND",what,lookup_server[what])
 		q.send(struct.pack("B",what))
@@ -140,6 +137,10 @@ def catchup(provide_progress=False,dofork=True):
 			return q.read_all(on_message)
 	return Poker
 
+def derp_catchup(provide_progress=False,dofork=True):
+	c = Catchupper()
+	c.provide_progress = provide_progress
+	return c
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
 	poker = catchup(dofork=('nofork' not in os.environ))
