@@ -110,8 +110,7 @@ class BackendCatchupper(Catchupper):
 	def __init__(self,q):
 		self.q = q
 	def send(self,message,pack,*a):
-		message = struct.pack("=B"+pack,message,*a))
-		note.blue(message)
+		message = struct.pack("=B"+pack,message,*a)
 		self.q.send(message)
 	def __call__(self, message):
 		message = message[0]
@@ -135,9 +134,7 @@ class BackendCatchupper(Catchupper):
 		self.send(COMPLETE,"H",remaining)
 	def idle(self,is_idle):
 		self.is_idle = 1 if is_idle else 0
-		note("idle?",is_idle,self.is_idle)
 		self.send(IDLE,"B",self.is_idle)
-		raise SystemExit
 	block = 0
 	total = 1
 	remaining = 0

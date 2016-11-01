@@ -17,69 +17,6 @@ def connect(name):
 		return connect_silly(name,backend_session)
 	return connect_back
 
-def connect_silly(name,backend_session,dofork=True):
-	# since decorator returns the queue 
-	# can just use the return value in your session handler
-	import socket,select
-	sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-	addy = address(name)
-	err = sock.connect_ex(addy)
-	if err == 0:
-		note.blue("found existing backend node",name)
-		return SocketQueue(sock)
-	if dofork:
-		is_ready,ready = os.pipe()
-		pid = os.fork()
-		assert pid >= 0
-		if pid > 0:
-			os.close(ready)
-			select.select([is_ready],[],[])
-			os.close(is_ready)
-			note("ready!",addy)
-			sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-			sock.connect(addy)
-			return SocketQueue(sock)
-		os.close(is_ready)
-	try: os.unlink(addy)
-	except OSError: pass
-	sock.bind(addy)
-	sock.listen(5)
-	poll = select.poll()
-	sockno = sock.fileno()
-	poll.register(sockno,select.POLLIN)
-	sessions = dict()
-	if dofork:
-		note.yellow("ready?")
-		os.close(ready)
-	while True:
-		note.blue("polling")
-		for fd,event in poll.poll():
-			if fd == sockno:
-				sess,addr = sock.accept()
-				note("got connect from",addr)
-				queue = SocketQueue(sess)
-				try:
-					# to allow initialization in the backend process:
-					queue.session = backend_session(queue)
-				except BrokenPipeError: continue
-				sessno = sess.fileno()
-				poll.register(sessno, select.POLLIN)
-				sessions[sessno] = queue
-			elif fd in sessions:
-				if event & select.POLLHUP:
-					poll.unregister(fd)
-					os.close(fd)
-					continue
-				queue = sessions[fd]
-				try:
-					queue.read_some()
-				except BrokenPipeError:
-					poll.unregister(fd)
-					os.close(fd)
-					continue
-			else:
-				note.alarm("Strange fd?",fd);
-
 class SocketQueue:
 	def __init__(self, sock):
 		self.sock = sock
@@ -124,6 +61,90 @@ class SocketQueue:
 				return
 			readlen()
 
+def reconnecting(mem):
+	def wrapper(self,*a,**kw):
+		while True:
+			try:
+				return mem(self,*a,**kw)
+			except (BrokenPipeError,ConnectionResetError):
+				print("lost connection... reconnecting")
+				time.sleep(1)
+				self.reconnect()
+			
+class connect_silly(SocketQueue):
+	@reconnecting
+	def send(self,message):
+		super().send(message)
+	def __init__(self,name,backend_session,dofork=True):
+		super().__init__(None)
+		self.name = name
+		self.backend_session = backend_session
+		self.dofork = dofork
+		self.reconnect()
+	def reconnect(self):
+		import socket
+		self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+		addy = address(name)
+		err = sock.connect_ex(addy)
+		if err == 0:
+			note.blue("found existing backend node",name)
+			return
+		if self.dofork:
+			is_ready,ready = os.pipe()
+			pid = os.fork()
+			assert pid >= 0
+			if pid > 0:
+				os.close(ready)
+				select.select([is_ready],[],[])
+				os.close(is_ready)
+				note("ready!",addy)
+				sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+				sock.connect(addy)
+				return SocketQueue(sock)
+			os.close(is_ready)
+		try: os.unlink(addy)
+		except OSError: pass
+		sock.bind(addy)
+		sock.listen(5)
+		poll = select.poll()
+		sockno = sock.fileno()
+		poll.register(sockno,select.POLLIN)
+		sessions = dict()
+		if dofork:
+			note.yellow("ready?")
+			os.close(ready)
+		while True:
+			note.blue("polling")
+			for fd,event in poll.poll():
+				if fd == sockno:
+					sess,addr = sock.accept()
+					note("got connect from",addr)
+					queue = SocketQueue(sess)
+					try:
+						# to allow initialization in the backend process:
+						queue.session = self.backend_session(queue)
+					except BrokenPipeError:
+						continue
+					sessno = sess.fileno()
+					poll.register(sessno, select.POLLIN)
+					sessions[sessno] = queue
+				elif fd in sessions:
+					if event & select.POLLHUP:
+						poll.unregister(fd)
+						os.close(fd)
+						continue
+					queue = sessions[fd]
+					try:
+						queue.read_some()
+					except BrokenPipeError:
+						poll.unregister(fd)
+						os.close(fd)
+						continue
+				else:
+					note.alarm("Strange fd?",fd);
+
+
+
 def example():
 	@connect("test")
 	def queue(queue):
@@ -146,6 +167,6 @@ def example():
 		derp -= 1
 		print("got count",int(message))
 		queue.send(str(derp).encode())
-			
+
 if __name__ == '__main__':
 	example()

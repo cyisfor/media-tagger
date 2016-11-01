@@ -77,8 +77,8 @@ def watch_catchup():
 			cur,total = struct.unpack("II",message[1:])
 			later(gui_progress,cur,total)
 		elif type == C.IDLE:
-			note("got idle",message[0])
-			later(set_busy,message[0] == 0)
+			note("got idle",message[1])
+			later(set_busy,message[1] == 0)
 		elif type == C.COMPLETE:
 			remaining = struct.unpack("H",message[1:])[0]
 			later(set_remaining,remaining)
