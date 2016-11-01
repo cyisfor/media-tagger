@@ -45,27 +45,38 @@ def set_busy(is_busy=True):
 
 catchup = catchup(provide_progress=True)
 
+def later(what,*a,**kw):
+	def doit():
+		what(*a,**kw)
+	GLib.idle_add(doit)
+
 # whyyyyy
 def watch_catchup():
 	import struct
+	catchup.status()
 	@catchup.run
 	def _(message):
 		global catchup
 		from favorites import build_catchup_states as C # wheeeeee
 		type = message[0]
-		note("type",C.lookup_client[type])
+		note("type",C.lookup_client[type])		
 		if type == C.DONE:
 			print("Catchup died, will restart?")
 			catchup = C(provide_progress=True)
+		elif type == C.STATUS:
+			cur,total,remaining,idle = struct.unpack("IIHB")
+			not_idle = idle == 0
+			later(set_remaining,remaining)
+			later(gui_progress,cur,total)
+			later(set_busy,not_idle)
 		elif type == C.PROGRESS:
 			cur,total = struct.unpack("II",message[1:])
-			GLib.idle_add(lambda cur=cur,total=total: gui_progress(cur,total))
+			later(gui_progress,cur,total)
 		elif type == C.IDLE:
-			idle = message[1] == 1
-			GLib.idle_add(lambda idle=idle: set_busy(not idle))
+			later(set_busy,message[0] == 0)
 		elif type == C.COMPLETE:
 			remaining = struct.unpack("H",message[1:])[0]
-			GLib.idle_add(lambda remaining=remaining: set_remaining(remaining))		
+			later(set_remaining,remaining)
 		else:
 			print(type,message)
 			raise SystemExit("wat")

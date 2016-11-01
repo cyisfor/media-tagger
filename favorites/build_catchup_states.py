@@ -20,6 +20,7 @@ for key in to_both:
 
 def undictify(d):
 	l = []
+	# please keep keys in above order
 	for k in d._keys:
 		l.append((k,d[k]))
 	return l

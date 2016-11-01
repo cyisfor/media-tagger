@@ -143,6 +143,8 @@ def catchup(provide_progress=False,dofork=True):
 	if provide_progress:
 		send(ENABLE_PROGRESS)
 	class Poker:
+		def status():
+			send(STATUS)
 		def poke():
 			send(POKE)
 		def stop():
