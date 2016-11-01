@@ -29,7 +29,8 @@ class Catchupper:
 				from favorites.dbqueue import remaining
 				self.complete(remaining())
 		finally:
-			self.idle(False)
+			raise SystemExit
+			self.idle(True)
 	def catch_one(self,*a):
 		from favorites.parse import alreadyHere,parse,ParseError
 		from favorites import parsers
@@ -52,6 +53,7 @@ class Catchupper:
 				return True
 		try:
 			try:
+				import db # .Error
 				for attempts in range(2):
 					note("Parsing",uri)
 					try:
@@ -63,10 +65,10 @@ class Catchupper:
 						note(e.getcode(),e.reason,e.geturl())
 						if e.getcode() == 404: raise ParseError('Not found')
 						time.sleep(3)
-					except db.ProgrammingError as e:
+					except db.Error as e:
 						note.alarm(e.info['message'])
-						if '25P02' in args['message']:
-							# aborted transaction... let's fix that so we don't get cascading errors.
+						if '25P02' in e.info['message']:
+							# aborted transaction... let's fix that
 							db.retransaction()
 				else:
 					print("Could not parse",uri)
@@ -108,8 +110,9 @@ class BackendCatchupper(Catchupper):
 	def __init__(self,q):
 		self.q = q
 	def send(self,message,pack,*a):
-		note("sending",lookup_client[message],a)
-		self.q.send(struct.pack("=B"+pack,message,*a))
+		message = struct.pack("=B"+pack,message,*a))
+		note.blue(message)
+		self.q.send(message)
 	def __call__(self, message):
 		message = message[0]
 		note("received",lookup_server[message])
@@ -132,7 +135,9 @@ class BackendCatchupper(Catchupper):
 		self.send(COMPLETE,"H",remaining)
 	def idle(self,is_idle):
 		self.is_idle = 1 if is_idle else 0
+		note("idle?",is_idle,self.is_idle)
 		self.send(IDLE,"B",self.is_idle)
+		raise SystemExit
 	block = 0
 	total = 1
 	remaining = 0

@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from itertools import count, chain
 
 ProgrammingError = pg.SQLError
+Error = pg.SQLError
 
 tempctr = count(1)
 place = os.path.dirname(__file__)
@@ -16,6 +17,7 @@ place = os.path.dirname(__file__)
 # @threadify
 class DBProxy:
 	ProgrammingError = pg.SQLError
+	Error = Error
 	SQLError = pg.SQLError
 	c = None
 	def __init__(self):

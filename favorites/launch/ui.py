@@ -58,20 +58,18 @@ def _():
 # whyyyyy
 def watch_catchup():
 	import struct
-	catchup.status()
 	@catchup.run
 	def _(message):
 		global catchup
 		from favorites import build_catchup_states as C # wheeeeee
 		type = message[0]
-		note("type",C.lookup_client[type])		
 		if type == C.DONE:
 			print("Catchup died, will restart?")
 			catchup = C(provide_progress=True)
 		elif type == C.STATUS:
-			note("got status")
 			cur,total,remaining,idle = struct.unpack("IIHB",message[1:])
-			not_idle = idle == 0
+			note("got status",cur,total,remaining,idle)
+			not_idle = (idle == 0)
 			later(set_remaining,remaining)
 			later(gui_progress,cur,total)
 			later(set_busy,not_idle)
@@ -79,6 +77,7 @@ def watch_catchup():
 			cur,total = struct.unpack("II",message[1:])
 			later(gui_progress,cur,total)
 		elif type == C.IDLE:
+			note("got idle",message[0])
 			later(set_busy,message[0] == 0)
 		elif type == C.COMPLETE:
 			remaining = struct.unpack("H",message[1:])[0]
@@ -141,5 +140,4 @@ win.connect("button-release-event",button_release)
 win.connect('destroy',c.quit)
 
 catchup.poke()
-print("um...")
 c.run()

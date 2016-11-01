@@ -101,7 +101,6 @@ class SocketQueue:
 	def send(self,message):
 		assert len(message) != 0
 		blob = struct.pack("H",len(message)) + message
-		note.purple("send blob",blob)
 		assert self.sock.send(blob) == 2 + len(message)
 	length = None
 	def parse_some(self):
@@ -117,7 +116,6 @@ class SocketQueue:
 		while True:
 			if self.writepoint < self.length: return
 			message = memoryview(self.buf)[:self.length]
-			note("received message",self.length,bytes(message))
 			self.session(message)
 			self.buf = self.buf[self.length:]
 			self.writepoint -= self.length
