@@ -3,6 +3,7 @@ from favorites import catchup
 
 import fcntl,os,time
 from itertools import count
+from functools import partial
 from mygi import Gtk, GLib, GdkPixbuf, Gdk, GObject
 import os
 
@@ -50,6 +51,10 @@ def later(what,*a,**kw):
 		what(*a,**kw)
 	GLib.idle_add(doit)
 
+@partial(GLib.timeout_add,10000)
+def _():
+	catchup.status()
+	
 # whyyyyy
 def watch_catchup():
 	import struct
@@ -64,7 +69,8 @@ def watch_catchup():
 			print("Catchup died, will restart?")
 			catchup = C(provide_progress=True)
 		elif type == C.STATUS:
-			cur,total,remaining,idle = struct.unpack("IIHB")
+			note("got status")
+			cur,total,remaining,idle = struct.unpack("IIHB",message[1:])
 			not_idle = idle == 0
 			later(set_remaining,remaining)
 			later(gui_progress,cur,total)

@@ -63,6 +63,11 @@ class Catchupper:
 						note(e.getcode(),e.reason,e.geturl())
 						if e.getcode() == 404: raise ParseError('Not found')
 						time.sleep(3)
+					except db.ProgrammingError as e:
+						note.alarm(e.info['message'])
+						if '25P02' in args['message']:
+							# aborted transaction... let's fix that so we don't get cascading errors.
+							db.retransaction()
 				else:
 					print("Could not parse",uri)
 			except (ParseError,imagecheck.NoGood):
@@ -122,18 +127,18 @@ class BackendCatchupper(Catchupper):
 		self.block = block
 		self.total = total
 		self.send(PROGRESS,"II",block,total)
-		self.remaining = remaining
 	def complete(self,remaining):
+		self.remaining = remaining
 		self.send(COMPLETE,"H",remaining)
 	def idle(self,is_idle):
-		self.idle = 1 if is_idle else 0
-		self.send(IDLE,"B",self.idle)
+		self.is_idle = 1 if is_idle else 0
+		self.send(IDLE,"B",self.is_idle)
 	block = 0
-	total = 0
+	total = 1
 	remaining = 0
-	idle = 0
+	is_idle = 0
 	def status(self):
-		self.send(STATUS,"IIHB",self.block,self.total,self.remaining,self.idle)
+		self.send(STATUS,"IIHB",self.block,self.total,self.remaining,self.is_idle)
 
 def catchup(provide_progress=False,dofork=True):
 	q = node.connect_silly("catchup",BackendCatchupper,dofork=dofork)
