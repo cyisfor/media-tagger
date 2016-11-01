@@ -138,7 +138,7 @@ class BackendCatchupper(Catchupper):
 	block = 0
 	total = 1
 	remaining = 0
-	is_idle = 0
+	is_idle = 1
 	def status(self):
 		self.send(STATUS,"IIHB",self.block,self.total,self.remaining,self.is_idle)
 

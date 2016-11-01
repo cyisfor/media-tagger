@@ -54,6 +54,7 @@ def later(what,*a,**kw):
 @partial(GLib.timeout_add,10000)
 def _():
 	catchup.status()
+	return GLib.SOURCE_CONTINUE
 	
 # whyyyyy
 def watch_catchup():

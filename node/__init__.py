@@ -66,11 +66,13 @@ def reconnecting(mem):
 		while True:
 			try:
 				return mem(self,*a,**kw)
-			except (BrokenPipeError,ConnectionResetError):
+			except (BrokenPipeError,ConnectionResetError,OSError):
 				print("lost connection... reconnecting")
+				import time
 				time.sleep(1)
 				self.reconnect()
-			
+	return wrapper
+
 class connect_silly(SocketQueue):
 	@reconnecting
 	def send(self,message):
@@ -81,14 +83,17 @@ class connect_silly(SocketQueue):
 		self.backend_session = backend_session
 		self.dofork = dofork
 		self.reconnect()
+	@reconnecting
+	def read_some(self):
+		return super().read_some()
 	def reconnect(self):
-		import socket
+		import socket,select
 		self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-		addy = address(name)
-		err = sock.connect_ex(addy)
+		addy = address(self.name)
+		err = self.sock.connect_ex(addy)
 		if err == 0:
-			note.blue("found existing backend node",name)
-			return
+			note.blue("found existing backend node",self.name)
+			return self
 		if self.dofork:
 			is_ready,ready = os.pipe()
 			pid = os.fork()
@@ -98,27 +103,28 @@ class connect_silly(SocketQueue):
 				select.select([is_ready],[],[])
 				os.close(is_ready)
 				note("ready!",addy)
-				sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-				sock.connect(addy)
-				return SocketQueue(sock)
+				self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+				self.sock.connect(addy)
+				return
 			os.close(is_ready)
 		try: os.unlink(addy)
 		except OSError: pass
-		sock.bind(addy)
-		sock.listen(5)
+		self.sock.bind(addy)
+		self.sock.listen(5)
 		poll = select.poll()
-		sockno = sock.fileno()
+		sockno = self.sock.fileno()
 		poll.register(sockno,select.POLLIN)
 		sessions = dict()
-		if dofork:
+		if self.dofork:
 			note.yellow("ready?")
 			os.close(ready)
 		while True:
 			note.blue("polling")
 			for fd,event in poll.poll():
 				if fd == sockno:
-					sess,addr = sock.accept()
+					sess,addr = self.sock.accept()
 					note("got connect from",addr)
+					# just a base queue, for receiving stuff
 					queue = SocketQueue(sess)
 					try:
 						# to allow initialization in the backend process:
@@ -136,7 +142,7 @@ class connect_silly(SocketQueue):
 					queue = sessions[fd]
 					try:
 						queue.read_some()
-					except BrokenPipeError:
+					except (BrokenPipeError,OSError):
 						poll.unregister(fd)
 						os.close(fd)
 						continue
@@ -156,6 +162,7 @@ def example():
 			count += int(message)
 			queue.send(str(count).encode())
 		return session
+	print(queue)
 	derp = 10
 	queue.send(str(derp).encode())
 	@queue.read_all
