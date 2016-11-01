@@ -112,14 +112,28 @@ class BackendCatchupper(Catchupper):
 			self.poke()
 		elif message == DONE:
 			self.send(DONE,"")
-			raise SystemExit
+			self.stop()
 		elif message == ENABLE_PROGRESS:
 			note.yellow("enabling progress")
 			self.provide_progress = True
+		elif message == STATUS:
+			self.status()
 	def progress(self,block,total):
+		self.block = block
+		self.total = total
 		self.send(PROGRESS,"II",block,total)
+		self.remaining = remaining
 	def complete(self,remaining):
-		send(COMPLETE,"H",remaining)
+		self.send(COMPLETE,"H",remaining)
+	def idle(self,is_idle):
+		self.idle = 1 if is_idle else 0
+		self.send(IDLE,"B",self.idle)
+	block = 0
+	total = 0
+	remaining = 0
+	idle = 0
+	def status(self):
+		self.send(STATUS,"IIHB",self.block,self.total,self.remaining,self.idle)
 
 def catchup(provide_progress=False,dofork=True):
 	q = node.connect_silly("catchup",BackendCatchupper,dofork=dofork)
@@ -132,7 +146,9 @@ def catchup(provide_progress=False,dofork=True):
 		def poke():
 			send(POKE)
 		def stop():
-			send(DONE)
+			try:
+				send(DONE)
+			except BrokenPipeError: pass
 		def run(on_message=None):
 			return q.read_all(on_message)
 	return Poker
@@ -141,6 +157,7 @@ def derp_catchup(provide_progress=False,dofork=True):
 	c = Catchupper()
 	c.provide_progress = provide_progress
 	return c
+
 if __name__ == '__main__':
 	# just run the backend, leave the rest alone
 	poker = catchup(dofork=('nofork' not in os.environ))

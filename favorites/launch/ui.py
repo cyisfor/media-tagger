@@ -124,4 +124,5 @@ win.connect("button-release-event",button_release)
 win.connect('destroy',c.quit)
 
 catchup.poke()
+print("um...")
 c.run()

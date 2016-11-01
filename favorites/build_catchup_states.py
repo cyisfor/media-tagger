@@ -1,5 +1,6 @@
-to_client = ["PROGRESS", "IDLE", "COMPLETE", "DONE"]
+to_client = ["PROGRESS", "IDLE", "COMPLETE"]
 to_server = ["POKE","ENABLE_PROGRESS"]
+to_both = ["DONE","STATUS"]
 
 def dictify(l):
 	num = 0
@@ -10,11 +11,12 @@ def dictify(l):
 		d[name] = num
 		num += 1
 	return d
-to_client = dictify(to_client)
+to_client = dictify(to_client + to_both)
 to_server = dictify(to_server)
 
-to_server["DONE"] = to_client["DONE"]
-to_server._keys.append("DONE")
+for key in to_both:
+	to_server[key] = to_client[key]
+	to_server._keys.append(key)
 
 def undictify(d):
 	l = []
