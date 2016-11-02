@@ -14,6 +14,10 @@
 #include <assert.h>
 
 static void writeString(int fd, const char* s) {
+#ifdef TEXT
+	write(fd,s,strlen(s));
+	write(fd,"\n",1);
+#else
 	uint16_t len;
 	if(!s) {
 		len = 0;
@@ -25,15 +29,21 @@ static void writeString(int fd, const char* s) {
 		write(fd,&len,2);
 		write(fd,s,len);
 	}
+#endif
 }
 
 static void writeerr(const char* message, const char* description) {
+#ifdef TEXT
+	printf("ERROR: %s %s\n",message,description);
+	exit(23);
+#else
   write(1,"E",1);
   writeString(1,message);
   writeString(1,description);
   writeString(1,strerror(errno));
   uint16_t nono = htons(errno);
   write(1,&nono,2);
+#endif
 }
 
 static const char* maybeOverrideType(const char* path, bool* cont) {
