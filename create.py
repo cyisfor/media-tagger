@@ -90,10 +90,10 @@ def openImage(data):
 		if e['reason'].startswith('no decode delegate for this image format'):
 			return None,None
 		raise
-	except:
+	except Exception as e:
 		data.seek(0,0)
-		print('Unknown file type')
-		print(repr(data.read(20)))
+		note.alarm('Error reading image info',e)
+		note(repr(data.read(20)))
 		raise
 
 def createImageDBEntry(id,image):

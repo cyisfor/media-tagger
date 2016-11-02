@@ -109,6 +109,7 @@ class Catchupper:
 class BackendCatchupper(Catchupper):
 	def __init__(self,q):
 		self.q = q
+		self.catch_one()
 	def send(self,message,pack,*a):
 		message = struct.pack("=B"+pack,message,*a)
 		self.q.send(message)
