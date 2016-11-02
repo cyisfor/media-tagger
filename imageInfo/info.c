@@ -27,7 +27,7 @@ static void writeString(int fd, const char* s) {
 		assert(careful < USHRT_MAX);
 		len = htons(careful);
 		write(fd,&len,2);
-		write(fd,s,len);
+		write(fd,s,careful);
 	}
 #endif
 }
@@ -128,19 +128,25 @@ int main(void) {
         }
 
         uint8_t frames = GetImageListLength(image);
-
+#ifdef TEXT
+				uint16_t width = image->columns;
+        uint16_t height = image->rows;
+#else
         uint16_t width = htons(image->columns);
         uint16_t height = htons(image->rows);
-
+#endif
         write(1,"I",1);
         if(overrideType) 
           writeString(1,overrideType);
         else
           writeString(1,MagickToMime(image->magick));
+#ifdef TEXT
+				printf("frames %d width %d height %d\n",frames,width,height);
+#else
         write(1,&frames,1);
         write(1,&width,2);
         write(1,&height,2);
-
+#endif
         DestroyImage(image);
     }
     return 0;

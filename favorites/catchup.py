@@ -16,10 +16,6 @@ from favorites.build_catchup_states import *
 
 class Catchupper:
 	provide_progress = False
-	def __init__(self):
-		import db
-		from favorites.dbqueue import remaining
-		db.reopen()
 	def stop(self):
 		raise SystemExit
 	def poke(self):
@@ -109,6 +105,8 @@ class Catchupper:
 class BackendCatchupper(Catchupper):
 	def __init__(self,q):
 		self.q = q
+		import db
+		db.reopen()
 		self.catch_one()
 	def send(self,message,pack,*a):
 		message = struct.pack("=B"+pack,message,*a)
@@ -141,6 +139,7 @@ class BackendCatchupper(Catchupper):
 	remaining = 0
 	is_idle = 1
 	def status(self):
+		note.purple("RETURNING STATUS REQUEST")
 		self.send(STATUS,"IIHB",self.block,self.total,self.remaining,self.is_idle)
 
 def catchup(provide_progress=False,dofork=True):

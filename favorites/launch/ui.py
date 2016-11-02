@@ -1,6 +1,10 @@
 import note
 from favorites import catchup
 
+import colored_traceback
+colored_traceback.add_hook(always=True)
+
+
 import fcntl,os,time
 from itertools import count
 from functools import partial
@@ -53,7 +57,10 @@ def later(what,*a,**kw):
 
 @partial(GLib.timeout_add,10000)
 def _():
-	catchup.status()
+	try: catchup.status()
+	except Exception:
+		import traceback
+		traceback.print_exc()
 	return GLib.SOURCE_CONTINUE
 	
 # whyyyyy

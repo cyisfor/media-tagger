@@ -17,6 +17,5 @@ with db.transaction():
 		assert(width != 0)
 		assert(height != 0)
 		print(width,height)
-		break
 		db.execute("UPDATE images SET width = $2, height = $3 WHERE id = $1",(ident,width,height))
 												 

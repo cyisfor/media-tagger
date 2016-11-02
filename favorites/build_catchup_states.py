@@ -38,8 +38,11 @@ except: othermod = None
 if othermod is None or othermod < heremod:
 	# need update
 	with open(other,"wt") as out:
+		globald = set()
 		for type,names in (("client",to_client),("server",to_server)):
 			for name,num in names:
+				if name in globald: continue
+				globald.add(name)
 				out.write(name+" = "+str(num)+"\n")
 			out.write("lookup_"+type+" = {\n")
 			for num,name in names:
