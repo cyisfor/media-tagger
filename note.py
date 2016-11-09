@@ -1,6 +1,12 @@
 import os,io
 from ansi import color,reset,fg,bg,escape,bold
+
+import colored_traceback
+colored_traceback.add_hook(always=True)
+
 import sys
+
+
 
 white = color('white',styles=(bold,))
 

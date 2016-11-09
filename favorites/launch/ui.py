@@ -1,10 +1,6 @@
 import note
 from favorites import catchup
 
-import colored_traceback
-colored_traceback.add_hook(always=True)
-
-
 import fcntl,os,time
 from itertools import count
 from functools import partial

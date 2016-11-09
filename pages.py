@@ -20,7 +20,6 @@ from schlorp import schlorp
 import mydirty as d
 import dirty.html as dd
 from dirty import RawString
-from place import place
 from itertools import count, chain, islice
 from contextlib import contextmanager
 
@@ -99,8 +98,24 @@ def doTags(top,tags):
 	for tag in spaceBetween(tags):
 		d.a(tag,href=top+'/'+quote(tag)+'/')
 
-def pageLink(id,i=0):
-	return place+'/~page/'+'{:x}/'.format(id)
+def headLink(head=None):
+	from place import place
+	place += "/"
+	if head is None:
+		return place
+	return place + head + '/'
+		
+def place(mode):
+	return headLink('~'+mode)
+
+def placeLink(id,mode=None):
+	if mode is None:
+		return place(id)
+	if(isinstance(id,int)): id = "{:x}".format(id)
+	return place(mode)+id+'/'
+
+def pageLink(id):
+	return placeLink(id,'page')
 
 # Cannot set modified from the set of media in this because:
 # If the 1st page has a newly added medium, the 3rd page will change,
@@ -203,6 +218,8 @@ def makeBase():
 class Links:
 	next = None
 	prev = None
+	first = None
+	last = None
 	id = None
 
 # meh
@@ -222,15 +239,15 @@ def standardHead(title,*contents):
 		def _():
 			# oembed sucks:
 			if Links.id:
-				url = urljoin(makeBase(),'/art/~page/{:x}/'.format(Links.id))
+				url = urljoin(makeBase(),pageLink(Links.id))
 				d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id)))
 				d.meta(name="og:url",value=url)
 				d.link(rel='alternate',
 				       type='application/json+oembed',
-							 href='/art/~oembed/{:x}?url={}'.format(
-								 Links.id,
-								 # oembed sucks:
-								 quote(url)))
+							 href=placeLink(Links.id,'oembed')
+							 +
+							 # oembed sucks:
+							 '?url='+quote(url))
 			else:
 				d.meta(name="og:image",value="/thumb/5d359")
 				d.meta(name="og:image",value=makeBase())
@@ -238,6 +255,10 @@ def standardHead(title,*contents):
 				d.link(rel='next',href=Links.next)
 			if Links.prev:
 				d.link(rel='prev',href=Links.prev)
+			if Links.first:
+				d.link(rel='first',href=Links.first)
+			if Links.last:
+				d.link(rel='last',href=Links.last)
 			if User.navigate:
 				d.script(src="/stuff/navigation.js",type="text/javascript")
 		yield head
@@ -264,7 +285,7 @@ def makePage(title,custom_head=False,douser=True):
 			with d.body as body:
 				yield body
 				if douser:
-					d.p(dd.a("User Settings",href=("/art/~user")))
+					d.p(dd.a("User Settings",href=place('user')))
 
 def makeStyle(s):
 	res = ''
@@ -459,7 +480,12 @@ def page(info,path,params):
 		with d.div:
 			checkExplain(id,link,width,height,thing)
 		maybeDesc(id)
-		d.p(dd.a('Info',href=place+"/~info/"+fid))
+		d.p(dd.a('Info',href=placeLink(fid,'info')))
+		if tags:
+			Links.first = "../../"+urllib.parse.quote(tags[0])+'/'
+			Links.last = "../../"+urllib.parse.quote(tags[-1])+'/'
+		else:
+			Links.first = "../../"
 		if comic:
 			comic, title, comicprev, comicnext = comic
 			if comicnext:
@@ -471,7 +497,7 @@ def page(info,path,params):
 				if not Links.prev:
 					Links.prev = comicprev
 			def comicURL(id):
-				return '/art/~comic/{:x}/'.format(id)
+				return placeLink(id,'comic')
 			with d.p("Comic: ") as p:
 				d.a(title,href=comicURL(comic))
 				p(' ')
@@ -483,7 +509,7 @@ def page(info,path,params):
 			with d.p("Tags: ") as p:
 				for tag in tags:
 					p("\n")
-					d.a(tag[0],id=tag[1],class_='tag',href=place+"/"+quote(tag[0]))
+					d.a(tag[0],id=tag[1],class_='tag',href=headLink(quote(tag[0])))
 		if next and not Links.next:
 			Links.next = pageURL(next)+unparseQuery()
 		if prev and not Links.prev:
@@ -555,9 +581,8 @@ def unparseQuery(query={}):
 	return ''
 
 def tagsURL(tags,negatags):
-	if not (tags or negatags): return place+'/'
-	res = place+'/'+"/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags])+'/'
-	return res
+	if not (tags or negatags): return headLink()
+	return headLink("/".join([quote(tag) for tag in tags]+['-'+quote(tag) for tag in negatags]))
 
 def stripGeneral(tags):
 	return [tag.replace('general:','') for tag in tags]
@@ -570,7 +595,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 
 	removers = []
 
-
+	Links.first = "../"+unparseQuery(query)
 	info = tuple(info)
 	print('oooooo',offset)
 	if len(info)>=pageSize:
@@ -582,7 +607,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 	with d.div(id='thumbs') as links:
 		makeLinks(info)
 	with makePage("Media "+str(basic)) as page:
-		d.p("You are ",dd.a(User.ident,href=place+"/~user"))
+		d.p("You are ",dd.a(User.ident,href=place('user')))
 		if links.contents:
 			page(links)
 		if related:
@@ -666,7 +691,7 @@ def user(info,path,params):
 	if Session.head: return
 	if 'submit' in params:
 		process.user(path,params)
-		raise Redirect(place+'/~user')
+		raise Redirect(place('user'))
 	if User.defaultTags:
 		def makeResult():
 			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
@@ -699,7 +724,7 @@ def user(info,path,params):
 				print(iattr)
 				d.input(**iattr)
 	with makePage("User Settings",douser=False):
-		with d.form(action=place+'/~user/',
+		with d.form(action=place('user'),
 		            type='application/x-www-form-urlencoded',
 		            method="post"):
 			with d.table(Class="info"):
@@ -850,7 +875,7 @@ def showComicPage(path):
 	which = int(path[1],0x10)
 	if which < 0:
 		which = comic.findWhich(com,which)
-		raise Redirect("/art/~comic/"+path[0]+"/"+("%x"%which)+"/")
+		raise Redirect(placeLink(path[0]+"/"+("%x"%which),'comic'))
 	medium = comic.findMedium(com,which)
 	checkModified(medium)
 	if Session.head: return
@@ -864,6 +889,7 @@ def showComicPage(path):
 		Links.next = comicPageLink(which+1)()
 	else:
 		Links.next = ".."
+	Links.first = ".."
 	medium = comic.findMedium(com,which)
 	doScale = User.rescaleImages and size >= maxSize
 	fid,link,thing = makeLink(medium,typ,name,
@@ -880,7 +906,7 @@ def showComicPage(path):
 				d.a(" Next",href=Links.next)
 			d.a(" Latest",href=comicPageLink(-1)())
 		with d.p as p:
-			d.a("Page",href="/art/~page/"+fid)
+			d.a("Page",href=pageLink(fid))
 			p(' ')
 			if doScale:
 				d.a("Medium",href=link)

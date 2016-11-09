@@ -25,7 +25,6 @@ class Catchupper:
 				from favorites.dbqueue import remaining
 				self.complete(remaining())
 		finally:
-			raise SystemExit
 			self.idle(True)
 	def catch_one(self,*a):
 		from favorites.parse import alreadyHere,parse,ParseError
@@ -63,7 +62,7 @@ class Catchupper:
 						time.sleep(3)
 					except db.Error as e:
 						note.alarm(e.info['message'])
-						if '25P02' in e.info['message']:
+						if b'25P02' in e.info['message']:
 							# aborted transaction... let's fix that
 							db.retransaction()
 				else:

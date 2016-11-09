@@ -78,10 +78,10 @@ def dupe(good, bad, inferior=True):
 		filedelete(bad)
 
 def delete(bad, reason=None):
-	print('deleting',thing,reason)
+	print('deleting',bad,reason)
 	with db.transaction():
 		dbdelete(None, bad, reason, False)
-		filedelete(thing)
+		filedelete(bad)
 
 def findId(uri):
 	uri = uri.rstrip("\n/")
