@@ -103,10 +103,16 @@ def findInfo(id,getinfo,next):
 		def result(title, description, source, tags):
 			with db.transaction():
 				db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
-			if next: return next(title,description,source,tags)
+			if next:
+				ret = next(title,description,source,tags)
+				return ret
 		return result
 	elif next:
-		return next(*rows[0])
+		import pdb
+		pdb.set_trace()
+		# ret = because python sucks and has bugs
+		ret = next(*rows[0])
+		return ret
 
 def findMediumDerp(comic,which,medium=None):
 	rows = db.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))

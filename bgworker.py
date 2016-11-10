@@ -1,3 +1,4 @@
+import note
 import threading,queue
 class Queue(queue.Queue):
 	def __call__(self,f):
@@ -51,8 +52,9 @@ def makeWorkers(foreground,*inits):
 				print("something finished. exit here?")
 			while True:
 				try:
-					note.yellow("uhhhhhhh")
+					note("getting worker thing")
 					gen = self.q.get()
+					note.yellow("uhhhhhhh",gen)
 					while gen:
 						gen = drain_task(gen)
 				except queue.Empty:

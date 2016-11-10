@@ -11,8 +11,6 @@ def databaseInit():
 	
 foreground = GLib.idle_add
 in_foreground,background = makeWorkers(foreground, databaseInit)
-import time
-time.sleep(1000)
 
 from redirect import Redirect
 import expire_queries
@@ -85,6 +83,12 @@ def gotURL(url):
 	sys.stdout.flush()
 	urlqueue.put(url)
 
+def in_background(f):
+	def wrapper(*a,**kw):
+		background(lambda: f(*a,**kw))
+	return wrapper
+
+@in_background
 def parseOne():
 	note("getting....");
 	url = urlqueue.get()
@@ -144,8 +148,10 @@ def parseOne():
 				note.red(repr(w))
 				raise
 	def gotcomic(title,description,source,tags):
+		try: note.yellow('find mediaum',c,w,m)
+		finally:
+			note.alarm("foo")
 		import comic
-		note.yellow('find mediaum',c,w,m)
 
 		try:
 			_,created = comic.findMediumDerp(c,w,m)
@@ -156,20 +162,18 @@ def parseOne():
 				note("nothing changed",m)
 		except Redirect: pass
 		yield foreground
-		wentry.set_text("{:x}".format(w+1))
-		
+		wentry.set_text("{:x}".format(w+1))		
 		parseOne()
-		
 		
 	yield background
 	import comic
+	note("getting comic")
 	comic.findInfo(c,
-								 lambda next: foreground(lambda: getinfo(next)),
+								 (lambda next: foreground(lambda: getinfo(next))),
 								 gotcomic)
 
-parseOne = lambda: background(parseOne)
 parseOne()
-	
+
 import gtkclipboardy as clipboardy
 
 c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
