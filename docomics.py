@@ -11,6 +11,8 @@ def databaseInit():
 	
 foreground = GLib.idle_add
 in_foreground,background = makeWorkers(foreground, databaseInit)
+import time
+time.sleep(1000)
 
 from redirect import Redirect
 import expire_queries
@@ -44,6 +46,7 @@ def justdo(f,*a,**kw):
 from functools import partial
 
 def getinfo(next):
+	note("getwinfo");
 	window = Gtk.Window()
 	box = Gtk.VBox()
 	window.add(box)
@@ -82,13 +85,9 @@ def gotURL(url):
 	sys.stdout.flush()
 	urlqueue.put(url)
 
-@in_foreground
-def dequeueAll():
-	yield background
-	while True:
-		yield from parseOne(urlqueue.get())
-
-def parseOne(url):
+def parseOne():
+	note("getting....");
+	url = urlqueue.get()
 	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
 	try:
@@ -119,7 +118,7 @@ def parseOne(url):
 			yield foreground
 			centry.set_text('{:x}'.format(c))
 			wentry.set_text('{:x}'.format(w+1))
-			yield background
+			parseOne()
 			return
 		# still in bg
 		c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
@@ -158,21 +157,21 @@ def parseOne(url):
 		except Redirect: pass
 		yield foreground
 		wentry.set_text("{:x}".format(w+1))
-		yield background
+		
+		parseOne()
+		
 		
 	yield background
 	import comic
-	def derpgetinfo(next):
-		yield foreground
-		getinfo(next)
-	gen = comic.findInfo(c,
-											 derpgetinfo,
-											 gotcomic)
-	note(gen)
+	comic.findInfo(c,
+								 lambda next: foreground(lambda: getinfo(next)),
+								 gotcomic)
 
+parseOne = lambda: background(parseOne)
+parseOne()
+	
 import gtkclipboardy as clipboardy
 
 c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
 window.connect('destroy',c.quit)
-GLib.idle_add(dequeueAll)
 c.run()

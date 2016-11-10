@@ -51,8 +51,10 @@ def makeWorkers(foreground,*inits):
 				print("something finished. exit here?")
 			while True:
 				try:
+					note.yellow("uhhhhhhh")
 					gen = self.q.get()
-					drain_task(gen)
+					while gen:
+						gen = drain_task(gen)
 				except queue.Empty:
 					# huh? but blocking?
 					time.sleep(1)
