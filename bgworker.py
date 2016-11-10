@@ -27,7 +27,6 @@ def makeWorkers(foreground,*inits):
 			self.init()
 			initsem.release()
 			def drain_task(gen):
-				print('dequeue',gen)
 				if gen is foreground:
 					# HAX
 					# foreground is like Glib.idle_add

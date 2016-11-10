@@ -95,17 +95,18 @@ def findComicByTitle(title,getinfo=None):
 def findInfoDerp(id):
 	return db.execute("SELECT title,description,(SELECT uri FROM urisources WHERE id = comics.source),array(SELECT name from tags WHERE comics.tags @> ARRAY[id]) FROM comics WHERE id = $1",(id,))
 
-def findInfo(id,getinfo,next=None):
+def findInfo(id,getinfo,next):
 	rows = findInfoDerp(id)
 	if len(rows) == 0:
 		print('comic',hex(id),'no exist')
 		@getinfo
-		def _(title,description,source,tags):
+		def result(title, description, source, tags):
 			with db.transaction():
 				db.execute("INSERT INTO comics (id,title,description) VALUES ($1,$2,$3) RETURNING id",(id,title,description))
-			if next: next(title,description,source,tags)
+			if next: return next(title,description,source,tags)
+		return result
 	elif next:
-		next(*rows[0])
+		return next(*rows[0])
 
 def findMediumDerp(comic,which,medium=None):
 	rows = db.execute("SELECT medium FROM comicPage WHERE comic = $1 AND which = $2",(comic,which))

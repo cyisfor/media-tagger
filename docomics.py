@@ -73,11 +73,12 @@ def getinfo(next):
 	window.connect('destroy',partial(herp,title,description,source,tags))
 	window.show_all()
 
+import queue
 urlqueue = queue.Queue()
 
 def gotURL(url):
 	url = url.strip()
-	print("Queueing {}".format(url))
+	note("Queueing {}".format(url))
 	sys.stdout.flush()
 	urlqueue.put(url)
 
@@ -86,29 +87,30 @@ def dequeueAll():
 	yield background
 	while True:
 		yield from parseOne(urlqueue.get())
-	
-def parseOne(url):	
+
+def parseOne(url):
+	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
 	try:
 		m = parse(normalize(url),noCreate=True)
 		if not m:
-			print('uhhh',url)
+			note.red('uhhh',url)
 	except ParseError:
 		try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
 		except ValueError:
-			print('nope')
+			note.red('nope')
 			return
-	print('ok m is',m)
+	note('ok m is',m)
 	w = None
 	yield foreground
 	c = centry.get_text()
 	if c:
 		c = int(c,0x10)
-		print('yay',hex(c))
+		note('yay',hex(c))
 	else:
 		yield background
 		import db
-		print('m is still',m)
+		note('m is still',m)
 		c = db.execute('SELECT comic,which FROM comicpage WHERE medium = $1 ORDER BY which DESC',(m,))
 		if len(c)>0:
 			note.yellow('boop!',c)
@@ -117,6 +119,7 @@ def parseOne(url):
 			yield foreground
 			centry.set_text('{:x}'.format(c))
 			wentry.set_text('{:x}'.format(w+1))
+			yield background
 			return
 		# still in bg
 		c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
@@ -139,7 +142,7 @@ def parseOne(url):
 			try:
 				wentry.set_text('{:x}'.format(w))
 			except TypeError:
-				print(repr(w))
+				note.red(repr(w))
 				raise
 	def gotcomic(title,description,source,tags):
 		import comic
@@ -153,17 +156,23 @@ def parseOne(url):
 			else:
 				note("nothing changed",m)
 		except Redirect: pass
+		yield foreground
+		wentry.set_text("{:x}".format(w+1))
+		yield background
 		
-		foreground(lambda: wentry.set_text("{:x}".format(w+1)))
 	yield background
 	import comic
-	comic.findInfo(c,
-				   lambda next: foreground(lambda: getinfo(next)),
-				   gotcomic)
+	def derpgetinfo(next):
+		yield foreground
+		getinfo(next)
+	gen = comic.findInfo(c,
+											 derpgetinfo,
+											 gotcomic)
+	note(gen)
 
 import gtkclipboardy as clipboardy
 
 c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
 window.connect('destroy',c.quit)
-Gtk.idle_add(dequeueAll)
+GLib.idle_add(dequeueAll)
 c.run()
