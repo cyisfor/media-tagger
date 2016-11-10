@@ -72,13 +72,22 @@ def getinfo(next):
 		background(lambda: next(title,description,source,tags))
 	window.connect('destroy',partial(herp,title,description,source,tags))
 	window.show_all()
-			
-@in_foreground
+
+urlqueue = queue.Queue()
+
 def gotURL(url):
 	url = url.strip()
-	print("Trying {}".format(url))
+	print("Queueing {}".format(url))
 	sys.stdout.flush()
+	urlqueue.put(url)
+
+@in_foreground
+def dequeueAll():
 	yield background
+	while True:
+		yield from parseOne(urlqueue.get())
+	
+def parseOne(url):	
 	from favorites.parse import parse,normalize,ParseError
 	try:
 		m = parse(normalize(url),noCreate=True)
@@ -154,7 +163,7 @@ def gotURL(url):
 
 import gtkclipboardy as clipboardy
 
-
 c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
 window.connect('destroy',c.quit)
+Gtk.idle_add(dequeueAll)
 c.run()

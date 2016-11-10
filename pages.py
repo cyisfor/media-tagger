@@ -169,7 +169,7 @@ def doneiterating(iter):
 
 def makeLinks(info,linkfor=None):
 	if linkfor is None:
-		linkfor = pageLink
+		linkfor = lambda id,i: pageLink(id)
 	counter = count(0)
 	row = []
 	rows = []
@@ -366,8 +366,10 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 		return fid, (o,dd.br,"Download"), thing
 	raise RuntimeError("What is "+type)
 
-def mediaLink(id,type):
-	return '/media/{:x}/{}'.format(id,type)
+def mediaLink(id,type=None):
+	ret = '/media/{:x}/'.format(id)
+	if type: return ret + '/' + type
+	return ret
 
 @pagemaker
 def simple(info,path,params):
@@ -482,8 +484,8 @@ def page(info,path,params):
 		maybeDesc(id)
 		d.p(dd.a('Info',href=placeLink(fid,'info')))
 		if tags:
-			Links.first = "../../"+urllib.parse.quote(tags[0])+'/'
-			Links.last = "../../"+urllib.parse.quote(tags[-1])+'/'
+			Links.first = "../../"+quote(tags[0][0])+'/'
+			Links.last = "../../"+quote(tags[-1][0])+'/'
 		else:
 			Links.first = "../../"
 		if comic:
@@ -595,7 +597,7 @@ def media(url,query,offset,pageSize,info,related,basic):
 
 	removers = []
 
-	Links.first = "../"+unparseQuery(query)
+	Links.first = "../" # +unparseQuery(query) we're gonna reset to page 0 anyway
 	info = tuple(info)
 	print('oooooo',offset)
 	if len(info)>=pageSize:
@@ -645,7 +647,7 @@ def desktop(raw,path,params):
 	if not history:
 		return "No desktops yet!?"
 	if 'd' in params:
-		raise Redirect(pageLink(0,history[0]))
+		raise Redirect(mediaLink(history[0]))
 	return desktop_base(history,"/",None,pageLink,n)
 	
 def desktop_base(history,base,progress,pageLink,n):
@@ -672,7 +674,7 @@ def desktop_base(history,base,progress,pageLink,n):
 			name,type,tags = db.execute("SELECT name,type,array(select name from tags where tags.id = ANY(neighbors)) FROM media INNER JOIN things ON things.id = media.id WHERE media.id = $1",(current,))[0]
 			tags = [str(tag) for tag in tags]
 			type = stripPrefix(type)
-			with d.p, d.a(href=pageLink(current,0)):
+			with d.p, d.a(href=pageLink(current)):
 				d.img(class_='wid',
 				      src=base+"/".join((
 					      "media",'{:x}'.format(current),type,name)))				
