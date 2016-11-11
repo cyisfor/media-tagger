@@ -21,16 +21,16 @@ import sys
 window = Gtk.Window()
 
 window.set_keep_above(True)
-ui = {
-	'box': Gtk.VBox(),
-	'c': Gtk.Entry(),
-	'w': Gtk.Entry(),
-	'status': Gtk.Label()
-}
+class UI:
+	box = Gtk.VBox()
+	c = Gtk.Entry()
+	w = Gtk.Entry()
+	status = Gtk.Label()
 
-window.add(ui['box'])
-ui['box'].pack_start(ui['c'],True,True,0)
-ui['box'].pack_start(ui['w'],True,True,0)
+window.add(UI.box)
+UI.box.pack_start(UI.c,True,True,0)
+UI.box.pack_start(UI.w,True,True,0)
+UI.box.pack_start(UI.status,True,True,0)
 
 window.connect('destroy',Gtk.main_quit)
 window.show_all()
@@ -83,11 +83,12 @@ urlqueue = queue.Queue()
 numqueued = 0
 
 def gotURL(url):
+	global numqueued
 	url = url.strip()
 	note("Queueing {}".format(url))
 	sys.stdout.flush()
 	numqueued += 1
-	ui['status'].set_text(str(numqueued));
+	UI.status.set_text(str(numqueued));
 	urlqueue.put(url)
 
 def in_background(f):
@@ -97,11 +98,12 @@ def in_background(f):
 
 @in_background
 def parseOne():
+	global numqueued
 	note("getting....");
 	url = urlqueue.get()
 	yield foreground
 	numqueued -= 1
-	ui['status'].set_text(str(numqueued))
+	UI.status.set_text(str(numqueued))
 	yield background
 	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
@@ -117,7 +119,7 @@ def parseOne():
 	note('ok m is',m)
 	w = None
 	yield foreground
-	c = ui['c'].get_text()
+	c = UI.c.get_text()
 	if c:
 		c = int(c,0x10)
 		note('yay',hex(c))
@@ -131,17 +133,17 @@ def parseOne():
 			c = c[0]
 			c,w = c
 			yield foreground
-			ui['c'].set_text('{:x}'.format(c))
-			ui['w'].set_text('{:x}'.format(w+1))
+			UI.c.set_text('{:x}'.format(c))
+			UI.w.set_text('{:x}'.format(w+1))
 			parseOne()
 			return
 		# still in bg
 		c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
 		yield foreground # -> gui
-		ui['c'].set_text('{:x}'.format(c))
+		UI.c.set_text('{:x}'.format(c))
 	if w is None:
 		yield foreground
-		w = ui['w'].get_text()
+		w = UI.w.get_text()
 		if w:
 			w = int(w,0x10)
 		else:
@@ -154,7 +156,7 @@ def parseOne():
 				w = 0
 			yield foreground
 			try:
-				ui['w'].set_text('{:x}'.format(w))
+				UI.w.set_text('{:x}'.format(w))
 			except TypeError:
 				note.red(repr(w))
 				raise
@@ -173,7 +175,7 @@ def parseOne():
 				note("nothing changed",m)
 		except Redirect: pass
 		yield foreground
-		ui['w'].set_text("{:x}".format(w+1))		
+		UI.w.set_text("{:x}".format(w+1))		
 		parseOne()
 		
 	yield background
