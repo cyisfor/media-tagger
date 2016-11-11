@@ -21,12 +21,16 @@ import sys
 window = Gtk.Window()
 
 window.set_keep_above(True)
-box = Gtk.VBox()
-window.add(box)
-centry = Gtk.Entry()
-box.pack_start(centry,True,True,0)
-wentry = Gtk.Entry()
-box.pack_start(wentry,True,True,0)
+ui = {
+	'box': Gtk.VBox(),
+	'c': Gtk.Entry(),
+	'w': Gtk.Entry(),
+	'status': Gtk.Label()
+}
+
+window.add(ui['box'])
+ui['box'].pack_start(ui['c'],True,True,0)
+ui['box'].pack_start(ui['w'],True,True,0)
 
 window.connect('destroy',Gtk.main_quit)
 window.show_all()
@@ -76,11 +80,14 @@ def getinfo(next):
 
 import queue
 urlqueue = queue.Queue()
+numqueued = 0
 
 def gotURL(url):
 	url = url.strip()
 	note("Queueing {}".format(url))
 	sys.stdout.flush()
+	numqueued += 1
+	ui['status'].set_text(str(numqueued));
 	urlqueue.put(url)
 
 def in_background(f):
@@ -92,6 +99,10 @@ def in_background(f):
 def parseOne():
 	note("getting....");
 	url = urlqueue.get()
+	yield foreground
+	numqueued -= 1
+	ui['status'].set_text(str(numqueued))
+	yield background
 	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
 	try:
@@ -106,7 +117,7 @@ def parseOne():
 	note('ok m is',m)
 	w = None
 	yield foreground
-	c = centry.get_text()
+	c = ui['c'].get_text()
 	if c:
 		c = int(c,0x10)
 		note('yay',hex(c))
@@ -120,17 +131,17 @@ def parseOne():
 			c = c[0]
 			c,w = c
 			yield foreground
-			centry.set_text('{:x}'.format(c))
-			wentry.set_text('{:x}'.format(w+1))
+			ui['c'].set_text('{:x}'.format(c))
+			ui['w'].set_text('{:x}'.format(w+1))
 			parseOne()
 			return
 		# still in bg
 		c = db.execute('SELECT MAX(id)+1 FROM comics')[0][0]
 		yield foreground # -> gui
-		centry.set_text('{:x}'.format(c))
+		ui['c'].set_text('{:x}'.format(c))
 	if w is None:
 		yield foreground
-		w = wentry.get_text()
+		w = ui['w'].get_text()
 		if w:
 			w = int(w,0x10)
 		else:
@@ -143,7 +154,7 @@ def parseOne():
 				w = 0
 			yield foreground
 			try:
-				wentry.set_text('{:x}'.format(w))
+				ui['w'].set_text('{:x}'.format(w))
 			except TypeError:
 				note.red(repr(w))
 				raise
@@ -162,15 +173,17 @@ def parseOne():
 				note("nothing changed",m)
 		except Redirect: pass
 		yield foreground
-		wentry.set_text("{:x}".format(w+1))		
+		ui['w'].set_text("{:x}".format(w+1))		
 		parseOne()
 		
 	yield background
 	import comic
 	note("getting comic")
-	comic.findInfo(c,
-								 (lambda next: foreground(lambda: getinfo(next))),
-								 gotcomic)
+	gen = comic.findInfo(c,
+											 lambda next: foreground(lambda: getinfo(next)),
+											 gotcomic)
+	if gen:
+		yield from gen
 
 parseOne()
 

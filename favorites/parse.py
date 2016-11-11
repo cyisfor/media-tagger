@@ -55,10 +55,10 @@ def parse(primarySource,noCreate=False,progress=None):
 	note.alarm("uhhh")
 	primarySource = primarySource.strip()
 	if (skip or noCreate):
-		source = db.execute("SELECT id FROM urisources WHERE uri = $1",(primarySource,))
+		source = db.execute("SELECT 1 FROM media WHERE id = (SELECT id FROM urisources WHERE uri = $1)",(primarySource,))
 		if source:
 			note('skipping',primarySource)
-			return db.execute('SELECT id FROM media WHERE sources @> ARRAY[$1::int]',(source[0]))[0][0]
+			return 
 	note('parsing',repr(primarySource))
 	url = urllib.parse.urlparse(primarySource)
 	doc = None
