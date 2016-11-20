@@ -6,7 +6,8 @@ import urllib.parse
 db.setup(
     'CREATE TABLE hosts (id SERIAL PRIMARY KEY, host TEXT UNIQUE, resume TIMESTAMPTZ UNIQUE)',
     '''CREATE TABLE parseQueue (
-    id SERIAL PRIMARY KEY, 
+    id SERIAL PRIMARY KEY,
+		medium bigint REFERENCES media(id),
     added TIMESTAMPTZ DEFAULT now() NOT NULL, 
     tries integer default 0, 
     uri TEXT UNIQUE,done boolean default false,
@@ -29,7 +30,8 @@ def enqueue(uri):
     try: h = host(uri)
     except ValueError: return
 
-    db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,$2 WHERE NOT EXISTS (SELECT id FROM parseQueue WHERE uri = $2)",(h,uri))
+    res = db.execute("INSERT INTO parseQueue (host,uri) SELECT $1,$2 WHERE NOT EXISTS (SELECT id FROM parseQueue WHERE uri = $2 RETURNING id)",(h,uri))
+		return res[0][0]
 
 criteria = '''NOT done AND tries < 5 AND
     (host IS NULL OR EXISTS 
@@ -40,9 +42,9 @@ def remaining():
 	return db.execute("SELECT count(1) from parseQueue WHERE "+criteria)[0][0]
     
 def top():
-    r = db.execute('SELECT uri FROM parseQueue WHERE ' + criteria +
+    r = db.execute('SELECT id,uri FROM parseQueue WHERE ' + criteria +
                    'ORDER BY added DESC LIMIT 1')
-    if r: return r[0][0]
+    if r: return r[0]
     return None
 def delay(host,interval='10 seconds'):
     db.execute('UPDATE hosts SET resume = clock_timestamp() + $2 WHERE id = $1',(host,interval))
@@ -54,5 +56,5 @@ def fail(uri):
     raise SystemExit(23)
 def megafail(uri):
     db.execute("UPDATE parseQueue SET tries = 9001 WHERE uri = $1",(uri,))
-def win(uri):
-    db.execute("UPDATE parseQueue SET done = TRUE WHERE uri = $1",(uri,))
+def win(medium,uri):
+    db.execute("UPDATE parseQueue SET done = TRUE, medium = $2 WHERE uri = $1",(uri,medium))

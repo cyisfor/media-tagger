@@ -108,7 +108,7 @@ def parseOne():
 	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
 	try:
-		m = parse(normalize(url),noCreate=True)
+		m,wasCreated = parse(normalize(url),noCreate=True)
 		if not m:
 			note.red('uhhh',url)
 	except ParseError:
@@ -184,9 +184,9 @@ def parseOne():
 	gen = comic.findInfo(c,
 											 lambda next: foreground(lambda: getinfo(next)),
 											 gotcomic)
-	if gen:
+	try:
 		yield from gen
-
+	except TypeError: pass
 parseOne()
 
 import gtkclipboardy as clipboardy

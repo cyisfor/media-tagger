@@ -55,10 +55,10 @@ def parse(primarySource,noCreate=False,progress=None):
 	note.alarm("uhhh")
 	primarySource = primarySource.strip()
 	if (skip or noCreate):
-		source = db.execute("SELECT 1 FROM media WHERE id = (SELECT id FROM urisources WHERE uri = $1)",(primarySource,))
+		source = db.execute("SELECT id FROM media WHERE id = (SELECT id FROM urisources WHERE uri = $1)",(primarySource,))
 		if source:
 			note('skipping',primarySource)
-			return 
+			return source[0][0],False
 	note('parsing',repr(primarySource))
 	url = urllib.parse.urlparse(primarySource)
 	doc = None
@@ -160,7 +160,7 @@ def parse(primarySource,noCreate=False,progress=None):
 																					 create.Source(derpSource),
 																					 derpSources,
 																					 name = name)
-				return image
+				return image,wasCreated
 			except create.NoGood:
 				print("No good",media.url,media.headers)
 				raise
@@ -197,4 +197,4 @@ def registerFinder(matcher,handler,name=None):
 def alreadyHere(uri):
 	result = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
 	if len(result)==0: return False
-	return True
+	return result[0][0],False

@@ -21,9 +21,10 @@ class Catchupper:
 	def poke(self):
 		self.idle(False)
 		try:
-			while self.catch_one() is True:
+			while True:
+				id,wasCreated = self.catch_one()
 				from favorites.dbqueue import remaining
-				self.complete(remaining())
+				self.complete(remaining(),id,wasCreated)
 		finally:
 			self.idle(True)
 	def catch_one(self,*a):
@@ -35,26 +36,27 @@ class Catchupper:
 		import json.decoder
 		import urllib.error
 		import setupurllib
-		uri = top()
+		ident,uri = top()
 		note.yellow(uri)
 		if uri is None:
 			return
 		ah = alreadyHere(uri)
 		if ah:
+			media, wasCreated = ah
 			import os
 			if 'noupdate' in os.environ:
 				note.red("WHEN I AM ALREADY HERE",uri)
 				win(uri)
-				return True
+				return ident,media,wasCreated
 		try:
 			try:
 				import db # .Error
 				for attempts in range(2):
 					note("Parsing",uri)
 					try:
-						parse(uri,progress=self.progress if self.provide_progress else None)
+						ret = parse(uri,progress=self.progress if self.provide_progress else None)
 						win(uri)
-						break
+						return ret
 					except urllib.error.URLError as e:
 						note(e.headers)
 						note(e.getcode(),e.reason,e.geturl())
@@ -127,9 +129,9 @@ class BackendCatchupper(Catchupper):
 		self.block = block
 		self.total = total
 		self.send(PROGRESS,"II",block,total)
-	def complete(self,remaining):
+	def complete(self,remaining,id,wasCreated):
 		self.remaining = remaining
-		self.send(COMPLETE,"H",remaining)
+		self.send(COMPLETE,"HIB",remaining,id,wasCreated ? 1 : 0)
 	def idle(self,is_idle):
 		self.is_idle = 1 if is_idle else 0
 		self.send(IDLE,"B",self.is_idle)
