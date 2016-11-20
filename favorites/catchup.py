@@ -22,7 +22,9 @@ class Catchupper:
 		self.idle(False)
 		try:
 			while True:
-				id,wasCreated = self.catch_one()
+				derp = self.catch_one()
+				if not derp: break
+				id,wasCreated = derp
 				from favorites.dbqueue import remaining
 				self.complete(remaining(),id,wasCreated)
 		finally:
@@ -42,12 +44,12 @@ class Catchupper:
 			return
 		ah = alreadyHere(uri)
 		if ah:
-			media, wasCreated = ah
+			medium, wasCreated = ah
 			import os
 			if 'noupdate' in os.environ:
 				note.red("WHEN I AM ALREADY HERE",uri)
 				win(uri)
-				return ident,media,wasCreated
+				return ident,medium,wasCreated
 		try:
 			try:
 				import db # .Error
@@ -131,7 +133,7 @@ class BackendCatchupper(Catchupper):
 		self.send(PROGRESS,"II",block,total)
 	def complete(self,remaining,id,wasCreated):
 		self.remaining = remaining
-		self.send(COMPLETE,"HIB",remaining,id,wasCreated ? 1 : 0)
+		self.send(COMPLETE,"HIB",remaining,id,1 if wasCreated else 0)
 	def idle(self,is_idle):
 		self.is_idle = 1 if is_idle else 0
 		self.send(IDLE,"B",self.is_idle)
