@@ -1,4 +1,5 @@
 from favorites.things import *
+from favorites.parse import ParseError
 import re
 import urllib.parse
 
@@ -20,7 +21,8 @@ def extract(doc):
             elif title.startswith("No larger size available"):
                 gotImage = True
                 yield Image(img['src'])
-    assert(gotImage)
+    if not gotImage:
+			raise ParseError("no image because we don't care")
     tags = doc.find('ul',id='tags').findAll('li')
     for li in tags:
         contents = list(li.contents)

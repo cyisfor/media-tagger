@@ -24,9 +24,9 @@ class Catchupper:
 			while True:
 				derp = self.catch_one()
 				if not derp: break
-				id,wasCreated = derp
+				ident,medium,wasCreated = derp
 				from favorites.dbqueue import remaining
-				self.complete(remaining(),id,wasCreated)
+				self.complete(remaining(),ident,medium,wasCreated)
 		finally:
 			self.idle(True)
 	def catch_one(self,*a):
@@ -48,7 +48,7 @@ class Catchupper:
 			import os
 			if 'noupdate' in os.environ:
 				note.red("WHEN I AM ALREADY HERE",uri)
-				win(uri)
+				win(medium,uri)
 				return ident,medium,wasCreated
 		try:
 			try:
@@ -56,9 +56,9 @@ class Catchupper:
 				for attempts in range(2):
 					note("Parsing",uri)
 					try:
-						ret = parse(uri,progress=self.progress if self.provide_progress else None)
-						win(uri)
-						return ret
+						medium,wasCreated = parse(uri,progress=self.progress if self.provide_progress else None)
+						win(medium,uri)
+						return ident,medium,wasCreated
 					except urllib.error.URLError as e:
 						note(e.headers)
 						note(e.getcode(),e.reason,e.geturl())
@@ -72,9 +72,9 @@ class Catchupper:
 				else:
 					print("Could not parse",uri)
 			except (ParseError,imagecheck.NoGood):
-				print('megafail')
+				note('megafail')
 				megafail(uri)
-				return True
+				return False
 			except setupurllib.URLError as e:
 				raise e.__cause__
 		except urllib.error.HTTPError as e:
@@ -83,7 +83,7 @@ class Catchupper:
 				print('site is bogged down! delaying a while')
 				delay(uri,'1 minute')
 			else:
-				print('megafail error',e.code)
+				note('megafail error',e.code)
 				raise SystemExit(23)
 				#megafail(uri)
 			if e.code == 400:
@@ -94,8 +94,8 @@ class Catchupper:
 			if type(e) == ConnectionRefusedError:
 				note('connection refused')
 				fail(uri)
-				return True
-			print(e)
+				return False
+			note.error(e)
 			raise
 		except json.decoder.JSONDecodeError:
 			megafail(uri)
@@ -103,7 +103,7 @@ class Catchupper:
 		except Exception as e:
 			print("huh?",uri,type(e))
 			raise
-		return True
+		return False
 
 class BackendCatchupper(Catchupper):
 	def __init__(self,q):
@@ -131,9 +131,9 @@ class BackendCatchupper(Catchupper):
 		self.block = block
 		self.total = total
 		self.send(PROGRESS,"II",block,total)
-	def complete(self,remaining,id,wasCreated):
+	def complete(self,remaining,ident,medium,wasCreated):
 		self.remaining = remaining
-		self.send(COMPLETE,"HIB",remaining,id,1 if wasCreated else 0)
+		self.send(COMPLETE,"HlIB",remaining,medium,ident,1 if wasCreated else 0)
 	def idle(self,is_idle):
 		self.is_idle = 1 if is_idle else 0
 		self.send(IDLE,"B",self.is_idle)
@@ -182,7 +182,7 @@ if __name__ == '__main__':
 	poker.poke()
 	@poker.run
 	def _(message):
-		print(message)
+		note(bytes(message))
 else:
 	import sys
 	sys.modules[__name__] = catchup
