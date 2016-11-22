@@ -97,5 +97,6 @@ def catch_one():
 	return False
 
 if __name__ == '__main__':
-	
-
+	while True:
+		for rec in run(): pass
+		time.sleep(3)
