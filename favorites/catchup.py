@@ -15,6 +15,7 @@ def run():
 	while True:
 		derp = catch_one()
 		if not derp: break
+		if derp is True: continue
 		ident,medium,wasCreated = derp
 		from favorites.dbqueue import remaining
 		yield ident,medium,wasCreated
@@ -62,10 +63,10 @@ def catch_one():
 						db.retransaction()
 			else:
 				print("Could not parse",uri)
-		except (ParseError,imagecheck.NoGood):
-			note('megafail')
+		except (ParseError,imagecheck.NoGood) as e:
+			note('megafail',e)
 			megafail(uri)
-			return False
+			return True
 		except setupurllib.URLError as e:
 			raise e.__cause__
 	except urllib.error.HTTPError as e:
@@ -85,7 +86,7 @@ def catch_one():
 		if type(e) == ConnectionRefusedError:
 			note('connection refused')
 			fail(uri)
-			return False
+			return True
 		note.error(e)
 		raise
 	except json.decoder.JSONDecodeError:
@@ -94,7 +95,7 @@ def catch_one():
 	except Exception as e:
 		print("huh?",uri,type(e))
 		raise
-	return False
+	return True
 
 if __name__ == '__main__':
 	while True:

@@ -101,7 +101,7 @@ if __name__ == '__main__':
 		for line in sys.stdin:
 			deleteordupe(findId(line),reason)
 	else:
-		import clipboardy
+		import gtkclipboardy as clipboardy
 		reason = os.environ['reason']
 		def gotPiece(piece):
 			print('derp',piece)

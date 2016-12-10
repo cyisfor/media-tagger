@@ -230,8 +230,8 @@ def standardHead(title,*contents):
 	with d.head as head:
 		d.title(title)
 		d.meta(charset='utf-8')
-		d.meta(name="og:title",value=title)
-		d.meta(name="og:type",value="website")
+		d.meta(name="og:title",content=title)
+		d.meta(name="og:type",content="website")
 		d.link(rel="icon",type="image/png",href="/favicon.png")
 		d.link(rel='stylesheet',type='text/css',href="/style/art.css")
 
@@ -240,8 +240,8 @@ def standardHead(title,*contents):
 			# oembed sucks:
 			if Links.id:
 				url = urljoin(makeBase(),pageLink(Links.id))
-				d.meta(name="og:image",value=("/thumb/{:x}".format(Links.id)))
-				d.meta(name="og:url",value=url)
+				d.meta(name="og:image",content=("/thumb/{:x}".format(Links.id)))
+				d.meta(name="og:url",content=url)
 				d.link(rel='alternate',
 				       type='application/json+oembed',
 							 href=placeLink(Links.id,'oembed')
@@ -249,8 +249,8 @@ def standardHead(title,*contents):
 							 # oembed sucks:
 							 '?url='+quote(url))
 			else:
-				d.meta(name="og:image",value="/thumb/5d359")
-				d.meta(name="og:image",value=makeBase())
+				d.meta(name="og:image",content="/thumb/5d359")
+				d.meta(name="og:image",content=makeBase())
 			if Links.next:
 				d.link(rel='next',href=Links.next)
 			if Links.prev:

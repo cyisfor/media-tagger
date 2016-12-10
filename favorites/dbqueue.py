@@ -55,8 +55,6 @@ def delay(host,interval='10 seconds'):
 def fail(uri):
 	print('failing for',repr(uri))
 	r = db.execute("UPDATE parseQueue SET tries = tries + 1 WHERE uri = $1",(uri,))
-	print(r.tuplesUpdated)
-	raise SystemExit(23)
 def megafail(uri):
 	db.execute("UPDATE parseQueue SET tries = 9001 WHERE uri = $1",(uri,))
 def win(medium,uri):

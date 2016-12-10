@@ -2,6 +2,9 @@
 
 import dirty.html as sub
 
+sub.xhtml.DTD = "<!DOCTYPE html>"
+sub.xhtml.XMLNS = None
+
 def makeE(name):
 	tag = sub.Tag(name)
 	def makeE(*a,**kw):
