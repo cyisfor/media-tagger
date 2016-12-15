@@ -1,3 +1,5 @@
+#!/bin/python
+
 import db
 
 import sys,os,tempfile
@@ -26,15 +28,19 @@ def edit(which):
 		else:
 			db.execute("INSERT INTO descriptions (id,blurb) VALUES($1,$2)", (which,buf[:]))
 
+from delete import findId
+			
 if len(sys.argv) > 1:
-	edit(int(sys.argv[1],0x10))
+	edit(findId(sys.argv[1]))
 	raise SystemExit
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Gdk
 
-from delete import findId
+from functools import partial
+
+input = lambda p: None
 
 win = Gtk.Window()
 win.connect("delete-event", Gtk.main_quit)
@@ -48,11 +54,11 @@ grid.add(entry)
 b = Gtk.Button(label="Paste")
 grid.add(b)
 clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-def gotclip(text):
-	entry.set_text(findId(text))
+def gotclip(c,text):
+	entry.set_text('%x'%findId(text))
 
 @partial(b.connect,"clicked")
-def _(b,e,n):
+def _(b):
 	clipboard.request_text(gotclip)
 # initial guess
 clipboard.request_text(gotclip)
@@ -61,7 +67,7 @@ b = Gtk.Button(label="Edit")
 grid.add(b)
 
 @partial(b.connect,"clicked")
-def _(b,e,n):
+def _(b):
 	edit(int(entry.get_text(),0x10))
 
 win.show_all()
