@@ -111,7 +111,7 @@ def info(path,params):
 		#print(params)
 		churn(tags,limit=1)
 		zoop = {'t': str(time.time())}
-		zoop.update((n,v[0]) for n,v in params.items() if n not in {'o','c'})
+		zoop.update((n,v[0]) for n,v in params.items() if n not in {'o','c','t'})
 		zoop = urllib.parse.urlencode(zoop)
 		raise Redirect('?'+zoop if zoop else '.',code=302)
 	while True:
@@ -121,27 +121,34 @@ def info(path,params):
 
 from user import User
 from session import Session
-from pages import makePage,makeLinks,makeLink,Links
+from pages import pagemaker,makePage,makeLinks,makeLink,Links
 
-import dirty.html as d
+import note
+
+import mydirty as d
+import dirty.html as dd
+
 import urllib.parse
 
+@pagemaker
 def page(info,path,params):
-	with Links():
-		info = list(info)
-		id,name,type,tags = info.pop(0)
+	with Links(), makePage("Random") as p:
+		note(p.parent)
+		info = iter(info)
+		id,name,type,tags = next(info)
 		#Links.next = "." this gets preloaded sometimes :/
-		links = makeLinks(info)
 		fid,link,thing = makeLink(id,type,name,False,0,0)
 		zoop = {'c': '1'}
 		zoop.update((n,v[0]) for n,v in params.items())
 		zoop = urllib.parse.urlencode(zoop)
 		zoop = '?' + zoop if zoop else '.'
-		with makePage("Random"):
-			d.p(d.a('Another?',href=zoop))
-			d.p(d.a(link,href='/art/~page/'+fid+'/'))
-			d.div(links if links else '',title='past ones')
-		return page
+		d.p(dd.a('Another?',href=zoop))
+		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
+		with d.div(title='past ones'):
+			makeLinks(info)
+		import pages
+		note(str(pages.derpage))
+
 
 if __name__ == '__main__':
 	from pprint import pprint
