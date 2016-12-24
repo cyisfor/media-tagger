@@ -18,6 +18,7 @@ def initially():
 v.setup()
 
 def churn(tags,limit=9):
+	if Session.prefetching: return
 	category = hash(tags) % 0x7FFFFFFF
 	stmt,arg = withtags.tagStatement(tags,limit=limit)
 	cat = arg(category)
@@ -95,6 +96,7 @@ except IOError:
 	nopeTags = None
 
 def info(path,params):
+	note("pref",Session.prefetching)
 	if 'o' in params:
 		offset = int(params['o'][0])
 		if offset == 0:
@@ -108,6 +110,7 @@ def info(path,params):
 		tags = User.tags()
 	if nopeTags: tags.update(nopeTags)
 	if 'c' in params:
+		if Session.prefetching: return ()
 		#print(params)
 		churn(tags,limit=1)
 		zoop = {'t': str(time.time())}
@@ -117,6 +120,7 @@ def info(path,params):
 	while True:
 		links = get(tags,offset=offset)
 		if links: return links
+		if Session.prefetching: return ()
 		churn(tags)
 
 from user import User
@@ -132,22 +136,19 @@ import urllib.parse
 
 @pagemaker
 def page(info,path,params):
-	with Links(), makePage("Random") as p:
-		note(p.parent)
+	with makePage("Random") as p:
 		info = iter(info)
 		id,name,type,tags = next(info)
-		#Links.next = "." this gets preloaded sometimes :/
 		fid,link,thing = makeLink(id,type,name,False,0,0)
 		zoop = {'c': '1'}
 		zoop.update((n,v[0]) for n,v in params.items())
 		zoop = urllib.parse.urlencode(zoop)
 		zoop = '?' + zoop if zoop else '.'
+		Links.next = zoop
 		d.p(dd.a('Another?',href=zoop))
 		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
 		with d.div(title='past ones'):
 			makeLinks(info)
-		import pages
-		note(str(pages.derpage))
 
 
 if __name__ == '__main__':

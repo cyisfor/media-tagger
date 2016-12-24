@@ -10,3 +10,4 @@ class Session:
     type = 'text/html; charset=utf-8'
     handler = None
     head = False
+    prefetching=False

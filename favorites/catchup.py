@@ -99,5 +99,8 @@ def catch_one():
 
 if __name__ == '__main__':
 	while True:
-		for rec in run(): pass
+		gotit = False
+		for rec in run(): gotit = True
+		if gotit:
+			note.purple("waiting")
 		time.sleep(3)

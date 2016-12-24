@@ -223,6 +223,8 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 		Session.handler = self
 		Session.params = params
 
+		Session.prefetching = 'X-moz' in self.headers and 'prefetch' in self.headers['X-moz']
+
 		if len(path)>0 and len(path[0])>0 and path[0][0]=='~':
 			mode = path[0][1:]
 			page = dispatch(json,mode,path,params)
