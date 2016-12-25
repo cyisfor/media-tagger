@@ -7,43 +7,17 @@ def user(path,params,data):
 	assert(data is None)
 	params = dict(params)
 	note('updating user',params)
-	rescale = params.get('rescale')
-	if rescale:
-		rescale = rescale[0]
-		if rescale:
-			print('yay rescale',rescale)
-			rescale = True
-		else:
-			rescale = False
-	else:
-		rescale = False
+	def check(name):
+		l = params.get(name)
+		if l:
+			return l[0]
 	news = {
-		'rescaleimages': rescale
+		'rescaleimages': check('rescale') and True,
+		'nocomics': not (check('comic') and True),
+		'navigate': check('navigate') and True
 	}
-	comic = params.get('comic')
-	if comic:
-		comic = comic[0]
-		if comic:
-			print('yaycomic',comic);
-			noComics = False
-		else:
-			noComics = True
-	else:
-		noComics = True
-	news['noComics'] = noComics
 
-	navigate = params.get('navigate')
-	if navigate:
-		navigate = navigate[0]
-		if navigate:
-			navigate = True
-		else:
-			navigate = False
-	else:
-		navigate = False
-	news['navigate'] = navigate
-	
-	newtags = params.get('tags')	
+	newtags = check(params.get('tags'))
 	note('updating user tags',newtags)
 	news['defaultTags'] = False
 	
@@ -52,7 +26,7 @@ def user(path,params,data):
 		# XXX: tasteless
 		db.execute("DELETE FROM uzertags WHERE uzer = $1",(self.id,))
 
-		if newtags and newtags[0] and len(newtags[0]) > 0:
+		if newtags:
 			tags = tagsModule.parse(newtags[0])
 			if tags.posi:
 				db.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::bigint[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,FALSE',(tags.posi,self.id))
