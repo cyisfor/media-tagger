@@ -76,16 +76,28 @@ def watch_headers(ssl=False):
 	
 	class HeaderWatcher(connection):
 		didrefer = False
+		def __init__(self,*a,**kw):
+			self.headers = {}
+			super().__init__(*a,**kw)
 		def putheader(self,header,values):
 			if header == 'Connection':
 				values = 'keep-alive'
 			elif header == 'Referer':
 				self.didrefer = True
-			note('sending header',header,repr(values))
-			return super().putheader(header,values)
-		def endheaders(self):
+			self.headers[header] = values
+		def endheaders(self, body):
 			if not self.didrefer:
-				self.putheader('Referer',derpreq.url)
+				self.headers['Referer'] = derpreq.get_full_url().split('?')[0]
+			for ordered in ('Host','User-Agent','Accept','Accept-Language',
+											'Accept-Encoding','Referer','Cookie',
+											'Connection','Upgrade-Insecure-Request','If-None-Match','Cache-Control'):
+				try:
+					super().putheader(ordered, self.headers.pop(ordered))
+				except KeyError: pass
+			for n,v in self.headers.items():
+				super().putheader(n, v)
+			note.blue('sendig headers',b'\n'.join(self._buffer).decode('utf-8'))
+			return super().endheaders(body)
 	class Thingy(handler):
 		def do_open(self, klass, req):
 			nonlocal derpreq
@@ -143,20 +155,20 @@ class RedirectNoter(urllib.HTTPRedirectHandler):
 		self.redirected(req,fp,code,msg,headers)
 		return super().http_error_302(req,fp,code,msg,headers)
 	
-handlers.append(watch_headers(False))
-handlers.append(watch_headers(True))
-handlers.append(RedirectNoter())
-if not 'skipcookies' in os.environ:
-	handlers.append(urllib.HTTPCookieProcessor(jar))
-
+#handlers.append(watch_headers(False))
+#handlers.append(watch_headers(True))
+#handlers.append(RedirectNoter())
+#if not 'skipcookies' in os.environ:
+#	handlers.append(urllib.HTTPCookieProcessor(jar))
+#
 opener = urllib.build_opener(*handlers)
 opener.addheaders = [
+	('Cache-Control','max-age=0'),
 	('Upgrade-Insecure-Request','1'),
 	('Accept-Language','en-US,en;q=0.5'),
 	('User-agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0'),
 	('Accept-Encoding', 'gzip, deflate, br'),
-	('Accept','text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
-	
+	('Accept','text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),	
 ]
 urllib.install_opener(opener)
 
