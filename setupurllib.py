@@ -64,13 +64,26 @@ if not 'skipcookies' in os.environ:
 		
 	jar.clear_expired_cookies()
 
-class HeaderWatcher(urllib.HTTPHandler):
-	class Client(http.HTTPConnection):
-		def request(self,method,selector,data,headers):
-			note('sending headers',headers)
-			super().request(method,selector,data,headers)
-	def http_open(self, req):
-		return self.do_open(self.Client, req)
+def watch_headers(ssl=False):
+	if ssl:
+		connection = http.HTTPSConnection
+		handler = urllib.HTTPSHandler
+	else:
+		connection = http.HTTPConnection
+		handler = urllib.HTTPHandler
+	
+	class HeaderWatcher(connection):
+		def putheader(self,header,values):
+			note.alarm('sending header',header,values)
+			return super().putheader(header,values)
+
+	class Thingy(handler):
+		def http_open(self, req):
+			raise RuntimeError("horp")
+			return self.do_open(HeaderWatcher, req)
+		def https_open(self, req):
+			return self.do_open(HeaderWatcher, req)
+	return Thingy()
 
 class RedirectNoter(urllib.HTTPRedirectHandler):
 	def http_error_302(self, req, fp, code, msg, headers):
@@ -78,8 +91,11 @@ class RedirectNoter(urllib.HTTPRedirectHandler):
 		note(fp.read())
 		super().http_error_302(req,fp,code,msg,headers)
 	
-handlers.append(HeaderWatcher())
+handlers.append(watch_headers(False))
+handlers.append(watch_headers(True))
 handlers.append(RedirectNoter())
+if not 'skipcookies' in os.environ:
+	handlers.append(urllib.HTTPCookieProcessor(jar))
 
 opener = urllib.build_opener(*handlers)
 opener.addheaders = [
