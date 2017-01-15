@@ -71,15 +71,27 @@ def watch_headers(ssl=False):
 	else:
 		connection = http.HTTPConnection
 		handler = urllib.HTTPHandler
+
+	derpreq = None
 	
 	class HeaderWatcher(connection):
+		didrefer = False
 		def putheader(self,header,values):
-			note('sending header',header,values)
+			if header == 'Connection':
+				values = 'keep-alive'
+			elif header == 'Referer':
+				self.didrefer = True
+			note('sending header',header,repr(values))
 			return super().putheader(header,values)
-
+		def endheaders(self):
+			if not self.didrefer:
+				self.putheader('Referer',derpreq.url)
 	class Thingy(handler):
+		def do_open(self, klass, req):
+			nonlocal derpreq
+			derpreq = req
+			return super().do_open(klass, req)
 		def http_open(self, req):
-			raise RuntimeError("horp")
 			return self.do_open(HeaderWatcher, req)
 		def https_open(self, req):
 			return self.do_open(HeaderWatcher, req)
@@ -126,10 +138,10 @@ class RedirectNoter(urllib.HTTPRedirectHandler):
 			jar.set_cookie(c)
 	def http_error_301(self, req, fp, code, msg, headers):
 		self.redirected(req,fp,code,msg,headers)
-		super().http_error_301(req,fp,code,msg,headers)
+		return super().http_error_301(req,fp,code,msg,headers)
 	def http_error_302(self, req, fp, code, msg, headers):
 		self.redirected(req,fp,code,msg,headers)
-		super().http_error_302(req,fp,code,msg,headers)
+		return super().http_error_302(req,fp,code,msg,headers)
 	
 handlers.append(watch_headers(False))
 handlers.append(watch_headers(True))
@@ -139,8 +151,13 @@ if not 'skipcookies' in os.environ:
 
 opener = urllib.build_opener(*handlers)
 opener.addheaders = [
-		('User-agent','Mozilla/5.0 (X11; Linux x86_64; rv:19.0) Gecko/20100101 Firefox/19.0'),
-		('Accept-Encoding', 'gzip,deflate')]
+	('Upgrade-Insecure-Request','1'),
+	('Accept-Language','en-US,en;q=0.5'),
+	('User-agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0'),
+	('Accept-Encoding', 'gzip, deflate, br'),
+	('Accept','text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
+	
+]
 urllib.install_opener(opener)
 
 class URLError(Exception): 
