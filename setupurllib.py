@@ -74,7 +74,7 @@ def watch_headers(ssl=False):
 	
 	class HeaderWatcher(connection):
 		def putheader(self,header,values):
-			note.alarm('sending header',header,values)
+			note('sending header',header,values)
 			return super().putheader(header,values)
 
 	class Thingy(handler):
@@ -85,10 +85,50 @@ def watch_headers(ssl=False):
 			return self.do_open(HeaderWatcher, req)
 	return Thingy()
 
+def split_port(schema, netloc):
+	if netloc[0] == '[':
+		derp = netloc.rsplit(']',1)
+		if derp[1] == "":
+			port = 443 if schema == 'https' else 80
+		port = int(derp[1][1:])
+		host = derp[0][1:]
+		return host, port
+	derp = netloc.rsplit(':',1)
+	if len(derp) == 1:
+		port = 443 if schema == 'https' else 80
+		host = netloc
+	else:
+		port = int(derp[1][1:])
+		host = derp[0]
+	return host, port
+
 class RedirectNoter(urllib.HTTPRedirectHandler):
+	def redirected(self, req, fp, code, msg, headers):
+		note.yellow("being redirected",code,msg,headers.get("location"))
+		note(headers)
+		if 'set-cookie' in headers:
+			import time
+			parts = headers['set-cookie'].split(";")
+			n,v = parts[0].split("=",1)
+			url = urllib.urlsplit(req.url)
+			c = {
+				'name': n.strip(),
+				'value': v.strip(),
+				'domain': split_port(url.netloc)[1],
+				'creationTime': time.time()
+			}
+			for part in parts[1:]:
+				part = part.split("=",1)
+				if len(part) == 1:
+					c[part[0].strip] = True
+				else:
+					c[part[0].strip()] = part[1].strip()
+			jar.set_cookie(c)
+	def http_error_301(self, req, fp, code, msg, headers):
+		self.redirected(req,fp,code,msg,headers)
+		super().http_error_301(req,fp,code,msg,headers)
 	def http_error_302(self, req, fp, code, msg, headers):
-		note.warn("being redirected",code,msg,headers.get("location"))
-		note(fp.read())
+		self.redirected(req,fp,code,msg,headers)
 		super().http_error_302(req,fp,code,msg,headers)
 	
 handlers.append(watch_headers(False))
