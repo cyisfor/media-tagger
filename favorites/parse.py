@@ -52,7 +52,6 @@ def locked(table):
 	return deco
 
 def parse(primarySource,noCreate=False,progress=None):
-	note.alarm("uhhh")
 	primarySource = primarySource.strip()
 	if (skip or noCreate):
 		source = db.execute("SELECT id FROM media WHERE id = (SELECT id FROM urisources WHERE uri = $1)",(primarySource,))
@@ -75,6 +74,7 @@ def parse(primarySource,noCreate=False,progress=None):
 			derp = handlers['json'](primarySource)
 		else:
 			derp = primarySource
+		note("opening?")
 		with myopen(derp) as inp:
 			headers = inp.headers
 			if 'json' in handlers:
