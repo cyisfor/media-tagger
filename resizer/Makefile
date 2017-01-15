@@ -4,7 +4,7 @@ export PKG_CONFIG_PATH:=/custom/vips/lib/pkgconfig
 PACKAGES=libuv vips
 CFLAGS+=-g
 CFLAGS+=`pkg-config --cflags $(PACKAGES)`
-LDFLAGS+=`pkg-config --libs $(PACKAGES)`
+LDFLAGS+=`pkg-config --libs $(PACKAGES)` -lm
 
 all: lackey-bin lackey-master
 

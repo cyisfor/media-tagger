@@ -93,7 +93,10 @@ VipsImage* lib_thumbnail(context* ctx) {
 	} else {
 			// resize to SIDExSIDE
 			in = do_resize(in, SIDE);
-			assert(in->Xsize == in->Ysize);
+			if(!(in->Xsize == in->Ysize)) {
+				record(ERROR,"not still same size? %d %d",in->Xsize,in->Ysize);
+				exit(23);
+			}
 	}
 
 	return in;
@@ -153,8 +156,6 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 		MOVED;
 		have_premultiplied = true;
 	}
-
-	record(INFO,"eh factor %f",factor);
 	// shrink by specified factor
 	int oldwidth = in->Xsize;
 	int oldheight = in->Ysize;
@@ -164,7 +165,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	// crop just to make sure it's the right size
 	if(0==vips_extract_area(in, &t,
 													0,0,
-													target_width, oldheight*factor,
+													target_width, round(oldheight*factor),
 													NULL)) {
 		MOVED;
 	}

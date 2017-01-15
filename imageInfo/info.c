@@ -1,4 +1,4 @@
-#include "magick/MagickCore.h"
+#include "MagickCore/MagickCore.h"
 
 #include <arpa/inet.h> // htons
 

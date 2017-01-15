@@ -11,13 +11,17 @@ def user(path,params,data):
 		l = params.get(name)
 		if l:
 			return l[0]
+	def checkB(name):
+		if check(name):
+			return True
+		return False
 	news = {
-		'rescaleimages': check('rescale') and True,
-		'nocomics': not (check('comic') and True),
-		'navigate': check('navigate') and True
+		'rescaleimages': checkB('rescale'),
+		'nocomics': checkB('comic'),
+		'navigate': checkB('navigate')
 	}
 
-	newtags = check(params.get('tags'))
+	newtags = check('tags')
 	note('updating user tags',newtags)
 	news['defaultTags'] = False
 	

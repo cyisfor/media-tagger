@@ -67,15 +67,15 @@ if not 'skipcookies' in os.environ:
 class HeaderWatcher(urllib.HTTPHandler):
 	class Client(http.HTTPConnection):
 		def request(self,method,selector,data,headers):
-			print('sending headers',headers)
+			note('sending headers',headers)
 			super().request(method,selector,data,headers)
 	def http_open(self, req):
 		return self.do_open(self.Client, req)
 
 class RedirectNoter(urllib.HTTPRedirectHandler):
 	def http_error_302(self, req, fp, code, msg, headers):
-		print("being redirected",code,msg,headers.get("location"))
-		print(fp.read())
+		note.warn("being redirected",code,msg,headers.get("location"))
+		note(fp.read())
 		super().http_error_302(req,fp,code,msg,headers)
 	
 handlers.append(HeaderWatcher())
@@ -102,7 +102,7 @@ def myopen(request):
 		for i in range(2,len(url)):
 			url[i] = urlparse.quote(url[i],safe="/&=?+")
 		request.full_url = urlparse.urlunparse(url)
-		print('requesting',request.full_url)
+		note('requesting',request.full_url)
 	try:
 		with closing(opener.open(request)) as inp:
 			headers = inp.headers
@@ -160,4 +160,4 @@ def myretrieve(request,dest,progress=None):
 			inp.headers.modified = None
 		return inp.headers
 
-print('urllib has been setup for proxying')
+note('urllib has been setup for proxying')
