@@ -198,3 +198,10 @@ def alreadyHere(uri):
 	result = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
 	if len(result)==0: return False
 	return result[0][0],False
+
+import time
+def waitFor(uri,wait=time.sleep):
+	while True:
+		ah = alreadyHere(uri)
+		if ah: return ah[0]
+		wait(1)

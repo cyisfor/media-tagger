@@ -209,16 +209,26 @@ if __name__ == '__main__':
 		box.pack_start(tagentry,True,True,0)
 		box.pack_start(gobutton,True,False,0)
 		def gotPiece(piece):
-			if not ( piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]') or piece.startswith('http://cy.h')):
+			if ( piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]') or
+					 piece.startswith('http://cy.h')):
+				try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
+				except ValueError: return
+			elif piece.startswith('http://') or piece.startswith('https://'):
+				from favorites import parse
+				num = parse.waitFor(parse.normalize(piece))
+			else:
 				return
-
-			try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
-			except ValueError: return
+			print("Tagging image {:x}".format(num))
 			tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
+			print(tag)
 			tag(num,parse(','.join(tags)))
 			resultCache.clear()
 		window.show_all()
 		import signal
 		signal.signal(signal.SIGINT, signal.SIG_DFL)
-		clipboardy(gotPiece, lambda b: gobutton.get_active()).run()
+		def check(b):
+			res = gobutton.get_active()
+			print("active",res)
+			return res
+		clipboardy(gotPiece, check).run()
 

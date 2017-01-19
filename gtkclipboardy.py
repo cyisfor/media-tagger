@@ -18,6 +18,9 @@ def make(handler,check=None):
 				res = check(text)
 				if isinstance(res,(str,bytes,bytearray,memoryview)):
 					text = res
+				elif not res:
+					return
+				
 			if not text in seen:
 				seen.add(text)
 				if type(text)==bytes:
