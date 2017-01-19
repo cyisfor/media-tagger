@@ -140,7 +140,7 @@ def parse(primarySource,noCreate=False,progress=None):
 				urllib.parse.urljoin(primarySource,source)) for source in derpSources]
 			media.headers['Referer'] = primarySource
 			def download(dest):
-				print('download',media.url)
+				note('download',media.url)
 				response = myretrieve(Request(media.url,
 																			headers=media.headers),
 															dest,
@@ -162,7 +162,7 @@ def parse(primarySource,noCreate=False,progress=None):
 																					 name = name)
 				return image,wasCreated
 			except create.NoGood:
-				print("No good",media.url,media.headers)
+				note.red("No good",media.url,media.headers)
 				raise
 	else:
 		raise ParseError("Can't parse {}!".format(primarySource))
@@ -172,7 +172,7 @@ def normalize(url):
 	for name,matcher,handlers in finders:
 		if matcher(burl):
 			if 'normalize' in handlers:
-				print('handler',handlers['normalize'])
+				note('handler',handlers['normalize'])
 				return handlers['normalize'](url)
 			return url
 	return url
@@ -195,13 +195,14 @@ def registerFinder(matcher,handler,name=None):
 	finders.append((name,matcher,handler))
 
 def alreadyHere(uri):
-	result = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
+	result = db.execute("SELECT id FROM media where sources @> array(select id from urisources WHERE uri = $1)",(uri,))
 	if len(result)==0: return False
-	return result[0][0],False
+	return result[0][0], False
 
 import time
 def waitFor(uri,wait=time.sleep):
 	while True:
 		ah = alreadyHere(uri)
 		if ah: return ah[0]
+		note.alarm("No image found for",uri,"yet")
 		wait(1)

@@ -12,25 +12,28 @@ def make(handler,check=None):
 	seen = set()
 	clipboard = None
 	def gotClip(clipboard, text, nun=None):
-
 		if text:
 			if check:
 				res = check(text)
 				if isinstance(res,(str,bytes,bytearray,memoryview)):
 					text = res
 				elif not res:
-					return
+					return True
 				
 			if not text in seen:
 				seen.add(text)
 				if type(text)==bytes:
 					text = text.decode('utf-8')
 				handler(text)
-		GLib.timeout_add(200,derp(checkClip))
+	def gotDerp(clipboard, text, nun=None):
+		try:
+			gotClip(clipboard, text, nun)
+		finally:
+			GLib.timeout_add(200,derp(checkClip))
 	
 	def checkClip(nun=None):
 		assert(clipboard)
-		clipboard.request_text(gotClip,None)
+		clipboard.request_text(gotDerp,None)
 		return False
 	
 	def start(nun=None):

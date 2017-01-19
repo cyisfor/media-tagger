@@ -211,13 +211,25 @@ if __name__ == '__main__':
 		def gotPiece(piece):
 			if ( piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]') or
 					 piece.startswith('http://cy.h')):
-				try: num = int(piece.rstrip('/').rsplit('/',1)[-1],0x10)
+				try: dothetag(int(piece.rstrip('/').rsplit('/',1)[-1],0x10))
 				except ValueError: return
 			elif piece.startswith('http://') or piece.startswith('https://'):
-				from favorites import parse
-				num = parse.waitFor(parse.normalize(piece))
+				from favorites import parse as fav
+				uri = fav.normalize(piece)
+				if not uri:
+					return
+				def tryonce(i):
+					if i >= 20:
+						note.alarm("Gave up waiting for",uri,i)
+						return
+					num = fav.alreadyHere(uri)
+					if num:
+						return dothetag(num)
+					GLib.timeout_add(1000, lambda: tryonce(i+1))
+				tryonce(0)
 			else:
 				return
+		def dothetag(num):
 			print("Tagging image {:x}".format(num))
 			tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
 			print(tag)
@@ -227,8 +239,6 @@ if __name__ == '__main__':
 		import signal
 		signal.signal(signal.SIGINT, signal.SIG_DFL)
 		def check(b):
-			res = gobutton.get_active()
-			print("active",res)
-			return res
+			return gobutton.get_active()
 		clipboardy(gotPiece, check).run()
 
