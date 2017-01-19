@@ -99,14 +99,10 @@ def watch_headers(ssl=False):
 			note.blue('sendig headers',b'\n'.join(self._buffer).decode('utf-8'))
 			return super().endheaders(body)
 	class Thingy(handler):
-		def do_open(self, klass, req):
+		def do_open(self, klass, req, **kw):
 			nonlocal derpreq
 			derpreq = req
-			return super().do_open(klass, req)
-		def http_open(self, req):
-			return self.do_open(HeaderWatcher, req)
-		def https_open(self, req):
-			return self.do_open(HeaderWatcher, req)
+			return super().do_open(klass, req, **kw)
 	return Thingy()
 
 def split_port(schema, netloc):
@@ -155,12 +151,12 @@ class RedirectNoter(urllib.HTTPRedirectHandler):
 		self.redirected(req,fp,code,msg,headers)
 		return super().http_error_302(req,fp,code,msg,headers)
 	
-#handlers.append(watch_headers(False))
-#handlers.append(watch_headers(True))
+handlers.append(watch_headers(False))
+handlers.append(watch_headers(True))
 #handlers.append(RedirectNoter())
-#if not 'skipcookies' in os.environ:
-#	handlers.append(urllib.HTTPCookieProcessor(jar))
-#
+if not 'skipcookies' in os.environ:
+	handlers.append(urllib.HTTPCookieProcessor(jar))
+
 opener = urllib.build_opener(*handlers)
 opener.addheaders = [
 	('Cache-Control','max-age=0'),

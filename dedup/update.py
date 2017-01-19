@@ -140,7 +140,6 @@ type = ANY($1)'''
 						try: os.unlink('last')
 						except OSError: pass
 						os.rename('last.temp','last')
-						print('retransaction')
 				pHash = create(hid)
 				elapsed = time.time() - start
 				if (pHash == 'ERROR'):
