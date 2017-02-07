@@ -1,4 +1,4 @@
-import fixprint
+from better import print as ashtasht
 
 from dimensions import thumbnailPageSize,thumbnailRowSize
 

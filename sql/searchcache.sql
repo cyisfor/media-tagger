@@ -80,7 +80,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.one_tag(_tag bigint)
+create or replace function searchcache.one_tag(_tag INTEGER)
 RETURNS int
 AS $$
 DECLARE
@@ -104,7 +104,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.reduce_implications(_result int, _tag bigint, _implications bigint[],  _op int)
+create or replace function searchcache.reduce_implications(_result int, _tag INTEGER, _implications INTEGER[],  _op int)
 RETURNS int
 AS $$
 DECLARE
@@ -127,17 +127,17 @@ $$ language 'plpgsql';
 
 CREATE TYPE searchcache.result AS (name text, count int, negative BOOLEAN);
 
-create or replace function searchcache.query(_posi bigint[], _nega bigint[])
+create or replace function searchcache.query(_posi INTEGER[], _nega INTEGER[])
 RETURNS searchcache.result
 AS $$
 DECLARE
 _result searchcache.result;
 _posresult int;
 _negresult int;
-_curimp bigint[];
-_imp bigint[]; -- don't let any implications of positives end up in implications of negatives.
+_curimp INTEGER[];
+_imp INTEGER[]; -- don't let any implications of positives end up in implications of negatives.
 -- this is so +character -character:foo will eliminate character:foo, but not character:bar
-_tag bigint;
+_tag INTEGER;
 BEGIN
 	FOREACH _tag IN ARRAY _posi LOOP
 		-- we need to follow positive implications multiple times, because they're AND'd
@@ -221,7 +221,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-create or replace function searchcache.expire(_newtags bigint[])
+create or replace function searchcache.expire(_newtags INTEGER[])
 RETURNS int
 AS $$
 DECLARE

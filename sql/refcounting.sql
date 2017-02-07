@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS irdstate (
-lastsucc bigint PRIMARY KEY REFERENCES things(id)
+lastsucc INTEGER PRIMARY KEY REFERENCES things(id)
 );
 
 CREATE OR REPLACE FUNCTION refcountingsetup() RETURNS void
@@ -15,13 +15,13 @@ $$;
 
 ----------------------------------
 
-CREATE OR REPLACE FUNCTION refcountingdiscover() RETURNS bigint
+CREATE OR REPLACE FUNCTION refcountingdiscover() RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
-_old bigint;
-_max bigint;
-_id bigint;
+_old INTEGER;
+_max INTEGER;
+_id INTEGER;
 _count int default 0;
 BEGIN
 	--	LOCK TABLE things IN ACCESS EXCLUSIVE MODE;

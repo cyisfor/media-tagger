@@ -1,6 +1,6 @@
 CREATE TABLE explanations (
 	   id bigserial PRIMARY KEY,
-	   image bigint REFERENCES images(id) ON UPDATE CASCADE ON DELETE CASCADE NOT NULL,
+	   image INTEGER REFERENCES images(id) ON UPDATE CASCADE ON DELETE CASCADE NOT NULL,
 	   -- these can be xx%
 	   top TEXT NOT NULL,
 	   derpleft TEXT NOT NULL,

@@ -4,7 +4,7 @@ create table connections (
     dest BIGINT REFERENCES things(id),
     UNIQUE(source,dest));
 
-CREATE OR REPLACE FUNCTION connect(_source bigint,_dest bigint) RETURNS boolean AS $$
+CREATE OR REPLACE FUNCTION connect(_source INTEGER,_dest INTEGER) RETURNS boolean AS $$
 BEGIN
     INSERT INTO connections (source,dest) VALUES (_source,_dest);
     RETURN TRUE;
@@ -16,9 +16,9 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION migrateConnections() RETURNS VOID AS $$
 DECLARE
-_id bigint;
-_neighbors bigint[];
-_neighbor bigint;
+_id INTEGER;
+_neighbors INTEGER[];
+_neighbor INTEGER;
 _counter int;
 BEGIN
     _counter := 1;

@@ -1,6 +1,6 @@
 CREATE SCHEMA IF NOT EXISTS tagcache;
 
-CREATE OR REPLACE FUNCTION tagcache.query(_tags bigint[])
+CREATE OR REPLACE FUNCTION tagcache.query(_tags INTEGER[])
 RETURNS text AS
 $$
 DECLARE
@@ -25,13 +25,13 @@ $$ language 'plpgsql';
 
 CREATE TABLE tagcache.queries (
 	id SERIAL PRIMARY KEY,
-	tags bigint[] UNIQUE,
+	tags INTEGER[] UNIQUE,
 	created timestamptz UNIQUE DEFAULT clock_timestamp());
 	
-CREATE OR REPLACE FUNCTION tagcache.expire(_changed_tags bigint[])
+CREATE OR REPLACE FUNCTION tagcache.expire(_changed_tags INTEGER[])
 RETURNS int AS $$
 DECLARE
-_tags bigint[];
+_tags INTEGER[];
 _id int;
 _count int default 0;
 BEGIN

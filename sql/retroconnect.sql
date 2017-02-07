@@ -1,7 +1,7 @@
-CREATE OR REPLACE FUNCTION findTag(_name text) RETURNS bigint AS 
+CREATE OR REPLACE FUNCTION findTag(_name text) RETURNS INTEGER AS 
 $$
 DECLARE 
-_id bigint;
+_id INTEGER;
 BEGIN
     if _name IS NULL THEN
         RETURN NULL;
@@ -22,7 +22,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
-CREATE OR REPLACE FUNCTION connectOneWay(_thing1 bigint, _thing2 bigint) RETURNS void AS
+CREATE OR REPLACE FUNCTION connectOneWay(_thing1 INTEGER, _thing2 INTEGER) RETURNS void AS
 $$
 BEGIN
     --RAISE NOTICE 'trying % to %',_thing1,_thing2;
@@ -33,7 +33,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
-CREATE OR REPLACE FUNCTION connect(_thing1 bigint, _thing2 bigint) RETURNS void AS
+CREATE OR REPLACE FUNCTION connect(_thing1 INTEGER, _thing2 INTEGER) RETURNS void AS
 $$
 BEGIN
     PERFORM connectOneWay(_thing1,_thing2);
@@ -41,7 +41,7 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql';
 
---UPDATE things SET neighbors = neighbors || 281532::bigint WHERE id = 218508 AND NOT neighbors @>  ARRAY[281532::bigint];
+--UPDATE things SET neighbors = neighbors || 281532::INTEGER WHERE id = 218508 AND NOT neighbors @>  ARRAY[281532::INTEGER];
 
 --UPDATE things SET neighbors = neighbors || array(SELECT id FROM tags AS tagsinner WHERE tagsinner.name LIKE tags.name || ':%') FROM tags WHERE things.id = tags.id AND NOT tags.name LIKE '%:%';
 

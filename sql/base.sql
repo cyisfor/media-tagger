@@ -80,10 +80,10 @@ $$;
 ALTER FUNCTION public.clearneighbors() OWNER TO "user";
 
 --
--- Name: connectmanytoone(bigint[], bigint); Type: FUNCTION; Schema: public; Owner: user
+-- Name: connectmanytoone(INTEGER[], INTEGER); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION connectmanytoone(a bigint[], b bigint) RETURNS void
+CREATE FUNCTION connectmanytoone(a INTEGER[], b INTEGER) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -92,13 +92,13 @@ END;
 $$;
 
 
-ALTER FUNCTION public.connectmanytoone(a bigint[], b bigint) OWNER TO "user";
+ALTER FUNCTION public.connectmanytoone(a INTEGER[], b INTEGER) OWNER TO "user";
 
 --
--- Name: connectone(bigint, bigint); Type: FUNCTION; Schema: public; Owner: user
+-- Name: connectone(INTEGER, INTEGER); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION connectone(a bigint, b bigint) RETURNS void
+CREATE FUNCTION connectone(a INTEGER, b INTEGER) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -107,13 +107,13 @@ END;
 $$;
 
 
-ALTER FUNCTION public.connectone(a bigint, b bigint) OWNER TO "user";
+ALTER FUNCTION public.connectone(a INTEGER, b INTEGER) OWNER TO "user";
 
 --
--- Name: connectonetomany(bigint, bigint[]); Type: FUNCTION; Schema: public; Owner: user
+-- Name: connectonetomany(INTEGER, INTEGER[]); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION connectonetomany(a bigint, b bigint[]) RETURNS void
+CREATE FUNCTION connectonetomany(a INTEGER, b INTEGER[]) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -122,13 +122,13 @@ END;
 $$;
 
 
-ALTER FUNCTION public.connectonetomany(a bigint, b bigint[]) OWNER TO "user";
+ALTER FUNCTION public.connectonetomany(a INTEGER, b INTEGER[]) OWNER TO "user";
 
 --
--- Name: disconnect(bigint, bigint); Type: FUNCTION; Schema: public; Owner: user
+-- Name: disconnect(INTEGER, INTEGER); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION disconnect(a bigint, b bigint) RETURNS void
+CREATE FUNCTION disconnect(a INTEGER, b INTEGER) RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -137,17 +137,17 @@ END;
 $$;
 
 
-ALTER FUNCTION public.disconnect(a bigint, b bigint) OWNER TO "user";
+ALTER FUNCTION public.disconnect(a INTEGER, b INTEGER) OWNER TO "user";
 
 --
 -- Name: findtag(text); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION findtag(_name text) RETURNS bigint
+CREATE FUNCTION findtag(_name text) RETURNS INTEGER
     LANGUAGE plpgsql
     AS $$
 DECLARE 
-_id bigint;
+_id INTEGER;
 BEGIN
     LOOP
         SELECT tags.id INTO _id FROM tags WHERE name = _name;
@@ -198,10 +198,10 @@ $$;
 ALTER FUNCTION public.findurisource(_uri text) OWNER TO "user";
 
 --
--- Name: listmedia(bigint[], bigint[], integer, integer); Type: FUNCTION; Schema: public; Owner: user
+-- Name: listmedia(INTEGER[], INTEGER[], integer, integer); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION listmedia(_posi bigint[], _nega bigint[], _offset integer, _limit integer) RETURNS SETOF bigint
+CREATE FUNCTION listmedia(_posi INTEGER[], _nega INTEGER[], _offset integer, _limit integer) RETURNS SETOF INTEGER
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -211,7 +211,7 @@ _maxoffset int;
 _oldbottom int;
 _page int DEFAULT 0;
 _base RECORD;
-_derp bigint[];
+_derp INTEGER[];
 BEGIN
     -- get the real offset in media by the 
     _ioffset := _offset;
@@ -268,13 +268,13 @@ END;
 $$;
 
 
-ALTER FUNCTION public.listmedia(_posi bigint[], _nega bigint[], _offset integer, _limit integer) OWNER TO "user";
+ALTER FUNCTION public.listmedia(_posi INTEGER[], _nega INTEGER[], _offset integer, _limit integer) OWNER TO "user";
 
 --
--- Name: mergeadded(bigint, bigint); Type: FUNCTION; Schema: public; Owner: user
+-- Name: mergeadded(INTEGER, INTEGER); Type: FUNCTION; Schema: public; Owner: user
 --
 
-CREATE FUNCTION mergeadded(_a bigint, _b bigint) RETURNS void
+CREATE FUNCTION mergeadded(_a INTEGER, _b INTEGER) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -289,7 +289,7 @@ END
 $$;
 
 
-ALTER FUNCTION public.mergeadded(_a bigint, _b bigint) OWNER TO "user";
+ALTER FUNCTION public.mergeadded(_a INTEGER, _b INTEGER) OWNER TO "user";
 
 --
 -- Name: mergesources(integer, integer); Type: FUNCTION; Schema: public; Owner: user
@@ -623,7 +623,7 @@ ALTER TABLE public.comics OWNER TO "user";
 --
 
 CREATE TABLE desktops (
-    id bigint NOT NULL,
+    id INTEGER NOT NULL,
     selected timestamp with time zone DEFAULT clock_timestamp() NOT NULL
 );
 
@@ -647,7 +647,7 @@ ALTER TABLE public.filesources OWNER TO "user";
 --
 
 CREATE TABLE images (
-    id bigint NOT NULL,
+    id INTEGER NOT NULL,
     animated boolean,
     width integer,
     height integer,
@@ -662,7 +662,7 @@ ALTER TABLE public.images OWNER TO "user";
 --
 
 CREATE TABLE media (
-    id bigint NOT NULL,
+    id INTEGER NOT NULL,
     name text,
     hash character(28),
     created timestamp with time zone,
@@ -730,8 +730,8 @@ ALTER SEQUENCE parsequeue_id_seq OWNED BY parsequeue.id;
 --
 
 CREATE TABLE queryoffsets (
-    posi bigint[],
-    nega bigint[],
+    posi INTEGER[],
+    nega INTEGER[],
     ioffset integer,
     ooffset integer,
     created timestamp with time zone DEFAULT clock_timestamp()
@@ -746,7 +746,7 @@ ALTER TABLE public.queryoffsets OWNER TO "user";
 
 CREATE TABLE randomseen (
     id integer NOT NULL,
-    media bigint,
+    media INTEGER,
     category integer DEFAULT 0
 );
 
@@ -837,7 +837,7 @@ ALTER SEQUENCE sources_id_seq OWNED BY sources.id;
 --
 
 CREATE TABLE tags (
-    id bigint NOT NULL,
+    id INTEGER NOT NULL,
     name text
 );
 
@@ -849,8 +849,8 @@ ALTER TABLE public.tags OWNER TO "user";
 --
 
 CREATE TABLE things (
-    id bigint NOT NULL,
-    neighbors bigint[]
+    id INTEGER NOT NULL,
+    neighbors INTEGER[]
 );
 
 
@@ -883,7 +883,7 @@ ALTER SEQUENCE things_id_seq OWNED BY things.id;
 
 CREATE TABLE uploads (
     uzer integer,
-    media bigint,
+    media INTEGER,
     checked boolean DEFAULT false
 );
 
@@ -955,7 +955,7 @@ ALTER SEQUENCE uzer_id_seq OWNED BY uzers.id;
 
 CREATE TABLE uzertags (
     id integer NOT NULL,
-    tag bigint,
+    tag INTEGER,
     uzer integer,
     nega boolean DEFAULT false
 );
@@ -989,7 +989,7 @@ ALTER SEQUENCE uzertags2_id_seq OWNED BY uzertags.id;
 --
 
 CREATE TABLE videos (
-    id bigint NOT NULL,
+    id INTEGER NOT NULL,
     width integer,
     height integer,
     fps double precision,
@@ -1008,7 +1008,7 @@ ALTER TABLE public.videos OWNER TO "user";
 CREATE TABLE visited (
     id integer NOT NULL,
     uzer integer,
-    medium bigint,
+    medium INTEGER,
     visits integer DEFAULT 0
 );
 
@@ -1043,7 +1043,7 @@ SET search_path = resultcache, pg_catalog;
 --
 
 CREATE TABLE "q9cVc6wkk4oPXV8922K7Q2hWmZzk" (
-    id bigint,
+    id INTEGER,
     name text
 );
 
@@ -1055,7 +1055,7 @@ ALTER TABLE resultcache."q9cVc6wkk4oPXV8922K7Q2hWmZzk" OWNER TO "user";
 --
 
 CREATE TABLE "qIX-YiYuFfZZLbXLlHJ1q1gpFZGw" (
-    id bigint,
+    id INTEGER,
     name text,
     type text,
     "array" text[]

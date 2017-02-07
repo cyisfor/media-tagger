@@ -1,6 +1,6 @@
 CREATE TABLE things(id BIGSERIAL PRIMARY KEY, 
-    neighbors bigint[]);
-CREATE TABLE media(id bigint PRIMARY KEY REFERENCES things(id) 
+    neighbors INTEGER[]);
+CREATE TABLE media(id INTEGER PRIMARY KEY REFERENCES things(id) 
     ON DELETE CASCADE ON UPDATE CASCADE,
     name TEXT,
     hash character(28) UNIQUE,
@@ -11,7 +11,7 @@ CREATE TABLE media(id bigint PRIMARY KEY REFERENCES things(id)
     md5 character(32),
     thumbnailed timestamp with time zone,
     sources int[]);
-CREATE TABLE images(id bigint PRIMARY KEY REFERENCES media(id) 
+CREATE TABLE images(id INTEGER PRIMARY KEY REFERENCES media(id) 
     ON DELETE CASCADE ON UPDATE CASCADE,
     animated boolean,
     width integer,
@@ -26,7 +26,7 @@ CREATE TABLE urisources(id INTEGER PRIMARY KEY REFERENCES sources(id)
 CREATE TABLE filesources(id INTEGER PRIMARY KEY REFERENCES sources(id) 
     ON DELETE CASCADE ON UPDATE CASCADE,
     path text UNIQUE);
-CREATE TABLE tags(id bigint PRIMARY KEY REFERENCES things(id) 
+CREATE TABLE tags(id INTEGER PRIMARY KEY REFERENCES things(id) 
     ON DELETE CASCADE ON UPDATE CASCADE,
     name TEXT UNIQUE);
 

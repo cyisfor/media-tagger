@@ -1,7 +1,7 @@
-
-CREATE OR REPLACE FUNCTION implications(_tag bigint, _returned int, _depth int) RETURNS int AS $$
+DROP FUNCTION implications(_tag bigint, _returned int, _depth int) RETURNS int;
+CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
 DECLARE
-_neighbor bigint;
+_neighbor INTEGER;
 _count int default 0;
 BEGIN
     IF _depth > 2 THEN
@@ -26,7 +26,8 @@ END
 $$
 LANGUAGE 'plpgsql';
 
-CREATE OR REPLACE FUNCTION unsafeImplications(_tag bigint) RETURNS void AS $$
+DROP FUNCTION unsafeImplications(_tag INTEGER) RETURNS void;
+CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
 BEGIN
 		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
 		DELETE FROM impresult;
@@ -34,7 +35,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 -- note: implications caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
-CREATE OR REPLACE FUNCTION implications(_tag bigint) RETURNS SETOF bigint AS $$
+CREATE OR REPLACE FUNCTION implications(_tag INTEGER) RETURNS SETOF INTEGER AS $$
 DECLARE
 _dest text;
 BEGIN

@@ -1,14 +1,14 @@
---DROP function degen1(_general bigint, _name text, _genrefs int);
+--DROP function degen1(_general INTEGER, _name text, _genrefs int);
 --DROP function fixstuff();
 
 create or replace function degen2(_interval interval) returns void language plpgsql as $$
 DECLARE
 _genrefs int;
-_general bigint;
+_general INTEGER;
 _name text;
 _shortname text;
 _ungenrefs int;
-_ungen bigint;
+_ungen INTEGER;
 _start timestamptz;
 BEGIN
 	FOR _general,_name,_genrefs IN SELECT things.id,name,refs FROM tags inner join things on tags.id = things.id WHERE name LIKE 'general:%' ORDER BY refs DESC LOOP

@@ -39,7 +39,7 @@ insert into images (id,animated,width,height,ratio) select id,animated,width,hei
 COMMIT;
 BEGIN;
 \echo 'doing sources'
-CREATE TEMPORARY TABLE tempsauce (id integer, image integer, uri text, code integer, checked bigint);
+CREATE TEMPORARY TABLE tempsauce (id integer, image integer, uri text, code integer, checked INTEGER);
 COPY tempsauce FROM '/dev/shm/convert/sauce';
 create temporary table filesauce (id integer, image integer, path text);
 COPY filesauce (id, path) FROM '/dev/shm/convert/filesauce';

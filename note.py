@@ -15,7 +15,7 @@ def decode(o):
 		return repr(o.value)
 	return str(o)
 
-if os.isatty() or 'debug' in os.environ:
+if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 	import sys,time
 	out = sys.stderr.buffer
 	modules = set()

@@ -5,7 +5,7 @@ BEGIN
     --    raise notice '%',_src;
     SELECT id INTO _dst FROM urisources WHERE uri = _dsturi;
     IF FOUND THEN
-       UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT _dst EXCEPT SELECT _src) WHERE neighbors @> ARRAY[_src::bigint];
+       UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT _dst EXCEPT SELECT _src) WHERE neighbors @> ARRAY[_src::INTEGER];
        DELETE FROM sources where id = _src;
     ELSE
         UPDATE urisources SET uri = _dsturi WHERE id = _src;

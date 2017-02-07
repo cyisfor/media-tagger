@@ -29,7 +29,7 @@ CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
 _test record;
 _result record;
-_bottom bigint;
+_bottom INTEGER;
 _count int DEFAULT 0;
 BEGIN
     FOR _test IN SELECT media.id,phash FROM media

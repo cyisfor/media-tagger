@@ -4,7 +4,7 @@ import json
 
 from place import place
 from itertools import count
-import fixprint
+from better import print as _
 
 from dimensions import thumbnailPageSize,thumbnailRowSize
 

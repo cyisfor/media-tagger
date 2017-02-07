@@ -2,7 +2,7 @@ create or replace function herpderp() returns SETOF text as $$
 DECLARE
 _source int;
 _oldsource int;
-_medium bigint;
+_medium INTEGER;
 _uri text;
 _artist text;
 begin

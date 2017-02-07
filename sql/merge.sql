@@ -18,7 +18,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE OR REPLACE FUNCTION mergeAdded(_a bigint, _b bigint) RETURNS VOID AS
+CREATE OR REPLACE FUNCTION mergeAdded(_a INTEGER, _b INTEGER) RETURNS VOID AS
 $$
 DECLARE
 _aadd timestamptz;

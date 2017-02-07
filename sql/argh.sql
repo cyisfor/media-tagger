@@ -2,11 +2,11 @@ EXPLAIN ANALYZE WITH wanted(tags) AS (SELECT (
         SELECT array_agg(tags.id) as wanteds 
             FROM tags INNER JOIN things ON tags.id = things.id WHERE things.neighbors @> ARRAY[unnest.unnest]
         ) || unnest.unnest AS tags
-    FROM unnest(ARRAY[219772, 215845]::bigint[]) AS unnest)
+    FROM unnest(ARRAY[219772, 215845]::INTEGER[]) AS unnest)
 SELECT 
 (select media.id from media where media.id = result.id),
 (select array_agg(tags.name) from tags inner join unnest(result.neighbors) AS unnest ON tags.id = unnest.unnest)
-FROM (SELECT media.id,things.neighbors, every(things.neighbors && wanted.tags) FROM media INNER JOIN things ON things.id = media.id, wanted group by media.id,things.neighbors) AS result WHERE result.every AND NOT result.neighbors && ARRAY[217367, 216419]::bigint[];
+FROM (SELECT media.id,things.neighbors, every(things.neighbors && wanted.tags) FROM media INNER JOIN things ON things.id = media.id, wanted group by media.id,things.neighbors) AS result WHERE result.every AND NOT result.neighbors && ARRAY[217367, 216419]::INTEGER[];
 
 Subquery Scan on result  (cost=2237889.32..6578010925.32 rows=8907500 width=141) (actual time=2188.987..3028.893 rows=861 loops=1)
   CTE wanted
@@ -34,7 +34,7 @@ Subquery Scan on result  (cost=2237889.32..6578010925.32 rows=8907500 width=141)
                           ->  Hash Join  (cost=4276.23..10946.91 rows=89075 width=141) (actual time=248.589..651.358 rows=88021 loops=1)
                                 Hash Cond: (public.things.id = public.media.id)
                                 ->  Seq Scan on things  (cost=0.00..4330.81 rows=165613 width=141) (actual time=12.802..183.116 rows=88021 loops=1)
-                                      Filter: (NOT (neighbors && '{217367,216419}'::bigint[]))
+                                      Filter: (NOT (neighbors && '{217367,216419}'::INTEGER[]))
                                       Rows Removed by Filter: 79084
                                 ->  Hash  (cost=3152.77..3152.77 rows=89877 width=8) (actual time=235.641..235.641 rows=89518 loops=1)
                                       Buckets: 16384  Batches: 1  Memory Usage: 3497kB

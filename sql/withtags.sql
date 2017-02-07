@@ -6,21 +6,21 @@ CREATE INDEX bycomplex ON tags(complexity)
 }
 wanted {
 wanted(tags) AS
-(SELECT array(SELECT implications(unnest)) FROM unnest(%(tags)s::bigint[])) 
+(SELECT array(SELECT implications(unnest)) FROM unnest(%(tags)s::INTEGER[])) 
 }
 unwanted {
 unwanted(id) AS (
         SELECT tags.id
             FROM tags INNER JOIN things ON tags.id = things.id 
-            WHERE things.neighbors && %%(negatags)s::bigint[] 
+            WHERE things.neighbors && %%(negatags)s::INTEGER[] 
             %(notWanted)s
         UNION
         SELECT id
-            FROM unnest(%%(negatags)s::bigint[]) AS id)
+            FROM unnest(%%(negatags)s::INTEGER[]) AS id)
 }
 
 notWanted {
-AND NOT things.id = ANY(%(tags)s::bigint[])
+AND NOT things.id = ANY(%(tags)s::INTEGER[])
 }
 
 positiveClause {
@@ -55,7 +55,7 @@ FROM
 }
 
 relatedNoTags {
-    (NOT tags.id = ANY(%%(tags)s::bigint[])) AND
+    (NOT tags.id = ANY(%%(tags)s::INTEGER[])) AND
 }
 
 notComic {

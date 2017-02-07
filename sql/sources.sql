@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION addsource(_media bigint, _source bigint) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION addsource(_media INTEGER, _source INTEGER) RETURNS void AS $$
 BEGIN
 	update media set sources = array(select unnest(sources) UNION select _source) WHERE id = _media;
 END
@@ -26,9 +26,9 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION addsource(_media bigint, _source text) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION addsource(_media INTEGER, _source text) RETURNS void AS $$
 DECLARE
-_sourceid bigint;
+_sourceid INTEGER;
 BEGIN
 	update media set sources = array(select unnest(sources) UNION select findurisource(_source)) WHERE id = _media;
 END
