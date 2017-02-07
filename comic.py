@@ -47,7 +47,7 @@ $$ language 'plpgsql'""")
 
 @version(2)
 def go():
-	vsetup("ALTER TABLE comics ADD COLUMN tags bigint[]")
+	vsetup("ALTER TABLE comics ADD COLUMN tags INTEGER[]")
 
 version.setup()
 	
@@ -156,8 +156,8 @@ def pages(comic):
 
 def list(page,negatags=()):
 	print('nega',negatags)
-	return db.execute("SELECT id,title,tags,array(select name from tags where id IN (SELECT unnest(comics.tags))) FROM comics WHERE array_length($1::bigint[],1) IS NULL OR tags IS NULL OR NOT tags && $1::bigint[] ORDER BY added DESC, id OFFSET $2 LIMIT $3",(tuple(negatags),page*0x20,0x20))
+	return db.execute("SELECT id,title,tags,array(select name from tags where id IN (SELECT unnest(comics.tags))) FROM comics WHERE array_length($1::INTEGER[],1) IS NULL OR tags IS NULL OR NOT tags && $1::INTEGER[] ORDER BY added DESC, id OFFSET $2 LIMIT $3",(tuple(negatags),page*0x20,0x20))
 
 def tag(comic,tags):
 	with db.transaction():
-		db.execute('UPDATE comics SET tags = array(select unnest(tags) UNION select unnest($1::bigint[]) EXCEPT select unnest($2::bigint[])) WHERE id = $3',(tags.posi,tags.nega,comic))
+		db.execute('UPDATE comics SET tags = array(select unnest(tags) UNION select unnest($1::INTEGER[]) EXCEPT select unnest($2::INTEGER[])) WHERE id = $3',(tags.posi,tags.nega,comic))

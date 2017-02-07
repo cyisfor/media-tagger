@@ -101,6 +101,7 @@ def parseOne():
 	global numqueued
 	note("getting....");
 	url = urlqueue.get()
+	note(url);
 	yield foreground
 	numqueued -= 1
 	UI.status.set_text(str(numqueued))
@@ -191,6 +192,6 @@ parseOne()
 
 import gtkclipboardy as clipboardy
 
-c = clipboardy(gotURL,lambda piece: b'http' == piece[:4])
+c = clipboardy(gotURL,lambda piece: print(repr(piece[:4])) or 'http' == piece[:4])
 window.connect('destroy',c.quit)
 c.run()

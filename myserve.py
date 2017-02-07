@@ -164,15 +164,16 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 			note.red(id,name,ip,'done')
 	def parse_request(self):
 		ret = super().parse_request()
-		note.shout("HEY",self.headers)
-		if self.ip is None:
-			if 'X-Real-Ip' in self.headers:
-				self.ip = self.headers['X-Real-Ip']
-
-			elif 'X-Forwarded-For' in self.headers:
-				self.ip = self.headers['X-Forwarded-For']
-				note('setting forw',value)
+		note.shout("HEY",self.headers['X-I2P-DestHash'])
+		if 'X-I2P-DestHash' in self.headers:
+			self.ip = self.headers['X-I2P-DestHash']
+		elif 'X-Real-Ip' in self.headers:
+			self.ip = self.headers['X-Real-Ip']
+		elif 'X-Forwarded-For' in self.headers:
+			self.ip = self.headers['X-Forwarded-For']
+			note('setting forw',value)
 		if self.ip is not None:
+			note.shout("oy",self.ip)
 			User.setup(self.ip)
 		return ret
 	def do_OPTIONS(self):

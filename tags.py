@@ -224,7 +224,7 @@ if __name__ == '__main__':
 						return
 					num = fav.alreadyHere(uri)
 					if num:
-						return dothetag(num)
+						return dothetag(num[0])
 					GLib.timeout_add(1000, lambda: tryonce(i+1))
 				tryonce(0)
 			else:
@@ -232,7 +232,6 @@ if __name__ == '__main__':
 		def dothetag(num):
 			print("Tagging image {:x}".format(num))
 			tags = [tag.strip(" \t") for tag in tagentry.get_text().split(',')]
-			print(tag)
 			tag(num,parse(','.join(tags)))
 			resultCache.clear()
 		window.show_all()

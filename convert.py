@@ -50,7 +50,7 @@ def pusher(source):
     stmts.append("COPY temptags (id) FROM STDIN")
     stmts.append("INSERT INTO things (id) SELECT (select MAX(id) FROM things)+id FROM temptags")
         logging.info("Got tag things, now imagetags")
-        with temporaryTable(c,'image bigint, tag bigint') as table:
+        with temporaryTable(c,'image INTEGER, tag INTEGER') as table:
             c.copy_expert("COPY "+table+" FROM STDIN",source)
             c.execute("UPDATE things SET neighbors = derp.tag FROM (SELECT array_agg(tag) AS tag,image FROM "+table+" GROUP BY image) AS derp WHERE things.id = derp.image")
         logging.info("Got imagetags, now media")
@@ -69,7 +69,7 @@ def pusher(source):
         logging.info("Got tag info, now uri sources")
         raise RuntimeError("This is horribly broken. Inserts X000 in the middle of my copy! THen trying to run it with psql separately kills my connection!")
         if derpyderp:
-            with temporaryTable(c,'id integer, image integer, uri text, code integer, checked bigint',notSoTemp=True) as table:
+            with temporaryTable(c,'id integer, image integer, uri text, code integer, checked INTEGER',notSoTemp=True) as table:
                 c.copy_expert("COPY "+table+" FROM STDIN",source)
                 # two different images with the same source...
                 c.execute("UPDATE "+table+" SET id = derp.derp FROM (SELECT id,min(id) over (partition by uri) as derp from "+table+") as derp where derp.id = "+table+".id")

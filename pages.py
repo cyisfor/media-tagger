@@ -285,7 +285,8 @@ def makePage(title,custom_head=False,douser=True):
 			with d.body as body:
 				yield body
 				if douser:
-					d.p(dd.a("User Settings",href=place('user')))
+					from place import place
+					d.p(dd.a("User Settings",href=place))
 
 def makeStyle(s):
 	res = ''
@@ -740,7 +741,7 @@ def user(info,path,params):
 						d.input(type='text',name='tags',value=tagnames)
 			d.input(type="submit",value="Submit")
 		with d.p:
-			d.a('Main Page',href=place)
+			d.a('Main Page',href="..")
 
 def getPage(params):
 	page = params.get('p')
