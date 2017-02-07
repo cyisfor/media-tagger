@@ -268,7 +268,7 @@ tagsModule = tags
 def update(id,sources,tags,name):
 	donetags = []
 	with db.transaction():
-		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::bigint[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
+		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::INTEGER[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
 
 	tagsModule.tag(id,tags)
 

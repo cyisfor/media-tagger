@@ -11,9 +11,9 @@ import sys,os
 def disconnect(thing,nega):
 	if thing and nega:
 		note('removing',thing,nega)
-		db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE ARRAY[id] <@ $2::bigint[]",(thing,nega))
+		db.execute("UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT $1) WHERE ARRAY[id] <@ $2::INTEGER[]",(thing,nega))
 		db.execute(
-			"UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::bigint[])) WHERE id = $2",(nega,thing))
+			"UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT unnest($1::INTEGER[])) WHERE id = $2",(nega,thing))
 
 
 db.execute("SET work_mem TO 100000")

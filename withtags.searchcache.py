@@ -43,7 +43,7 @@ def assemble(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	posi = prepareTags(tags.posi)
 	nega = prepareTags(tags.nega)
-	result = db.execute("SELECT searchcache.query($1::bigint[],$2::bigint[])",(posi,nega))[0][0]
+	result = db.execute("SELECT searchcache.query($1::INTEGER[],$2::INTEGER[])",(posi,nega))[0][0]
 	thingies = Select('id',result.table)
 	if User.noComics:
 		nocomics = Select('medium','comicPage','which != 0')

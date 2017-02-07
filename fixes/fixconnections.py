@@ -26,7 +26,7 @@ def doit():
 		c.execute("SELECT disconnect($1,$2)",(category,tag))
 		c.execute("SELECT disconnect($2,$1)",(category,wholetag))
 		c.execute("SELECT connectone($2,$1)",(tag,wholetag))
-		c.execute("SELECT connectmanytoone(ARRAY[$1,$2]::bigint[],$3::bigint)",
+		c.execute("SELECT connectmanytoone(ARRAY[$1,$2]::INTEGER[],$3::INTEGER)",
 							(tag,category,wholetag))
 		if count % 100 == 0:
 			print('boop')

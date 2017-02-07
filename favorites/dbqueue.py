@@ -7,7 +7,7 @@ db.setup(
 	'CREATE TABLE hosts (id SERIAL PRIMARY KEY, host TEXT UNIQUE, resume TIMESTAMPTZ UNIQUE)',
 	'''CREATE TABLE parseQueue (
 	id SERIAL PRIMARY KEY,
-	medium bigint REFERENCES media(id),
+	medium INTEGER REFERENCES media(id),
 	added TIMESTAMPTZ DEFAULT now() NOT NULL, 
 	tries integer default 0, 
 	uri TEXT UNIQUE,

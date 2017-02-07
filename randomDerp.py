@@ -11,7 +11,7 @@ v = versions.Versioner('random')
 def initially():
 	db.setup('''CREATE TABLE randomSeen (
 	id SERIAL PRIMARY KEY,
-	media bigint REFERENCES things(id) ON DELETE CASCADE,
+	media INTEGER REFERENCES things(id) ON DELETE CASCADE,
 	category integer DEFAULT 0,
 	UNIQUE(media,category))''')
 

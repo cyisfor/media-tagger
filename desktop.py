@@ -3,7 +3,7 @@ import db
 
 def setup():
 	db.setup("""CREATE TABLE desktops (
-id bigint PRIMARY KEY REFERENCES images(id),
+id INTEGER PRIMARY KEY REFERENCES images(id),
 selected timestamptz DEFAULT clock_timestamp() NOT NULL)""",
 	"CREATE UNIQUE INDEX orderDesktops ON desktops (selected DESC)");
 

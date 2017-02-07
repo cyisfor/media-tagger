@@ -15,7 +15,7 @@ def _():
 		reason TEXT)''',
 			 '''CREATE TABLE dupes(
 		id SERIAL PRIMARY KEY,
-		medium bigint REFERENCES media(id),
+		medium INTEGER REFERENCES media(id),
 		hash character varying(28) UNIQUE,
 		inferior BOOLEAN DEFAULT FALSE,
 		UNIQUE(medium,hash))''')
@@ -25,10 +25,10 @@ def _():
 	# batch clearing of neighbors for deleting
 	db.setup(
 			'''CREATE TABLE IF NOT EXISTS doomed (
-			id bigint PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE)
+			id INTEGER PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE)
 			''',
-			'''ALTER TABLE blacklist ADD COLUMN oldmedium bigint''',
-			'''ALTER TABLE dupes ADD COLUMN oldmedium bigint''')
+			'''ALTER TABLE blacklist ADD COLUMN oldmedium INTEGER''',
+			'''ALTER TABLE dupes ADD COLUMN oldmedium INTEGER''')
 
 version.setup()
 	

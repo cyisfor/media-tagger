@@ -17,11 +17,11 @@ class VersionHolder:
 		db.setup("CREATE TABLE uzers (id SERIAL PRIMARY KEY, ident TEXT UNIQUE, rescaleImages boolean DEFAULT TRUE, defaultTags boolean DEFAULT TRUE)")
 	@v(version=2)
 	def impliedList():
-		db.setup("CREATE TABLE uzerTags (id bigint REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)");
+		db.setup("CREATE TABLE uzerTags (id INTEGER REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)");
 	@v(version=3)
 	def sameTags():
 		"Two users might want to have the same tag, one nega and one posi!"
-		db.setup("CREATE TABLE uzerTags2 (id SERIAL PRIMARY KEY, tag bigint REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)",
+		db.setup("CREATE TABLE uzerTags2 (id SERIAL PRIMARY KEY, tag INTEGER REFERENCES tags(id),uzer INTEGER REFERENCES uzers(id), nega BOOLEAN DEFAULT FALSE)",
 			"INSERT INTO uzerTags2 (tag,uzer,nega) SELECT id,uzer,nega FROM uzerTags",
 			"DROP TABLE uzerTags",
 			"ALTER TABLE uzerTags2 RENAME TO uzerTags",

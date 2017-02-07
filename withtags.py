@@ -72,13 +72,13 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		if len(tags.nega) == 1:
 			tag = tuple(tags.nega)[0]
 			if not tag in tags.posi:
-				notWanted = Type(arg(tag),'bigint')
+				notWanted = Type(arg(tag),'INTEGER')
 		else:
 			diff = tags.nega - tags.posi
 			if len(diff) == 1:
-				notWanted = Type(arg(tuple(diff)[0]),'bigint')
+				notWanted = Type(arg(tuple(diff)[0]),'INTEGER')
 			elif diff:
-				notWanted = Type(arg(diff),'bigint[]',array=True)
+				notWanted = Type(arg(diff),'INTEGER[]',array=True)
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
 	if tags.nega:
 		if len(tags.nega) == 1:
@@ -111,9 +111,9 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if tags.posi:
 		lookup_tags(tags.posi)
 		if len(tags.posi) == 1:
-			posi = Type(arg(tuple(tags.posi)[0]),'bigint')
+			posi = Type(arg(tuple(tags.posi)[0]),'INTEGER')
 		else:
-			posi = Type(arg([tags.posi]),'bigint[]',array=True)
+			posi = Type(arg([tags.posi]),'INTEGER[]',array=True)
 
 
 	if wantRelated:

@@ -5,7 +5,7 @@ version = Versioner('desc')
 @version(1)
 def _():
     db.execute('''CREATE TABLE descriptions (
-id bigint PRIMARY KEY REFERENCES media(id) 
+id INTEGER PRIMARY KEY REFERENCES media(id) 
   ON DELETE CASCADE ON UPDATE CASCADE NOT NULL, 
 blurb TEXT)''')
     # or just add a column... meh

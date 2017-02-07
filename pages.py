@@ -659,7 +659,7 @@ def desktop_base(history,base,progress,pageLink,n):
 		nonlocal pageLink
 		allexists = True
 		with d.NoParent:
-			for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::bigint[])",(history,)):
+			for id,name in db.execute("SELECT id,name FROM media WHERE id = ANY ($1::INTEGER[])",(history,)):
 				fid,exists = filedb.check(id)
 				if progress:
 					pageLink = progress(fid,name,exists)
@@ -697,10 +697,10 @@ def user(info,path,params):
 		raise Redirect(place('user'))
 	if User.defaultTags:
 		def makeResult():
-			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.posi,))
+			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::INTEGER[])",(defaultTags.posi,))
 			for name in result:
 				yield name[0],False
-			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::bigint[])",(defaultTags.nega,))
+			result = db.execute("SELECT tags.name FROM tags WHERE id = ANY($1::INTEGER[])",(defaultTags.nega,))
 			for name in result:
 				yield name[0],True
 		result = makeResult()

@@ -3,7 +3,7 @@ import comic
 from user import User,UserError
 from session import Session
 
-db.setup("CREATE TABLE visited (id SERIAL PRIMARY KEY, uzer INTEGER REFERENCES uzers(id), medium bigint REFERENCES media(id), visits INTEGER DEFAULT 0)",
+db.setup("CREATE TABLE visited (id SERIAL PRIMARY KEY, uzer INTEGER REFERENCES uzers(id), medium INTEGER REFERENCES media(id), visits INTEGER DEFAULT 0)",
         "create unique index visitorunique on visited(uzer,medium)")
 
 def getID(path):

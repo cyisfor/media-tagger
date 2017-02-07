@@ -90,7 +90,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					(arg(offset) if offset else False),arg(limit))
 
 	if tags.posi:
-		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'bigint[]')
+		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'INTEGER[]')
 
 
 	if wantRelated:
@@ -125,7 +125,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	clauses = {}
 
 	if tags.nega:
-		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'bigint[]')
+		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'INTEGER[]')
 		notWanted = EQ('things.id',ANY(nega))
 		if tags.posi:
 			notWanted = AND(notWanted,

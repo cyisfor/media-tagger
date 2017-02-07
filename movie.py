@@ -19,7 +19,7 @@ class VersionHolder:
     @v(version=1)
     def initially():
         db.setup('''CREATE TABLE videos (
-        id bigint PRIMARY KEY REFERENCES things(id),
+        id INTEGER PRIMARY KEY REFERENCES things(id),
         width integer,
         height integer,
         fps float,

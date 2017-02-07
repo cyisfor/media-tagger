@@ -10,7 +10,7 @@ minus = "-"
 
 wanted = """%(name)s(id,path,depth) AS (
 SELECT tags.id,ARRAY[tags.id],1 FROM tags
-WHERE tags.id = ANY(%(tags)s::bigint[])
+WHERE tags.id = ANY(%(tags)s::INTEGER[])
 UNION ALL
 SELECT tags.id,path||tags.id,depth + 1 FROM tags
 INNER JOIN %(name)s ON %(name)s.id != tags.id
@@ -41,10 +41,10 @@ def searchForTags(tags,negatags=None,offset=0,limit=50):
         if tags:
             # XXX: this is wrong! should be neighbors && tags connected to wantedtag1 and neighbors && tagsl connected to wantedtag2 and etc...
             stmt += """SELECT media.id FROM media INNER JOIN things ON things.id = media.id WHERE things.neighbors && array(SELECT id FROM wantedtags) AND
-   (things.neighbors @> %(tags)s::bigint[])"""
+   (things.neighbors @> %(tags)s::INTEGER[])"""
             if negatags:
                 stmt += """AND NOT
-    (things.neighbors && %(negatags)s::bigint[])"""
+    (things.neighbors && %(negatags)s::INTEGER[])"""
         else:
             stmt += """SELECT media.id FROM media INNER JOIN things ON things.id = media.id WHERE NOT things.neighbors && array(SELECT id FROM unwantedtags)
 """

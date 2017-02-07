@@ -26,8 +26,8 @@ def addColumn():
         pHashFail = (('x' || encode(substring(uuid_send(derpHash) from 1 for 8),'hex'))::bit(64)::int8 = 2)''',
         '''CREATE TABLE nadupes (
         id serial primary key,
-    sis bigint references media(id),
-    bro bigint references media(id),
+    sis INTEGER references media(id),
+    bro INTEGER references media(id),
     UNIQUE(sis,bro)
 );''',
         '''INSERT INTO nadupes (sis,bro) SELECT a.id,b.id FROM media as a, media as b 

@@ -11,7 +11,7 @@ from favorites import parsers as _
 url = normalize(url)
 print("Normalized URL",url);
 
-db.execute("SELECT addsource($1::bigint,$2::text)",(ident,url))
+db.execute("SELECT addsource($1::INTEGER,$2::text)",(ident,url))
 
 # get new tags:
 parse(url)
