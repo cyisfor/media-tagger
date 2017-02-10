@@ -1,6 +1,6 @@
--- DROP FUNCTION connect(a INTEGER, b INTEGER);
--- DROP FUNCTION connectOne(a INTEGER, b INTEGER);
--- DROP FUNCTION connectMany(a INTEGER[], b INTEGER[]);
+-- DROP FUNCTION connect(a bigint, b bigint);
+-- DROP FUNCTION connectOne(a bigint, b bigint);
+-- DROP FUNCTION connectMany(a bigint[], b bigint[]);
 
 CREATE OR REPLACE FUNCTION connectOneToMany(a INTEGER, b INTEGER[]) RETURNS void AS $$
 BEGIN

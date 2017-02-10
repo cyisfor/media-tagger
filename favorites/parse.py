@@ -1,7 +1,7 @@
 import create
 import setupurllib
 import db
-import fixprint
+from better import print as _
 import note
 
 import json

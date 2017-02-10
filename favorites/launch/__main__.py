@@ -3,7 +3,7 @@ import sys
 import os
 
 import syspath
-import fixprint
+from better import print as _
 from favorites.dbqueue import enqueue
 
 

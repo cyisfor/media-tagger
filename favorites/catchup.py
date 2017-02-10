@@ -6,7 +6,7 @@ if __name__ == '__main__':
 import note
 
 import time
-import fixprint
+from better import print as _
 import struct
 
 from ctypes import c_bool

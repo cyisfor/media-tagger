@@ -79,7 +79,10 @@ except AttributeError: pass
 
 import gtkclipboardy as clipboardy
 
-c = clipboardy(gotPiece,lambda piece: b'http' == piece[:4])
+def derp(piece):
+	print("fail",piece)
+	return b'http' == piece[:4]
+c = clipboardy(gotPiece,derp)
 
 def seriouslyQuit():
 	print("gettin' outta here")
