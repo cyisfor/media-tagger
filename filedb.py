@@ -28,7 +28,7 @@ def _check(id,category,create=True,contents=None,delay=0.1):
 	    return id, False
     _incoming(id,contents)
     exists = False
-    for i in range(10):
+    for i in range(3):
         if os.path.exists(medium): 
             exists = True
             break

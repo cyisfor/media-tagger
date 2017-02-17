@@ -218,6 +218,7 @@ def makeBase():
 class Links:
 	next = None
 	prev = None
+	contents = None
 	first = None
 	last = None
 	id = None
@@ -255,6 +256,8 @@ def standardHead(title,*contents):
 				d.link(rel='next',href=Links.next)
 			if Links.prev:
 				d.link(rel='prev',href=Links.prev)
+			if Links.contents:
+				d.link(rel='contents',href=Links.contents)
 			if Links.first:
 				d.link(rel='first',href=Links.first)
 			if Links.last:
@@ -487,8 +490,7 @@ def page(info,path,params):
 		if tags:
 			Links.first = "../../"+quote(tags[0][0])+'/'
 			Links.last = "../../"+quote(tags[-1][0])+'/'
-		else:
-			Links.first = "../../"
+		Links.contents = "../../"
 		if comic:
 			comic, title, comicprev, comicnext = comic
 			if comicnext:
@@ -598,7 +600,8 @@ def media(url,query,offset,pageSize,info,related,basic):
 
 	removers = []
 
-	Links.first = "../" # +unparseQuery(query) we're gonna reset to page 0 anyway
+	Links.first = "./" # +unparseQuery(query) we're gonna reset to page 0 anyway
+	Links.contents = "/art/";
 	info = tuple(info)
 	print('oooooo',offset)
 	if len(info)>=pageSize:
@@ -892,7 +895,7 @@ def showComicPage(path):
 		Links.next = comicPageLink(which+1)()
 	else:
 		Links.next = ".."
-	Links.first = ".."
+	Links.contents = ".."
 	medium = comic.findMedium(com,which)
 	doScale = User.rescaleImages and size >= maxSize
 	fid,link,thing = makeLink(medium,typ,name,

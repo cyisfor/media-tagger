@@ -79,9 +79,14 @@ except AttributeError: pass
 
 import gtkclipboardy as clipboardy
 
+seen = set()
 def derp(piece):
-	print("fail",piece)
-	return b'http' == piece[:4]
+	if not 'http' == piece[:4]: return False
+	h = hash(piece)
+	if h in seen: return False
+	seen.add(h)
+	print("yay",piece)
+	return True
 c = clipboardy(gotPiece,derp)
 
 def seriouslyQuit():
@@ -98,4 +103,5 @@ def button_release(win,e):
 win.connect("button-release-event",button_release)
 win.connect('destroy',c.quit)
 
+print("okay?")
 c.run()

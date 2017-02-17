@@ -20,7 +20,7 @@ BEGIN
         FROM tags inner join things on things.id = tags.id , tags other WHERE
 			 tags.id = _tag
 			 AND other.id = ANY(things.neighbors)
-             AND tags.complexity < other.complexity;
+             AND tags.complexity > other.complexity;
 	RETURN _count;
 END
 $$
@@ -34,8 +34,8 @@ BEGIN
 		PERFORM implications( _tag, 0, 0);
 END;
 $$ language 'plpgsql';
--- note: implications caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
-drop function CREATE OR REPLACE FUNCTION implications(_tag INTEGER);
+-- note: implications		caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
+drop function					 implications(_tag INTEGER);
 CREATE OR REPLACE FUNCTION implications(_tag INTEGER) RETURNS SETOF INTEGER AS $$
 DECLARE
 _dest text;
