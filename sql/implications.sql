@@ -1,30 +1,4 @@
 DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
-CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
-DECLARE
-_neighbor INTEGER;
-_count int default 0;
-BEGIN
-    IF _depth > 2 THEN
-       RETURN _count;
-    END IF;
-	IF _returned > 100 THEN
-	   RETURN _count;
-	END IF;
-
-
-    _count := _count + 1;
-	_count := sum(implications(
-             other.id,
-             _returned + _count,
-             1 + _depth))
-        FROM tags as curr inner join things on things.id = curr.id , tags as other WHERE
-			 curr.id = _tag
-			 AND other.id = ANY(things.neighbors)
-			 AND curr.complexity < other.complexity;
-	RETURN _count;
-END
-$$
-LANGUAGE 'plpgsql';
 
 DROP FUNCTION unsafeImplications(_tag INTEGER	);
 CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
