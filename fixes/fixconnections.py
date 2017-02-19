@@ -14,7 +14,10 @@ count = 0
 
 def doit():
 	global count
-	for row in c.execute("select id,name from tags where name LIKE '%:%' OFFSET $1",(skip,)):
+	c.execute("CREATE TABLE IF NOT EXISTS todisconnect (a int, b int)");
+	c.execute("CREATE TABLE IF NOT EXISTS toconnect (a int, b int)");
+	
+	for row in c.execute("select id,name from tags where name LIKE '%:%' ORDER BY id DESC OFFSET $1",(skip,)):
 		wholetag,wholename = row
 		if wholename.startswith(':'): continue
 		count += 1
@@ -23,18 +26,28 @@ def doit():
 		category = c.execute("SELECT findTag($1)",(cname,))[0][0]
 		tag = c.execute("SELECT findTag($1)",(tname,))[0][0]
 
-		c.execute("UPDATE tags SET complexity = 0 WHERE id = $1",(category,))
-		c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
-		c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
 		if False:
-			c.execute("SELECT disconnect($2,$1)",(category,tag))
-			c.execute("SELECT disconnect($1,$2)",(category,tag))
-			c.execute("SELECT disconnect($2,$1)",(category,wholetag))
-			c.execute("SELECT connectone($2,$1)",(tag,wholetag))
-			c.execute("SELECT connectmanytoone(ARRAY[$1,$2]::INTEGER[],$3::INTEGER)",
-								(tag,category,wholetag))
+			c.execute("UPDATE tags SET complexity = 0 WHERE id = $1",(category,))
+			c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
+			c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(tag,))
+		if True:
+			c.execute("INSERT INTO todisconnect (a,b) VALUES ($2,$1)",(category,tag))
+			c.execute("INSERT INTO todisconnect (a,b) VALUES ($1,$2)",(category,tag))
+			c.execute("INSERT INTO todisconnect (a,b) VALUES ($1,$2)",(wholetag,category))
+			c.execute("INSERT INTO toconnect (a,b) VALUES ($1,$2)",(tag,wholetag))
+			c.execute("INSERT INTO toconnect (a,b) VALUES ($1,$2)",(category,wholetag))
 		if count % 100 == 0:
+			if count > 1000:
+				c.execute("CREATE INDEX IF NOT EXISTS todisconnect_a  ON todisconnect(a)")
+				c.execute("CREATE INDEX IF NOT EXISTS toconnect_a  ON toconnect(a)")
 			print('boop')
+			for a, in c.execute("SELECT DISTINCT a FROM todisconnect"):
+				print("reconnecting",a)
+				c.execute("""
+UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT b FROM toconnect WHERE a = $1 EXCEPT SELECT b FROM todisconnect WHERE a = $1)
+WHERE neighbors && array(SELECT b FROM toconnect WHERE a = $1 EXCEPT SELECT b FROM todisconnect WHERE a = $1)
+				""",(a,))
+				
 			db.retransaction()
 			with open("derpcounter","w") as out:
 				out.write(str(skip+count))
