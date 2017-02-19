@@ -1,25 +1,32 @@
-DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
+--DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
 
 DROP FUNCTION unsafeImplications(_tag INTEGER	);
 CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
 DECLARE
-_returned int default 0;
+_returned int default 1;
+_count int;
 _depth int default 0;
+_other int;
 BEGIN
-		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag INTEGER);
+		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (id SERIAL PRIMARY KEY, tag INTEGER);
 		DELETE FROM impresult;
 		INSERT INTO impresult (tag) VALUES (_tag);
 		LOOP
-			FOR _other IN select id FROM things INNER JOIN tags ON tags.id = things.id
-			  WHERE neighbors && array(SELECT id FROM impresult)
-				EXCEPT SELECT id FROM impresult LOOP
-          RAISE NOTICE 'found tag % % %s',_other,(select name from tags where id = _other);
-					INSERT INTO impresult (tag) VALUES (_other);
-				IF _returned = 100 THEN return END IF
-				_returned := _returned + 1
-			END LOOP;
-			IF _depth = 2 THEN return END IF
+			WITH ins AS (INSERT INTO impresult (tag)
+			  select tags.id FROM things INNER JOIN tags ON tags.id = things.id
+			  WHERE
+				complexity < (SELECT MAX(complexity) FROM impresult)
+				AND
+				neighbors && array(SELECT tag FROM impresult)
+				EXCEPT SELECT tag FROM impresult
+				LIMIT 100 - _returned
+				RETURNING 1)
+				SELECT COUNT(*) FROM ins INTO _count;
+			RAISE NOTICE 'found tag %',_count;
+			_returned := _returned + _count;
+			IF _returned = 100 THEN return; END IF;
 			_depth = _depth + 1;
+			IF _depth = 2 THEN return; END IF;
 		END LOOP;
 END
 $$ language 'plpgsql';
@@ -34,7 +41,7 @@ BEGIN
 		EXECUTE format('CREATE TEMPORARY TABLE %I (tag INTEGER)',_dest);
 		PERFORM unsafeImplications(_tag);
 		EXECUTE format('INSERT INTO %I SELECT DISTINCT tag FROM impresult',_dest);
-		DROP TABLE impresult;
+		--DROP TABLE impresult;
 	EXCEPTION
 		WHEN duplicate_table THEN
 			 RAISE NOTICE 'yay already have';
