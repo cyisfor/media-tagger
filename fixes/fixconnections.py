@@ -23,7 +23,8 @@ def doit():
 		category = c.execute("SELECT findTag($1)",(cname,))[0][0]
 		tag = c.execute("SELECT findTag($1)",(tname,))[0][0]
 
-		c.execute("UPDATE tags SET complexity = 2 WHERE id = $1",(category,))
+		c.execute("UPDATE tags SET complexity = 0 WHERE id = $1",(category,))
+		c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
 		c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
 		if False:
 			c.execute("SELECT disconnect($2,$1)",(category,tag))

@@ -7,21 +7,28 @@ _returned int default 1;
 _count int;
 _depth int default 0;
 _other int;
+_derp int[];
+_complexity int default -9999999;
 BEGIN
 		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (id SERIAL PRIMARY KEY, tag INTEGER);
 		DELETE FROM impresult;
 		INSERT INTO impresult (tag) VALUES (_tag);
 		LOOP
+			SELECT MAX(complexity) FROM impresult INNER JOIN tags ON tags.id = impresult.tag
+			  INTO _complexity;
+			SELECT array(SELECT tag FROM impresult) INTO _derp;	
+			RAISE NOTICE 'min complexity now % %', _complexity, _derp;
 			WITH ins AS (INSERT INTO impresult (tag)
-			  select tags.id FROM things INNER JOIN tags ON tags.id = things.id
+			  (select tags.id FROM things INNER JOIN tags ON tags.id = things.id
 			  WHERE
-				complexity < (SELECT MAX(complexity) FROM impresult)
+				tags.complexity >= _complexity
 				AND
-				neighbors && array(SELECT tag FROM impresult)
+				neighbors && _derp
 				EXCEPT SELECT tag FROM impresult
-				LIMIT 100 - _returned
+				LIMIT 100 - _returned)
 				RETURNING 1)
 				SELECT COUNT(*) FROM ins INTO _count;
+			IF _count = 0 THEN return; END IF;
 			RAISE NOTICE 'found tag %',_count;
 			_returned := _returned + _count;
 			IF _returned = 100 THEN return; END IF;
