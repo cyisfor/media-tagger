@@ -2,7 +2,7 @@ from eventlet.greenthread import sleep
 import tempfile
 from contextlib import contextmanager
 
-import os,time
+import os
 oj = os.path.join
 
 base = os.path.expanduser("/home/.local/filedb")
@@ -20,20 +20,40 @@ def _incoming(id,contents=None):
 def incoming(id,contents=None):
 	return _incoming('{:x}'.format(id),contents)
 	
-def _check(id,category,create=True,contents=None,delay=0.1):
+def _check(id,category,create=True,contents=None):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
-    if os.path.exists(medium): return id,True
-    if not create:
-	    return id, False
-    _incoming(id,contents)
-    exists = False
-    for i in range(3):
-        if os.path.exists(medium): 
-            exists = True
-            break
-        sleep(delay)        
-    return id, exists
+		def on_done(handler):
+			if not create:
+				return handler(id, False)
+			if os.path.exists(medium): return handler(id, True)
+			_incoming(id,contents)
+			def tryagain():
+        if os.path.exists(medium): handler(id,True)
+				return handler(id, tryagain)
+			return tryagain()
+
+def just_wait(checker,*a,**kw):
+	"mostly just an example of how to undo the CPS of _check et al"
+	import time
+	tryagain = None
+	@checker(*a,**kw):
+	def result(id, exists):
+		nonlocal tryagain
+		if exists is True:
+			return id, True
+		elif exists is False:
+			return id, False
+		else:
+			tryagain = exists
+			return None
+	delay = kw.get('delay',0.1)
+	for attempt in range(3):
+		if result is not None:
+			return result
+		time.sleep(delay)
+		result = tryagain()
+	return id, False
 
 def check(id,**kw):
     kw.setdefault('category','thumb')

@@ -39,10 +39,11 @@ def doit():
 		category = c.execute("SELECT findTag($1)",(cname,))[0][0]
 		tag = c.execute("SELECT findTag($1)",(tname,))[0][0]
 
-		if False:
+		if True:
 			c.execute("UPDATE tags SET complexity = 0 WHERE id = $1",(category,))
 			c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(wholetag,))
-			c.execute("UPDATE tags SET complexity = 1 WHERE id = $1",(tag,))
+			c.execute("UPDATE tags SET complexity = 0 WHERE id = $1",(tag,))
+
 		if True:
 			c.execute("INSERT INTO toconnect (a,b,dis) VALUES ($1,$2,TRUE)",(category,tag))
 			c.execute("INSERT INTO toconnect (a,b,dis) VALUES ($1,$2,TRUE)",(tag,category))
@@ -61,8 +62,7 @@ def doit():
 				i += 1
 				c.execute("""
 UPDATE things SET neighbors = array(SELECT unnest(neighbors) UNION SELECT b FROM toconnect WHERE a = $1 AND NOT dis EXCEPT SELECT b FROM toconnect WHERE a = $1 AND dis)
-WHERE neighbors && array(SELECT b FROM toconnect WHERE a = $1 AND NOT dis EXCEPT SELECT b FROM toconnect WHERE a = $1 AND dis)
-				""",(a,))
+WHERE id = $1""",(a,))
 				mayberetrans()
 			print("done reconnecting")
 			c.execute("DELETE FROM toconnect")
