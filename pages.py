@@ -174,6 +174,7 @@ def makeLinks(info,linkfor=None):
 	row = []
 	rows = []
 	allexists = True
+	missing = set()
 	def onelink(id,name,type,tags,*is_comic):
 		nonlocal allexists
 		if len(is_comic) >= 1:
@@ -182,12 +183,18 @@ def makeLinks(info,linkfor=None):
 			is_comic = False
 		i = next(counter)
 		tags = [str(tag) for tag in tags]
+		tagid = None
 		if type == 'application/x-shockwave-flash':
 			src = '/flash.jpg'
 		else:
 			fid,oneexists = filedb.check(id)
 			allexists = allexists and oneexists
-			src='/thumb/'+fid
+			if oneexists:
+				src='/thumb/'+fid
+			else:
+				src='/thumb/b00b5'
+				tagid = str(fid)
+				missing.add(tagid)
 		link = linkfor(id,i)
 		if name is None:
 			name = fixName(id,type)
@@ -195,20 +202,26 @@ def makeLinks(info,linkfor=None):
 		klass = 'thumb'
 		if is_comic:
 			klass += ' comic'
-		with d.div(class_=klass):
-			d.a(dd.img(src=src,title=' '+name+' '),href=link)
+		with d.div(class_=klass) as div:
+			img = dict(src=src,title=' '+name+' ')
+			if tagid and User.loadjs:
+				img[id] = tagid
+			d.a(dd.img(**img),href=link)
 			if tags:
 				d.span(thingy,title=wrappit(', '.join(tags)
 			                            if tags else ''),
 						 href=link,
 						 class_='taghi')
-
 	for row in clump((onelink(*r) for r in info),thumbnailRowSize):
 		consume(row)
 #		print('row',tuple(row))
 		d.br
+	if not allexists:
+		if User.loadjs:
+			d.script("\n".join("reload_later(document.getElementById(\""+tagid+"\"))") for tagid in missing)
+		else:
+			Session.refresh = True
 		
-	Session.refresh = not allexists
 
 def makeBase():
 	# drop bass
@@ -264,6 +277,8 @@ def standardHead(title,*contents):
 				d.link(rel='last',href=Links.last)
 			if User.navigate:
 				d.script(src="/stuff/navigation.js",type="text/javascript")
+			if User.loadjs:
+				d.script(src="/stuff/reload-img.js",type="text/javascript")
 		yield head
 		
 derpage = None
@@ -737,6 +752,7 @@ def user(info,path,params):
 				checkbox("Rescale Images?",'rescale',User.rescaleImages)
 				checkbox("Only First Comic Page?",'comic',User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
+				checkbox("Javascript thumbnail checking?",'loadjs',User.loadjs)
 				note('tagnames',tagnames)
 				with d.tr:
 					d.td("Implied Tags")

@@ -2,7 +2,7 @@ from eventlet.greenthread import sleep
 import tempfile
 from contextlib import contextmanager
 
-import os
+import os,time
 oj = os.path.join
 
 base = os.path.expanduser("/home/.local/filedb")
@@ -12,6 +12,7 @@ temp = oj(base,'temp')
 
 def _incoming(id,contents=None):
 	target = oj(temp,id)
+	if os.path.exists(target): return
 	with open(target,'wb') as out:
 		if contents:
 			out.write(contents.encode('utf-8'))
@@ -23,41 +24,14 @@ def incoming(id,contents=None):
 def _check(id,category,create=True,contents=None):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
-		def on_done(handler):
-			if not create:
-				return handler(id, False)
-			if os.path.exists(medium): return handler(id, True)
-			_incoming(id,contents)
-			def tryagain():
-        if os.path.exists(medium): handler(id,True)
-				return handler(id, tryagain)
-			return tryagain()
-
-def just_wait(checker,*a,**kw):
-	"mostly just an example of how to undo the CPS of _check et al"
-	import time
-	tryagain = None
-	@checker(*a,**kw):
-	def result(id, exists):
-		nonlocal tryagain
-		if exists is True:
-			return id, True
-		elif exists is False:
-			return id, False
-		else:
-			tryagain = exists
-			return None
-	delay = kw.get('delay',0.1)
-	for attempt in range(3):
-		if result is not None:
-			return result
-		time.sleep(delay)
-		result = tryagain()
-	return id, False
+    if os.path.exists(medium): return id,True
+    if not create:
+	    return id, False
+    _incoming(id,contents)
+    return id, os.path.exists(medium)
 
 def check(id,**kw):
     kw.setdefault('category','thumb')
-    kw.setdefault('delay',0.01)
     if kw.get('create') and kw.get('category') == 'thumb':
         try:
             del kw['contents']
@@ -65,7 +39,6 @@ def check(id,**kw):
     return _check(id,**kw)
 
 def checkResized(id,**kw):
-    kw.setdefault('delay',0.1)
     return _check(id,'resized',contents="{:x}".format(800),**kw)
 
 def checkOEmbed(id,maxWidth,**kw):

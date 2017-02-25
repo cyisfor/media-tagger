@@ -34,7 +34,10 @@ class VersionHolder:
 	def jsnavigate():
 		"Users might want to navigate prev/next just by hitting left and right."
 		db.setup("ALTER TABLE uzers ADD COLUMN navigate BOOLEAN NOT NULL DEFAULT FALSE")
-		
+	@v(version=6)
+	def jsreload():
+		"Users might be able to load individual failed thumbs, instead of the whole page"
+		db.setup("ALTER TABLE uzers ADD COLUMN loadjs BOOLEAN NOT NULL DEFAULT FALSE")
 v.setup()
 
 def currentUser():
@@ -51,6 +54,7 @@ class User:
 	defaultTags = None
 	noComics = True
 	navigate = False
+	loadjs = False
 	def tags():
 		if User.defaultTags:
 			return dtags
@@ -69,7 +73,7 @@ class User:
 		return '<user '+User.ident+'>'
 	def setup(ident):
 		for go in range(2):
-			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate FROM uzers WHERE ident = $1",(ident,))
+			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate,loadjs FROM uzers WHERE ident = $1",(ident,))
 			if result and len(result[0]) == 5:
 				result = result[0]
 				User.ident = ident
@@ -78,6 +82,7 @@ class User:
 				User.defaultTags = result[2]
 				User.noComics = result[3]
 				User.navigate = result[4]
+				User.loadjs = result[]5
 				return
 			db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
 		raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")
