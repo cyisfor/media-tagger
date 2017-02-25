@@ -187,14 +187,19 @@ def makeLinks(info,linkfor=None):
 		if type == 'application/x-shockwave-flash':
 			src = '/flash.jpg'
 		else:
-			fid,oneexists = filedb.check(id)
-			allexists = allexists and oneexists
-			if oneexists:
-				src='/thumb/'+fid
-			else:
-				src='/thumb/b00b5'
-				tagid = str(fid)
-				missing.add(tagid)
+			for attempt in range(3):
+				fid,oneexists = filedb.check(id)
+				if oneexists:
+					src='/thumb/'+fid
+					allexists = allexists and oneexists
+					break
+				elif User.loadjs:
+					src='/thumb/b00b5'
+					tagid = str(fid)
+					missing.add((tagid,'/thumb/'+fid))
+					break
+				else:
+					time.sleep(0.1)
 		link = linkfor(id,i)
 		if name is None:
 			name = fixName(id,type)
@@ -203,9 +208,11 @@ def makeLinks(info,linkfor=None):
 		if is_comic:
 			klass += ' comic'
 		with d.div(class_=klass) as div:
-			img = dict(src=src,title=' '+name+' ')
+			img = dict(title=' '+name+' ')
 			if tagid and User.loadjs:
-				img[id] = tagid
+				img['id'] = tagid
+			else:
+				img['src'] = src
 			d.a(dd.img(**img),href=link)
 			if tags:
 				d.span(thingy,title=wrappit(', '.join(tags)
@@ -218,7 +225,7 @@ def makeLinks(info,linkfor=None):
 		d.br
 	if not allexists:
 		if User.loadjs:
-			d.script("\n".join("reload_later(document.getElementById(\""+tagid+"\"))") for tagid in missing)
+			d.script("\n".join(("reload_later(document.getElementById("+repr(tagid)+"),"+repr(src)+");") for tagid,src in missing))
 		else:
 			Session.refresh = True
 		

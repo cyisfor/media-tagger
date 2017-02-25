@@ -18,7 +18,8 @@ def user(path,params,data):
 	news = {
 		'rescaleimages': checkB('rescale'),
 		'nocomics': checkB('comic'),
-		'navigate': checkB('navigate')
+		'navigate': checkB('navigate'),
+		'loadjs': checkB('loadjs')
 	}
 
 	newtags = check('tags')

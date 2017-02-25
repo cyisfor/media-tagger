@@ -74,7 +74,7 @@ class User:
 	def setup(ident):
 		for go in range(2):
 			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate,loadjs FROM uzers WHERE ident = $1",(ident,))
-			if result and len(result[0]) == 5:
+			if result and len(result[0]) == 6:
 				result = result[0]
 				User.ident = ident
 				User.id = result[0]
@@ -82,7 +82,7 @@ class User:
 				User.defaultTags = result[2]
 				User.noComics = result[3]
 				User.navigate = result[4]
-				User.loadjs = result[]5
+				User.loadjs = result[5]
 				return
 			db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
 		raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")
