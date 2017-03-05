@@ -18,13 +18,14 @@ def fixCloudflareIdiocy(url):
 
 def tagoid(lookup):
 	pat = '(' + '|'.join(lookup.keys()) + ')'
-	pat = pat + '((?:^\\1)+)' + '\\1'
+	pat = pat + '((?:!\\1)+)' + '\\1'
+	print(pat)
 	pat = re.compile(pat)
-	etag = '</' + tag + '>'	
-	tag = '<' + tag + '>'
 	def repl(m):
 		tag = lookup[m.group(1)]
 		return '<' + tag + '>' + m.group(2) + '</' + tag + '>'
+	print(pat.sub(repl, "this is a *test*"))
+	raise SystemExit
 	return lambda s: pat.sub(repl, s)
 
 class parse:
@@ -34,27 +35,28 @@ class parse:
 								 "-": 's'})
 	links = re.compile(">>([0-9]+)(t|s|p)?")
 	def parse(s):
-		s = parse.tagoid(s)
+		import db
+		s = parse.tags(s)
 		def repl(m):
-			uri = 'http://derpibooru.org/'+m.group(1)
+			uri = 'https://derpibooru.org/'+m.group(1)
 			source = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
 			def derp(href):
-				return "&gt;&gt;<a href=\""+href+"\">"+m.group(1)+"</a>"
+				return "<a href=\""+href+"\">&gt;&gt;"+m.group(1)+"</a>"
 			if not source:
 				return derp(uri)
-			source = source[0]
-			ident = db.execute("SELECT id FROM media WHERE sources @> ARRAY[$1]",source)
+			source = source[0][0]
+			print(source)
+			ident = db.execute("SELECT id FROM media WHERE sources @> ARRAY[$1::int]",(source,))
 			if not ident:
 				# huh?
 				return derp(uri)
+			ident = ident[0][0]
 			return derp("/art/~page/{:x}".format(ident))
-		return links.sub(repl, s)
-
-parse = parse.parse
+		return parse.links.sub(repl, s)
 
 def extract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:
-		yield Description(parse(doc['description']))
+		yield Description(parse.parse(doc['description']))
 	for tag in doc['tags'].split(', '):
 		if ':' in tag:
 			yield Tag(*tag.split(':',1))
