@@ -98,6 +98,7 @@ def parse(primarySource,noCreate=False,progress=None):
 		tags = [generalize(tag) for tag in handlers.get('tags',[])]
 		sources = [primarySource]
 		name = None
+		description = None
 		try:
 			if 'json' in handlers:
 				results = handlers['extract'](primarySource,headers,
@@ -116,8 +117,7 @@ def parse(primarySource,noCreate=False,progress=None):
 				elif isinstance(thing,Name):
 					name = thing
 				elif isinstance(thing,Description):
-					print(thing)
-					raise SystemExit
+					description = thing
 		except KeyError as e:
 			continue
 		except AttributeError as e:
@@ -163,6 +163,12 @@ def parse(primarySource,noCreate=False,progress=None):
 																					 create.Source(derpSource),
 																					 derpSources,
 																					 name = name)
+				if description:
+					if wasCreated:
+						stmt = "INSERT INTO descriptions (id, blurb) ($1,$2)"
+					else:
+						stmt = "UPDATE descriptions SET blurb = $2 WHERE id = $1"
+					db.execute(stmt,(image, description))
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)

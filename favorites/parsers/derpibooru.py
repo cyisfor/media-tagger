@@ -17,15 +17,21 @@ def fixCloudflareIdiocy(url):
 	return url
 
 def tagoid(lookup):
-	pat = '(' + '|'.join(lookup.keys()) + ')'
-	pat = pat + '((?:!\\1)+)' + '\\1'
-	print(pat)
+	pat = None
+	keys = tuple(lookup.keys())
+	for key in keys:
+		if pat is None:
+			pat = ''
+		else:
+			pat += "|" 
+		pat += "(?:" + key + "([^" + key + "]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
-		tag = lookup[m.group(1)]
-		return '<' + tag + '>' + m.group(2) + '</' + tag + '>'
-	print(pat.sub(repl, "this is a *test*"))
-	raise SystemExit
+		for i in range(len(keys)):
+			if m.group(i+1):
+				tag = lookup[keys[i]]
+				return '<' + tag + '>' + m.group(i+1) + '</' + tag + '>'
+		raise RuntimeError("should have matched!")
 	return lambda s: pat.sub(repl, s)
 
 class parse:
@@ -34,6 +40,7 @@ class parse:
 								 "\\+": 'u',
 								 "-": 's'})
 	links = re.compile(">>([0-9]+)(t|s|p)?")
+	lines = re.compile("\s*\n\s*")
 	def parse(s):
 		import db
 		s = parse.tags(s)
@@ -52,7 +59,9 @@ class parse:
 				return derp(uri)
 			ident = ident[0][0]
 			return derp("/art/~page/{:x}".format(ident))
-		return parse.links.sub(repl, s)
+		s = parse.links.sub(repl, s)
+		s = "\n".join("<p>"+line+"</p>" for line in parse.lines.split(s))
+		return s
 
 def extract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:
