@@ -115,6 +115,9 @@ def parse(primarySource,noCreate=False,progress=None):
 					sources.append(thing)
 				elif isinstance(thing,Name):
 					name = thing
+				elif isinstance(thing,Description):
+					print(thing)
+					raise SystemExit
 		except KeyError as e:
 			continue
 		except AttributeError as e:

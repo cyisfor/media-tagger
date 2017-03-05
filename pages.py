@@ -191,15 +191,17 @@ def makeLinks(info,linkfor=None):
 				fid,oneexists = filedb.check(id)
 				if oneexists:
 					src='/thumb/'+fid
-					allexists = allexists and oneexists
 					break
 				elif User.loadjs:
-					src='/thumb/b00b5'
+					src='/stuff/loading.gif'
 					tagid = str(fid)
 					missing.add((tagid,'/thumb/'+fid))
+					allexists = False
 					break
 				else:
 					time.sleep(0.1)
+			else:
+				allexists = False
 		link = linkfor(id,i)
 		if name is None:
 			name = fixName(id,type)
@@ -211,8 +213,7 @@ def makeLinks(info,linkfor=None):
 			img = dict(title=' '+name+' ')
 			if tagid and User.loadjs:
 				img['id'] = tagid
-			else:
-				img['src'] = src
+			img['src'] = src
 			d.a(dd.img(**img),href=link)
 			if tags:
 				d.span(thingy,title=wrappit(', '.join(tags)

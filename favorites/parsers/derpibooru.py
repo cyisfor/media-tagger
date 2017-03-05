@@ -16,7 +16,45 @@ def fixCloudflareIdiocy(url):
 	url = url.replace('%28','').replace('%29','')
 	return url
 
+def tagoid(lookup):
+	pat = '(' + '|'.join(lookup.keys()) + ')'
+	pat = pat + '((?:^\\1)+)' + '\\1'
+	pat = re.compile(pat)
+	etag = '</' + tag + '>'	
+	tag = '<' + tag + '>'
+	def repl(m):
+		tag = lookup[m.group(1)]
+		return '<' + tag + '>' + m.group(2) + '</' + tag + '>'
+	return lambda s: pat.sub(repl, s)
+
+class parse:
+	tags = tagoid({"_": 'i',
+								 "\\*": 'b',
+								 "\\+": 'u',
+								 "-": 's'})
+	links = re.compile(">>([0-9]+)(t|s|p)?")
+	def parse(s):
+		s = parse.tagoid(s)
+		def repl(m):
+			uri = 'http://derpibooru.org/'+m.group(1)
+			source = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
+			def derp(href):
+				return "&gt;&gt;<a href=\""+href+"\">"+m.group(1)+"</a>"
+			if not source:
+				return derp(uri)
+			source = source[0]
+			ident = db.execute("SELECT id FROM media WHERE sources @> ARRAY[$1]",source)
+			if not ident:
+				# huh?
+				return derp(uri)
+			return derp("/art/~page/{:x}".format(ident))
+		return links.sub(repl, s)
+
+parse = parse.parse
+
 def extract(primarySource, headers, doc):
+	if not 'nodescription' in os.environ:
+		yield Description(parse(doc['description']))
 	for tag in doc['tags'].split(', '):
 		if ':' in tag:
 			yield Tag(*tag.split(':',1))

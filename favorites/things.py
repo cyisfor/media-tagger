@@ -21,3 +21,4 @@ class Tag:
         return self.category == other.category and self.name == other.name
 class Source(str): pass
 class Name(str): pass
+class Description(str): pass
