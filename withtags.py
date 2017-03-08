@@ -2,7 +2,7 @@ from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Or
 #ehhh
 
 from user import User
-import db												#
+import db 
 from versions import Versioner
 import resultCache
 from itertools import count
@@ -97,7 +97,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = negaClause
 
 	if User.noComics:
-		first_page = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
+		window = '''WINDOW wnd AS (
+		PARTITION BY comic ORDER BY which
+		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+		)'''
+		first_page = NOT(IN('things.id',Select('last_value(medium) OVER wnd','comicPage '+ window)))
 		if where is None:
 			where = first_page
 		else:

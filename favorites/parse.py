@@ -128,6 +128,7 @@ def parse(primarySource,noCreate=False,progress=None):
 		if True:
 			note("tags",[str(tag) for tag in tags])
 			note("name",repr(name))
+			note("desc",repr(description))
 			note("Media",len(medias))
 			note("PSource",primarySource)
 			note("Sources",sources)
@@ -164,11 +165,14 @@ def parse(primarySource,noCreate=False,progress=None):
 																					 derpSources,
 																					 name = name)
 				if description:
-					if wasCreated:
-						stmt = "INSERT INTO descriptions (id, blurb) ($1,$2)"
-					else:
-						stmt = "UPDATE descriptions SET blurb = $2 WHERE id = $1"
-					db.execute(stmt,(image, description))
+					note("yay",description,wasCreated)
+					try:
+						db.execute("INSERT INTO descriptions (id, blurb) VALUES ($1,$2)",
+											 (image, description))
+					except db.Error:
+						db.execute("UPDATE descriptions SET blurb = $2 WHERE id = $1",
+											 (image, description))
+					
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)
