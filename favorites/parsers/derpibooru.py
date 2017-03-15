@@ -35,6 +35,7 @@ def tagoid(lookup):
 	return lambda s: pat.sub(repl, s)
 
 class parse:
+	base = 'https://derpibooru.org'
 	tags = tagoid({"_": 'i',
 								 "\\*": 'b',
 								 "\\+": 'u',
@@ -43,13 +44,20 @@ class parse:
 	images = re.compile(">>([0-9]+)(t|s|p)?")
 	lines = re.compile("\s*\n\s*")
 	def parse(s):
+		ret = ""
+		for line in parse.lines.split(s):
+			ret += '<p>' + parse.parseLine(line) + '</p>\n'
+		return ret
+	def parseLine(s):
 		import db
 		ret = ""
 		start = 0
 		for m in parse.links.finditer(s):
-			help(m)
-			raise SystemExit
-			ret += parsePart(part)
+			mstart, mend = m.span()
+			ret += parse.parsePart(s[start:mstart])
+			ret += '<a href=\"'+m.group(2)+'">'+urllib.parse.urljoin(base,m.group(1))+'</a>'
+			start = mend
+		ret += s[start:]
 		return ret
 	def parsePart(s):
 		s = parse.tags(s)
@@ -69,8 +77,10 @@ class parse:
 			ident = ident[0][0]
 			return derp("/art/~page/{:x}".format(ident))
 		s = parse.images.sub(repl, s)
-		s = "\n".join("<p>"+line+"</p>" for line in parse.lines.split(s))
 		return s
+
+print(parse.parse('Hugs for "duop-qoub":/profiles/duop-dash-qoub'))
+raise RuntimeError
 
 def extract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:
