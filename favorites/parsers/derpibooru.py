@@ -24,7 +24,7 @@ def tagoid(lookup):
 			pat = ''
 		else:
 			pat += "|" 
-		pat += "(?:" + key + "([^" + key + "]+)" + key + ")"
+		pat += "(?:" + key + "([^" + key + "\\n]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
 		for i in range(len(keys)):
@@ -39,10 +39,19 @@ class parse:
 								 "\\*": 'b',
 								 "\\+": 'u',
 								 "-": 's'})
-	links = re.compile(">>([0-9]+)(t|s|p)?")
+	links = re.compile('"([^"]+)":([^ ]+)')
+	images = re.compile(">>([0-9]+)(t|s|p)?")
 	lines = re.compile("\s*\n\s*")
 	def parse(s):
 		import db
+		ret = ""
+		start = 0
+		for m in parse.links.finditer(s):
+			help(m)
+			raise SystemExit
+			ret += parsePart(part)
+		return ret
+	def parsePart(s):
 		s = parse.tags(s)
 		def repl(m):
 			uri = 'https://derpibooru.org/'+m.group(1)
@@ -59,13 +68,15 @@ class parse:
 				return derp(uri)
 			ident = ident[0][0]
 			return derp("/art/~page/{:x}".format(ident))
-		s = parse.links.sub(repl, s)
+		s = parse.images.sub(repl, s)
 		s = "\n".join("<p>"+line+"</p>" for line in parse.lines.split(s))
 		return s
 
 def extract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:
-		yield Description(parse.parse(doc['description']))
+		desc = parse.parse(doc['description']).strip()
+		if desc:
+			yield Description(desc)
 	for tag in doc['tags'].split(', '):
 		if ':' in tag:
 			yield Tag(*tag.split(':',1))

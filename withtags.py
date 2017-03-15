@@ -101,11 +101,13 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		PARTITION BY comic ORDER BY which
 		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
 		)'''
-		first_page = NOT(IN('things.id',Select('last_value(medium) OVER wnd','comicPage '+ window)))
+		last_page = Select('DISTINCT last_value(medium) OVER wnd','comicPage '+ window)
+		not_last_page = Select('medium','comicPage',NOT(IN('medium',last_page)))
+		last_page = NOT(IN('things.id',not_last_page))
 		if where is None:
-			where = first_page
+			where = last_page
 		else:
-			where = AND(where,first_page)
+			where = AND(where,last_page)
 
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,
