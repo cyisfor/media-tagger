@@ -1,6 +1,9 @@
 from favorites.parse import ParseError
 from favorites.things import *
 import filedb
+import note
+from replacer import replacerFile
+
 import re
 import urllib.parse
 from setupurllib import myretrieve
@@ -26,7 +29,8 @@ def extract(doc):
 			yield Tag(None,m.group(1).lower())
 	def fixProfile(profile):
 		src = profile['src']
-		if not urllib.parse.urlsplit(src).host.endsWith('facdn.net'): return
+		if not urllib.parse.urlsplit(src).netloc.endswith('facdn.net'): return
+		src = urllib.parse.urljoin("http://furaffinity.net",src)
 		name = src.rsplit('/',1)[-1]
 		dest = os.path.join(filedb.base,'media','furaffinity')
 		try: os.mkdir(dest)
@@ -34,14 +38,22 @@ def extract(doc):
 		dest = os.path.join(dest,urllib.parse.unquote(name))
 		if not os.path.exists(dest):
 			note("Need to get furaffinity image",src)
-			myretrieve(src,dest)
+			with replacerFile(dest) as out:
+				myretrieve(src,out)
 		profile['src'] = '/media/furaffinity/' + name
 	desc = doc.find('table',{'class':'maintable'})
 	if desc:
-		desc = desc.find('td',{'class': 'alt1'})
+		ava = desc.find('img',{'class': 'avatar'})
+		desc = ava.parent.parent # container > a > img
 		for profile in desc.findAll('img'):
 			fixProfile(profile)
-			
+		def prettify(c):
+			try: return c.prettify()
+			return str(c)
+		desc = "".join(prettify(c) for c in desc.children)
+		raise RuntimeError("oops",desc)
+		yield Description(desc)
+	raise RuntimeError("oops")
 	auth = doc.findAll('td',{'class':'cat'})
 	if not auth or len(auth) < 2:
 		with open('/tmp/furafffail.html','wt') as out:
