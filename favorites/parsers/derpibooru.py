@@ -44,9 +44,15 @@ class parse:
 	images = re.compile(">>([0-9]+)(t|s|p)?")
 	lines = re.compile("\s*\n\s*")
 	def parse(s):
+		if s is None:
+			return
 		ret = ""
 		for line in parse.lines.split(s):
-			ret += '<p>' + parse.parseLine(line) + '</p>\n'
+			line = line.strip()
+			if line:
+				line = parse.parseLine(line).strip()
+				if line:
+					ret += '<p>' + line + '</p>\n'
 		return ret
 	def parseLine(s):
 		import db
@@ -55,7 +61,7 @@ class parse:
 		for m in parse.links.finditer(s):
 			mstart, mend = m.span()
 			ret += parse.parsePart(s[start:mstart])
-			ret += '<a href=\"'+m.group(2)+'">'+urllib.parse.urljoin(base,m.group(1))+'</a>'
+			ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+m.group(1)+'</a>'
 			start = mend
 		ret += s[start:]
 		return ret
@@ -78,9 +84,6 @@ class parse:
 			return derp("/art/~page/{:x}".format(ident))
 		s = parse.images.sub(repl, s)
 		return s
-
-print(parse.parse('Hugs for "duop-qoub":/profiles/duop-dash-qoub'))
-raise RuntimeError
 
 def extract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:

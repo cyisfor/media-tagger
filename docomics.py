@@ -192,6 +192,6 @@ parseOne()
 
 import gtkclipboardy as clipboardy
 
-c = clipboardy(gotURL,lambda piece: print(repr(piece[:4])) or 'http' == piece[:4])
+c = clipboardy(gotURL,lambda piece: 'http' == piece[:4])
 window.connect('destroy',c.quit)
 c.run()

@@ -210,6 +210,7 @@ if __name__ == '__main__':
 		box.pack_start(gobutton,True,False,0)
 		def gotPiece(piece):
 			if ( piece.startswith('http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]') or
+					 piece.startswith('http://is4vhqhf2nqambxpyvdbpbpg2zifg3wy6by4nl5v6dgjewan33iq.b32.i2p') or
 					 piece.startswith('http://cy.h')):
 				try: dothetag(int(piece.rstrip('/').rsplit('/',1)[-1],0x10))
 				except ValueError: return

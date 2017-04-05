@@ -1,7 +1,10 @@
 from favorites.parse import ParseError
 from favorites.things import *
+import filedb
 import re
 import urllib.parse
+from setupurllib import myretrieve
+import os
 
 def mystrip(s,chars):
 	for c in chars:
@@ -21,6 +24,24 @@ def extract(doc):
 			m = kwMatch.match(href)
 			if not m: continue
 			yield Tag(None,m.group(1).lower())
+	def fixProfile(profile):
+		src = profile['src']
+		if not urllib.parse.urlsplit(src).host.endsWith('facdn.net'): return
+		name = src.rsplit('/',1)[-1]
+		dest = os.path.join(filedb.base,'media','furaffinity')
+		try: os.mkdir(dest)
+		except OSError: pass
+		dest = os.path.join(dest,urllib.parse.unquote(name))
+		if not os.path.exists(dest):
+			note("Need to get furaffinity image",src)
+			myretrieve(src,dest)
+		profile['src'] = '/media/furaffinity/' + name
+	desc = doc.find('table',{'class':'maintable'})
+	if desc:
+		desc = desc.find('td',{'class': 'alt1'})
+		for profile in desc.findAll('img'):
+			fixProfile(profile)
+			
 	auth = doc.findAll('td',{'class':'cat'})
 	if not auth or len(auth) < 2:
 		with open('/tmp/furafffail.html','wt') as out:

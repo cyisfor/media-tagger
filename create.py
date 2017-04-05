@@ -296,6 +296,7 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
 		#input()
 	note("update")
 	update(id,sources,tags,name)
+	note("done update")
 	return id, was_created
 
 def copyMe(source):

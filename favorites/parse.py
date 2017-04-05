@@ -170,6 +170,7 @@ def parse(primarySource,noCreate=False,progress=None):
 						db.execute("INSERT INTO descriptions (id, blurb) VALUES ($1,$2)",
 											 (image, description))
 					except db.Error:
+						print("update desc to",description)
 						db.execute("UPDATE descriptions SET blurb = $2 WHERE id = $1",
 											 (image, description))
 					
