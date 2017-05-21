@@ -34,6 +34,9 @@ def catch_one():
 		return
 	ident,uri = res
 	note.yellow(uri)
+	if uri.startswith("http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]"):
+		megafail(ident)
+		return True
 	ah = alreadyHere(uri)
 	if ah:
 		medium, wasCreated = ah
