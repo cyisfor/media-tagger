@@ -458,7 +458,7 @@ def checkExplain(id,link,width,height,thing):
 		if not isinstance(link,tuple):
 			note.alarm("boop")
 			link = (link,)
-	  a = dd.a(href=thing)
+		a = dd.a(href=thing)
 		for fuuuck in link:
 			a.append(fuuuck)
 		div.append(a)
