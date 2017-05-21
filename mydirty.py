@@ -66,7 +66,6 @@ class Element:
 				for commit in self.pending:
 					commit()
 			contents = tuple(maybecommit(e) for e in self.contents)
-			print(contents)
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed
 
