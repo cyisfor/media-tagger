@@ -371,6 +371,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					with d.object(width=width, height=height,
 					              data=thing,style=style,type=type):
 						d.embed(src=thing,style=style,type=type)
+				wrapper = wrapper.commit()
 			else:
 				with d.object(
 					style=style,
