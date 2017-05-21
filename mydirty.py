@@ -53,7 +53,6 @@ class Element:
 		return "<"+self.name+repr(self.kw)+'>'
 	def __call__(self,*a,**kw):
 		nocycles(self,a)
-		note(a)
 		self.contents += a
 		self.kw.update(kw)
 		return self
@@ -74,6 +73,7 @@ class Element:
 				for commit in self.pending:
 					commit()
 			contents = tuple(maybecommit(e) for e in self.contents)
+			note(contents)
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed
 
