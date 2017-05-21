@@ -53,7 +53,7 @@ class Element:
 		return "<"+self.name+repr(self.kw)+'>'
 	def __call__(self,*a,**kw):
 		nocycles(self,a)
-		a = flatten(a)
+		note(a)
 		self.contents += a
 		self.kw.update(kw)
 		return self
