@@ -383,7 +383,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					        src=thing,style=style,
 					        type=type,loop=True,autoplay=True)
 					d.param(name='src',value=thing)
-					o.commit()
+					o = o.commit()
 				note("um",o.contents)
 				wrapper = (o,dd.br,"Download")
 		return fid,wrapper,thing
