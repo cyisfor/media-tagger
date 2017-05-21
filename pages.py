@@ -454,7 +454,7 @@ def checkExplain(id,link,width,height,thing):
 	else:
 		div = d.div(id='medium')
 	with div:
-		note(repr(link))
+		note(type(link))
 		if not isinstance(link,tuple):
 			note.alarm("boop")
 			link = (link,)
