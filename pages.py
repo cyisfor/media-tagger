@@ -455,6 +455,7 @@ def checkExplain(id,link,width,height,thing):
 		div = d.div(id='medium')
 	with div:
 		if not isinstance(link,tuple):
+			note.alarm("boop")
 			link = (link,)
 		d.a(*link,href=thing)
 
