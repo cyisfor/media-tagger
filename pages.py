@@ -324,7 +324,7 @@ def makeStyle(s):
 	return d.style(res,type='text/css')
 
 def makeLink(id,type,name,doScale,width=None,height=None,style=None):
-	return ''
+	return "depr","derp",name
 	isImage = None
 	if doScale:
 		isImage = type.startswith('image')
