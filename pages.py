@@ -458,10 +458,7 @@ def checkExplain(id,link,width,height,thing):
 		if not isinstance(link,tuple):
 			note.alarm("boop")
 			link = (link,)
-		a = dd.a(href=thing)
-		for fuuuck in link:
-			print(fuuuck)
-			a(fuuuck)
+		a = dd.a(*link, href=thing)
 		div(a)
 
 linepat = re.compile('[ \t]*\n+\s*')
