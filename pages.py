@@ -385,7 +385,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					d.param(name='src',value=thing)
 					o.commit()
 					note(o.contents)
-				wrapper = dd.span(o,dd.br,"Download")
+				wrapper = (o,dd.br,"Download")
 		return fid,wrapper,thing
 	if type == 'application/x-shockwave-flash':
 		with d.NoParent:
@@ -454,7 +454,9 @@ def checkExplain(id,link,width,height,thing):
 	else:
 		div = d.div(id='medium')
 	with div:
-		d.a(link,href=thing)
+		if not isinstance(link,tuple):
+			link = (link,)
+		d.a(*link,href=thing)
 
 linepat = re.compile('[ \t]*\n+\s*')
 	
