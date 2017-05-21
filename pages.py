@@ -460,6 +460,7 @@ def checkExplain(id,link,width,height,thing):
 			link = (link,)
 		a = dd.a(href=thing)
 		for fuuuck in link:
+			print(fuuuck)
 			a.append(fuuuck)
 		div.append(a)
 
