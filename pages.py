@@ -461,6 +461,7 @@ def checkExplain(id,link,width,height,thing):
 	  a = dd.a(href=thing)
 		for fuuuck in link:
 			a.append(fuuuck)
+		div.append(a)
 
 linepat = re.compile('[ \t]*\n+\s*')
 	
