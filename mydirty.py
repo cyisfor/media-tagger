@@ -73,8 +73,6 @@ class Element:
 				for commit in self.pending:
 					commit()
 			contents = tuple(maybecommit(e) for e in self.contents)
-			import note
-			note(contents)
 			self.committed = getattr(sub,self.name)(*contents,**self.kw)
 		return self.committed
 
