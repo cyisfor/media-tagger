@@ -32,6 +32,13 @@ def maybecommit(e):
 		return e.commit()
 	return e
 
+def flatten(S):
+  if len(S) == 0:
+    return S
+  if isinstance(S[0], (tuple,list)):
+    return flatten(S[0]) + flatten(S[1:])
+  return S[:1] + flatten(S[1:])
+
 class Element:
 	def __init__(self,name):
 		self.name = name
@@ -46,6 +53,7 @@ class Element:
 		return "<"+self.name+repr(self.kw)+'>'
 	def __call__(self,*a,**kw):
 		nocycles(self,a)
+		a = flatten(a)
 		self.contents += a
 		self.kw.update(kw)
 		return self
