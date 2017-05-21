@@ -1,5 +1,6 @@
 #!/bin/python
 
+from description import describe
 import db
 
 import sys,os,tempfile
@@ -7,26 +8,19 @@ from mmap import mmap
 import subprocess as s
 
 def edit(which):
-	oldblurb = db.execute("SELECT blurb FROM descriptions WHERE id = $1",
-												(which,))
-
-	temp = tempfile.NamedTemporaryFile(suffix=".html")
-	if oldblurb:
-		print("old",oldblurb)
-		temp.write(oldblurb[0][0].encode("utf-8"))
-		temp.flush()
-	editor = os.environ.get("EDITOR","emacs")
-	s.call([editor,temp.name])
-	input("Enter to commit...")
-
-	buf = mmap(temp.fileno(),0)
-	temp.close()
-	print("uhh",buf[:])
-	with db.transaction():
+	@describe(which,manual=True)
+	def _(oldblurb):
+		temp = tempfile.NamedTemporaryFile(suffix=".html")
 		if oldblurb:
-			db.execute("UPDATE descriptions SET blurb = $2 WHERE id = $1", (which,buf[:]))
-		else:
-			db.execute("INSERT INTO descriptions (id,blurb) VALUES($1,$2)", (which,buf[:]))
+			print("old",oldblurb)
+			temp.write(oldblurb.encode("utf-8"))
+			temp.flush()
+		editor = os.environ.get("EDITOR","emacs")
+		s.call([editor,temp.name])
+
+		buf = mmap(temp.fileno(),0)
+		temp.close()
+		return buf[:]
 
 from delete import findId
 			

@@ -5,8 +5,8 @@ import create
 import withtags
 import filedb
 import db
-import fixstdin
-import fixprint
+import better.stdin
+import better.print
 
 from hashlib import md5 as MD5
 

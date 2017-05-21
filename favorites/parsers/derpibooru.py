@@ -1,6 +1,7 @@
 from favorites.things import *
 import re
 import urllib.parse
+import note
 
 def mystrip(s,chars):
 	for c in chars:
@@ -55,19 +56,20 @@ class parse:
 					ret += '<p>' + line + '</p>\n'
 		return ret
 	def parseLine(s):
-		import db
 		ret = ""
 		start = 0
 		for m in parse.links.finditer(s):
 			mstart, mend = m.span()
 			ret += parse.parsePart(s[start:mstart])
-			ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+m.group(1)+'</a>'
+			ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+parse.parsePart(m.group(1))+'</a>'
 			start = mend
-		ret += s[start:]
+		ret += parse.parsePart(s[start:])
 		return ret
 	def parsePart(s):
 		s = parse.tags(s)
 		def repl(m):
+			import db
+			note.purple("um",m.group(1))
 			uri = 'https://derpibooru.org/'+m.group(1)
 			source = db.execute("SELECT id FROM urisources WHERE uri = $1",(uri,))
 			def derp(href):

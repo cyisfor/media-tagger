@@ -3,6 +3,7 @@ import setupurllib
 import db
 from better import print as _
 import note
+from description import describe
 
 import json
 from bs4sux import BeautifulSoup
@@ -74,7 +75,7 @@ def parse(primarySource,noCreate=False,progress=None):
 			derp = handlers['json'](primarySource)
 		else:
 			derp = primarySource
-		note("opening?")
+		note("opening?",derp)
 		with myopen(derp) as inp:
 			headers = inp.headers
 			if 'json' in handlers:
@@ -166,14 +167,9 @@ def parse(primarySource,noCreate=False,progress=None):
 																					 name = name)
 				if description:
 					note("yay",description,wasCreated)
-					try:
-						db.execute("INSERT INTO descriptions (id, blurb) VALUES ($1,$2)",
-											 (image, description))
-					except db.Error:
-						print("update desc to",description)
-						db.execute("UPDATE descriptions SET blurb = $2 WHERE id = $1",
-											 (image, description))
-					
+					@describe(image)
+					def _(olddesc):
+						return description
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)

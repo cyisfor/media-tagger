@@ -47,13 +47,15 @@ def extract(doc):
 		desc = ava.parent.parent # container > a > img
 		for profile in desc.findAll('img'):
 			fixProfile(profile)
+		for a in desc.findAll('a'):
+			if a['href']:
+				a['href'] = urllib.parse.urljoin("http://furaffinity.net",a['href'])
 		def prettify(c):
 			try: return c.prettify()
+			except AttributeError: pass
 			return str(c)
-		desc = "".join(prettify(c) for c in desc.children)
-		raise RuntimeError("oops",desc)
+		desc = "".join(prettify(c) for c in desc.children).strip()
 		yield Description(desc)
-	raise RuntimeError("oops")
 	auth = doc.findAll('td',{'class':'cat'})
 	if not auth or len(auth) < 2:
 		with open('/tmp/furafffail.html','wt') as out:
