@@ -384,7 +384,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					        type=type,loop=True,autoplay=True)
 					d.param(name='src',value=thing)
 					o.commit()
-				note("um",o.children)
+				note("um",o.contents)
 				wrapper = (o,dd.br,"Download")
 		return fid,wrapper,thing
 	if type == 'application/x-shockwave-flash':
