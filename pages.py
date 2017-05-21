@@ -379,11 +379,11 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 						autoplay=True,
 						width=width,
 						height=height) as o:
-					note(thing)
 					d.embed(' ',
 					        src=thing,style=style,
 					        type=type,loop=True,autoplay=True)
 					d.param(name='src',value=thing)
+					note(o)
 				wrapper = (o,dd.br,"Download")
 		return fid,wrapper,thing
 	if type == 'application/x-shockwave-flash':
