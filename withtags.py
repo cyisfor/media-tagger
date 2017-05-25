@@ -1,8 +1,8 @@
-from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group,Contains
+from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
 
 from user import User
-import db 
+import db												#
 from versions import Versioner
 import resultCache
 from itertools import count
@@ -58,56 +58,31 @@ tagsWhat = (
 								   EQ('neigh.unnest','tags.id'))))
 			)
 
-def lookup_tags(l):
-	for i,tag in enumerate(l):
-		if isinstance(tag,str):
-			l[i] = getTag(tag)
 
 def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	arg = argbuilder()
-
-	notWanted = None
-	if tags.nega:
-		lookup_tags(tags.nega)
-		if len(tags.nega) == 1:
-			tag = tuple(tags.nega)[0]
-			if not tag in tags.posi:
-				notWanted = Type(arg(tag),'INTEGER')
-		else:
-			diff = tags.nega - tags.posi
-			if len(diff) == 1:
-				notWanted = Type(arg(tuple(diff)[0]),'INTEGER')
-			elif diff:
-				notWanted = Type(arg(diff),'INTEGER[]',array=True)
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
-	if tags.nega:
-		if len(tags.nega) == 1:
-			negaClause = NOT(Contains('neighbors',notWanted))
-		else:
-			negaClause = NOT(Intersects('neighbors',notWanted))
+	negaWanted = Select('id','unwanted')
+	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
 	if not (tags.posi or tags.nega):
 		where = None
 	elif tags.posi:
 		where = Group(Select(EVERY(Intersects('neighbors','tags')),'wanted'))
 
 		if tags.nega:
+			negaWanted.where = NOT(IN('id',Select('unnest(tags)','wanted')))
 			where = AND(where,negaClause)
 	elif tags.nega:
 		# only negative tags
+		negaWanted.where = None
 		where = negaClause
 
 	if User.noComics:
-		window = '''WINDOW wnd AS (
-		PARTITION BY comic ORDER BY which
-		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-		)'''
-		last_page = Select('DISTINCT last_value(medium) OVER wnd','comicPage '+ window)
-		not_last_page = Select('medium','comicPage',NOT(IN('medium',last_page)))
-		last_page = NOT(IN('things.id',not_last_page))
+		first_page = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
 		if where is None:
-			where = last_page
+			where = first_page
 		else:
-			where = AND(where,last_page)
+			where = AND(where,first_page)
+	arg = argbuilder()
 
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Limit(Order(mainCriteria,
@@ -115,15 +90,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					(arg(offset) if offset else False),arg(limit))
 
 	if tags.posi:
-		lookup_tags(tags.posi)
-		if len(tags.posi) == 1:
-			posi = Type(arg(tuple(tags.posi)[0]),'INTEGER')
-		else:
-			posi = Type(arg([tags.posi]),'INTEGER[]',array=True)
+		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'int[]')
 
 
 	if wantRelated:
-		mainOrdered = IN('things.id',mainOrdered)
+		mainOrdered = EQ('things.id',ANY(mainOrdered))
 		if tags.posi:
 			mainOrdered = AND(
 							NOT(EQ('tags.id',ANY(posi))),
@@ -153,22 +124,34 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	# we MIGHT need a with statement...
 	clauses = {}
 
+	if tags.nega:
+		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'int[]')
+		notWanted = EQ('things.id',ANY(nega))
+		if tags.posi:
+			notWanted = AND(notWanted,
+							NOT(EQ('things.id',ANY(posi))))
+		herp = AS(Func('unnest',nega),'id')
+
+		clauses['unwanted'] = (
+			'id',
+			Union(Select('tags.id',
+						 InnerJoin('tags','things',
+								   EQ('tags.id','things.id')),
+									 notWanted),
+				  Select('id',herp)))
+	else:
+		notWanted = None
+
 	if tags.posi:
+		# make sure positive tags don't override negative ones
+		noOverride = NOT(EQ('things.id',ANY(posi)))
+		notWanted = AND(notWanted,noOverride) if notWanted else noOverride
 		# MUST separate implications to separate arrays
 		# for the AND requirement a & b & c = (a|a2|a3)&(b|b2|b3)&...
-		if len(tags.posi) == 1:
-			wanted = Select(AS(array(Select(Func('implications',posi))),"tags"))
-		else:
-			wanted = Select(AS(array(Select('implications(unnest)')),"tags"),
-										   Func('unnest',posi))
-		# make sure positive tags don't override negative ones
-		if notWanted:
-			if notWanted.is_array:
-				derp = Intersects('tags',notWanted)
-			else:
-				derp = Contains('tags',notWanted)
-			wanted = Select("tags",AS(wanted,"derp"),NOT(derp))
-		clauses['wanted'] = ('tags',wanted)
+		clauses['wanted'] = ('tags',Select(array(Select('implications(unnest)')),
+										   Func('unnest',posi)))
+												 
+
 
 	#sel = stmt.clause.clause
 	#sel.what = 'media.id, neighbors'
