@@ -130,12 +130,11 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		notWanted = IN('tags.id',herp)
 		if tags.posi:
 			notWanted = AND(notWanted,
-							NOT(EQ('tags.id',ANY(posi))))
+							NOT(EQ('things.id',ANY(posi))))
 
 		clauses['unwanted'] = (
 			'id',
-			Union(Select('tags.id',
-									 notWanted),herp))
+			Union(Select('tags.id',"tags",notWanted),herp))
 	else:
 		notWanted = None
 
