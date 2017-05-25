@@ -1,54 +1,50 @@
---DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
-
-DROP FUNCTION unsafeImplications(_tag INTEGER	);
-CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
+DROP FUNCTION implications(_tag bigint, _returned int, _depth int) RETURNS int;
+CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
 DECLARE
-_returned int default 1;
-_count int;
-_depth int default 0;
-_other int;
-_derp int[];
-_complexity int default -9999999;
+_neighbor INTEGER;
+_count int default 0;
 BEGIN
-		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (id SERIAL PRIMARY KEY, tag INTEGER);
-		DELETE FROM impresult;
-		INSERT INTO impresult (tag) VALUES (_tag);
-		LOOP
-			SELECT MAX(complexity) FROM impresult INNER JOIN tags ON tags.id = impresult.tag
-			  INTO _complexity;
-			SELECT array(SELECT tag FROM impresult) INTO _derp;	
-			RAISE NOTICE 'min complexity now % %', _complexity, _derp;
-			WITH ins AS (INSERT INTO impresult (tag)
-			  (select tags.id FROM things INNER JOIN tags ON tags.id = things.id
-			  WHERE
-				tags.complexity >= _complexity
-				AND
-				neighbors && _derp
-				EXCEPT SELECT tag FROM impresult
-				LIMIT 100 - _returned)
-				RETURNING 1)
-				SELECT COUNT(*) FROM ins INTO _count;
-			IF _count = 0 THEN return; END IF;
-			RAISE NOTICE 'found tag %',_count;
-			_returned := _returned + _count;
-			IF _returned = 100 THEN return; END IF;
-			_depth = _depth + 1;
-			IF _depth = 2 THEN return; END IF;
-		END LOOP;
+    IF _depth > 2 THEN
+       RETURN _count;
+    END IF;
+	IF _returned > 100 THEN
+	   RETURN _count;
+	END IF;
+    INSERT INTO impresult (tag) VALUES (_tag);
+	RAISE NOTICE 'found tag % %s',_tag,(select name from tags where id = _tag);
+    _count := _count + 1;
+	_count := sum(implications(
+             other.id,
+             _returned + _count,
+             1 + _depth))
+        FROM tags inner join things on things.id = tags.id , tags other WHERE
+			 tags.id = _tag
+			 AND other.id = ANY(things.neighbors)
+             AND tags.complexity < other.complexity;
+	RETURN _count;
 END
+$$
+LANGUAGE 'plpgsql';
+
+DROP FUNCTION unsafeImplications(_tag INTEGER);
+CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
+BEGIN
+		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
+		DELETE FROM impresult;
+		PERFORM implications( _tag, 0, 0);
+END;
 $$ language 'plpgsql';
--- note: implications		caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
-drop function					 implications(_tag INTEGER);
+-- note: implications caches implications for a given tag... THIS MAY BE INACCURATE but will be fast
 CREATE OR REPLACE FUNCTION implications(_tag INTEGER) RETURNS SETOF INTEGER AS $$
 DECLARE
 _dest text;
 BEGIN
 	_dest := 'implications' || _tag;
 	BEGIN
-		EXECUTE format('CREATE TEMPORARY TABLE %I (tag INTEGER)',_dest);
+		EXECUTE format('CREATE TEMPORARY TABLE %I (tag BIGINT)',_dest);
 		PERFORM unsafeImplications(_tag);
 		EXECUTE format('INSERT INTO %I SELECT DISTINCT tag FROM impresult',_dest);
-		--DROP TABLE impresult;
+		DROP TABLE impresult;
 	EXCEPTION
 		WHEN duplicate_table THEN
 			 RAISE NOTICE 'yay already have';
