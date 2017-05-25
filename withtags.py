@@ -88,6 +88,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	mainOrdered = Limit(Order(mainCriteria,
 						  'media.added DESC'),
 					(arg(offset) if offset else False),arg(limit))
+	if limit > 1:
+		mainOrdered.is_array = True
 
 	if tags.posi:
 		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'int[]',True)
