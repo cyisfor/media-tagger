@@ -303,6 +303,9 @@ class EXISTS(Unary):
 class ANY(Unary):
 	def __init__(self, clause):
 		def is_array():
+			print(clause.is_array)
+			raise SystemExit(23)
+
 			if hasattr(clause,'is_array'):
 				return clause.is_array
 			elif hasattr(clause,'encode') or hasattr(clause,'decode'):
@@ -316,7 +319,6 @@ class ANY(Unary):
 		if is_array():
 			super().__init__(Group(clause))
 		else:
-			raise SystemExit(23)
 			super().__init__(clause)
 			self.sql = super().sql
 	def sql(self):
