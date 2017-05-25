@@ -3,6 +3,7 @@ function reload_later(dest,src) {
 	var img = document.createElement('img');
 	function setsrc() {
 		img.style.width = '219px';
+		img.style.height = '219px';
 		img.src = src;
 	}
 	img.addEventListener('error', function(e) {
