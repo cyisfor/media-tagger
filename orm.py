@@ -193,6 +193,8 @@ class Limit(SQL):
 class Group(SQL):
 	def __init__(self, clause):
 		self.clause = clause
+	def __getattr__(self,name):
+		return getattr(self.clause,name)
 	def sql(self):
 		clause = self.clause
 		while isinstance(clause,Group):
@@ -303,9 +305,6 @@ class EXISTS(Unary):
 class ANY(Unary):
 	def __init__(self, clause):
 		def is_array():
-			print(clause.is_array)
-			raise SystemExit(23)
-
 			if hasattr(clause,'is_array'):
 				return clause.is_array
 			elif hasattr(clause,'encode') or hasattr(clause,'decode'):
