@@ -632,7 +632,6 @@ def media(url,query,offset,pageSize,info,related,basic):
 	Links.first = "./" # +unparseQuery(query) we're gonna reset to page 0 anyway
 	Links.contents = "/art/";
 	info = tuple(info)
-	print('oooooo',offset)
 	if len(info)>=pageSize:
 		query['o'] = offset + 1
 		Links.next = url.path+unparseQuery(query)
@@ -756,7 +755,6 @@ def user(info,path,params):
 		with d.tr:
 			d.td(question)
 			with d.td:
-				print(iattr)
 				d.input(**iattr)
 	with makePage("User Settings",douser=False):
 		with d.form(action=place('user'),

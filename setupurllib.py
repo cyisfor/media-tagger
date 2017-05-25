@@ -72,6 +72,8 @@ def watch_headers(ssl=False):
 		connection = http.HTTPConnection
 		handler = urllib.HTTPHandler
 
+	return handler
+		
 	derpreq = None
 	
 	class HeaderWatcher(connection):
@@ -85,7 +87,7 @@ def watch_headers(ssl=False):
 			elif header == 'Referer':
 				self.didrefer = True
 			self.headers[header] = values
-		def endheaders(self, body):
+		def endheaders(self, *a, **kw):
 			if not self.didrefer:
 				self.headers['Referer'] = derpreq.get_full_url().split('?')[0]
 			for ordered in ('Host','User-Agent','Accept','Accept-Language',
@@ -96,13 +98,13 @@ def watch_headers(ssl=False):
 				except KeyError: pass
 			for n,v in self.headers.items():
 				super().putheader(n, v)
-			note.blue('sendig headers',b'\n'.join(self._buffer).decode('utf-8'))
-			return super().endheaders(body)
+			note.blue('sending headers',b'\n'.join(self._buffer).decode('utf-8'))
+			return super().endheaders(*a,**kw)
 	class Thingy(handler):
 		def do_open(self, klass, req, **kw):
 			nonlocal derpreq
 			derpreq = req
-			return super().do_open(klass, req, **kw)
+			return super().do_open(HeaderWatcher, req, **kw)
 	return Thingy()
 
 def split_port(schema, netloc):
@@ -183,7 +185,7 @@ def myopen(request):
 		for i in range(2,len(url)):
 			url[i] = urlparse.quote(url[i],safe="/&=?+")
 		request.full_url = urlparse.urlunparse(url)
-		note('requesting',request.full_url)
+	note('requesting',repr(request.full_url),request.header_items())
 	try:
 		with closing(opener.open(request)) as inp:
 			headers = inp.headers

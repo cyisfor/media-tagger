@@ -61,7 +61,6 @@ def withC(f):
 def findWhich(com, which):
 	res = db.execute("SELECT (MAX(which) + $2) % MAX(which) FROM comicPage WHERE comic = $1",
 									 (com,which))
-	print(res)
 	return res[0][0]
 
 def findComicByTitle(title,getinfo=None):
@@ -155,7 +154,6 @@ def pages(comic):
 	return rows[0][0]
 
 def list(page,negatags=()):
-	print('nega',negatags)
 	return db.execute("SELECT id,title,tags,array(select name from tags where id IN (SELECT unnest(comics.tags))) FROM comics WHERE array_length($1::INTEGER[],1) IS NULL OR tags IS NULL OR NOT tags && $1::INTEGER[] ORDER BY added DESC, id OFFSET $2 LIMIT $3",(tuple(negatags),page*0x20,0x20))
 
 def tag(comic,tags):

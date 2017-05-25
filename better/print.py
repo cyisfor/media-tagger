@@ -23,3 +23,10 @@ class Flushfile(object):
 try:
     sys.stdout = Flushfile(io.TextIOWrapper(sys.stdout.buffer,encoding = 'utf-8'))
 except AttributeError: pass
+
+print(type(__builtins__))
+import os
+if 'debug' in os.environ:
+	import note
+	oldprint = print
+	__builtins__['print'] = note

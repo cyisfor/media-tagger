@@ -21,7 +21,7 @@ def pull(url):
     base = art.rsplit('/',1)[0]
 
     info = newpath(art+'/~info/{:x}/'.format(ident))
-    print(info)
+
     with myopen(info) as inp:
         doc = BeautifulSoup(inp)
     sources = [a['href'] for a in doc.find(id='sources').findAll('a')]

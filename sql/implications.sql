@@ -1,4 +1,4 @@
-DROP FUNCTION implications(_tag bigint, _returned int, _depth int);
+DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
 CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
 DECLARE
 _neighbor INTEGER;
@@ -29,7 +29,7 @@ LANGUAGE 'plpgsql';
 DROP FUNCTION unsafeImplications(_tag INTEGER);
 CREATE OR REPLACE FUNCTION unsafeImplications(_tag INTEGER) RETURNS void AS $$
 BEGIN
-		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag BIGINT);
+		CREATE TEMPORARY TABLE IF NOT EXISTS impresult (tag INTEGER);
 		DELETE FROM impresult;
 		PERFORM implications( _tag, 0, 0);
 END;
@@ -41,7 +41,7 @@ _dest text;
 BEGIN
 	_dest := 'implications' || _tag;
 	BEGIN
-		EXECUTE format('CREATE TEMPORARY TABLE %I (tag BIGINT)',_dest);
+		EXECUTE format('CREATE TEMPORARY TABLE %I (tag INTEGER)',_dest);
 		PERFORM unsafeImplications(_tag);
 		EXECUTE format('INSERT INTO %I SELECT DISTINCT tag FROM impresult',_dest);
 		DROP TABLE impresult;

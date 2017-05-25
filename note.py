@@ -81,6 +81,8 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 	class NoteModule:
 		def note(self,*s):
 			output(color('green',styles=(bold,)),s)
+		def error(self,*s):
+			output(color('red',styles=(bold,)),s)
 		def alarm(self,*s):
 			output(fg(216,0,0)+bg(180,180,0)+escape(bold),s)
 		def purple(self,*s):

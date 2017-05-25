@@ -18,6 +18,9 @@ with open(os.path.expanduser("~/.local/share/clipit/history"),"rb") as inp:
 		if data_type != 1: continue
 		try: data = data.decode('utf-8')
 		except UnicodeDecodeError: continue
+		data = data.strip()
+		if '\n' in data: continue
+		if ' ' in data: continue
 		if 'http://' in data or 'https://' in data:
 			print("got",data)
 			remote.write((data+'\n').encode('utf-8'))

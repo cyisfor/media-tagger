@@ -1,4 +1,5 @@
 import time
+import note
 
 try:
 	import http.cookiejar as cookiejar
@@ -73,6 +74,8 @@ class Cookie:
 			setattr(self,field,r[i])
 	def is_expired(self,now):
 		return self.expires is not None and self.expires < now
+	def __repr__(self):
+		return '(' + self.name + ',' + self.value + ')'
 	
 class Jar(cookiejar.CookieJar):
 	def __init__(self, policy=None):
@@ -105,7 +108,9 @@ class Jar(cookiejar.CookieJar):
 			yield from self._cookies_for_domain(domain, baseDomain,request)
 	def _cookies_for_request(self, request):
 		# this MUST return a mutable list
-		return list(self.__cookies_for_request(request))
+		ret = list(self.__cookies_for_request(request))
+#		note("cookies",ret)
+		return ret
 	def clear(self,domain,path,name):
 		print("deletion request for ",domain,path,name)
 		domain = execute("select id FROM domains WHERE domain = ?",

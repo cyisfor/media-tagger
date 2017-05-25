@@ -119,8 +119,8 @@ int main(void) {
 
         // note we still have to read the image, to get frames/dimensions
         
-        strcpy(info->filename,path);
-        Image* image = ReadImage(info,exception);
+        //strcpy(info->filename,path);
+        Image* image = PingImages(info,path,exception);
 
         if(image == NULL) {
           writeerr(exception->reason,exception->description);
