@@ -1,4 +1,4 @@
-DROP FUNCTION implications(_tag bigint, _returned int, _depth int) RETURNS int;
+DROP FUNCTION implications(_tag bigint, _returned int, _depth int);
 CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
 DECLARE
 _neighbor INTEGER;
