@@ -90,7 +90,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					(arg(offset) if offset else False),arg(limit))
 	if limit > 1:
 		mainOrdered.is_array = True
-
+	else:
+		raise SystemExit(23)
 	if tags.posi:
 		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'int[]',True)
 
@@ -114,8 +115,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 						  'derp'))
 
 		stmt = Order(stmt,'derp.name')
-		print(mainOrdered.sql())
-		raise SystemExit
 	else:
 		mainCriteria.what = tagsWhat
 		if User.noComics:
