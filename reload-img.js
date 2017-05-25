@@ -2,7 +2,7 @@ function reload_later(dest,src) {
 	console.log("um",src);
 	var img = document.createElement('img');
 	function setsrc() {
-		img.style.width = '224px';
+		img.style.width = '219px';
 		img.style.height = '219px';
 		img.src = src;
 	}
