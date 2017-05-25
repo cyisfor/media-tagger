@@ -316,6 +316,7 @@ class ANY(Unary):
 		if is_array():
 			super().__init__(Group(clause))
 		else:
+			raise SystemExit(23)
 			super().__init__(clause)
 			self.sql = super().sql
 	def sql(self):
