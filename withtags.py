@@ -127,7 +127,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if tags.nega:
 		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'int[]',True)
 		herp = Select('id',AS(Func('unnest',nega),'id'))
-		notWanted = IN('things.id',herp)
+		notWanted = IN('tags.id',herp)
 		if tags.posi:
 			notWanted = AND(notWanted,
 							NOT(EQ('things.id',ANY(posi))))
@@ -135,8 +135,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		clauses['unwanted'] = (
 			'id',
 			Union(Select('tags.id',
-						 InnerJoin('tags','things',
-								   EQ('tags.id','things.id')),
 									 notWanted),herp))
 	else:
 		notWanted = None
