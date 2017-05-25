@@ -127,6 +127,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	if tags.nega:
 		nega = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.nega]),'int[]')
 		notWanted = EQ('things.id',ANY(nega))
+		print("yey",notWanted.sql())
+		return
 		if tags.posi:
 			notWanted = AND(notWanted,
 							NOT(EQ('things.id',ANY(posi))))
