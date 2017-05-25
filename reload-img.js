@@ -8,8 +8,8 @@ function reload_later(dest,src) {
 		setTimeout(setsrc,1000);
 	},false);
 	img.addEventListener('load',function() {
-		img.style.width = '182px';
-		img.style.height = '182px';
+		img.style.width = '224px';
+		img.style.height = '219px';
 		dest.parentNode.replaceChild(img,dest);
 	},false);
 	setTimeout(setsrc,1000);
