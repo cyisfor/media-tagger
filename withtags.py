@@ -90,8 +90,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 					(arg(offset) if offset else False),arg(limit))
 	if limit > 1:
 		mainOrdered.is_array = True
-	print(ANY(mainOrdered).sql())
-	raise SystemExit
+		print(ANY(mainOrdered).sql())
+		raise SystemExit
 		
 	if tags.posi:
 		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'int[]',True)
