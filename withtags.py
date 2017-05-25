@@ -114,6 +114,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 						  'derp'))
 
 		stmt = Order(stmt,'derp.name')
+		print(mainOrdered.sql())
+		raise SystemExit
 	else:
 		mainCriteria.what = tagsWhat
 		if User.noComics:
@@ -122,8 +124,6 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 				EXISTS(Select(
 					'medium','comicPage',EQ("things.id","comicPage.medium"))),)
 		stmt = mainOrdered
-		print(mainOrdered.sql())
-		raise SystemExit
 
 	# we MIGHT need a with statement...
 	clauses = {}
