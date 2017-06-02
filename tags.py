@@ -49,7 +49,7 @@ def tag(thing,tags):
 				tags.posi = list(tags.posi)
 				# note: do NOT set tags.posi since we still need them as string names
 				ntags = tuple(set(row[0] for row in db.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,))))
-				"""
+				note("connect")
 				for i in range(len(tags.posi)):
 					if ':' in tags.posi[i]:
 						category,name = tags.posi[i].split(':')
@@ -63,7 +63,6 @@ def tag(thing,tags):
 						db.execute("SELECT connectOne($1,$2)",(wholetag,name))
 				for category,ctags in categories.items():
 					db.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
-				"""
 				tags.posi = ntags
 			elif hasattr(list(tags.posi)[0],'category'):
 				categories = collections.defaultdict(list)
