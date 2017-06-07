@@ -52,6 +52,9 @@ def commitDoomed():
 
 commitDoomed()
 
+def justdelete(bad):
+	db.execute('INSERT INTO doomed (id) SELECT id FROM media WHERE id = $1',(bad,))
+
 def dbdelete(good,bad,reason,inferior):
 	print("deleting {:x}".format(bad),'dupe' if good else reason)
 	# the old LEFT OUTER JOIN trick to skip duplicate rows
@@ -60,7 +63,7 @@ def dbdelete(good,bad,reason,inferior):
 		db.execute("INSERT INTO dupes (oldmedium,medium,hash,inferior) SELECT $2, $1,media.hash,$3 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(good, bad, inferior))
 	else:
 		db.execute("INSERT INTO blacklist (oldmedium,hash,reason) SELECT $2,media.hash,$1 from media LEFT OUTER JOIN blacklist ON media.hash = blacklist.hash where blacklist.id IS NULL AND media.id = $2",(reason,bad))
-	db.execute('INSERT INTO doomed (id) SELECT id FROM media WHERE id = $1',(bad,))
+	justdelete(bad)
 
 
 def filedelete(bad):
