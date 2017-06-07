@@ -99,7 +99,7 @@ def extract(primarySource, headers, doc):
 			yield Tag(None, tag)
 	yield Name(doc['file_name'])
 	# yield Type(doc['mime_type']) this gets sent during the request anyway
-	yield Media(doc['image'])
+	yield Media(doc['image'].replace("/view/","/download/"))
 
 import sys,os
 here = os.path.dirname(sys.modules[__name__].__file__)
