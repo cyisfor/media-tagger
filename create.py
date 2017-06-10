@@ -294,6 +294,8 @@ def internet(download,media,tags,primarySource,otherSources,name=None):
 	if not was_created:
 		note("Old medium with id {:x}".format(id))
 		#input()
+		if "nocheck" in os.environ:
+			return id, was_created
 	note("update")
 	update(id,sources,tags,name)
 	note("done update")
