@@ -82,6 +82,10 @@ import queue
 urlqueue = queue.Queue()
 numqueued = 0
 
+def temp(n):
+	import filedb,os
+	return os.path.join(filedb.temp,n)
+
 try:
 	with open(temp("docomics-inprogress")) as inp:
 		c,w,*lines = inp.readlines()
@@ -133,6 +137,8 @@ def in_background(f):
 		background(lambda: f(*a,**kw))
 	return wrapper
 
+import http.client
+
 @in_background
 def parseOne():
 	global numqueued
@@ -145,15 +151,19 @@ def parseOne():
 	yield background
 	note("trying",url)
 	from favorites.parse import parse,normalize,ParseError
-	try:
-		m,wasCreated = parse(normalize(url),noCreate=True)
-		if not m:
-			note.red('uhhh',url)
-	except ParseError:
-		try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
-		except ValueError:
-			note.red('nope')
-			return
+	while True:
+		try:
+			m,wasCreated = parse(normalize(url),noCreate=True)
+			if not m:
+				note.red('uhhh',url)
+			break
+		except http.client.RemoteDisconnected: pass
+		except ParseError:
+			try: m = int(url.rstrip('/').rsplit('/',1)[-1],0x10)
+			except ValueError:
+				note.red('nope')
+				return
+			break
 	note('ok m is',m)
 	w = None
 	yield foreground
