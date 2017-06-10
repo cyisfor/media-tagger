@@ -82,13 +82,50 @@ import queue
 urlqueue = queue.Queue()
 numqueued = 0
 
+try:
+	with open(temp("docomics-inprogress")) as inp:
+		c,w,*lines = inp.readlines()
+		UI.c.set_text(c)
+		UI.w.set_text(w)
+		numqueued = len(lines)
+		UI.status.set_text(str(numqueued))
+		for line in lines:
+			urlqueue.put(line)
+except FileNotFoundError: pass
+
+@contextmanager
+def start_save():
+	with open("docomics-inprogress","wb") as save:
+		save.write(UI.c.get_text()+"\n")
+		save.write(UI.w.get_text()+"\n")
+		yield save
+
+savelist = []
+def save_derp():
+	with start_save() as save:
+		for url in savelist:
+			save.write(url+"\n")
+def save_push(url):
+	savelist.append(url)
+	save_derp()
+
+def save_pop():
+	savelist[0:1] = ()
+	save_derp()
+
+def save_done():
+	try:
+		os.unlink(temp("docomics-inprogress"))
+	except OSError: pass
+			
 def gotURL(url):
 	global numqueued
 	url = url.strip()
 	note("Queueing {}".format(url))
 	sys.stdout.flush()
 	numqueued += 1
-	UI.status.set_text(str(numqueued));
+	UI.status.set_text(str(numqueued))
+	save_push(url)
 	urlqueue.put(url)
 
 def in_background(f):
@@ -136,6 +173,7 @@ def parseOne():
 			yield foreground
 			UI.c.set_text('{:x}'.format(c))
 			UI.w.set_text('{:x}'.format(w+1))
+			save_pop()
 			parseOne()
 			return
 		# still in bg
@@ -177,6 +215,7 @@ def parseOne():
 		except Redirect: pass
 		yield foreground
 		UI.w.set_text("{:x}".format(w+1))		
+		save_pop()
 		parseOne()
 		
 	yield background
