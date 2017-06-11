@@ -100,7 +100,7 @@ except FileNotFoundError: pass
 from contextlib import contextmanager
 @contextmanager
 def start_save():
-	with open("docomics-inprogress","wt") as save:
+	with open(temp("docomics-inprogress"),"wt") as save:
 		save.write(UI.c.get_text()+"\n")
 		save.write(UI.w.get_text()+"\n")
 		yield save
