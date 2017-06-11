@@ -4,6 +4,8 @@ from bgworker import makeWorkers
 
 from mygi import GLib
 
+import os
+
 def databaseInit():
 	import comic,db
 	from favorites.parse import parse, ParseError, normalize
@@ -83,12 +85,12 @@ urlqueue = queue.Queue()
 numqueued = 0
 
 def temp(n):
-	import filedb,os
+	import filedb
 	return os.path.join(filedb.temp,n)
 
 try:
 	with open(temp("docomics-inprogress")) as inp:
-		c,w,*lines = inp.readlines()
+		c,w,*lines = (a.rstrip() for a in inp.readlines())
 		UI.c.set_text(c)
 		UI.w.set_text(w)
 		numqueued = len(lines)
@@ -245,3 +247,4 @@ import gtkclipboardy as clipboardy
 c = clipboardy(gotURL,lambda piece: 'http' == piece[:4])
 window.connect('destroy',c.quit)
 c.run()
+save_done()
