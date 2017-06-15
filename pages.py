@@ -860,9 +860,9 @@ def showPages(path,params):
 	com = int(path[0],0x10)
 	page = getPage(params)
 	offset = page * 0x20
-	if offset and offset >= comic.pages(com):
-		raise Redirect('..')
 	numPages = comic.pages(com)
+	if offset and offset >= numPages:
+		raise Redirect('..')
 	def getMedia():
 		for which in range(offset,min(0x20+offset,numPages)):
 			medium = comic.findMedium(com,which)
