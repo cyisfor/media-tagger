@@ -33,4 +33,4 @@ if 'debug' in os.environ:
 		if kw:
 			return oldprint(*a,**kw)
 		return note(*a)
-	__builtins__['print'] = newprintx
+	__builtins__['print'] = newprint

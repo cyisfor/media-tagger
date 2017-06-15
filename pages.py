@@ -611,7 +611,7 @@ def unparseQuery(query={}):
 		else:
 			result.append((n,v))
 	if result:
-		return '?'+'&'.join(n+'='+v for n,v in result)
+		return '?'+'&'.join(n+'='+str(v) for n,v in result)
 	return ''
 
 def tagsURL(tags,negatags):
