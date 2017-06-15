@@ -233,7 +233,7 @@ def parseOne():
 		
 	yield background
 	import comic
-	note("getting comic")
+	note("getting comic",c)
 	gen = comic.findInfo(c,
 											 lambda next: foreground(lambda: getinfo(next)),
 											 gotcomic)
