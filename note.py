@@ -38,14 +38,23 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 					tb = tb.tb_next
 			# here -> output -> note/alarm/warn/etc -> module
 			return tb.tb_frame.f_back.f_back.f_back
+	class lastout:
+		time = None
+		path = None
+		line = None
 	def output(color,s):
+		now = time.time()
+		if lastout.time is not None and now - lastout.time > 3:
+			continuing = True
+		else:
+			continuing = False
 		f = getframe()
 		# function above us
-		module = f.f_globals['__name__'] 
-		
-		if not always and module not in modules: 
-			return
-
+		if not always:
+			module = f.f_globals['__name__'] 
+			if module not in modules: 
+				return
+			
 		o = io.TextIOWrapper(io.BytesIO(),encoding='utf-8')
 		def writec(c):
 			o.flush()
@@ -57,15 +66,23 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 		hasret = '\n' in s
 
 		if not 'simple' in os.environ:
-			o.write('== '+str(time.time())+' ')
-			writec(white)
-			o.write(os.path.relpath(f.f_code.co_filename,here))
-			writec(reset)
-			o.write(':'+str(f.f_lineno))
-			if hasret:
-				o.write('\n'+'-'*60+'\n')
-			else:
-				o.write('\n')
+			def writeit():
+				path = os.path.relpath(f.f_code.co_filename,here)
+				if lastout.path is not None and lastout.path == path and lastout.lin == f.f_lineno:
+					return
+					
+				path == lastout.path &&
+				o.write('== '+str(time.time())+' ')
+				writec(white)
+
+				o.write()
+				writec(reset)
+				o.write(':'+str(f.f_lineno))
+				if hasret:
+					o.write('\n'+'-'*60+'\n')
+				else:
+					o.write('\n')
+			writeit()
 	
 		writec(color)
 		o.write(s)
