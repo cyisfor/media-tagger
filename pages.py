@@ -449,16 +449,18 @@ def checkExplain(id,link,width,height,thing):
 						 'data-id':aid})
 
 	areas = tuple(getareas())
-	if areas:
-		imgmap = (makeStyle(style),)+areas
-		div = d.div(*imgmap,id='medium')
-	else:
-		div = d.div(id='medium')
-	with div:
-		if not isinstance(link,tuple):
-			link = (link,)
-		a = dd.a(*link, href=thing)
-		div(a)
+	with d.div(id='centerer'):
+		if areas:
+			imgmap = (makeStyle(style),)+areas
+			div = d.div(*imgmap,id='medium')
+		else:
+			div = d.div(id='medium')
+		with div:
+			if not isinstance(link,tuple):
+				link = (link,)
+			a = dd.a(*link, href=thing)
+			div(a)
+
 
 linepat = re.compile('[ \t]*\n+\s*')
 	

@@ -28,9 +28,14 @@ img.wid {
 	max-width: 100%;
 }
 
-#medium {
+#centerer {
 	margin: auto;
 	position: relative;
+}
+
+#medium {
+	position: relative;
+	display: inline-block;
 }
 
 #medium .exp div {

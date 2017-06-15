@@ -3,7 +3,7 @@
 // @namespace   utilities
 // @description finds uh yeah
 // @downloadURL http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/stuff/code/image/tagger/art.user.js
-// @include     http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/~page/*
+/// @include     http://[fcd9:e703:498e:5d07:e5fc:d525:80a6:a51c]/art/~page/*
 // @version     1
 // @grant       none
 // ==/UserScript==
@@ -36,8 +36,9 @@ document.addEventListener('DOMContentLoaded',function() {
 
 	var text = document.createElement('input');
 	text.setAttribute('type','text');
-	var inserto = img.parentNode.parentNode;
-	inserto.insertBefore(text,img.nextSibling);
+	var inserto = img.parentNode.parentNode; // #medium
+	inserto.appendChild(document.createElement("br"));
+	inserto.appendChild(text);
 
 	function updatePopup() {
 		while(popup.firstChild) {
