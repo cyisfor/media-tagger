@@ -91,7 +91,7 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 			output(fg(20,20,216)+escape(bold),s)
 		def shout(self,*s):
 			output(fg(216,0,216)+escape(bold),s)
-		def __call__(self,*s):
+		def __call__(self,*s,**kw):
 			output(color('green'),s)
 		def __getattr__(self,n):
 			def doit(*s,**kw):
