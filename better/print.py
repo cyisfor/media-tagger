@@ -29,4 +29,8 @@ import os
 if 'debug' in os.environ:
 	import note
 	oldprint = print
-	__builtins__['print'] = note
+	def newprint(*a,**kw):
+		if kw:
+			return oldprint(*a,**kw)
+		return note(*a)
+	__builtins__['print'] = newprintx
