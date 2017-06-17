@@ -879,7 +879,7 @@ def showPages(path,params):
 		for medium,which in getMedia():
 			yield medium,title + ' page {}'.format(which),getType(medium),()
 
-	latest = unparseQuery({'p':(numPages-1)/0x20})
+	latest = unparseQuery({'p':(numPages-1)//0x20})
 	if page > 0:
 		Links.prev = unparseQuery({'p':page-1})
 	else:
