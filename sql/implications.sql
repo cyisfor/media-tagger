@@ -11,7 +11,7 @@ BEGIN
 	   RETURN _count;
 	END IF;
     INSERT INTO impresult (tag) VALUES (_tag);
-	RAISE NOTICE 'found tag % %s',_tag,(select name from tags where id = _tag);
+	RAISE NOTICE 'found tag % % % %s',_returned,_depth,_tag,(select name from tags where id = _tag);
     _count := _count + 1;
 	_count := sum(implications(
              other.id,
