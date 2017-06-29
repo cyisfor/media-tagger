@@ -563,6 +563,8 @@ def stringize(key):
 def thumbLink(id):
 	return "/thumb/"+'{:x}'.format(id)
 
+derpi = re.compile("https://derpibooru.org/([0-9]+)")
+
 @pagemaker
 def info(info,path,params):
 	Session.modified = info['sessmodified']
@@ -595,7 +597,13 @@ def info(info,path,params):
 			top("Sources")
 			with d.div(id='sources'):
 				for id,source in sources:
-					d.p(dd.a(source,href=source))
+					m = derpi.match(source)
+					with d.p as e:
+						e(dd.a(source,href=source))
+						if m:
+							e(" "+str(m.group(1)))
+							
+
 
 def like(info):
 	return "Under construction!"
