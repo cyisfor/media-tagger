@@ -1,5 +1,4 @@
 function reload_later(dest,src) {
-	console.log("um",src);
 	var img = document.createElement('img');
 	function setsrc() {
 		img.style.height = '219px';
@@ -11,5 +10,5 @@ function reload_later(dest,src) {
 	img.addEventListener('load',function() {
 		dest.parentNode.replaceChild(img,dest);
 	},false);
-	setTimeout(setsrc,1000);
+	setsrc()
 }
