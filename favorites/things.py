@@ -22,3 +22,5 @@ class Tag:
 class Source(str): pass
 class Name(str): pass
 class Description(str): pass
+
+class Redirect(Exception): pass

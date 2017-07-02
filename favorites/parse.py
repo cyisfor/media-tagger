@@ -61,7 +61,6 @@ def parse(primarySource,noCreate=False,progress=None):
 			return source[0][0],False
 	note('parsing',repr(primarySource))
 	url = urllib.parse.urlparse(primarySource)
-	doc = None
 	for name,matcher,handlers in finders:
 		if not matcher(url):
 			continue
@@ -70,37 +69,45 @@ def parse(primarySource,noCreate=False,progress=None):
 			normalize = handlers['normalize']
 		else:
 			normalize = lambda url: url
-		primarySource = normalize(primarySource)
-		if 'json' in handlers:
-			derp = handlers['json'](primarySource)
-		else:
-			derp = primarySource
-		note("opening?",derp)
-		with myopen(derp) as inp:
-			headers = inp.headers
-			if 'json' in handlers:
-				if not headers.get('Content-Type').startswith('application/json'):
-					raise ParseError(primarySource,'not json')
-			else:
-				if not headers.get('Content-Type').startswith('text/html'):
-					raise ParseError(primarySource,"not html")													
-			doc = inp.read()
-		medias = []
-		def generalize(tag):
-			if isinstance(tag,Tag): return tag
-			try:
-				if len(tag) == 2:
-					if len(tag[0]) >= 3 and len(tag[1]) >= 3:
-						return Tag(*tag)
-			except TypeError: pass
-			if ':' in tag:
-				return Tag(*(tag.split(':')))
-			return Tag(None,tag)
-		tags = [generalize(tag) for tag in handlers.get('tags',[])]
-		sources = [primarySource]
+
+		sources = None
 		name = None
 		description = None
-		try:
+		medias = None
+		tags = None
+	
+		def doit():
+			nonlocal sources, name, description, primarySource, medias, tags
+			primarySource = normalize(primarySource)
+			if 'json' in handlers:
+				derp = handlers['json'](primarySource)
+			else:
+				derp = primarySource
+			note("opening?",derp)
+			with myopen(derp) as inp:
+				headers = inp.headers
+				if 'json' in handlers:
+					if not headers.get('Content-Type').startswith('application/json'):
+						raise ParseError(primarySource,'not json')
+				else:
+					if not headers.get('Content-Type').startswith('text/html'):
+						raise ParseError(primarySource,"not html")													
+				doc = inp.read()
+			medias = []
+			def generalize(tag):
+				if isinstance(tag,Tag): return tag
+				try:
+					if len(tag) == 2:
+						if len(tag[0]) >= 3 and len(tag[1]) >= 3:
+							return Tag(*tag)
+				except TypeError: pass
+				if ':' in tag:
+					return Tag(*(tag.split(':')))
+				return Tag(None,tag)
+			tags = [generalize(tag) for tag in handlers.get('tags',[])]
+			sources = [primarySource]
+			name = None
+			description = None
 			if 'json' in handlers:
 				results = handlers['extract'](primarySource,headers,
 				                              json.loads(doc.decode('utf-8')))
@@ -119,7 +126,16 @@ def parse(primarySource,noCreate=False,progress=None):
 					name = thing
 				elif isinstance(thing,Description):
 					description = thing
+		try:
+			while True:
+				try:
+					doit()
+				except Redirect as r:
+					primarySource = r.args[0]
+				else:
+					break
 		except KeyError as e:
+			note.error("uhhhh",e)
 			continue
 		except AttributeError as e:
 			raise ParseError("Bad attribute") from e
@@ -169,7 +185,8 @@ def parse(primarySource,noCreate=False,progress=None):
 					note("yay",description,wasCreated)
 					@describe(image)
 					def _(olddesc):
-						return description
+						if not olddesc:
+							return description
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)

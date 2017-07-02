@@ -87,7 +87,7 @@ class parse:
 		s = parse.images.sub(repl, s)
 		return s
 
-def extract(primarySource, headers, doc):
+def notdupeextract(primarySource, headers, doc):
 	if not 'nodescription' in os.environ:
 		desc = parse.parse(doc['description']).strip()
 		if desc:
@@ -101,6 +101,16 @@ def extract(primarySource, headers, doc):
 	# yield Type(doc['mime_type']) this gets sent during the request anyway
 	yield Media(doc['image'].replace("/view/","/download/"))
 
+def extract(primarySource, headers, doc):
+	print("DOING")
+	try:
+		yield from notdupeextract(primarySource, headers, doc)
+	except KeyError:
+		from pprint import pprint
+		pprint(doc)
+		raise Redirect("https://derpibooru.org/"+
+									 str(doc['duplicate_reports'][0]['duplicate_of_image_id']))
+	
 import sys,os
 here = os.path.dirname(sys.modules[__name__].__file__)
 

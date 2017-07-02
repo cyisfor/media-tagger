@@ -37,6 +37,9 @@ class DBProxy:
 	def transaction(self):
 		return pg.transaction(self.c)
 	@export
+	def saved(self):
+		return pg.saved(self.c)
+	@export
 	def registerDecoder(self,decoder,name,namespace='public'):
 		if not self.c: self.reopen()
 		return self.c.registerDecoder(decoder,name,namespace)
@@ -61,7 +64,6 @@ class DBProxy:
 				password = inp.read()
 		except IOError:
 			password = None
-		print("FOO")
 		self.c = pg.Connection(dbname='pics',port=5433,host="/home/run",password=password)
 		#self.c.verbose = True
 		#self.c.out = open('/tmp/self.log','at')
@@ -79,7 +81,6 @@ class DBProxy:
 		#execute("COMMIT")
 		for stmt in stmts:
 			try:
-				print("BAR",stmt)
 				self.execute(stmt)
 			except ProgrammingError as e:
 				if self.c.verbose:
@@ -87,7 +88,6 @@ class DBProxy:
 					print('')
 					sys.stdout.write(e.info['message'].decode('utf-8'))
 					print('')
-			print("BAR")
 	
 	# either returns {name=statement...} or [statement...] depending on file format...
 	@export

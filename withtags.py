@@ -77,18 +77,25 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		where = negaClause
 
 	if User.noComics:
-		first_page = NOT(IN('things.id',Select('medium','comicPage','which != 0')))
+		comic = Select("comic","comicPage",EQ("medium","things.id"))
+		maxwhich = Select("MAX(which)","comicpage",EQ("comic",comic))
+		not_last = Select("medium","comicpage",AND(EQ("comic",comic),NOT(EQ("which",maxwhich))))
+		# if it's not in the list of not-last pages, then pick it.
+		last_page = NOT(IN('things.id',not_last))
 		if where is None:
-			where = first_page
+			where = last_page
 		else:
-			where = AND(where,first_page)
+			where = AND(where,last_page)
 	arg = argbuilder()
 
 	mainCriteria = Select('things.id',From,where)
-	mainOrdered = Limit(Order(mainCriteria,
-						  'media.added DESC'),
-					(arg(offset) if offset else False),arg(limit))
-	if limit > 1:
+	mainOrdered = Order(mainCriteria,
+						  'media.added DESC')
+	if limit or offset:
+		mainOrdered = Limit(mainOrdered,
+												(arg(offset) if offset else False),
+												(arg(limit) if limit else False))
+	if limit != 1:
 		mainOrdered.is_array = True
 		
 	if tags.posi:
@@ -107,11 +114,10 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			InnerJoin('tags','things',
 					  EQ('tags.id','ANY(things.neighbors)')),
 			mainOrdered)
-		stmt = Select(['derp.id','derp.name'],
-					  AS(
-						  Limit(GroupBy(tagStuff,'tags.id'),
-								limit=arg(taglimit)),
-						  'derp'))
+		lim = GroupBy(tagStuff,'tags.id')
+		if taglimit:
+			lim = Limit(lim,limit=arg(taglimit)),
+		stmt = Select(['derp.id','derp.name'],AS(lim,'derp'))
 
 		stmt = Order(stmt,'derp.name')
 	else:

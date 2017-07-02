@@ -26,8 +26,9 @@ def describe(ident,manual=False):
 		blurb = change(blurb)
 		r = db.execute('SELECT id FROM descriptions WHERE id = $1',(ident,))
 		if r:
-			db.execute('UPDATE descriptions SET blurb = $2, modified = now(), manual = $3 WHERE id= $1',
-								 (ident,blurb,manual))
+			if blurb:
+				db.execute('UPDATE descriptions SET blurb = $2, modified = now(), manual = $3 WHERE id= $1',
+									 (ident,blurb,manual))
 		else:
 			r = db.execute('INSERT INTO descriptions (id,blurb,manual) VALUES ($1,$2,$3) RETURNING id',
 										 (ident,blurb,manual))
