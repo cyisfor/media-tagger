@@ -1,7 +1,7 @@
 function reload_later(dest,src) {
 	var img = document.createElement('img');
+	img.style.height = '219px';
 	function setsrc() {
-		img.style.height = '219px';
 		img.src = src;
 	}
 	img.addEventListener('error', function(e) {
