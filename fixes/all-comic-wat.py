@@ -23,6 +23,9 @@ with db.transaction():
 			if source.startswith("https://static1.e621.net"): continue
 			print("retagging",hex(id),source)
 			try: favorites.parse.parse(source)
+			except setupurllib.URLError as e:
+				print(e.args[0])
+				continue;
 			except favorites.parse.ParseError as e:
 				print(e)
 				continue
