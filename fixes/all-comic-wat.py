@@ -1,6 +1,7 @@
 import withtags,tags,db,user
 import favorites.parse
 import favorites.parsers
+import setupurllib
 
 def setup():
 	user.User.noComics = False

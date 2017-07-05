@@ -78,8 +78,8 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	if User.noComics:
 		comic = Select("comic","comicPage",EQ("medium","things.id"))
-		maxwhich = Select("MAX(which)","comicpage",EQ("comic",comic))
-		not_last = Select("medium","comicpage",AND(EQ("comic",comic),NOT(EQ("which",maxwhich))))
+		maxwhich = Select("MAX(which)","comicpage",IN("comic",comic))
+		not_last = Select("medium","comicpage",AND(IN("comic",comic),NOT(EQ("which",maxwhich))))
 		# if it's not in the list of not-last pages, then pick it.
 		last_page = NOT(IN('things.id',not_last))
 		if where is None:
