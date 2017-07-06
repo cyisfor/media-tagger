@@ -80,8 +80,8 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		return 0;
 	}
 
-	snprintf(buf,0x100,"%d",(int)round(duration / 4));
-	record(WARN,"Uhm seeking to %lf",round(duration/4));
+	snprintf(buf,0x100,"%lf",duration / 4);
+	record(WARN,"Uhm seeking to %lf",duration/4);
 
 	pid = fork();
 	if(pid==0) {
@@ -94,16 +94,46 @@ int make_thumbnail(context* ctx, uint32_t id) {
 					 dest,NULL);
 	}
 	waitpid(pid,&status,0);
-	if(!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
-		record(WARN,"Could not read media from '%x' (%s)",id,source);
-		lib_copy(source,dest);						
-		free(source);
-		free(dest);
-		return 0;
+	if(WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		struct stat buf;
+		if(0 == stat(dest,&buf)) {
+			free(source);
+			free(dest);
+			return 1;
+		} else {
+			record(WARN, "thumb not created for %x",id);
+		}
 	}
+
+	record(WARN,"Could not seek to %lf on '%x' (%s)",duration/4,id,source);
+	
+	pid = fork();
+	if(pid==0) {
+		close(0);
+		execlp("ffmpeg","ffmpeg","-y",
+					 "-loglevel","warning",
+					 "-i",source,
+					 "-s","190x190","-f","image2",
+					 "-frames","1",
+					 dest,NULL);
+	}
+	waitpid(pid,&status,0);
+	if(WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		struct stat buf;
+		if(0 == stat(dest,&buf)) {
+			free(source);
+			free(dest);
+			return 1;
+		} else {
+			record(WARN, "thumb STILL not created for %x",id);
+		}
+	} else {
+		record(WARN,"ffmpeg dies '%x' (%s)",id,source);
+	}
+	
 	free(source);
 	free(dest);
-	return 1;
+	return 0;
 }
 
 int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {

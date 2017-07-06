@@ -366,7 +366,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					wrapper = d.audio
 				else:
 					wrapper = d.video
-				with wrapper(autoplay=True,loop=True):
+				with wrapper(autoplay="1",loop="1"):
 					d.source(src=thing,type=type)
 					with d.object(width=width, height=height,
 					              data=thing,style=style,type=type):
