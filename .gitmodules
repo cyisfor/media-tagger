@@ -10,3 +10,6 @@
 	path = dedup/mvptree
 	url = https://github.com/michaelmior/mvptree
 	ignore = untracked
+[submodule "dirty"]
+	path = dirty
+	url = https://github.com/cyisfor/dirty.git
