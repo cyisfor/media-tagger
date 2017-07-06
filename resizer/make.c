@@ -39,14 +39,47 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		return 0;
 	}
 
-  char* dest = filedb_path("thumb",id);
-
   VipsImage* image = lib_thumbnail(ctx);
   if (!image) {
-      int pid = fork();
+		int io[2];
+		pipe(io);
+		int pid = fork();
+		if(pid==0) {
+			dup2(io[1],1);
+			close(io[0]);
+			close(io[1]);
+			close(2);
+			execlp("ffprobe","ffprobe",
+						 "-show_entries", "format=duration",
+						 "-of","default=nw=1:nk=1",
+						 source,NULL);
+			abort();
+		}
+		close(io[1]);
+		char buf[0x100];
+		ssize_t amt = read(io[0], buf, 0xFF);
+		buf[amt] = '\0';
+		char* end = NULL;
+		double duration = strtod(buf, &end);
+		if(end && *end != '\0') {
+			record(ERROR,"not a float? %s",buf);
+		}
+		int status;
+		waitpid(pid,&status,0);
+		if(!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
+			record(WARN,"Could not read media from '%x' (%s)",id,source);
+			free(source);
+			return 0;
+		}
+
+		snprintf(buf,0x100,"%d",(int)round(duration / 4));
+		record(WARN,"Uhm seeking to %lf",round(duration/4));
+		char* dest = filedb_path("thumb",id);
+
+
       if(pid==0) {
           close(0);
-					execlp("ffmpeg","ffmpeg","-y","-ss","00:00:04",
+					execlp("ffmpeg","ffmpeg","-y","-ss",buf,
                  "-loglevel","warning",
 								 "-i",source,
 								 "-s","190x190","-f","image2",
@@ -55,7 +88,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
       }
       int status;
       waitpid(pid,&status,0);
-      if(status != 0) {
+      if(!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
         record(WARN,"Could not read media from '%x' (%s)",id,source);
 				lib_copy(source,dest);						
         free(source);
