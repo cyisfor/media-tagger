@@ -1,5 +1,8 @@
 # it's prettier to say with d.table: etc
 
+import sys
+sys.path.insert(0,"dirty")
+
 import dirty.html as sub
 
 sub.xhtml.DTD = "<!DOCTYPE html>"
