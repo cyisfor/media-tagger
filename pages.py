@@ -370,7 +370,8 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 					d.source(src=thing,type=type)
 				wrapper = wrapper.commit()
 				wrapper = (wrapper,
-									 dd.object(width=width, height=height,
+									 dd.object(dd.param(name='src',value=thing),
+														 width=width, height=height,
 														 data=thing,style=style,type=type),
 									 dd.embed(src=thing,style=style,type=type))
 			else:
