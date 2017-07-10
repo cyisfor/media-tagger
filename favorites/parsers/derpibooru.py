@@ -92,6 +92,7 @@ def notdupeextract(primarySource, headers, doc):
 		desc = parse.parse(doc['description']).strip()
 		if desc:
 			yield Description(desc)
+	yield Source(doc['source_url'])
 	for tag in doc['tags'].split(', '):
 		if ':' in tag:
 			yield Tag(*tag.split(':',1))
