@@ -361,7 +361,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 	wrapper = None
 	if type.startswith('audio') or type.startswith('video') or type == 'application/octet-stream':
 		with d.NoParent:
-			if type.endswith('webm') or type.endswith('ogg'):
+			if type.endswith('webm') or type.endswith('ogg') or type.endswith('mp4'):
 				if type[0]=='a':
 					wrapper = d.audio
 				else:
