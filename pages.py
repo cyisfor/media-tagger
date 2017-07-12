@@ -378,8 +378,8 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 				with d.object(
 					style=style,
 						type=type,
-						loop=1,
-						autoplay=1,
+						loop=True,
+						autoplay=True,
 						width=width,
 						height=height) as o:
 					d.embed(' ',
