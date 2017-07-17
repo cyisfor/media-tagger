@@ -186,27 +186,35 @@ def myopen(request):
 			url[i] = urlparse.quote(url[i],safe="/&=?+")
 		request.full_url = urlparse.urlunparse(url)
 	note('requesting',repr(request.full_url),request.header_items())
-	try:
-		with closing(opener.open(request)) as inp:
-			headers = inp.headers
-			encoding = headers['Content-Encoding']
-			if encoding == 'gzip':
-				inp = gzip.GzipFile(fileobj=inp,mode='rb')
-			elif encoding == 'deflate':
-				data = inp.read(0x40000)
-				try: data = zlib.decompress(data)
-				except zlib.error:
-					data = zlib.decompress(data,-zlib.MAX_WBITS)
-				inp = io.StringIO(data)
-			inp.headers = headers
-			yield inp
-	except urlerror.HTTPError as e:
-		if e.code == 503:
-			print('head',e.headers)
-			print(e.read())
-		raise
-	except urlerror.URLError as e:
-		raise_from(URLError(request.full_url),e)
+	for attempt in range(3):
+		try:
+			with closing(opener.open(request)) as inp:
+				headers = inp.headers
+				encoding = headers['Content-Encoding']
+				if encoding == 'gzip':
+					inp = gzip.GzipFile(fileobj=inp,mode='rb')
+				elif encoding == 'deflate':
+					data = inp.read(0x40000)
+					try: data = zlib.decompress(data)
+					except zlib.error:
+						data = zlib.decompress(data,-zlib.MAX_WBITS)
+					inp = io.StringIO(data)
+				inp.headers = headers
+				yield inp
+		except urlerror.HTTPError as e:
+			if e.code == 503:
+				print('head',e.headers)
+				print(e.read())
+			raise
+		except urlerror.URLError as e:
+			if attempt != 2: 
+				if e.reason.strerror == 'Connection reset by peer':
+					time.sleep(0.5)
+					continue
+			print(e.reason.strerror)
+			raise_from(URLError(request.full_url),e)
+		else:
+			break
 
 	# if isinstance(dest,str):
 	#	 try: stat = os.stat(dest)
