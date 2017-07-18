@@ -40,6 +40,9 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 			return tb.tb_frame.f_back.f_back.f_back
 	def output(color,s):
 		f = getframe()
+		sys.stdout.write("uhhh "+f.f_code.co_filename+"\n")
+		if f.f_code.co_filename == "better/print.py":
+			f = f.f_back
 		# function above us
 		module = f.f_globals['__name__'] 
 		
