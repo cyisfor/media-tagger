@@ -82,12 +82,10 @@ class Jar(cookiejar.CookieJar):
 		super().__init__(policy)
 		del self._cookies # just to keep us honest
 	def __enter__(self):
-		if verbose:
-			print('starting transaction')
+		print('starting transaction')
 		return db.__enter__()
 	def __exit__(self,*a):
-		if verbose:
-			print('committing')
+		print('committing')
 		return db.__exit__(*a)
 	def __str__(self):
 		return "Jar<A sqlite cookie jar>"
