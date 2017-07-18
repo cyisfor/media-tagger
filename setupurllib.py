@@ -56,6 +56,7 @@ if not 'skipcookies' in os.environ:
 		ff = os.path.expanduser("~/.mozilla/firefox/aoeu.default")
 		retrieve.sqlite(oj(ff,'cookies.sqlite'))
 		retrieve.json(oj(ff,'cookies.jsons'))
+		retrieve.sqlite(os.path.expanduser("~/.moonchild\ productions/pale moon/rgfop3e3.default/cookies.sqlite"))
 
 		retrieve.text("/extra/user/tmp/cookies.txt")	
 		retrieve.json("/extra/user/tmp/cookies.jsons")
