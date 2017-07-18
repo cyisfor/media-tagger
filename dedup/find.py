@@ -43,9 +43,10 @@ import merge
 
 import os
 
-findStmt = '''WITH toomanynas AS (SELECT sis AS id FROM dupes GROUP BY sis WHERE count(bro) > 4
+findStmt = '''WITH toomanynas AS (
+SELECT sis AS id FROM nadupes GROUP BY sis WHERE count(bro) > 4
 union
-select bro FROM dupes GROUP BY bro WHERE count(sis) > 4)
+select bro FROM nadupes GROUP BY bro WHERE count(sis) > 4)
 
 SELECT sis,bro FROM possibleDupes WHERE 
 NOT sis IN (select id from glibsucks) AND 
