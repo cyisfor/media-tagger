@@ -99,7 +99,7 @@ class Jar(cookiejar.CookieJar):
 			for cookie in execute("SELECT "+",".join(Cookie.fields)
 			                      +" FROM cookies WHERE url = ?",
 															 (urlid,)):
-				print("cookie",domain,path,cookie);
+				#print("cookie",domain,path,cookie);
 				cookie = Cookie(domain,path,cookie)
 				if not self._policy.return_ok(cookie, request): continue
 				yield cookie

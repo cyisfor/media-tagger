@@ -41,8 +41,10 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 	def output(color,s):
 		f = getframe()
 		sys.stdout.write("uhhh "+f.f_code.co_filename+"\n")
-		if f.f_code.co_filename == "better/print.py":
+		relpath = os.path.relpath(f.f_code.co_filename,here)
+		if relpath == "better/print.py":
 			f = f.f_back
+			relpath = os.path.relpath(f.f_code.co_filename,here)
 		# function above us
 		module = f.f_globals['__name__'] 
 		
@@ -62,7 +64,7 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 		if not 'simple' in os.environ:
 			o.write('== '+str(time.time())+' ')
 			writec(white)
-			o.write(os.path.relpath(f.f_code.co_filename,here))
+			o.write(relpath)
 			writec(reset)
 			o.write(':'+str(f.f_lineno))
 			if hasret:
