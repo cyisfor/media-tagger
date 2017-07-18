@@ -58,6 +58,7 @@ def catch_one():
 					note(e.headers)
 					note(e.getcode(),e.reason,e.geturl())
 					if e.getcode() == 404: raise ParseError('Not found')
+					if e.getcode() == 403: raise ParseError('Forbidden')
 					time.sleep(3)
 				except db.Error as e:
 					note.alarm(e.info['message'])
