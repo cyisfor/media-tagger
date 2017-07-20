@@ -2,7 +2,7 @@ DROP FUNCTION implications(_tag INTEGER, _returned int, _depth int);
 CREATE OR REPLACE FUNCTION implications(_tag INTEGER, _returned int, _depth int) RETURNS int AS $$
 DECLARE
 _neighbor INTEGER;
-_count int default 0;
+_count int NOT NULL default 0;
 BEGIN
     IF _depth > 2 THEN
        RETURN _count;
@@ -21,6 +21,7 @@ BEGIN
 			 tags.id = _tag
 			 AND other.id = ANY(things.neighbors)
              AND tags.complexity < other.complexity;
+	RAISE NOTICE 'implications %',_count;
 	RETURN _count;
 END
 $$
