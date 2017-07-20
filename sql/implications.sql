@@ -5,22 +5,23 @@ _neighbor INTEGER;
 _count int NOT NULL default 0;
 BEGIN
     IF _depth > 2 THEN
-       RETURN _count;
+       RETURN _returned;
     END IF;
 	IF _returned > 100 THEN
-	   RETURN _count;
+	   RETURN _returned;
 	END IF;
     INSERT INTO impresult (tag) VALUES (_tag);
 	RAISE NOTICE 'found tag % % % %s',_returned,_depth,_tag,(select name from tags where id = _tag);
     _count := _count + 1;
-	SELECT sum(implications(
-             other.id,
-             _returned + _count,
-             1 + _depth)) INTO _count
+	SELECT COUNT(*) INTO _count FROM
+	  (SELECT * FROM implications(
+		             other.id,
+								 _returned + _count,
+								 1 + _depth)
         FROM tags inner join things on things.id = tags.id , tags other WHERE
 			 tags.id = _tag
 			 AND other.id = ANY(things.neighbors)
-             AND tags.complexity < other.complexity;
+             AND tags.complexity < other.complexity) AS imp;
 	RAISE NOTICE 'implications %',_count;
 	RETURN _count;
 END
