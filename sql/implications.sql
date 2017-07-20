@@ -13,10 +13,10 @@ BEGIN
     INSERT INTO impresult (tag) VALUES (_tag);
 	RAISE NOTICE 'found tag % % % %s',_returned,_depth,_tag,(select name from tags where id = _tag);
     _count := _count + 1;
-	_count := sum(implications(
+	SELECT sum(implications(
              other.id,
              _returned + _count,
-             1 + _depth))
+             1 + _depth)) INTO _count
         FROM tags inner join things on things.id = tags.id , tags other WHERE
 			 tags.id = _tag
 			 AND other.id = ANY(things.neighbors)
