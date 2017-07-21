@@ -97,7 +97,7 @@ def pickone(category, tags):
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
 											 (category,))
 	
-def get(ident,tags,limit=chunkOPics):
+def get(ident,tags,limit=8+1):
 	category = hash(tags) % 0x7FFFFFFF
 	arg = argbuilder()
 	category = arg(category)
@@ -182,7 +182,6 @@ def page(info,path,params):
 		if ident == maxident(category):
 			params['c'] = ['1']
 			params = zoop(params)
-			print("ummm",params)
 			Links.next = '?' + params
 		else:
 			Links.next = "../" + '{:x}'.format(ident+1) + '/'
