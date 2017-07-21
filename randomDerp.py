@@ -142,7 +142,8 @@ def info(path,params):
 		pickone(category, tags)
 		maxident = db.execute("SELECT MAX(id) FROM randomSeen WHERE category = $1 AND seen",
 													(category,))[0][0]
-		dest = str(maxident,16) + "/"
+		print(maxident)
+		dest = "../" + '{:x}'.format(maxident) + "/"
 		del params['c']
 		params = zoop(params)
 		if params:
