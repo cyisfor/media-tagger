@@ -91,7 +91,7 @@ def pickone(category, tags):
 	elif unseen < chunkOPics:
 		@gevent.spawn_raw
 		def churnLater():
-			gevent.idle()
+			gevent.sleep(0.1)
 			churn(category,tags)
 		print("churning later...",churnLater)
 
