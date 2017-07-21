@@ -1,11 +1,5 @@
 import eventlet
-from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
-
-def connectandhang():
-    c = socket.socket()
-    ip = socket.gethostbyname("localhost")
-    c.connect((ip, 14234))
-    return c.recv(1024)
+from eventlet.green.socketserver import TCPServer
 
 def later():
 	print("ummm")
@@ -15,7 +9,9 @@ def later():
 # make sure something hanging listening on 14234
 
 eventlet.spawn_n(later)
-eventlet.sleep(1)
+def handle(request,addr,thing):
+	print("ok",request,addr,thing)
+TCPServer(("127.0.0.1",14234),handle)
 class Handle(BaseHTTPRequestHandler):
 	def do_GET(self):
 		print("get got")
