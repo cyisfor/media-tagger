@@ -1,4 +1,4 @@
-from eventlet.greenthread import sleep
+from gevent import sleep
 import tempfile
 from contextlib import contextmanager
 

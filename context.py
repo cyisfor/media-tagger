@@ -3,8 +3,6 @@
 from gevent import local
 
 import parameterize
-import eventlet.greenthread
-import greenlet
 # normally parameterize is set to work with threading locals
 # we can simulate this in green threads, with a dictionary lookup by
 # thread ID
@@ -56,14 +54,16 @@ def test():
 
 	print(Test.foo())
 
-	@greenlet.greenlet
+	import gevent
+
+	@gevent.spawn
 	def thing1():
 		with Test():
 			Test.a = 5
 			print('Test.a is 5')
 			thing2.switch()
 			print('Test.a is still 5? ',Test.a)
-	@greenlet.greenlet
+	@gevent.spawn
 	def thing2():
 		with Test():
 			Test.a = 23
