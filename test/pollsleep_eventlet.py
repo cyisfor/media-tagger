@@ -1,7 +1,7 @@
 import eventlet
 from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
 from socketserver import _ServerSelector
-print(_ServerSelector)
+import selectors
 
 def later():
 	print("ummm")
@@ -20,8 +20,9 @@ class Handle(BaseHTTPRequestHandler):
 serv = HTTPServer(("127.0.0.1",14234),Handle)
 with _ServerSelector() as selector:
 	selector.register(serv,selectors.EVENT_READ)
-	ready = selector.select(None)
-	if ready:
-		serv._handle_request_noblock()
-	serv.service_actions()
+	while True:
+		ready = selector.select(None)
+		if ready:
+			serv._handle_request_noblock()
+		serv.service_actions()
 
