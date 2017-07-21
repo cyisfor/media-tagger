@@ -1,7 +1,7 @@
 import eventlet
 from eventlet.green import selectors
-print(dir(selectors))
-import selectors
+import sys
+sys.modules['selectors'] = selectors # SIGH
 print(dir(selectors))
 from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
 import socketserver
@@ -21,12 +21,4 @@ class Handle(BaseHTTPRequestHandler):
 		print("get got")
 		self.send_response(997,"boop")
 
-serv = HTTPServer(("127.0.0.1",14234),Handle)
-with _ServerSelector() as selector:
-	selector.register(serv,selectors.EVENT_READ)
-	while True:
-		ready = selector.select(None)
-		if ready:
-			serv._handle_request_noblock()
-		serv.service_actions()
-
+serv = HTTPServer(("127.0.0.1",14234),Handle).serve_forever(None)
