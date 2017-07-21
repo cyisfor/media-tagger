@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 -O
+#!/bin/runbang python3 -O $THIS
 
 import os
 nofork = 'nofork' in os.environ
