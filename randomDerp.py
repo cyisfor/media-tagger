@@ -153,7 +153,7 @@ def info(path,params):
 	ident = int(path[1],16);
 	while True:
 		links = get(ident,tags)
-		if links: return category,links
+		if links: return ident,category,links
 		if Session.prefetching: return ()
 		pickone(tags)
 
@@ -171,10 +171,10 @@ import urllib.parse
 @pagemaker
 def page(info,path,params):
 	with makePage("Random") as p:
-		category,links = info
+		ident,category,links = info
 		links = iter(links)
-		ident,name,type,tags = next(links)
-		fid,link,thing = makeLink(ident,type,name,False,0,0)
+		medium,name,type,tags = next(links)
+		fid,link,thing = makeLink(medium,type,name,False,0,0)
 		if ident == maxident(category):
 			params['c'] = ['1']
 			params = zoop(params)
@@ -186,7 +186,7 @@ def page(info,path,params):
 		d.p(dd.a('Another?',href=Links.next))
 		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
 		with d.div(title='past ones'):
-			makeLinks(info)
+			makeLinks(links)
 
 if __name__ == '__main__':
 	from pprint import pprint
