@@ -116,7 +116,7 @@ def findMediumDerp(comic,which,medium=None):
 				db.execute("UPDATE comics SET added = now() WHERE id = $1",(comic,))
 			return medium,True
 		return None,False
-	note.yellow('medium existed',rows,medium)
+	#note.yellow('medium existed',rows,medium)
 	return rows[0][0],False
 
 def findMedium(comic,which,medium=None):
