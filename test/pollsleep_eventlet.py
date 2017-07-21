@@ -3,12 +3,6 @@ from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
 from socketserver import _ServerSelector
 print(_ServerSelector)
 
-def connectandhang():
-    c = socket.socket()
-    ip = socket.gethostbyname("localhost")
-    c.connect((ip, 14234))
-    return c.recv(1024)
-
 def later():
 	print("ummm")
 	eventlet.sleep(3)
@@ -17,10 +11,17 @@ def later():
 # make sure something hanging listening on 14234
 
 eventlet.spawn_n(later)
-eventlet.sleep(1)
+
 class Handle(BaseHTTPRequestHandler):
 	def do_GET(self):
 		print("get got")
 		self.send_response(997,"boop")
-import pdb
-pdb.run('HTTPServer(("127.0.0.1",14234),Handle).serve_forever(None)')
+
+serv = HTTPServer(("127.0.0.1",14234),Handle)
+with _ServerSelector() as selector:
+	selector.register(serv,selectors.EVENT_READ)
+	ready = selector.select(None)
+	if ready:
+		serv._handle_request_noblock()
+	serv.service_actions()
+
