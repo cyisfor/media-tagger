@@ -1,5 +1,5 @@
 import eventlet
-from eventlet.green import socket
+from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
 
 def connectandhang():
     c = socket.socket()
@@ -14,4 +14,8 @@ def later():
 # make sure something hanging listening on 14234
 
 eventlet.spawn(later)
-connectandhang()
+class Handle(BaseHTTPRequestHandler):
+	def do_GET(self):
+		print("get got")
+		self.send_response(997,"boop")
+HTTPServer(("127.0.0.1",14234),Handle).serve_forever()
