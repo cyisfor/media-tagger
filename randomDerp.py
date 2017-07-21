@@ -1,5 +1,6 @@
 import versions,db
 import withtags,tags as tagsModule
+import eventlet
 
 from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With,NOT
 
@@ -75,6 +76,12 @@ def churn(category,tags,limit=9):
 			db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
+@eventlet.spawn
+def _():
+	print("before")
+	sleep(3)
+	print("after")
+			
 def pickone(tags):
 	if Session.prefetching: return
 
@@ -85,7 +92,7 @@ def pickone(tags):
 		# need some right away
 		churn(category,tags,9)
 	elif unseen < 9:
-		from eventlet.greenthread import spawn,sleep
+		from eventlet import spawn,sleep
 		def churnLater():
 			sleep(1)
 			print("uh")
