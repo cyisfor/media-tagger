@@ -96,7 +96,7 @@ def pickone(tags):
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
 											 (category,))
 	
-def get(ident,tags,offset=None,limit=9):
+def get(ident,tags,limit=9):
 	category = hash(tags) % 0x7FFFFFFF
 	arg = argbuilder()
 	category = arg(category)
@@ -108,7 +108,7 @@ def get(ident,tags,offset=None,limit=9):
 									EQ('randomSeen.category',category),
 									"randomSeen.id <= "+arg(ident)))
 	stmt = Order(stmt,'randomSeen.id DESC')
-	stmt = Limit(stmt,offset=offset,limit=limit)
+	stmt = Limit(stmt,limit=limit)
 	rows = db.execute(stmt.sql(),arg.args)
 	#print('\n'.join(r[0] for r in rows))
 	#raise SystemExit
@@ -148,7 +148,7 @@ def info(path,params):
 		raise Redirect(dest,code=302)
 	ident = int(path[1],16);
 	while True:
-		links = get(ident,tags,offset=offset)
+		links = get(ident,tags)
 		if links: return links
 		if Session.prefetching: return ()
 		pickone(tags)
