@@ -79,7 +79,7 @@ def pickone(tags):
 	if Session.prefetching: return
 
 	category = hash(tags) % 0x7FFFFFFF
-	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = ? AND NOT seen",(category,))
+	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = $1 AND NOT seen",(category,))
 	if len(unseen) == 0:
 		# need some right away
 		churn(category,tags,9)
@@ -91,7 +91,7 @@ def pickone(tags):
 		spawn(churnLater)
 
 	#pick one... with the lowest id but not seen
-	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = ? AND NOT seen ORDER BY id ASC LIMIT 1)",
+	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
 											 (category,))
 	
 def get(tags,offset=None,limit=9):
@@ -178,4 +178,7 @@ def page(info,path,params):
 
 if __name__ == '__main__':
 	from pprint import pprint
-	pprint(get(tags.parse('apple bloom, -sweetie belle, scootaloo')))
+	import tags
+	tags = tags.parse('apple bloom, -sweetie belle, scootaloo')
+	pickone(tags)
+	pprint(get(tags))
