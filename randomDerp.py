@@ -129,21 +129,22 @@ def zoop(params):
 	zoop = urllib.parse.urlencode(zoop)
 	return zoop
 
+def maxident(category):
+	return db.execute("SELECT MAX(id) FROM randomSeen WHERE category = $1 AND seen",
+										(category,))[0][0]
+
 def info(path,params):
 	if 'q' in params:
 		tags = tagsModule.parse(params['q'][0])
 	else:
 		tags = User.tags()
 	if nopeTags: tags.update(nopeTags)
+	category = hash(tags) % 0x7FFFFFFF
 	if 'c' in params:
 		if Session.prefetching: return ()
 		#print(params)
-		category = hash(tags) % 0x7FFFFFFF
 		pickone(category, tags)
-		maxident = db.execute("SELECT MAX(id) FROM randomSeen WHERE category = $1 AND seen",
-													(category,))[0][0]
-		print(maxident)
-		dest = "../" + '{:x}'.format(maxident) + "/"
+		dest = "../" + '{:x}'.format(maxident(category)) + "/"
 		del params['c']
 		params = zoop(params)
 		if params:
@@ -152,7 +153,7 @@ def info(path,params):
 	ident = int(path[1],16);
 	while True:
 		links = get(ident,tags)
-		if links: return links
+		if links: return category,links
 		if Session.prefetching: return ()
 		pickone(tags)
 
@@ -170,17 +171,17 @@ import urllib.parse
 @pagemaker
 def page(info,path,params):
 	with makePage("Random") as p:
-		info = iter(info)
-		id,name,type,tags = next(info)
-		fid,link,thing = makeLink(id,type,name,False,0,0)
-		params['c'] = ['1']
-		params = zoop(params)
-		print("ummm",params)
-		
-		if params:
+		category,links = info
+		links = iter(links)
+		ident,name,type,tags = next(links)
+		fid,link,thing = makeLink(ident,type,name,False,0,0)
+		if ident == maxident(category):
+			params['c'] = ['1']
+			params = zoop(params)
+			print("ummm",params)
 			Links.next = '?' + params
 		else:
-			Links.next = '.'
+			Links.next = "../" + '{:x}'.format(ident+1) + '/'
 
 		d.p(dd.a('Another?',href=Links.next))
 		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
