@@ -94,8 +94,8 @@ def pickone(tags):
 	elif unseen < 9:
 		@eventlet.spawn_n
 		def churnLater():
-			eventlet.sleep(1)
 			print("uh")
+			eventlet.sleep(1)
 			churn(category,tags,9)
 		print("churning later...",churnLater)
 

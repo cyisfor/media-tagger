@@ -1,18 +1,11 @@
 import eventlet
-import selectors as boop
-from eventlet.green import socket, selectors
-print(boop,selectors)
+from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
 
 def connectandhang():
-		c = socket.socket()
-		ip = socket.gethostbyname("localhost")
-		c.connect((ip, 14234))
-		s = selectors.SelectSelector()
-		s.register(c,selectors.EVENT_READ)
-		while True:
-			if s.select(0.5) == 1: break
-			print("boop")
-		return c.recv(1024)
+    c = socket.socket()
+    ip = socket.gethostbyname("localhost")
+    c.connect((ip, 14234))
+    return c.recv(1024)
 
 def later():
 	eventlet.sleep(3)
@@ -21,4 +14,9 @@ def later():
 # make sure something hanging listening on 14234
 
 eventlet.spawn(later)
-connectandhang()
+class Handle(BaseHTTPRequestHandler):
+	def do_GET(self):
+		print("get got")
+		self.send_response(997,"boop")
+
+HTTPServer(("127.0.0.1",14234),Handle).serve_forever()
