@@ -89,7 +89,7 @@ def pickone(tags):
 		def churnLater():
 			sleep(1)
 			churn(category,tags,9)
-		spawn(churnLater)
+		print("churning later...",spawn(churnLater))
 
 	#pick one... with the lowest id but not seen
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
