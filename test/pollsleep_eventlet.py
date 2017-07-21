@@ -8,15 +8,17 @@ def connectandhang():
     return c.recv(1024)
 
 def later():
+	print("ummm")
 	eventlet.sleep(3)
 	print("why is this never called?")
 
 # make sure something hanging listening on 14234
 
-eventlet.spawn(later)
+eventlet.spawn_n(later)
+eventlet.sleep(1)
 class Handle(BaseHTTPRequestHandler):
 	def do_GET(self):
 		print("get got")
 		self.send_response(997,"boop")
-
-HTTPServer(("127.0.0.1",14234),Handle).serve_forever()
+import pdb
+pdb.run('HTTPServer(("127.0.0.1",14234),Handle).serve_forever()')
