@@ -124,15 +124,14 @@ try:
 except IOError:
 	nopeTags = None
 
+def zoop(params):
+	zoop = dict((n,v[0]) for n,v in params.items() if n not in {'o','c','t'})
+	zoop = urllib.parse.urlencode(zoop)
+	return zoop
+
 def info(path,params):
-	print(path)
-	if 'o' in params:
-		offset = int(params['o'][0])
-		if offset == 0:
-			offset = None
-			del params['o']
-	else:
-		offset = None
+	ident = int(path[1],16);
+	
 	if 'q' in params:
 		tags = tagsModule.parse(params['q'][0])
 	else:
@@ -142,10 +141,12 @@ def info(path,params):
 		if Session.prefetching: return ()
 		#print(params)
 		pickone(tags)
-		zoop = {'t': str(time.time())}
-		zoop.update((n,v[0]) for n,v in params.items() if n not in {'o','c','t'})
-		zoop = urllib.parse.urlencode(zoop)
-		raise Redirect('?'+zoop if zoop else '.',code=302)
+		maxident = db.execute("SELECT MAX(id) FROM randomSeen")		
+		dest = str(maxident,16) + "/"
+		params = zoop(params)
+		if params:
+			dest = dest + '?' + params
+		raise Redirect(dest,code=302)
 	while True:
 		links = get(tags,offset=offset)
 		if links: return links
@@ -169,16 +170,18 @@ def page(info,path,params):
 		info = iter(info)
 		id,name,type,tags = next(info)
 		fid,link,thing = makeLink(id,type,name,False,0,0)
-		zoop = {'c': '1'}
-		zoop.update((n,v[0]) for n,v in params.items())
-		zoop = urllib.parse.urlencode(zoop)
-		zoop = '?' + zoop if zoop else '.'
-		Links.next = zoop
-		d.p(dd.a('Another?',href=zoop))
+		params['c'] = ['1']
+		params = zoop(params)
+		
+		if params:
+			Links.next = '?' + params
+		else:
+			Links.next = '.'
+
+		d.p(dd.a('Another?',href=Links.next))
 		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
 		with d.div(title='past ones'):
 			makeLinks(info)
-
 
 if __name__ == '__main__':
 	from pprint import pprint
