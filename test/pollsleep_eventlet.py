@@ -1,5 +1,6 @@
 import eventlet
-from eventlet.green import HTTPServer,BaseHTTPRequestHandler
+from eventlet.green import BaseHTTPServer
+from http.server import BaseHTTPRequestHandler
 
 def connectandhang():
     c = socket.socket()
@@ -21,4 +22,4 @@ class Handle(BaseHTTPRequestHandler):
 		print("get got")
 		self.send_response(997,"boop")
 import pdb
-pdb.run('HTTPServer(("127.0.0.1",14234),Handle).serve_forever(None)')
+BaseHTTPServer(("127.0.0.1",14234),Handle).serve_forever(None)
