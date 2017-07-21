@@ -122,7 +122,6 @@ except IOError:
 	nopeTags = None
 
 def info(path,params):
-	note("pref",Session.prefetching)
 	if 'o' in params:
 		offset = int(params['o'][0])
 		if offset == 0:
@@ -184,3 +183,5 @@ if __name__ == '__main__':
 	tags = tags.parse('apple bloom, -sweetie belle, scootaloo')
 	pickone(tags)
 	pprint(get(tags))
+	from eventlet.greenthread import sleep
+	sleep(3)
