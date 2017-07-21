@@ -77,11 +77,13 @@ def churn(category,tags,limit=9):
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
 @eventlet.spawn
-def _():
+def asht():
 	print("before")
-	sleep(3)
+	eventlet.sleep(3)
 	print("after")
-			
+
+print("um",asht.wait())
+	
 def pickone(tags):
 	if Session.prefetching: return
 
