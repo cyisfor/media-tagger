@@ -1,6 +1,6 @@
 import eventlet
-from eventlet.green import socket, selectors
 import selectors as boop
+from eventlet.green import socket, selectors
 print(boop,selectors)
 
 def connectandhang():
