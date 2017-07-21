@@ -67,7 +67,7 @@ def test():
 	def thing2(*a):
 		with Test():
 			Test.a = 23
-			print('o noes')
+			print('uh oh Test.a is 23')
 			thing1.switch()
 	thing1.switch()
 
