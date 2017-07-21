@@ -1,6 +1,6 @@
-from gevent import sleep
 from gevent import monkey
-monkey.patch_subprocess()
+monkey.patch_all()
+from gevent import sleep
 import subprocess as s
 
 import time
@@ -32,7 +32,7 @@ def make(handler,check=None):
 					handler(line.decode('utf-8'))
 			except Exception as e:
 				print("ERROR",e)
-				yield sleep(1)
+				sleep(1)
 	class Runner:
 		start = start
 		run = start
