@@ -1,3 +1,7 @@
+from eventlet.green import selectors
+import sys
+sys.modules['selectors'] = selectors # SIGH
+
 import signal_debugging
 import time
 start =time.time()
