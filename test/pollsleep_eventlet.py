@@ -1,7 +1,11 @@
 import eventlet
-from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
-from socketserver import _ServerSelector
+from eventlet.green import selectors
+print(dir(selectors))
 import selectors
+print(dir(selectors))
+from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
+import socketserver
+socketserver._ServerSelector = selectors.SelectSelector
 
 def later():
 	print("ummm")
