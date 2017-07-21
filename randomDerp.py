@@ -82,8 +82,6 @@ def asht():
 	eventlet.sleep(3)
 	print("after")
 
-asht.switch()
-
 def pickone(tags):
 	if Session.prefetching: return
 
@@ -96,7 +94,7 @@ def pickone(tags):
 	elif unseen < 9:
 		@eventlet.spawn_n
 		def churnLater():
-			sleep(1)
+			eventlet.sleep(1)
 			print("uh")
 			churn(category,tags,9)
 		print("churning later...",churnLater)
