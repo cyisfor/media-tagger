@@ -54,16 +54,16 @@ def test():
 
 	print(Test.foo())
 
-	import gevent
-
-	@gevent.spawn_raw
+	from greenlet import greenlet
+	
+	@greenlet
 	def thing1(*a):
 		with Test():
 			Test.a = 5
 			print('Test.a is 5')
 			thing2.switch()
 			print('Test.a is still 5? ',Test.a)
-	@gevent.spawn_raw
+	@greenlet
 	def thing2(*a):
 		with Test():
 			Test.a = 23
