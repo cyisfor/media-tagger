@@ -68,7 +68,7 @@ def churn(category,tags,limit=chunkOPics):
 				return ret
 			print('\n'.join(num()+line for line in lines))
 			print(e.info['message'].decode('utf-8'))
-			raise SystemExit
+			raise e
 		if num > 0: break
 		# out of media, better throw some back into the pot
 		with db.transaction():
