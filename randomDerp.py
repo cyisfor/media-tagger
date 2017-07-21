@@ -25,7 +25,7 @@ def _():
 	
 v.setup()
 
-chunkOPics = 16
+chunkOPics = 5
 
 def churn(category,tags,limit=chunkOPics):
 	print("churning...")
