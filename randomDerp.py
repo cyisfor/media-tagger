@@ -76,10 +76,9 @@ def churn(category,tags,limit=9):
 			db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
-def pickone(tags):
+def pickone(category, tags):
 	if Session.prefetching: return
 
-	category = hash(tags) % 0x7FFFFFFF
 	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = $1 AND NOT seen",(category,))[0][0]
 	print("unseen",unseen)
 	if unseen == 0:
@@ -139,8 +138,10 @@ def info(path,params):
 	if 'c' in params:
 		if Session.prefetching: return ()
 		#print(params)
-		pickone(tags)
-		maxident = db.execute("SELECT MAX(id) FROM randomSeen")[0][0]
+		category = hash(tags) % 0x7FFFFFFF
+		pickone(category, tags)
+		maxident = db.execute("SELECT MAX(id) FROM randomSeen WHERE category = $1 AND seen",
+													(category,))[0][0]
 		dest = str(maxident,16) + "/"
 		del params['c']
 		params = zoop(params)
