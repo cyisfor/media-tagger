@@ -1,4 +1,4 @@
-from gevent import monkey
+from gevent import monkey, sleep
 monkey.patch_all()
 
 from http.server import HTTPServer,BaseHTTPRequestHandler
@@ -7,7 +7,7 @@ from http.server import HTTPServer,BaseHTTPRequestHandler
 
 def later():
 	print("ummm")
-	eventlet.sleep(3)
+	sleep(3)
 	print("why is this never called?")
 
 # make sure something hanging listening on 14234

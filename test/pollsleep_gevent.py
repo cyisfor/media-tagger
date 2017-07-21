@@ -1,20 +1,18 @@
-import eventlet
-from eventlet.green import selectors
-import sys
-sys.modules['selectors'] = selectors # SIGH
-print(dir(selectors))
-from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
-import socketserver
-socketserver._ServerSelector = selectors.SelectSelector
+from gevent import monkey, sleep
+monkey.patch_all()
+
+from http.server import HTTPServer,BaseHTTPRequestHandler
+#import socketserver
+#socketserver._ServerSelector = selectors.SelectSelector
 
 def later():
 	print("ummm")
-	eventlet.sleep(3)
+	sleep(3)
 	print("why is this never called?")
 
 # make sure something hanging listening on 14234
 
-eventlet.spawn_n(later)
+gevent.spawn(later)
 
 class Handle(BaseHTTPRequestHandler):
 	def do_GET(self):
