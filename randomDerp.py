@@ -97,7 +97,7 @@ def pickone(category, tags):
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
 											 (category,))
 	
-def get(ident,tags,limit=9):
+def get(ident,tags,limit=chunkOPics):
 	category = hash(tags) % 0x7FFFFFFF
 	arg = argbuilder()
 	category = arg(category)
