@@ -105,8 +105,8 @@ def get(ident,tags,limit=9):
 		EQ('randomSeen.media','media.id')),
 								AND(
 									"seen",
-									EQ('randomSeen.category',category),
-									"randomSeen.id <= "+arg(ident)))
+									AND(EQ('randomSeen.category',category),
+											"randomSeen.id <= "+arg(ident))))
 	stmt = Order(stmt,'randomSeen.id DESC')
 	stmt = Limit(stmt,limit=limit)
 	rows = db.execute(stmt.sql(),arg.args)
@@ -172,6 +172,7 @@ def page(info,path,params):
 		fid,link,thing = makeLink(id,type,name,False,0,0)
 		params['c'] = ['1']
 		params = zoop(params)
+		print("ummm",params)
 		
 		if params:
 			Links.next = '?' + params
