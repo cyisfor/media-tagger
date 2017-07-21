@@ -76,12 +76,6 @@ def churn(category,tags,limit=9):
 			db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
-@eventlet.spawn_n
-def asht():
-	print("before")
-	eventlet.sleep(3)
-	print("after")
-
 def pickone(tags):
 	if Session.prefetching: return
 
@@ -94,8 +88,6 @@ def pickone(tags):
 	elif unseen < 9:
 		@eventlet.spawn_n
 		def churnLater():
-			print("uh")
-			eventlet.sleep(1)
 			churn(category,tags,9)
 		print("churning later...",churnLater)
 
