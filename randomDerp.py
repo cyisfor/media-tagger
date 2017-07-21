@@ -96,7 +96,7 @@ def pickone(tags):
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
 											 (category,))
 	
-def get(tags,offset=None,limit=9):
+def get(ident,tags,offset=None,limit=9):
 	category = hash(tags) % 0x7FFFFFFF
 	arg = argbuilder()
 	category = arg(category)
@@ -105,7 +105,8 @@ def get(tags,offset=None,limit=9):
 		EQ('randomSeen.media','media.id')),
 								AND(
 									"seen",
-									EQ('randomSeen.category',category)))
+									EQ('randomSeen.category',category),
+									"randomSeen.id <= "+arg(ident)))
 	stmt = Order(stmt,'randomSeen.id DESC')
 	stmt = Limit(stmt,offset=offset,limit=limit)
 	rows = db.execute(stmt.sql(),arg.args)
@@ -130,8 +131,6 @@ def zoop(params):
 	return zoop
 
 def info(path,params):
-	ident = int(path[1],16);
-	
 	if 'q' in params:
 		tags = tagsModule.parse(params['q'][0])
 	else:
@@ -147,8 +146,9 @@ def info(path,params):
 		if params:
 			dest = dest + '?' + params
 		raise Redirect(dest,code=302)
+	ident = int(path[1],16);
 	while True:
-		links = get(tags,offset=offset)
+		links = get(ident,tags,offset=offset)
 		if links: return links
 		if Session.prefetching: return ()
 		pickone(tags)
