@@ -1,6 +1,6 @@
 # thank you so much Aaron Griffith
 
-from gevent import local
+from gevent.local import local
 
 import parameterize
 # normally parameterize is set to work with threading locals
@@ -56,15 +56,15 @@ def test():
 
 	import gevent
 
-	@gevent.spawn
-	def thing1():
+	@gevent.spawn_raw
+	def thing1(*a):
 		with Test():
 			Test.a = 5
 			print('Test.a is 5')
 			thing2.switch()
 			print('Test.a is still 5? ',Test.a)
-	@gevent.spawn
-	def thing2():
+	@gevent.spawn_raw
+	def thing2(*a):
 		with Test():
 			Test.a = 23
 			print('o noes')
