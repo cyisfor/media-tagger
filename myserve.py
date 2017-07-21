@@ -1,6 +1,8 @@
-from eventlet.green import selectors
-import sys
-sys.modules['selectors'] = selectors # SIGH
+from gevent import monkey
+monkey.patch_all()
+#from gevent import selectors
+#import sys
+#sys.modules['selectors'] = selectors # SIGH
 
 import signal_debugging
 import time
@@ -32,7 +34,7 @@ import withtags
 import tags as tagsModule
 from tags import Taglist
 
-from eventlet.green.http.server import HTTPServer,BaseHTTPRequestHandler
+from http.server import HTTPServer,BaseHTTPRequestHandler
 
 from itertools import count
 import urllib.parse
