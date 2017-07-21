@@ -79,11 +79,12 @@ def pickone(tags):
 	if Session.prefetching: return
 
 	category = hash(tags) % 0x7FFFFFFF
-	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = $1 AND NOT seen",(category,))
-	if len(unseen) == 0:
+	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = $1 AND NOT seen",(category,))[0][0]
+	print("unseen",unseen)
+	if unseen == 0:
 		# need some right away
 		churn(category,tags,9)
-	elif len(unseen) < 9:
+	elif unseen < 9:
 		from eventlet.greenthread import spawn,sleep
 		def churnLater():
 			sleep(1)
@@ -179,6 +180,7 @@ def page(info,path,params):
 if __name__ == '__main__':
 	from pprint import pprint
 	import tags
+	Session.prefetching = False
 	tags = tags.parse('apple bloom, -sweetie belle, scootaloo')
 	pickone(tags)
 	pprint(get(tags))
