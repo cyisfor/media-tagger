@@ -182,6 +182,8 @@ def page(info,path,params):
 			Links.next = '?' + params
 		else:
 			Links.next = "../" + '{:x}'.format(ident+1) + '/'
+		if ident > 0:
+			Links.prev = "../" + '{:x}'.format(ident-1) + '/'
 
 		d.p(dd.a('Another?',href=Links.next))
 		d.p(dd.a(link,href='/art/~page/'+fid+'/'))
