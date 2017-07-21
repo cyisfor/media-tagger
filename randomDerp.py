@@ -126,7 +126,7 @@ except IOError:
 	nopeTags = None
 
 def zoop(params):
-	zoop = dict((n,v[0]) for n,v in params.items() if n not in {'o','c','t'})
+	zoop = dict((n,v[0]) for n,v in params.items() if n not in {'o','t'})
 	zoop = urllib.parse.urlencode(zoop)
 	return zoop
 
@@ -140,8 +140,9 @@ def info(path,params):
 		if Session.prefetching: return ()
 		#print(params)
 		pickone(tags)
-		maxident = db.execute("SELECT MAX(id) FROM randomSeen")		
+		maxident = db.execute("SELECT MAX(id) FROM randomSeen")[0][0]
 		dest = str(maxident,16) + "/"
+		del params['c']
 		params = zoop(params)
 		if params:
 			dest = dest + '?' + params
