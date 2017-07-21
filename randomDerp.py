@@ -82,7 +82,9 @@ def asht():
 	eventlet.sleep(3)
 	print("after")
 
-print("um",asht.wait())
+print(asht)
+help(asht.switch)
+
 	
 def pickone(tags):
 	if Session.prefetching: return
