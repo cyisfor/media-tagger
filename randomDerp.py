@@ -88,6 +88,7 @@ def pickone(tags):
 	elif unseen < 9:
 		@eventlet.spawn_n
 		def churnLater():
+			eventlet.sleep(0.1)
 			churn(category,tags,9)
 		print("churning later...",churnLater)
 
@@ -124,6 +125,7 @@ except IOError:
 	nopeTags = None
 
 def info(path,params):
+	print(path)
 	if 'o' in params:
 		offset = int(params['o'][0])
 		if offset == 0:
