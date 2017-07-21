@@ -1,4 +1,4 @@
-from gevent import monkey, sleep
+from gevent import monkey, sleep, spawn
 monkey.patch_all()
 
 from http.server import HTTPServer,BaseHTTPRequestHandler
@@ -12,7 +12,7 @@ def later():
 
 # make sure something hanging listening on 14234
 
-gevent.spawn(later)
+spawn(later)
 
 class Handle(BaseHTTPRequestHandler):
 	def do_GET(self):
