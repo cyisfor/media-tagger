@@ -1,8 +1,9 @@
-from eventlet.greenthread import sleep
-from eventlet.green import subprocess as s
+from gevent import sleep
+from gevent import monkey
+monkey.patch_subprocess()
+import subprocess as s
 
 import time
-import subprocess as s
 import sys,os
 
 here = os.path.dirname(sys.modules[__name__].__file__)

@@ -1,6 +1,6 @@
 import versions,db
 import withtags,tags as tagsModule
-import eventlet
+import gevent
 
 from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With,NOT
 
@@ -89,9 +89,9 @@ def pickone(category, tags):
 		# need some right away
 		churn(category,tags)
 	elif unseen < chunkOPics:
-		@eventlet.spawn_n
+		@gevent.spawn_raw
 		def churnLater():
-			eventlet.sleep(0.1)
+			gevent.idle()
 			churn(category,tags)
 		print("churning later...",churnLater)
 
@@ -205,5 +205,3 @@ if __name__ == '__main__':
 	tags = tags.parse('apple bloom, -sweetie belle, scootaloo')
 	pickone(tags)
 	pprint(get(tags))
-	from eventlet.greenthread import sleep
-	sleep(3)
