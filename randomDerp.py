@@ -82,8 +82,7 @@ def asht():
 	eventlet.sleep(3)
 	print("after")
 
-print(asht)
-help(asht.switch)
+help(asht)
 
 	
 def pickone(tags):
