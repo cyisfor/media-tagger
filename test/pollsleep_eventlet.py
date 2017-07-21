@@ -22,4 +22,5 @@ class Handle(BaseHTTPRequestHandler):
 		print("get got")
 		self.send_response(997,"boop")
 import pdb
+help(BaseHTTPServer)
 BaseHTTPServer(("127.0.0.1",14234),Handle).serve_forever(None)
