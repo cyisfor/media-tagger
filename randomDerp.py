@@ -1,7 +1,7 @@
 import versions,db
 import withtags,tags as tagsModule
 
-from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With
+from orm import IS,EQ,Select,OuterJoin,AND,AS,argbuilder,InnerJoin,Limit,Order,With,NOT
 
 import random
 
@@ -102,7 +102,9 @@ def get(tags,offset=None,limit=9):
 	stmt = Select(withtags.tagsWhat,InnerJoin(
 					'randomSeen',InnerJoin('media','things',EQ('things.id','media.id')),
 		EQ('randomSeen.media','media.id')),
-				  EQ('randomSeen.category',category))
+								AND(
+									"seen",
+									EQ('randomSeen.category',category)))
 	stmt = Order(stmt,'randomSeen.id DESC')
 	stmt = Limit(stmt,offset=offset,limit=limit)
 	rows = db.execute(stmt.sql(),arg.args)
