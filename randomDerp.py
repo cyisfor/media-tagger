@@ -25,7 +25,9 @@ def _():
 	
 v.setup()
 
-def churn(category,tags,limit=9):
+chunkOPics = 16
+
+def churn(category,tags,limit=chunkOPics):
 	print("churning...")
 
 	stmt,arg = withtags.tagStatement(tags,limit=limit)
@@ -83,12 +85,12 @@ def pickone(category, tags):
 	print("unseen",unseen)
 	if unseen == 0:
 		# need some right away
-		churn(category,tags,9)
-	elif unseen < 9:
+		churn(category,tags)
+	elif unseen < chunkOPics:
 		@eventlet.spawn_n
 		def churnLater():
 			eventlet.sleep(0.1)
-			churn(category,tags,9)
+			churn(category,tags)
 		print("churning later...",churnLater)
 
 	#pick one... with the lowest id but not seen
