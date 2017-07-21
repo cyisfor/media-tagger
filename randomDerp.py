@@ -150,6 +150,8 @@ def info(path,params):
 		if params:
 			dest = dest + '?' + params
 		raise Redirect(dest,code=302)
+	if len(path) < 2:
+		raise Redirect('{:x}'.format(maxident(category))+"/")
 	ident = int(path[1],16);
 	while True:
 		links = get(ident,tags)
