@@ -79,11 +79,13 @@ def churn(category,tags,limit=chunkOPics):
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
 def pickone(category, tags):
-	if Session.prefetching: return
-
 	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = $1 AND NOT seen",(category,))[0][0]
+	if Session.prefetching:
+		unseen -= 1
+
+
 	print("unseen",unseen)
-	if unseen == 0:
+	if unseen <= 0:
 		# need some right away
 		churn(category,tags)
 	elif unseen < chunkOPics:
@@ -92,6 +94,9 @@ def pickone(category, tags):
 			eventlet.sleep(0.1)
 			churn(category,tags)
 		print("churning later...",churnLater)
+
+	if Session.prefetching: return
+
 
 	#pick one... with the lowest id but not seen
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
