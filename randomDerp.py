@@ -11,15 +11,22 @@ v = versions.Versioner('random')
 def initially():
 	db.setup('''CREATE TABLE randomSeen (
 	id SERIAL PRIMARY KEY,
-	media INTEGER REFERENCES things(id) ON DELETE CASCADE,
-	category integer DEFAULT 0,
+	media INTEGER NOT NULL REFERENCES things(id) ON DELETE CASCADE,
+	category integer NOT NULL DEFAULT 0,
 	UNIQUE(media,category))''')
 
+@v(version=2)
+def _():
+	db.setup('ALTER TABLE randomSeen ADD COLUMN seen BOOLEAN NOT NULL DEFAULT FALSE',
+					 'UPDATE randomSeen SET seen = TRUE',
+					 'CREATE INDEX haveSeenRandom ON randomSeen(seen,category)')
+
+	
 v.setup()
 
-def churn(tags,limit=9):
-	if Session.prefetching: return
-	category = hash(tags) % 0x7FFFFFFF
+def churn(category,tags,limit=9):
+	print("churning...")
+
 	stmt,arg = withtags.tagStatement(tags,limit=limit)
 	cat = arg(category)
 	# [with.base] -> limit.clause -> order.clause -> select
@@ -68,6 +75,24 @@ def churn(tags,limit=9):
 			db.execute('UPDATE randomSeen SET id = id - (SELECT MIN(id) FROM randomSeen WHERE category = $1) WHERE category = $1',(category,))
 			db.execute("SELECT setval('randomSeen_id_seq',(SELECT MAX(id) FROM randomSeen WHERE category = $1))",(category,))
 
+def pickone(tags):
+	if Session.prefetching: return
+
+	category = hash(tags) % 0x7FFFFFFF
+	unseen = db.execute("SELECT COUNT(1) FROM randomSeen WHERE category = ? AND NOT seen",(category,))
+	if len(unseen) == 0:
+		# need some right away
+		churn(category,tags,9)
+	elif len(unseen) < 9:
+		from eventlet.greenthread import spawn,sleep
+		def churnLater():
+			sleep(1)
+			churn(category,tags,9)
+		spawn(churnLater)
+
+	#pick one... with the lowest id but not seen
+	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = ? AND NOT seen ORDER BY id ASC LIMIT 1)",
+											 (category,))
 	
 def get(tags,offset=None,limit=9):
 	category = hash(tags) % 0x7FFFFFFF
@@ -112,7 +137,7 @@ def info(path,params):
 	if 'c' in params:
 		if Session.prefetching: return ()
 		#print(params)
-		churn(tags,limit=1)
+		pickone(tags)
 		zoop = {'t': str(time.time())}
 		zoop.update((n,v[0]) for n,v in params.items() if n not in {'o','c','t'})
 		zoop = urllib.parse.urlencode(zoop)
@@ -121,7 +146,7 @@ def info(path,params):
 		links = get(tags,offset=offset)
 		if links: return links
 		if Session.prefetching: return ()
-		churn(tags)
+		pickone(tags)
 
 from user import User
 from session import Session

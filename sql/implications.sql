@@ -17,6 +17,7 @@ BEGIN
 	  inner join things on things.id = tags.id ,
 		tags other
 		WHERE tags.id = _tag AND other.id = ANY(things.neighbors) AND tags.complexity < other.complexity
+		LIMIT 100 - (_returned + _count)
 		LOOP
 		_count := _count + COUNT(*) FROM implications(
 		             _neighbor,

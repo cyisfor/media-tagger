@@ -22,8 +22,11 @@ def encache(query,args,docache=True):
 		name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
 		if docache == False:
 			return db.execute(query,args)
+		print(query)
+		print("caching",args)
 		try: 
 			db.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)
+			#raise SystemExit
 			db.execute('SELECT resultCache.updateQuery($1)',(name,))
 		except db.ProgrammingError as e:
 			if not 'already exists' in e.info['message'].decode('utf-8'): raise
