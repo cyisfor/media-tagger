@@ -288,12 +288,14 @@ def standardHead(title,*contents):
 			if User.loadjs:
 				d.script(src="/stuff/reload-img.js",type="text/javascript")
 		yield head
+
+from ensure import ensure
 		
 derpage = None
 def pagemaker(f):
 	def wrapper(*a,**kw):
 		with Links():
-			assert f(*a,**kw) is None
+			ensure(f(*a,**kw) is None)
 			assert derpage is not None
 			return derpage.commit()
 	return wrapper
