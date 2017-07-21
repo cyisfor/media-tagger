@@ -40,7 +40,7 @@ if os.isatty(sys.stdout.fileno()) or 'debug' in os.environ:
 			return tb.tb_frame.f_back.f_back.f_back
 	def output(color,s):
 		f = getframe()
-		sys.stdout.write("uhhh "+f.f_code.co_filename+"\n")
+		#sys.stdout.write("uhhh "+f.f_code.co_filename+"\n")
 		relpath = os.path.relpath(f.f_code.co_filename,here)
 		if relpath == "better/print.py":
 			f = f.f_back

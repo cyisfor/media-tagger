@@ -88,9 +88,9 @@ def pickone(tags):
 		from eventlet.greenthread import spawn,sleep
 		def churnLater():
 			sleep(1)
+			print("uh")
 			churn(category,tags,9)
 		print("churning later...",spawn(churnLater))
-		sleep(0.2)
 
 	#pick one... with the lowest id but not seen
 	db.execute("UPDATE randomSeen SET seen = TRUE WHERE id IN (SELECT id FROM randomSeen WHERE category = $1 AND NOT seen ORDER BY id ASC LIMIT 1)",
