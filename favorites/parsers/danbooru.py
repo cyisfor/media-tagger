@@ -11,14 +11,14 @@ def mystrip(s,chars):
 
 # can't use json because it discards all tag categories...
 
-notestyle = re.compile("(width|height|top|left): ([0-9]+)px")
+notestyle = re.compile("(width|height|top|left): ([0-9]+)(px|%|em)")
 
 def extract(doc):
 	gotImage = False
 	for note in doc.findAll(attrs={'class':'note-box'}):
 		e = Explanation(note.next_sibling.next_sibling.contents[0].strip())
-		for n,v in notestyle.findall(note['style']):
-			setattr(e,n,int(v))
+		for n,v,unit in notestyle.findall(note['style']):
+			setattr(e,n,v+unit)
 		yield e
 	for li in doc.findAll('li'):
 		for klass in li.attrs.get('class',()):
