@@ -16,11 +16,10 @@ notestyle = re.compile("(width|height|top|left): ([0-9]+)px")
 def extract(doc):
 	gotImage = False
 	for note in doc.findAll(attrs={'class':'note-box'}):
-		derp = dict((n,int(v)) for n,v in notestyle.findall(note['style']))
-		class dims:
-			def __getattribute__(n):
-				return derp[n]
-		print(dir(dims))
+		class dims: pass
+		for n,v in notestyle.findall(note['style']):
+			setattr(dims,n,int(v))
+		print(dims.height)
 		raise SystemExit
 	for li in doc.findAll('li'):
 		for klass in li.attrs.get('class',()):
