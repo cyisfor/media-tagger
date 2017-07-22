@@ -191,7 +191,8 @@ def parse(primarySource,noCreate=False,progress=None):
 						if not olddesc:
 							return description
 				for e in explanations:
-					
+					db.execute("INSERT INTO explanations (image,top,derpleft,w,h,script) VALUES ($1,$2,$3,$4,$5,$6)",
+										 (image, e.top, e.left, e.width, e.height, e.text))
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)

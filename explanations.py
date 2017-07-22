@@ -8,6 +8,10 @@ def _():
     print(stmts)
     db.vsetup(*stmts)
 
+@version(2)
+def _():
+	db.setup("CREATE UNIQUE INDEX unique_explanations ON explanations(image,top,derpleft,w,h)")
+		
 version.setup()
 
 def explain(id):

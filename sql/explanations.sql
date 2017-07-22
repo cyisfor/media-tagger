@@ -6,5 +6,6 @@ CREATE TABLE explanations (
 	   derpleft TEXT NOT NULL,
 	   w TEXT NOT NULL,
 	   h TEXT NOT NULL,
-	   script TEXT);
+	   script TEXT NOT NULL);
+CREATE UNIQUE INDEX unique_explanations ON explanations(image,top,derpleft,w,h);
 -- but what about movies? time based script format? time column?
