@@ -16,11 +16,10 @@ notestyle = re.compile("(width|height|top|left): ([0-9]+)px")
 def extract(doc):
 	gotImage = False
 	for note in doc.findAll(attrs={'class':'note-box'}):
-		class dims: pass
+		e = Explanation(note.next_sibling.next_sibling.contents[0].strip())
 		for n,v in notestyle.findall(note['style']):
-			setattr(dims,n,int(v))
-		body = note.next_sibling.next_sibling.contents[0].strip()
-		yield Explanation(body,dims)
+			setattr(e,n,int(v))
+		yield e
 	for li in doc.findAll('li'):
 		for klass in li.attrs.get('class',()):
 			if isinstance(klass,str):

@@ -1,4 +1,5 @@
 import create
+import explanations
 import setupurllib
 import db
 from better import print as _
@@ -191,6 +192,7 @@ def parse(primarySource,noCreate=False,progress=None):
 						if not olddesc:
 							return description
 				for e in explanations:
+					print("explain",e)
 					db.execute("INSERT INTO explanations (image,top,derpleft,w,h,script) VALUES ($1,$2,$3,$4,$5,$6)",
 										 (image, e.top, e.left, e.width, e.height, e.text))
 				return image,wasCreated

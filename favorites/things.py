@@ -25,7 +25,4 @@ class Description(str): pass
 
 class Redirect(Exception): pass
 
-class Explanation:
-	def __init__(self,text,dims):
-		self.text = text
-		self.dims = dims
+class Explanation(str): pass
