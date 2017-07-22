@@ -18,8 +18,6 @@ def extract(doc):
 	for note in doc.findAll(attrs={'class':'note-box'}):
 		e = Explanation("\n".join(str(s).strip()
 															for s in note.next_sibling.next_sibling.contents))
-		print(e)
-		raise SystemExit
 		for n,v,unit in notestyle.findall(note['style']):
 			setattr(e,n,v+unit)
 		yield e

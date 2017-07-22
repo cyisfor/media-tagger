@@ -447,7 +447,7 @@ def checkExplain(id,link,width,height,thing):
 				'height': h,
 			}))
 
-			yield dd.div(dd.div(text),
+			yield dd.div(dd.div(RawString(text)),
 						{'class': 'exp',
 						 'id': 'i'+str(i),
 						 'data-id':aid})
