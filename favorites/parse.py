@@ -73,6 +73,7 @@ def parse(primarySource,noCreate=False,progress=None):
 		sources = None
 		name = None
 		description = None
+		explanations = []
 		medias = None
 		tags = None
 	
@@ -122,6 +123,8 @@ def parse(primarySource,noCreate=False,progress=None):
 					medias.append(thing)
 				elif isinstance(thing,Source):
 					sources.append(thing)
+				elif isinstance(thing,Explanation):
+					explanations.append(thing)
 				elif isinstance(thing,Name):
 					name = thing
 				elif isinstance(thing,Description):
@@ -187,6 +190,8 @@ def parse(primarySource,noCreate=False,progress=None):
 					def _(olddesc):
 						if not olddesc:
 							return description
+				for e in explanations:
+					
 				return image,wasCreated
 			except create.NoGood:
 				note.red("No good",media.url,media.headers)
