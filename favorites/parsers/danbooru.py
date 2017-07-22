@@ -19,7 +19,7 @@ def extract(doc):
 		class dims: pass
 		for n,v in notestyle.findall(note['style']):
 			setattr(dims,n,int(v))
-		body = note.find(attrs={'class':'note-body'})
+		body = note.next_element.contents[0]
 		print(body)
 		raise SystemExit
 
