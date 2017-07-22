@@ -70,12 +70,12 @@ if 'tags' in os.environ:
 	tags = tagsModule.parse('e621,'+os.environ['tags'])
 else:
 	tags = tagsModule.parse('e621')
-	
+
 def getPool(base):
 	print('base',base)
 	whicher = count(0)
 	title = None
-	while True:	
+	while True:
 		#with open('derp.html') as inp:
 		with setupurllib.myopen(base) as inp:
 			doc = BeautifulSoup(inp)
@@ -94,7 +94,7 @@ def getPool(base):
 					description = input('Description: ').strip()
 				next(description)
 			com = comic.findComicByTitle(title,getinfo)
-			source = db.execute("SELECT findURISource($1)",(base,))[0][0]	
+			source = db.execute("SELECT findURISource($1)",(base,))[0][0]
 			db.execute("UPDATE comics SET source = $1 WHERE id = $2",(source,com))
 			db.retransaction()
 			print('updooted',com,source)
@@ -106,15 +106,19 @@ def getPool(base):
 			if (not a) or (a.name != 'a') or (not a.has_attr('href')): continue
 			url = urllib.parse.urljoin(base,a['href'])
 			url = parse.normalize(url)
-			medium = db.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
-			if medium:
-				medium = medium[0][0]
-				wasCreated = False
+			if not 'recheck' in os.environ:
+				medium = db.execute("SELECT media.id FROM media INNER JOIN sources ON media.sources @> ARRAY[sources.id] INNER JOIN urisources ON urisources.id = sources.id where urisources.uri = $1",(url,))
+				if medium:
+					medium = medium[0][0]
+					wasCreated = False
+				else:
+					try:
+						medium,wasCreated = parse.parse(url)
+					except parse.ParseError: continue
+					db.retransaction()
 			else:
-				try: 
-					medium,wasCreated = parse.parse(url)
-				except parse.ParseError: continue
-				db.retransaction()				
+				medium,wasCreated = parse.parse(url)
+				db.retransaction()
 			which = next(whicher)
 			for tries in range(2):
 				try: db.execute('SELECT setComicPage($1,$2,$3)',(medium,com,which))
