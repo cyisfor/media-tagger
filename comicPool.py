@@ -1,5 +1,5 @@
 import setupurllib
-import favorites.parseBase as parse
+import favorites.parse as parse
 import favorites.parsers
 import comic
 import db
