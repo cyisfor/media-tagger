@@ -19,8 +19,11 @@ def extract(doc):
 		class dims: pass
 		for n,v in notestyle.findall(note['style']):
 			setattr(dims,n,int(v))
-		print(dims.height)
+		body = note.find(attrs={'class':'note-body'}).firstChild
+		print(body)
 		raise SystemExit
+
+		yield Explanation(body,dims)
 	for li in doc.findAll('li'):
 		for klass in li.attrs.get('class',()):
 			if isinstance(klass,str):

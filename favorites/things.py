@@ -24,3 +24,8 @@ class Name(str): pass
 class Description(str): pass
 
 class Redirect(Exception): pass
+
+class Explanation:
+	def __init__(self,name,dims):
+		self.name = name
+		self.dims = dims
