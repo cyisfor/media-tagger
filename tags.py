@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/bin/runbang python3 -O
 
 import resultCache
 import note
