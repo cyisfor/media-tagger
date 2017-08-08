@@ -250,8 +250,8 @@ class Links:
 @contextmanager
 def standardHead(title,*contents):
 	with d.head as head:
-		d.title(title)
 		d.meta(charset='utf-8')
+		d.title(title)
 		d.meta(name="og:title",content=title)
 		d.meta(name="og:type",content="website")
 		d.link(rel="icon",type="image/png",href="/favicon.png")
@@ -400,18 +400,23 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 		return fid, (o,dd.br,"Download"), thing
 	raise RuntimeError("What is "+type)
 
-def mediaLink(id,type=None):
+def mediaLink(id,type=None,name=None):
 	ret = '/media/{:x}/'.format(id)
-	if type: return ret + '/' + type
+	if type: ret += type + '/'
+	if name: ret += name
 	return ret
+
+def direct(info,path,params):
+	id,(type,name) = info
+	raise Redirect(mediaLink(id,type,name))
 
 @pagemaker
 def simple(info,path,params):
 	if Session.head: return
-	id,type = info
+	id,(type,name) = info
 	with makePage("derp"), d.a(href=pageLink(id)):
 		d.img(class_='wid',
-		      src=mediaLink(id,type))
+		      src=mediaLink(id,type,name))
 
 def resized(info,path,params):
 	id = int(path[1],0x10)
