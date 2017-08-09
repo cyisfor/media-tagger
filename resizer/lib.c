@@ -99,6 +99,8 @@ VipsImage* lib_thumbnail(context* ctx) {
 			}
 	}
 
+	record(INFO,"uh wat %d %d",in->Xsize,in->Ysize);
+
 	return in;
 
 }
