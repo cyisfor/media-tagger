@@ -62,6 +62,7 @@ char lackey[PATH_MAX];
 
 void start_lackey(struct lackey* who) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
+												"valgrind",
 									lackey,NULL};
 	uv_pipe_init(uv_default_loop(), &who->pipe, 1);
 	uv_stdio_container_t io[3] = {
