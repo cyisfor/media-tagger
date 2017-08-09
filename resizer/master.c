@@ -18,7 +18,7 @@
 #include <time.h>
 #include <stdlib.h> // null
 
-#define NUM 4
+#define NUM 1
 #define WORKER_LIFETIME 3600 * 1000 // like an hour idk
 #define RESTART_DELAY 1000
 
