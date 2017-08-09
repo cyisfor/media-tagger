@@ -208,7 +208,7 @@ static void copy_meta(int dest, struct stat info);
 void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   char* tempname = filedb_file("temp","resizedXXXXXX");
   int tempfd = mkstemp(tempname);
-#ifndef DERP
+#ifdef DERP
 	record(INFO,"Debug please %d",getpid());
 	int wait = 1;
 	while(wait) {
