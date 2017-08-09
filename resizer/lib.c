@@ -209,7 +209,7 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   char* tempname = filedb_file("temp","resizedXXXXXX");
   int tempfd = mkstemp(tempname);
 
-	record(INFO,"Debug please");
+	record(INFO,"Debug please %d",getpid());
 	int wait = 1;
 	while(wait) {
 		sleep(1);
