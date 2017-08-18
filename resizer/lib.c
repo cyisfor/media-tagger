@@ -44,177 +44,103 @@ struct context_s {
 
 //#include "vipsthumbderp.c"
 
-static VipsImage* do_resize(VipsImage* in, int target_width);
-
-VipsImage* lib_thumbnail(context* ctx) {
-	VipsImage* in = vips_thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
-	if(!in) return NULL;
-	
+static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bool* wider) {
+	VipsImage* in = NULL;
+	float factor; // shortest dimension... how much we can scale down before cropping
+	void update_factor() {
+		*wider = in->Ysize < in->Xsize;
+		// if wider, use shorter one... except if this is an upper bound, then do opposite.
+		if((*wider) ^ upper_bound) {
+			factor = (float*)in->Ysize/SIDE;
+		} else {
+			factor = (float*)in->Xsize/SIDE;
+		}
+	}
+	in = vips_jpegload(ctx->source,
+										 "access", VIPS_ACCESS_SEQUENTIAL,
+										 NULL);
+	if(in) {
+		int shrink = 1;
+		update_factor();
+		if(factor > 8) {
+			shrink = 8;
+		} else if(factor > 4) {
+			shrink = 4;
+		} else if(factor > 2) {
+			shrink = 2;
+		}
+		if(shrink > 1) {
+			VipsImage* t = vips_jpegload(ctx->source,
+																	 "access", VIPS_ACCESS_SEQUENTIAL,
+																	 "shrink", shrink,
+																	 NULL);
+			MOVED;
+			update_factor();
+		}
+	} else {
+		in = vips_image_new_from_file(ctx->source,NULL);
+		update_factor();
+	}
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
     if(ctx->stat.st_size < 10000) {
-			// no thumbnailing needed
+			// can just directly use this image
       return in;
     }
   }
-	static int wait = 1;
-	record(INFO,"gdb -p %d",getpid());
-	while(wait) {
-		sleep(1);
+	{ VipsImage* t;
+		int res = vips_resize(in,&t,factor,NULL);
+		assert(res == 0);
+		MOVED;
 	}
+
 	return in;
+}
+
+
+VipsImage* lib_thumbnail(context* ctx) {
+	bool wider;
+	VipsImage* in = do_resize(ctx,SIDE,false,&wider);
+	if(in==NULL) return NULL;
 	// crop AFTER resize
-	if (in->Ysize > in->Xsize) {
-		in = do_resize(in, SIDE);
-		if(in==NULL) return NULL;
-		int margin = (in->Ysize - in->Xsize);
-		assert(in->Ysize - margin == in->Xsize);
-		record(INFO,"YMarg %d %d %d",
-							 in->Xsize, in->Xsize, margin >> 1);
+	
+	if (wider) {
+		int margin = (in->Xsize - in->Ysize);
+		assert(in->Xsize - margin == in->Ysize);
 		VipsImage* t = NULL;
 		int res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
-																in->Xsize,
-																in->Xsize,
+																in->Ysize,
+																in->Ysize,
 																NULL);
 		assert(0==res);
 		MOVED;
 	} else if (in->Xsize > in->Ysize) {
-		// resize so that Ysize == SIDE
-		in = do_resize(in, SIDE * in->Xsize / in->Ysize);
-		if(in==NULL) return NULL;
-		int margin = (in->Xsize - in->Ysize);
+				int margin = (in->Xsize - in->Ysize);
 		assert(in->Xsize - margin == in->Ysize);
-		record(INFO,"Marg %d %d %d",
-					 in->Ysize, in->Ysize, margin >> 1);
-
 		VipsImage* t = NULL;
-		if(vips_extract_area(in, &t,
-												 margin >> 1,
-												 0,
-												 in->Ysize,
-												 in->Ysize,
-												 NULL)) {
-			record(ERROR,"umm can't the everything %d %d %d\n",
-						 in->Xsize, in->Ysize, margin);
-			assert(0);
-		}
+		int res = vips_extract_area(in, &t,
+																0,
+																margin >> 1,
+																in->Ysize,
+																in->Ysize,
+																NULL);
+		assert(0==res);
 		MOVED;
 	} else {
-			// resize to SIDExSIDE
-			in = do_resize(in, SIDE);
-			if(in==NULL) return NULL;
-			if(!(in->Xsize == in->Ysize)) {
-				record(ERROR,"not still same size? %d %d",in->Xsize,in->Ysize);
+			// we should already be resized
+			if(!(in->Xsize == SIDE && in->Ysize == SIDE)) {
+				record(ERROR,"not thumbnail size? %d %d",in->Xsize,in->Ysize);
 				exit(23);
 			}
 	}
 
 	return in;
-
 }
 
 VipsImage* lib_resize(context* ctx, int width) {
-	VipsImage* in = vips_thumbnail_open(ctx->source,&ctx->was_jpeg, width);
-	return do_resize(in,width);
-}
-
-static VipsImage* do_resize(VipsImage* in, int target_width) {
-	double factor = 1 / calculate_shrink(in,target_width);
-	if(in->Coding == VIPS_CODING_RAD) {
-		VipsImage* t = NULL;
-		int res = vips_rad2float(in,&t,NULL);
-		assert(0==res);
-		record(WARN,"too rad");
-		MOVED;
-	}
-
-	// no linear processing (can't pre-shrink)
-	bool have_imported = false;
-	if(in->Type == VIPS_INTERPRETATION_CMYK &&
-		in->Coding == VIPS_CODING_NONE &&
-		(in->BandFmt == VIPS_FORMAT_UCHAR ||
-		 in->BandFmt == VIPS_FORMAT_USHORT) &&
-		vips_image_get_typeof( in, VIPS_META_ICC_NAME )) {
-		VipsImage* t = NULL;
-		assert(vips_icc_import(in, &t,
-													 // "input_profile", "sRGB",
-													 "embedded", TRUE,
-													 "pcs", VIPS_PCS_XYZ,
-													 NULL ));
-		MOVED;
-		record(INFO,"have imported");
-		have_imported = true;
-	}
-	VipsImage* t = NULL;
-
-	int res = vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL );
-	if(res == 0) {
-		MOVED;
-	} else {
-		record(WARN,"colourspace wouldn't change? %d %s",getpid(),vips_error_buffer());
-	}
-
-	/* If there's an alpha, we have to premultiply before shrinking. See
-	 * https://github.com/jcupitt/libvips/issues/291
-	 */
-
-	VipsBandFormat unpremultiplied_format;
-	bool have_premultiplied = false;
-	if(in->Bands == 2 ||
-		(in->Bands == 4 && in->Type != VIPS_INTERPRETATION_CMYK) ||
-		in->Bands == 5 ) {
-		assert(0==vips_premultiply(in, &t, NULL));
-		
-		/* vips_premultiply() makes a float image. When we
-		 * vips_unpremultiply() below, we need to cast back to the
-		 * pre-premultiply format.
-		 */
-		unpremultiplied_format = in->BandFmt;
-		MOVED;
-		have_premultiplied = true;
-	}
-	// shrink by specified factor
-	int oldwidth = in->Xsize;
-	int oldheight = in->Ysize;
-	assert(0==vips_resize(in,&t,factor,NULL));
-	record(INFO,"resized %dx%d by %f to %dx%d",
-				 oldwidth, oldheight, factor,
-				 t->Xsize, t->Ysize);
-	MOVED;
-
-	// crop just to make sure it's the right size
-	// argh, floating poiiiint!
-	int target_height = (int)round(oldheight*factor);
-	if(in->Xsize != target_width || in->Ysize != target_height) {
-		record(INFO,"crop to %dx%d from %dx%d",target_width, target_height,in->Xsize,in->Ysize);
-		if(0==vips_extract_area(in, &t,
-														0,0,
-														target_width, target_height,
-														NULL)) {
-			MOVED;
-		}
-	}
-
-	// fix colorspace crap
-	if(have_premultiplied) {
-		record(INFO,"premultiplieded");
-		int res = vips_unpremultiply(in,&t,NULL) ;
-		assert(0==res);
-		MOVED;
-		vips_cast(in, &t, unpremultiplied_format, NULL);
-		MOVED;
-	}
-
-	if(have_imported) {
-		// make sure we're in sRGB
-		int res = vips_colourspace( in, &t, 
-																VIPS_INTERPRETATION_sRGB, NULL );
-		assert(0==res);
-		MOVED;
-		record(INFO,"rgb'd");
-	}
-	return in;
+	bool ignored;
+	return do_resize(ctx,width,true,&ignored);
 }
 
 bool lib_read(const char* source, uint32_t slen, context* ctx) {
@@ -248,6 +174,7 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   record(INFO,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
 
+	// always save to jpeg if this is a thumbnail, b/c tiny
 	bool jpeg = thumb != 0;
 	if(!jpeg) {
 		jpeg = ctx->was_jpeg;
