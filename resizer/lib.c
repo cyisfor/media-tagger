@@ -223,11 +223,12 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 		jpeg = ctx->was_jpeg;
 	}
 
+	int res;
 	if(jpeg) {
-		vips_jpegsave(image, tempname,
-														 "Q", 40,
-														 "optimize_coding", TRUE,
-														 "strip", TRUE,
+		res = vips_jpegsave(image, tempname,
+												"Q", 40,
+												"optimize_coding", TRUE,
+												"strip", TRUE,
 //														 "trellis_quant", TRUE,
 //														 "overshoot_deringing", TRUE,
 //									"optimize_scans", TRUE,
@@ -235,12 +236,17 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 	} else {
 		// if it's bmp/ttf/pdf/w/ev just convert to png
 		// we're not making animated GIF thumbs, those are beeg
-		vips_pngsave(image, tempname,
-								 "compression", 9,
-								 NULL);
+		res = vips_pngsave(image, tempname,
+											 "compression", 9,
+											 NULL);
 	}
 
 	g_object_unref(image);
+
+	if(res != 0) {
+		record(ERROR,"writing image");
+		exit(23);
+	}
 	
   fchmod(tempfd,0644);
   rename(tempname,dest);

@@ -159,7 +159,7 @@ int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   return 1;
 }
 
-static error_out_if_buggy(const gchar *log_domain,
+static void error_out_if_buggy(const gchar *log_domain,
 													GLogLevelFlags log_level,
 													const gchar *message,
 													gpointer user_data )
