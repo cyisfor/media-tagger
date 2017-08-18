@@ -166,7 +166,8 @@ static void error_out_if_buggy(const gchar *log_domain,
 {
 	if(strstr(message,"bad adaptive filter value")) {
 		record(ERROR, "thumb failed mysteriously, trying dying.");
-		exit(23);
+		//exit(23);
+		return;
 	}
 	record(WARN,"glib: %s",message);
 }
