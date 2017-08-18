@@ -161,7 +161,13 @@ VipsImage* lib_thumbnail(context* ctx) {
 																in->Xsize,
 																NULL);
 	}
-	assert(0==res);
+	if(0!=res) {
+		record(ERROR,"could't extract area! %d %d %d %d",
+					 margin,in->Xsize,in->Ysize,wider);
+		record(ERROR,vips_error_buffer());
+		vips_error_clear();
+		return in;
+	}
 	MOVED;
 
 	return in;
