@@ -48,7 +48,6 @@ static VipsImage* do_resize(VipsImage* in, int target_width);
 
 VipsImage* lib_thumbnail(context* ctx) {
 	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
-	return in;
 	if(!in) return NULL;
 	
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
@@ -57,7 +56,12 @@ VipsImage* lib_thumbnail(context* ctx) {
       return in;
     }
   }
-
+	static int wait = 1;
+	record(INFO,"pid %d",getpid())
+	while(wait) {
+		sleep(1);
+	}
+	return in;
 	// crop AFTER resize
 	if (in->Ysize > in->Xsize) {
 		in = do_resize(in, SIDE);
