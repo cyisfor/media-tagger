@@ -53,6 +53,8 @@ void record_end(const char* fmt, ...) {
 	va_start(arg,fmt);
 	vfprintf(stderr,fmt,arg);
 	va_end(arg);
+	fputc('\n',stderr);
+	fflush(stderr);
 }
 
 void record(recordLevel level, const char* fmt, ...) {
@@ -61,4 +63,5 @@ void record(recordLevel level, const char* fmt, ...) {
 	recordv(level,fmt,arg);
 	va_end(arg);
 	fputc('\n',stderr);
+	fflush(stderr);
 }
