@@ -134,12 +134,11 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	}
 	VipsImage* t = NULL;
 
-	for(;;) {
-		int res = vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL );
-		if(res == 0) break;
+	int res = vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL );
+	if(res != 0) {
 		record(WARN,"colourspace wouldn't change? %d %s",getpid(),vips_error_buffer());
-		vips_error_clear();
-		sleep(1);
+		g_object_unref(in);
+		return;
 	}
 	MOVED;
 
