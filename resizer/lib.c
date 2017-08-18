@@ -46,6 +46,14 @@ struct context_s {
 
 //#include "vipsthumbderp.c"
 
+static void enter_debug(void) {
+	static int wait = 1;
+	printf("\ngdb -p %d\n",getpid());
+	while(wait) {
+		sleep(1);
+	}
+}
+
 static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bool* wider) {
 	VipsImage* in = NULL;
 	float factor; // shortest dimension... how much we can scale down before cropping
@@ -98,11 +106,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
       return in;
     }
   }
-	static int wait = 1;
-	printf("\ngdb -p %d\n",getpid());
-	while(wait) {
-		sleep(1);
-	}
+	
 	{ VipsImage* t;
 		int res = vips_resize(in,&t,factor,NULL);
 		assert(res == 0);
