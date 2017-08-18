@@ -245,7 +245,10 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 
 	if(res != 0) {
 		record(ERROR,"writing image");
-		exit(23);
+		unlink(tempname);
+		free(tempname);
+		close(tempfd);
+		return;
 	}
 	
   fchmod(tempfd,0644);
