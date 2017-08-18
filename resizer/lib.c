@@ -167,8 +167,8 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	int oldwidth = in->Xsize;
 	int oldheight = in->Ysize;
 	assert(0==vips_resize(in,&t,factor,NULL));
-	record(INFO,"resized %dx%d to %dx%d",
-				 oldwidth, oldheight,
+	record(INFO,"resized %dx%d by %f to %dx%d",
+				 oldwidth, oldheight, factor,
 				 in->Xsize, in->Ysize);
 	MOVED;
 
