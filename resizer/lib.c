@@ -56,7 +56,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			factor = (float)in->Xsize/SIDE;
 		}
 	}
-	int res = vips_jpegload(ctx->source,&in,
+	int res = vips_jpegload(ctx->source, &in,
 													"access", VIPS_ACCESS_SEQUENTIAL,
 													NULL);
 	if(in && res == 0) {
@@ -70,10 +70,12 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			shrink = 2;
 		}
 		if(shrink > 1) {
-			VipsImage* t = vips_jpegload(ctx->source,
-																	 "access", VIPS_ACCESS_SEQUENTIAL,
-																	 "shrink", shrink,
-																	 NULL);
+			VipsImage* t = NULL;
+			int res = vips_jpegload(ctx->source,&t,
+															"access", VIPS_ACCESS_SEQUENTIAL,
+															"shrink", shrink,
+															NULL);
+			assert(t && res == 0);
 			MOVED;
 			update_factor();
 		}
