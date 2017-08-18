@@ -134,7 +134,9 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	}
 	VipsImage* t = NULL;
 
-	assert(0==vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL ));
+	if(0!=vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL )) {
+		record(WARN,"colourspace changed?");
+	}
 	MOVED;
 
 	/* If there's an alpha, we have to premultiply before shrinking. See
