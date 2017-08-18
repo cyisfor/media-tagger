@@ -62,14 +62,15 @@ VipsImage* lib_thumbnail(context* ctx) {
 		in = do_resize(in, SIDE);
 		if(in==NULL) return NULL;
 		int margin = (in->Ysize - in->Xsize);
+		assert(in->Ysize - margin == in->Xsize);
 		record(INFO,"YMarg %d %d %d",
-							 in->Ysize - margin, in->Xsize, margin >> 1);
+							 in->Xsize, in->Xsize, margin >> 1);
 		VipsImage* t = NULL;
 		int res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
 																in->Xsize,
-																in->Ysize - margin,
+																in->Xsize,
 																NULL);
 		assert(0==res);
 		MOVED;
@@ -78,14 +79,15 @@ VipsImage* lib_thumbnail(context* ctx) {
 		in = do_resize(in, SIDE * in->Xsize / in->Ysize);
 		if(in==NULL) return NULL;
 		int margin = (in->Xsize - in->Ysize);
+		assert(in->Xsize - margin == in->Ysize);
 		record(INFO,"Marg %d %d %d",
-					 in->Xsize - margin, in->Ysize, margin >> 1);
+					 in->Ysize, in->Ysize, margin >> 1);
 
 		VipsImage* t = NULL;
 		if(vips_extract_area(in, &t,
 												 margin >> 1,
 												 0,
-												 in->Xsize - margin,
+												 in->Ysize,
 												 in->Ysize,
 												 NULL)) {
 			record(ERROR,"umm can't the everything %d %d %d\n",
