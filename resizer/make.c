@@ -159,6 +159,22 @@ int make_resized(context* ctx, uint32_t id, uint16_t newwidth) {
   return 1;
 }
 
+static error_out_if_buggy(const gchar *log_domain,
+													GLogLevelFlags log_level,
+													const gchar *message,
+													gpointer user_data )
+{
+	if(strstr(message,"bad adaptive filter value")) {
+		record(ERROR, "thumb failed mysteriously, trying dying.");
+		exit(23);
+	}
+	record(WARN,"glib: %s",message);
+}
+
+
 void make_init(void) {
 	vips_init("");
+	// only call this after vips_init, since it may set.
+	g_log_set_handler( "VIPS", G_LOG_LEVEL_WARNING, 
+										 error_out_if_buggy, NULL );
 }
