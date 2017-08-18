@@ -98,7 +98,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			update_factor();
 		}
 	} else {
-		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL);
+		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL,NULL);
 		update_factor();
 	}
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
