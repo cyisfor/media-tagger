@@ -197,9 +197,11 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 
 	if(have_imported) {
 		// make sure we're in sRGB
-		assert(0==vips_colourspace( in, &t, 
-																VIPS_INTERPRETATION_sRGB, NULL ));
-		MOVED;		
+		int res = vips_colourspace( in, &t, 
+																VIPS_INTERPRETATION_sRGB, NULL );
+		assert(0==res);
+		MOVED;
+		record(INFO,"rgb'd");
 	}
 	return in;
 }
