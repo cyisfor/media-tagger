@@ -65,12 +65,13 @@ VipsImage* lib_thumbnail(context* ctx) {
 		record(INFO,"Hmmm %d %d %d",
 					 in->Xsize, in->Ysize, margin);
 		VipsImage* t = NULL;
-		assert(0==vips_extract_area(in, &t,
+		int res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
 																in->Xsize,
 																in->Ysize - margin,
-																NULL));
+																NULL);
+		assert(0==res);
 		MOVED;
 	} else if (in->Xsize > in->Ysize) {
 		// resize so that Ysize == SIDE
