@@ -95,7 +95,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		sleep(1);
 	}
 	{ VipsImage* t;
-		int res = vips_resize(in,&t,factor,NULL);
+		int res = vips_resize(in,&t,1/factor,NULL);
 		assert(res == 0);
 		MOVED;
 	}
