@@ -62,8 +62,8 @@ VipsImage* lib_thumbnail(context* ctx) {
 		in = do_resize(in, SIDE);
 		if(in==NULL) return NULL;
 		int margin = (in->Ysize - in->Xsize);
-		record(INFO,"Hmmm %d %d %d",
-					 in->Xsize, in->Ysize, margin);
+		record(INFO,"YMarg %d %d %d",
+							 in->Ysize - margin, in->Xsize, margin >> 1);
 		VipsImage* t = NULL;
 		int res = vips_extract_area(in, &t,
 																0,
