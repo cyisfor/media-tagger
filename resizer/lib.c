@@ -110,38 +110,39 @@ VipsImage* lib_thumbnail(context* ctx) {
 	VipsImage* in = do_resize(ctx,SIDE,false,&wider);
 	if(in==NULL) return NULL;
 	// crop AFTER resize
-	
+
+	if(in->Xsize == in->Ysize) {
+		if(in->Xsize != SIDE) {
+			record(ERROR,"not thumbnail size? %d",in->Xsize);
+			exit(23);
+		}
+		return in;
+	}
+
+	int res;
+	VipsImage* t = NULL;
+
 	if (wider) {
 		int margin = (in->Xsize - in->Ysize);
 		assert(in->Xsize - margin == in->Ysize);
-		VipsImage* t = NULL;
 		int res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
 																in->Ysize,
 																in->Ysize,
 																NULL);
-		assert(0==res);
-		MOVED;
-	} else if (in->Xsize > in->Ysize) {
-				int margin = (in->Xsize - in->Ysize);
-		assert(in->Xsize - margin == in->Ysize);
-		VipsImage* t = NULL;
-		int res = vips_extract_area(in, &t,
-																0,
-																margin >> 1,
-																in->Ysize,
-																in->Ysize,
-																NULL);
-		assert(0==res);
-		MOVED;
 	} else {
-			// we should already be resized
-			if(!(in->Xsize == SIDE && in->Ysize == SIDE)) {
-				record(ERROR,"not thumbnail size? %d %d",in->Xsize,in->Ysize);
-				exit(23);
-			}
+		int margin = (in->Ysize - in->Xsize);
+		assert(in->Ysize - margin == in->Xsize);
+		int res = vips_extract_area(in, &t,
+																0,
+																margin >> 1,
+																in->Xsize,
+																in->Xsize,
+																NULL);
 	}
+	assert(0==res);
+	MOVED;
 
 	return in;
 }
