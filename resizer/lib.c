@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <sys/stat.h> /* stat, futimens */
+#include <sys/mman.h> // mmap
+
 
 #include <string.h>
 #include <assert.h>
@@ -87,7 +89,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			update_factor();
 		}
 	} else {
-		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size);
+		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL);
 		update_factor();
 	}
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
