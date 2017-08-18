@@ -51,13 +51,13 @@ void record_start(recordLevel level, const char* fmt, ...) {
 void record_end(const char* fmt, ...) {
 	va_list arg;
 	va_start(arg,fmt);
-	vfprintf(stderr,arg);
+	vfprintf(stderr,fmt,arg);
 	va_end(arg);
 }
 
 void record(recordLevel level, const char* fmt, ...) {
 	va_list arg;
-	va_start(fmt,arg);
+	va_start(arg,fmt);
 	recordv(level,fmt,arg);
 	va_end(arg);
 	fputc('\n',stderr);
