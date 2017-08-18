@@ -60,6 +60,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 	// crop AFTER resize
 	if (in->Ysize > in->Xsize) {
 		in = do_resize(in, SIDE);
+		if(in==NULL) return NULL;
 		int margin = (in->Ysize - in->Xsize);
 		record(INFO,"Hmmm %d %d %d",
 					 in->Xsize, in->Ysize, margin);
@@ -74,6 +75,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 	} else if (in->Xsize > in->Ysize) {
 		// resize so that Ysize == SIDE
 		in = do_resize(in, SIDE * in->Xsize / in->Ysize);
+		if(in==NULL) return NULL;
 		int margin = (in->Xsize - in->Ysize);
 		record(INFO,"Hmmm %d %d %d",
 					 in->Xsize, in->Ysize, margin);
@@ -93,6 +95,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 	} else {
 			// resize to SIDExSIDE
 			in = do_resize(in, SIDE);
+			if(in==NULL) return NULL;
 			if(!(in->Xsize == in->Ysize)) {
 				record(ERROR,"not still same size? %d %d",in->Xsize,in->Ysize);
 				exit(23);
