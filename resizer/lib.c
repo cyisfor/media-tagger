@@ -115,7 +115,9 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	double factor = 1 / calculate_shrink(in,target_width);
 	if(in->Coding == VIPS_CODING_RAD) {
 		VipsImage* t = NULL;
-		assert(0==vips_rad2float(in,&t,NULL));
+		int res = vips_rad2float(in,&t,NULL);
+		assert(0==res);
+		record(INFO,"too rad");
 		MOVED;
 	}
 
@@ -133,6 +135,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 													 "pcs", VIPS_PCS_XYZ,
 													 NULL ));
 		MOVED;
+		record(INFO,"have imported");
 		have_imported = true;
 	}
 	VipsImage* t = NULL;
