@@ -138,7 +138,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	if(res != 0) {
 		record(WARN,"colourspace wouldn't change? %d %s",getpid(),vips_error_buffer());
 		g_object_unref(in);
-		return;
+		return NULL;
 	}
 	MOVED;
 
