@@ -175,12 +175,14 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	// crop just to make sure it's the right size
 	// argh, floating poiiiint!
 	int target_height = (int)round(oldheight*factor);
-	record(INFO,"crop to %dx%d from %dx%d",target_width, target_height,in->Xsize,in->Ysize);
-	if(0==vips_extract_area(in, &t,
-													0,0,
-													target_width, target_height,
-													NULL)) {
-		MOVED;
+	if(in->Xsize != target_width || in->Ysize != target_height) {
+		record(INFO,"crop to %dx%d from %dx%d",target_width, target_height,in->Xsize,in->Ysize);
+		if(0==vips_extract_area(in, &t,
+														0,0,
+														target_width, target_height,
+														NULL)) {
+			MOVED;
+		}
 	}
 
 	// fix colorspace crap
