@@ -207,7 +207,7 @@ static void copy_meta(int dest, struct stat info);
 bool lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   char* tempname = filedb_file("temp","resizedXXXXXX");
   int tempfd = mkstemp(tempname);
-  record(INFO,"Writing to %s",dest);
+  //record(INFO,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
 
 	// always save to jpeg if this is a thumbnail, b/c tiny
