@@ -51,9 +51,9 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		*wider = in->Ysize < in->Xsize;
 		// if wider, use shorter one... except if this is an upper bound, then do opposite.
 		if((*wider) ^ upper_bound) {
-			factor = (float*)in->Ysize/SIDE;
+			factor = (float)in->Ysize/SIDE;
 		} else {
-			factor = (float*)in->Xsize/SIDE;
+			factor = (float)in->Xsize/SIDE;
 		}
 	}
 	in = vips_jpegload(ctx->source,
