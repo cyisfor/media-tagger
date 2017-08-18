@@ -101,7 +101,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL,NULL);
 		update_factor();
 	}
-  if (in->Ysize <= SIDE && in->Xsize < SIDE) {
+  if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
     if(ctx->stat.st_size < 10000) {
 			// can just directly use this image
       return in;
