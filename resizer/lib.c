@@ -168,7 +168,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	int oldheight = in->Ysize;
 	assert(0==vips_resize(in,&t,factor,NULL));
 	MOVED;
-	
+	record(INFO,"area %d x %d",target_width,round(oldheight*factor));
 	// crop just to make sure it's the right size
 	if(0==vips_extract_area(in, &t,
 													0,0,
