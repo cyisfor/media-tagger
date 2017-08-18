@@ -99,6 +99,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		}
 	} else {
 		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL,NULL);
+		return in;
 		update_factor();
 	}
   if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
@@ -121,6 +122,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 VipsImage* lib_thumbnail(context* ctx) {
 	bool wider;
 	VipsImage* in = do_resize(ctx,SIDE,false,&wider);
+	return in;
 	if(in==NULL) return NULL;
 	// crop AFTER resize
 
