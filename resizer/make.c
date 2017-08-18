@@ -33,7 +33,7 @@ int errsock = -1;
 int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_path("media",id);
   assert(source);
-  record_start(INFO,"Thumbnail %x...", id);
+  record(INFO,"%x thumb...", id);
   if(!lib_read(source,strlen(source),ctx)) {
 		record_end("oops");
 		record(ERROR,"couldn't stat %x",id);
@@ -47,12 +47,12 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		if(lib_write(image,dest,1,ctx)) {
 			free(source);
 			free(dest);
-			record_end("done");
+			record(INFO,"%x done.", id);
 			return(1);
 		}
 	}
 
-	record_end("ffmpeg fallback");
+	record(WARN,"%x ffmpeg fallback.", id);
 	
 	int io[2];
 	pipe(io);
