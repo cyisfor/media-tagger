@@ -136,8 +136,11 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 
 	int res = vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL );
 	if(0!=res) {
-		record(WARN,"colourspace wouldn't change? %d",res);
-		exit(23);
+		record(WARN,"colourspace wouldn't change? %d",getpid());
+		int wait = 1;
+		while(wait) {
+			sleep(1);
+		}
 	}
 	MOVED;
 
