@@ -34,10 +34,10 @@ void recordInit(void) {
 }
 
 static void recordv(recordLevel level, const char* fmt, va_list arg) {
-    if (level > maximumLevel) return;
-    fprintf(stderr,"%d ",getpid());
-    fprintf(stderr,"\x1b[%dm\x1b[1m%s\x1b[0m ",color[level],name[level]);
-    vfprintf(stderr,fmt,arg);
+	if (level > maximumLevel) return;
+	fprintf(stderr,"%d ",getpid());
+	fprintf(stderr,"\x1b[%dm\x1b[1m%s\x1b[0m ",color[level],name[level]);
+	vfprintf(stderr,fmt,arg);
 }
 
 void record_start(recordLevel level, const char* fmt, ...) {

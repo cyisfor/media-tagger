@@ -10,4 +10,5 @@ typedef enum category {
 
 void recordInit(void);
 void setRecordLevel(recordLevel maximum);
+void recordn(recordLevel level, const char* fmt, ...);
 void record(recordLevel level, const char* fmt, ...);
