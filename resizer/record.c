@@ -33,14 +33,32 @@ void recordInit(void) {
         setRecordLevel(atoi(env));
 }
 
-void record(recordLevel level, const char* fmt, ...) {
+static void recordv(recordLevel level, const char* fmt, va_list arg) {
     if (level > maximumLevel) return;
     fprintf(stderr,"%d ",getpid());
     fprintf(stderr,"\x1b[%dm\x1b[1m%s\x1b[0m ",color[level],name[level]);
-    va_list args;
-    va_start(args,fmt);
-    vfprintf(stderr,fmt,args);
-    va_end(args);
-    fputc('\n',stderr);
-    fflush(stderr);
+    vfprintf(stderr,fmt,arg);
+}
+
+void record_start(recordLevel level, const char* fmt, ...) {
+	va_list arg;
+	va_start(arg,fmt);
+	recordv(level,fmt,arg);
+	va_end(arg);
+	fflush(stderr);
+}
+
+void record_end(const char* fmt, ...) {
+	va_list arg;
+	va_start(arg,fmt);
+	vfprintf(stderr,arg);
+	va_end(arg);
+}
+
+void record(recordLevel level, const char* fmt, ...) {
+	va_list arg;
+	va_start(fmt,arg);
+	recordv(level,fmt,arg);
+	va_end(arg);
+	fputc('\n',stderr);
 }
