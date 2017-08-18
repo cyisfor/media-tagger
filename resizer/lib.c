@@ -42,12 +42,12 @@ struct context_s {
 
 #define MOVED g_object_unref(in); in = t
 
-#include "vipsthumbderp.c"
+//#include "vipsthumbderp.c"
 
 static VipsImage* do_resize(VipsImage* in, int target_width);
 
 VipsImage* lib_thumbnail(context* ctx) {
-	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
+	VipsImage* in = vips_thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
 	if(!in) return NULL;
 	
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
@@ -115,7 +115,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 }
 
 VipsImage* lib_resize(context* ctx, int width) {
-	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, width);
+	VipsImage* in = vips_thumbnail_open(ctx->source,&ctx->was_jpeg, width);
 	return do_resize(in,width);
 }
 
