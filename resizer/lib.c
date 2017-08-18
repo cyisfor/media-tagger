@@ -96,18 +96,24 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			assert(t && res == 0);
 			MOVED;
 			update_factor();
+		} else {
+			if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
+				if(ctx->stat.st_size < 10000) {
+					// can just directly use this image
+					return in;
+				}
+			}
 		}
 	} else {
 		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL,NULL);
-		return in;
+		if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
+			if(ctx->stat.st_size < 10000) {
+				// can just directly use this image
+				return in;
+			}
+		}
 		update_factor();
 	}
-  if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
-    if(ctx->stat.st_size < 10000) {
-			// can just directly use this image
-      return in;
-    }
-  }
 	
 	{ VipsImage* t;
 		int res = vips_resize(in,&t,factor,NULL);
@@ -122,7 +128,6 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 VipsImage* lib_thumbnail(context* ctx) {
 	bool wider;
 	VipsImage* in = do_resize(ctx,SIDE,false,&wider);
-	return in;
 	if(in==NULL) return NULL;
 	// crop AFTER resize
 
