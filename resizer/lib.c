@@ -125,7 +125,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 	if (wider) {
 		int margin = (in->Xsize - in->Ysize);
 		assert(in->Xsize - margin == in->Ysize);
-		int res = vips_extract_area(in, &t,
+		res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
 																in->Ysize,
@@ -134,7 +134,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 	} else {
 		int margin = (in->Ysize - in->Xsize);
 		assert(in->Ysize - margin == in->Xsize);
-		int res = vips_extract_area(in, &t,
+		res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
 																in->Xsize,
