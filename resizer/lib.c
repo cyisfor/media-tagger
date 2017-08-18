@@ -134,7 +134,7 @@ VipsImage* lib_thumbnail(context* ctx) {
 
 	int res;
 	VipsImage* t = NULL;
-
+	return in;
 	if (wider) {
 		int margin = (in->Xsize - in->Ysize);
 		assert(in->Xsize - margin == in->Ysize);
