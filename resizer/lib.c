@@ -117,7 +117,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 		VipsImage* t = NULL;
 		int res = vips_rad2float(in,&t,NULL);
 		assert(0==res);
-		record(INFO,"too rad");
+		record(WARN,"too rad");
 		MOVED;
 	}
 
