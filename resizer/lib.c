@@ -145,7 +145,6 @@ VipsImage* lib_thumbnail(context* ctx) {
 	if (wider) {
 		margin = (in->Xsize - in->Ysize);
 		assert(in->Xsize - margin == in->Ysize);
-		enter_debug();
 		res = vips_extract_area(in, &t,
 																0,
 																margin >> 1,
@@ -163,8 +162,8 @@ VipsImage* lib_thumbnail(context* ctx) {
 																NULL);
 	}
 	if(0!=res) {
-		record(ERROR,"could't extract area! %d %d %d %d",
-					 margin,in->Xsize,in->Ysize,wider);
+		record(ERROR,"could't extract area! LTWH 0 %d %d %d",
+					 margin>>1,in->Xsize,in->Ysize);
 		record(ERROR,vips_error_buffer());
 		vips_error_clear();
 		return in;
