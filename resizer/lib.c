@@ -138,14 +138,15 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 	VipsImage* t = NULL;
 
 	int res = vips_colourspace( in, &t, VIPS_INTERPRETATION_sRGB, NULL );
-	if(res != 0) {
+	if(res == 0) {
+		MOVED;
+	} else {
 		record(WARN,"colourspace wouldn't change? %d %s",getpid(),vips_error_buffer());
 		static int wait = 1;
 		while(wait) {
 			sleep(1);
 		}
 	}
-	MOVED;
 
 	/* If there's an alpha, we have to premultiply before shrinking. See
 	 * https://github.com/jcupitt/libvips/issues/291
