@@ -43,10 +43,11 @@ int make_thumbnail(context* ctx, uint32_t id) {
 	char* dest = filedb_path("thumb",id);
 	
   if (image) {
-		lib_write(image,dest,1,ctx);
-		free(source);
-		free(dest);
-		return(1);
+		if(lib_write(image,dest,1,ctx)) {
+			free(source);
+			free(dest);
+			return(1);
+		}
 	}
 	
 	int io[2];
