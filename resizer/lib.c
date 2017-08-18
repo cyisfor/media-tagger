@@ -57,7 +57,7 @@ VipsImage* lib_thumbnail(context* ctx) {
     }
   }
 	static int wait = 1;
-	record(INFO,"pid %d",getpid())
+	record(INFO,"gdb -p %d",getpid());
 	while(wait) {
 		sleep(1);
 	}
