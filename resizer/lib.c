@@ -181,6 +181,7 @@ bool lib_read(const char* sourcederp, uint32_t slen, context* ctx) {
 	// do NOT munmap until the image has been written, b/c lazy reads
 	ctx->source = mmap(NULL,ctx->stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
 	assert(ctx->source != MAP_FAILED);
+	close(fd);
 	ctx->was_jpeg = 0;
 	return true;
 	// later, when we know what size, return thumbnail_open(ctx->source,&ctx->was_jpeg);
