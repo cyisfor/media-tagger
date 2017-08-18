@@ -48,6 +48,7 @@ static VipsImage* do_resize(VipsImage* in, int target_width);
 
 VipsImage* lib_thumbnail(context* ctx) {
 	VipsImage* in = thumbnail_open(ctx->source,&ctx->was_jpeg, SIDE);
+	return in;
 	if(!in) return NULL;
 	
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
