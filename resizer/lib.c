@@ -66,6 +66,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			factor = (float)SIDE/in->Xsize;
 		}
 	}
+	enter_debug();
 	if(vips__isjpeg_buffer(ctx->source, ctx->stat.st_size)) {
 		int res = vips_jpegload_buffer(ctx->source, ctx->stat.st_size,
 																	 &in,
