@@ -187,7 +187,9 @@ static VipsImage* do_resize(VipsImage* in, int target_width) {
 
 	// fix colorspace crap
 	if(have_premultiplied) {
-		assert(0==vips_unpremultiply(in,&t,NULL));
+		info("premultiplieded");
+		int res = vips_unpremultiply(in,&t,NULL);
+		assert(0==res);
 		MOVED;
 		vips_cast(in, &t, unpremultiplied_format, NULL);
 		MOVED;
