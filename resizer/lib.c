@@ -32,7 +32,7 @@ copy_file_range(int fd_in, loff_t *off_in, int fd_out,
 struct context_s {
   struct stat stat;
 	bool was_jpeg;
-	char source[0x100];
+	char* source; // mmap'd
 };
 
 /*
@@ -56,10 +56,15 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			factor = (float)SIDE/in->Xsize;
 		}
 	}
-	int res = vips_jpegload(ctx->source, &in,
-													"access", VIPS_ACCESS_SEQUENTIAL,
-													NULL);
-	if(in && res == 0) {
+	if(vips__isjpeg_buffer(ctx->source, ctx->stat.st_size)) {
+		int res = vips_jpegload_buffer(ctx->source, ctx->stat.st_size,
+																	 &in,
+																	 "access", VIPS_ACCESS_SEQUENTIAL,
+																	 NULL);
+		if(!in || res != 0) {
+			record(ERROR, "couldn't load jpeg?");
+			return NULL;
+		}
 		int shrink = 1;
 		update_factor();
 		factor = 1/factor;
@@ -72,16 +77,17 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		}
 		if(shrink > 1) {
 			VipsImage* t = NULL;
-			int res = vips_jpegload(ctx->source,&t,
-															"access", VIPS_ACCESS_SEQUENTIAL,
-															"shrink", shrink,
-															NULL);
+			int res = vips_jpegload_buffer(ctx->source, ctx->stat.st_size,
+																		 &t,
+																		 "access", VIPS_ACCESS_SEQUENTIAL,
+																		 "shrink", shrink,
+																		 NULL);
 			assert(t && res == 0);
 			MOVED;
 			update_factor();
 		}
 	} else {
-		in = vips_image_new_from_file(ctx->source,NULL);
+		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size);
 		update_factor();
 	}
   if (in->Ysize <= SIDE && in->Xsize < SIDE) {
@@ -152,15 +158,22 @@ VipsImage* lib_resize(context* ctx, int width) {
 	return do_resize(ctx,width,true,&ignored);
 }
 
-bool lib_read(const char* source, uint32_t slen, context* ctx) {
-	assert(slen < 0x100);
-	// sigh
-	memcpy(ctx->source,source,slen);
-	ctx->source[slen] = '\0';
-	if(0!=stat(ctx->source,&ctx->stat)) {
-		record(WARNING,"%s didn't exist",source);
+bool lib_read(const char* sourcederp, uint32_t slen, context* ctx) {
+	char* source = alloca(slen+1);
+	memcpy(source,sourcederp,slen);
+	source[slen] = '\0';
+	int fd = open(source,O_RDONLY);
+	if(fd < 0) {
+		record(ERROR, "couldn't open %.*s",slen, sourcederp);
+	}
+	if(0!=fstat(fd,&ctx->stat)) {
+		record(WARNING,"%.*s didn't stat",slen, sourcederp);
 		return false;
 	}
+
+	// do NOT munmap until the image has been written, b/c lazy reads
+	ctx->source = mmap(NULL,ctx->stat.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+	assert(ctx->source != MAP_FAILED);
 	ctx->was_jpeg = 0;
 	return true;
 	// later, when we know what size, return thumbnail_open(ctx->source,&ctx->was_jpeg);
@@ -208,6 +221,8 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 	}
 
 	g_object_unref(image);
+
+	munmap(ctx->source,ctx->stat.st_size);
 
 	if(res != 0) {
 		record(ERROR,"writing image");
