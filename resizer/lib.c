@@ -66,7 +66,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			factor = (float)SIDE/in->Xsize;
 		}
 	}
-	enter_debug();
+
 	if(vips__isjpeg_buffer(ctx->source, ctx->stat.st_size)) {
 		int res = vips_jpegload_buffer(ctx->source, ctx->stat.st_size,
 																	 &in,
@@ -196,13 +196,6 @@ static void copy_meta(int dest, struct stat info);
 void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   char* tempname = filedb_file("temp","resizedXXXXXX");
   int tempfd = mkstemp(tempname);
-#ifdef DERP
-	record(INFO,"Debug please %d",getpid());
-	int wait = 1;
-	while(wait) {
-		sleep(1);
-	}
-#endif /* DERP */
   record(INFO,"Writing to %s",dest);
   // set filename to nothin and image_info->file to somethin to write to a file handle
 
