@@ -35,7 +35,6 @@ int make_thumbnail(context* ctx, uint32_t id) {
   assert(source);
   record(INFO,"%x thumb...", id);
   if(!lib_read(source,strlen(source),ctx)) {
-		record_end("oops");
 		record(ERROR,"couldn't stat %x",id);
 		return 0;
 	}
