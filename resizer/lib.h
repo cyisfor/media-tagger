@@ -23,7 +23,7 @@ VipsImage* lib_thumbnail(context* ctx);
 
 bool lib_read(const char* source, uint32_t slen, context* ctx);
 
-void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx);
+bool lib_write(VipsImage* image, const char* dest, int thumb, context* ctx);
 
 void lib_copy(const char* src,
 							const char* dest);

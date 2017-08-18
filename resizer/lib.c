@@ -204,7 +204,7 @@ static void copy_meta(int dest, struct stat info);
 
 // WriteAndOptimizeByCrushingThisImageBrutally(...)
 
-void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
+bool lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
   char* tempname = filedb_file("temp","resizedXXXXXX");
   int tempfd = mkstemp(tempname);
   record(INFO,"Writing to %s",dest);
@@ -243,14 +243,15 @@ void lib_write(VipsImage* image, const char* dest, int thumb, context* ctx) {
 		unlink(tempname);
 		free(tempname);
 		close(tempfd);
-		return;
+		return false;
 	}
 	
   fchmod(tempfd,0644);
   rename(tempname,dest);
   free(tempname);
 	copy_meta(tempfd,ctx->stat);
-  close(tempfd); 
+  close(tempfd);
+	return true;
 }
 
 // neh, we never use this
