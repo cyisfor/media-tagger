@@ -56,10 +56,10 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			factor = (float)in->Xsize/SIDE;
 		}
 	}
-	in = vips_jpegload(ctx->source,
-										 "access", VIPS_ACCESS_SEQUENTIAL,
-										 NULL);
-	if(in) {
+	int res = vips_jpegload(ctx->source,&in,
+													"access", VIPS_ACCESS_SEQUENTIAL,
+													NULL);
+	if(in && res == 0) {
 		int shrink = 1;
 		update_factor();
 		if(factor > 8) {
