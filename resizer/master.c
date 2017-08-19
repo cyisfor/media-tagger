@@ -197,10 +197,10 @@ int main(int argc, char** argv) {
 	assert(signals >= 0);
 
 	struct pollfd pfd[] = {
-		[SIGNAL] = {
+		[SIGNALS] = {
 			.fd = signals,
 			.events = POLLIN
-		};
+		},
 		[WATCHERQUEUE] = {
 			.fd = watcher,
 			.events = POLLIN
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
 		 
 	sigemptyset(&mysigs);
 	sigaddset(&mysigs,SIGCHLD);
-	int res = sigprocmask(SIG_BLOCK, &myset, NULL);
+	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 
 	int timeout;
@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
 	clock_gettime(CLOCK_MONOTONIC,&last);
 
 	int worker_lifetime(void) {
-		const struct timespec now;
+		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC,&now);
 		int elapsed = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
 		return WORKER_LIFETIME-elapsed > 0 ? WORKER_LIFETIME-elapsed : 0;
