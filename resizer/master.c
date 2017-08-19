@@ -312,9 +312,9 @@ int main(int argc, char** argv) {
 				}
 			} else {
 				// queue ready for writing
+				record(INFO,"sending req for %d to child",messages[smess].id);
 				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
 				assert(res == sizeof(messages[smess]));
-				record(INFO,"sent req for %d to child",messages[smess].id);
 				smess = (smess + 1) % NMESS;
 				if(smess == emess - 1) {
 					// queue empty
