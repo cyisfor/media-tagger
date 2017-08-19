@@ -205,6 +205,7 @@ int main(int argc, char** argv) {
 
 	pipe(queue);
 	pipe(died);
+	fcntl(died[1],F_SETFL, fcntl(died[1],F_GETFL) | O_NONBLOCK);
 	int watcher = inotify_init();
 
 	struct pollfd pfd[] = {
