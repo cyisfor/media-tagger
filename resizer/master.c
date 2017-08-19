@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
 #define NMESS 1024
 	struct message messages[NMESS]; // keep a ring buffer I guess...
 	int smess = 0;
-	int emess = 1;
+	int emess = 0;
 
 	int send_message(void) {
 		record(INFO,"sending req for %d to child",messages[smess].id);
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
 						record(INFO,"file changed %s",ev.name);
 						assert(amt >= sizeof(ev.ev));
 						assert(amt <= sizeof(ev));
-						if(emess == smess) {
+						if((emess+1)%NMESS == smess) {
 							record(ERROR, "queue full!");
 							abort();
 						}
