@@ -231,13 +231,14 @@ int main(int argc, char** argv) {
 		else if(numworkers == 3) timeout = 3000;
 		else timeout = WORKER_LIFETIME;
 
-		int res = poll((struct pollfd*)&pfd,sizeof(pfd)/sizeof(*pfd),timeout);
+		int res = poll((struct pollfd*)&pfd,3,timeout);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
 			abort();
 		}
 		if(res == 0) {
+			perror("umm");
 			assert(pfd[1].events);
 			if(numworkers >= NUM) {
 				stop_a_worker();
