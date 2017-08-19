@@ -39,13 +39,6 @@ void started_worker(int pid) {
 	assert(numworkers < 12);
 }
 
-struct diedmsg {
-	int pid;
-	int status;
-};
-
-int died[2];
-
 void reap_workers(void) {
 	for(;;) {
 		int status;
@@ -359,9 +352,9 @@ int main(int argc, char** argv) {
 				assert(info.ssi_signo == SIGCHLD);
 				// don't care about ssi_pid since multiple kids could have exited
 				reap_workers();
-				if(numworkers == 0) {
+/*				if(numworkers == 0) {
 					start_worker();
-				}
+				}*/
 			}
 		}
 	}
