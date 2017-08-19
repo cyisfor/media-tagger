@@ -336,6 +336,7 @@ int main(int argc, char** argv) {
 				}
 			}
 		} else if(pfd[SIGNALS].revents) {
+			record(INFO, "signal?");
 			// something died
 			struct signalfd_siginfo info;
 			for(;;) {
