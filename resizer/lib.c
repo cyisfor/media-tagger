@@ -46,14 +46,6 @@ struct context_s {
 
 //#include "vipsthumbderp.c"
 
-static void enter_debug(void) {
-	static int wait = 1;
-	printf("\ngdb -p %d\n",getpid());
-	while(wait) {
-		sleep(1);
-	}
-}
-
 static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bool* wider) {
 	VipsImage* in = NULL;
 	float factor; // shortest dimension... how much we can scale down before cropping
@@ -106,6 +98,9 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		}
 	} else {
 		in = vips_image_new_from_buffer(ctx->source,ctx->stat.st_size,NULL,NULL);
+		if(in == NULL) {
+			return NULL;
+		}
 		if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
 			if(ctx->stat.st_size < 10000) {
 				// can just directly use this image
