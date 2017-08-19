@@ -43,56 +43,46 @@ struct diedmsg {
 
 int died[2];
 
-void on_chld(int signum) {
+void reap_workers(void) {
 	for(;;) {
-		struct diedmsg msg;
-		msg.pid = waitpid(-1,&msg.status,WNOHANG);
-		printf("derp %d",msg.pid);
-		if(msg.pid < 0) {
+		int status;
+		int pid = waitpid(-1,&status,WNOHANG);
+		if(pid < 0) {
 			if(errno == EINTR) continue;
 			assert(errno == EAGAIN);
 			break;
 		}
-		for(;;) {
-			// shouldn't block for small messages, if we drain it soon enough.
-			int res = write(died[1],&msg,sizeof(msg));
-			if(res < 0) {
-				if(errno == EINTR) continue;
-				perror("died");
-				abort();
+
+		record(INFO,"worker %d died (exit %d sig %d)",
+					 pid,
+					 WEXITSTATUS(status),
+					 WTERMSIG(status));
+		int which;
+		for(which=0;which<numworkers;++which) {
+			if(workers[which] == pid) {
+				memmove(workers+which,
+								workers+which+1,
+								--numworkers - which);
 			}
 		}
-	}
-}
-
-void worker_died(int pid, int status) {
-	record(INFO,"worker %d died (exit %d sig %d)",
-				 pid,
-				 WEXITSTATUS(status),
-				 WTERMSIG(status));
-	int which;
-	for(which=0;which<numworkers;++which) {
-		if(workers[which] == pid) {
-			memmove(workers+which,
-							workers+which+1,
-							--numworkers - which);
-		}
+		// okay if never finds the pid, may have already been removed
 	}
 }
 
 void stop_a_worker(void) {
-	/* 
+	/*
 	byte which;
 	int res = getrandom(&which,sizeof(which),0);
 	assert(sizeof(which) == res);
 	which = which % numworkers;
 	*/
-	
+
 	static byte which = 0;
 	// note this could kill a worker in the middle of thumbnail generation
 	// but this will also kill a worker stuck in the middle of thumbnail generation
 	record(INFO,"killing worker %d",which);
-	
+
+	// should we not remove it proactively?
 	int pid = workers[which];
 	memmove(workers+which,
 					workers+which+1,
@@ -139,25 +129,18 @@ static void dolock(void) {
   };
 }
 
-struct writing {
-	uv_timer_t timer;
-	struct message message;
-	int which;
-};
-
-static void send_to_a_worker(struct writing* self);
 static bool file_changed(struct message* message, const char* filename) {
 	if(filename[0] == '\0' || filename[0] == '.') return false;
 
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<31)); // can bump 1<<31 up in message.h l8r
-	
+
 	int fd = open(filename,O_RDONLY);
 	if(fd == -1) {
 		// got deleted somehow
 		return false;
 	}
-	// regardless of success, if fail this'll just repeatedly fail 
+	// regardless of success, if fail this'll just repeatedly fail
   // so delete it anyway
   unlink(filename);
 
@@ -182,8 +165,7 @@ static bool file_changed(struct message* message, const char* filename) {
 }
 
 int main(int argc, char** argv) {
-	signal(SIGPIPE,SIG_IGN);
-	signal(SIGCHLD,on_chld);
+	sigset_t mysigs;
   dolock();
 
 	srand(time(NULL));
@@ -200,7 +182,7 @@ int main(int argc, char** argv) {
 		memcpy(lackey+amt,"lackey-bin",sizeof("lackey-bin"));
 	}
 	record(INFO, "lackey '%s'",lackey);
-	
+
 	chdir("/home/.local/filedb/incoming");
 
 	pipe(queue);
@@ -208,80 +190,122 @@ int main(int argc, char** argv) {
 	fcntl(died[1],F_SETFL, fcntl(died[1],F_GETFL) | O_NONBLOCK);
 	int watcher = inotify_init();
 
+	enum { SIGNALS, WATCHERQUEUE };
+
+	// could technically use queue[1] for this, since never read from it...?
+	int signals = signalfd(-1,&mysigs,0);
+	assert(signals >= 0);
+
 	struct pollfd pfd[] = {
-		{
+		[SIGNAL] = {
+			.fd = signals,
+			.events = POLLIN
+		};
+		[WATCHERQUEUE] = {
 			.fd = watcher,
-			.events = POLLIN
-		},
-		{
-			.fd = died[0],
-			.events = POLLIN
-		},
-		{
-			.fd = queue[1],
-			.events = 0
+			.events = POLLIN|POLLOUT
 		}
 	};
 
 	inotify_add_watch(watcher,".",IN_MOVED_TO);
+
+	sigemptyset(&mysigs);
+	sigaddset(&mysigs,SIGCHLD);
+	int res = sigprocmask(SIG_BLOCK, &myset, NULL);
+	assert(res == 0);
+
 	int timeout;
-	struct message message = {};
-	
+	// shouldn't need a queue of these... I hope
+	// either poll watcher, or poll queue, if going in or out. always poll signalfd.
+	bool watching = true;
+	struct message messages[0x100]; // keep a ring buffer I guess...
+	int smess = 0;
+	int emess = 0;
+
+	struct timespec last;
+	clock_gettime(CLOCK_MONOTONIC,&last);
+
+	int worker_lifetime(void) {
+		const struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC,&now);
+		int ms = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
+	}
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
-		if(pfd[2].events == 0) timeout = -1;
+		if(watching || numworkers > 3) timeout = worker_lifetime();
 		else if(numworkers == 1) timeout = 100;
 		else if(numworkers == 2) timeout = 500;
 		else if(numworkers == 3) timeout = 3000;
-		else timeout = WORKER_LIFETIME;
 
-		int res = poll((struct pollfd*)&pfd,pfd[2].events ? 3 : 2,timeout);
+		int res = ppoll((struct pollfd*)&pfd, 2, timeout);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
 			abort();
 		}
 		if(res == 0) {
+			// timed out... we should kill a worker
+
 			assert(pfd[2].events);
 			if(numworkers >= NUM) {
 				stop_a_worker();
 			}
 			start_worker();
-			poll(NULL,0,100); // wait a bit
+			clock_gettime(CLOCK_MONOTONIC,&last);
 			continue;
 		}
-		if(pfd[0].revents) {
-			// file changed
-			struct {
-				struct inotify_event ev;
-				char name[NAME_MAX];
-			} ev;
-			ssize_t amt = read(watcher,&ev,sizeof(ev));
-			if(amt < 0) {
-				perror("file changed");
-				assert(errno == EINTR || errno == EAGAIN);
-			} else {
-				assert(sizeof(ev) >= amt);
-				if(file_changed(&message, ev.name)) {
-					if(numworkers == 0)
-						start_worker(); // start at least one
+		if(pfd[WATCHERQUEUE].revents) {
+			// file changed, or need write message
+			if(watching) {
+				struct {
+					struct inotify_event ev;
+					char name[NAME_MAX];
+				} ev;
+				pfd[WATCHERQUEUE].fd = queue[1];
+				pfd[WATCHERQUEUE].events = POLLOUT;
 
-					pfd[2].events = POLLOUT;
+				for(;;) {
+					ssize_t amt = read(watcher,&ev,sizeof(ev));
+					if(amt < 0) {
+						perror("file changed");
+						assert(errno == EINTR || errno == EAGAIN);
+					} else {
+						assert(sizeof(ev) >= amt);
+						assert(emess != smess); // queue full!
+						if(file_changed(&messages[emess-1], ev.name)) {
+							emess = (emess + 1) % NMESS;
+							if(numworkers == 0)
+								start_worker(); // start at least one
+						}
+					}
+				}
+			} else {
+				// queue ready for writing
+				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
+				assert(res == sizeof(messages[smess]));
+				if(++smess == emess - 1) {
+					// queue empty
+					// now pull more file changes
+					pfd[WATCHERQUEUE].fd = watcher;
+					pfd[WATCHERQUEUE].events = POLLIN;
 				}
 			}
-		} else if(pfd[2].revents) {			
-			// queue ready for writing
-			ssize_t res = write(queue[1],&message,sizeof(message));
-			assert(res == sizeof(message));
-			pfd[2].events = 0;
-		} else if(pfd[1].revents) {
+		} else if(pfd[SIGNALS].revents) {
 			// something died
-			struct diedmsg msg;
-			ssize_t amt = read(died[0],&msg,sizeof(msg));
-			assert(amt == sizeof(msg));
-			worker_died(msg.pid, msg.status);
-		} 
-			
+			struct signalfd_siginfo info;
+			for(;;) {
+				ssize_t amt = read(signals,&info,sizeof(info));
+				if(amt < 0) {
+					if(errno == EAGAIN) break;
+					if(errno==EINTR) continue;
+					perror("signals");
+					abort();
+				}
+				assert(amt == sizeof(info));
+				assert(info.si_signo == SIGCHLD);
+				// don't care about si_pid since multiple kids could have exited
+				reap_workers();
+			}
+		}
 	}
-			
 }
