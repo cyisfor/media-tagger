@@ -33,6 +33,7 @@ byte numworkers = 0;
 void started_worker(int pid) {
 	workers = realloc(workers,(++numworkers)*sizeof(*workers));
 	workers[numworkers-1] = pid;
+	assert(numworkers < 12);
 }
 
 struct diedmsg {
