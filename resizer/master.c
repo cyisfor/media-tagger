@@ -24,6 +24,8 @@
 
 int queue[2];
 
+typedef unsigned char byte;
+
 int *workers = NULL;
 byte numworkers = 0;
 
@@ -41,7 +43,7 @@ int died[2];
 
 void on_chld(int signum) {
 	for(;;) {
-		diedmsg msg;
+		struct diedmsg msg;
 		msg.pid = waitpid(-1,&msg.status,WNOHANG);
 		if(msg.pid < 0) {
 			if(errno == EINTR) continue;
