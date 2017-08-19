@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
 						record(INFO,"file changed %s",ev.name);
 						assert(amt >= sizeof(ev.ev));
 						assert(amt <= sizeof(ev));
-						if(emess != smess) {
+						if(emess == smess) {
 							record(ERROR, "queue full!");
 							abort();
 						}
@@ -315,7 +315,8 @@ int main(int argc, char** argv) {
 				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
 				assert(res == sizeof(messages[smess]));
 				record(INFO,"sent req for %d to child",messages[smess].id);
-				if(++smess == emess - 1) {
+				smess = (smess + 1 ) % NMESS;
+				if(smess == emess - 1) {
 					// queue empty
 					// now pull more file changes
 					pfd[WATCHERQUEUE].fd = watcher;
