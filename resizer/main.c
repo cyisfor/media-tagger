@@ -14,6 +14,8 @@
 
 extern char* environ[];
 
+#define WORKER_IDLE 60
+
 int main(int argc, char** argv) {
   //struct rlimit memlimit = { 0x20000000, 0x20000000 };
   //setrlimit(RLIMIT_DATA,&memlimit);
@@ -26,6 +28,8 @@ int main(int argc, char** argv) {
   make_init();
 	context* ctx = make_context();
 	struct message m;
+	alarm(WORKER_IDLE);
+
 	for(;;) {
 		assert(sizeof(m)==read(STDIN_FILENO,&m,sizeof(m)));
 //		puts("boop");
@@ -33,6 +37,7 @@ int main(int argc, char** argv) {
 			make_resized(ctx,m.resized.id,m.resized.width);
 		else
 			make_thumbnail(ctx,m.id);
+		alarm(WORKER_IDLE);
 	}
 }		
 
