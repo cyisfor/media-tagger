@@ -238,7 +238,6 @@ int main(int argc, char** argv) {
 			abort();
 		}
 		if(res == 0) {
-			perror("umm");
 			assert(pfd[1].events);
 			if(numworkers >= NUM) {
 				stop_a_worker();
