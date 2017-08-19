@@ -288,12 +288,13 @@ int main(int argc, char** argv) {
 		if(res == 0) {
 			// timed out... we should kill a worker
 
-			assert(pfd[2].events);
-			if(numworkers >= NUM) {
-				stop_a_worker();
+			if(!watching) {
+				if(numworkers >= NUM) {
+					stop_a_worker();
+				}
+				start_worker();
+				clock_gettime(CLOCK_MONOTONIC,&last);
 			}
-			start_worker();
-			clock_gettime(CLOCK_MONOTONIC,&last);
 			continue;
 		}
 		if(pfd[WATCHERQUEUE].revents) {
