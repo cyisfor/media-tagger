@@ -291,6 +291,7 @@ int main(int argc, char** argv) {
 					struct inotify_event ev;
 					char name[NAME_MAX];
 				} ev;
+				watching = false;
 				pfd[WATCHERQUEUE].fd = queue[1];
 				pfd[WATCHERQUEUE].events = POLLOUT;
 
@@ -299,7 +300,7 @@ int main(int argc, char** argv) {
 					if(amt < 0) {
 						if(errno == EAGAIN) break;
 						perror("file changed");
-						assert(errno == EINTR || errno == EAGAIN);
+						assert(errno == EINTR);
 					} else {
 						record(INFO,"file changed %s",ev.name);
 						assert(amt >= sizeof(ev.ev));
