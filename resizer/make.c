@@ -84,7 +84,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
 	buf[amt] = '\0';
 	char* end = NULL;
 	double duration = strtod(buf, &end);
-	if(end && *end != '\0') {
+	if(end && end == buf) {
 		record(ERROR,"not a float? %s",buf);
 	}
 	int status;
