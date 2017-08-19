@@ -2,7 +2,8 @@
 #include "watch.h"
 #include "message.h"
 
-#include <uv.h>
+#include <sys/inotify.h>
+#include <poll.h>
 
 #include <assert.h>
 
