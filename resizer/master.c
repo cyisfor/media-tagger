@@ -263,8 +263,8 @@ int main(int argc, char** argv) {
 			}
 		} else if(pfd[1].revents) {			
 			// queue ready for writing
-			ssize_t res = write(queue[1],&self->message,sizeof(self->message));
-			assert(res == sizeof(self->message));
+			ssize_t res = write(queue[1],&message,sizeof(message));
+			assert(res == sizeof(message));
 			pfd[1].events = 0;
 		} else if(pfd[2].revents) {
 			// something died
