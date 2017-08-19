@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
 	int smess = 0;
 	int emess = 1;
 
-	void send_message(void) {
+	int send_message(void) {
 		record(INFO,"sending req for %d to child",messages[smess].id);
 		return write(queue[1],&messages[smess],sizeof(messages[smess]));
 	}
@@ -319,6 +319,7 @@ int main(int argc, char** argv) {
 								emess = (emess + 1) % NMESS;
 							} else {
 								assert(res == sizeof(messages[smess]));
+								// don't bother queuing it.
 							}
 						}
 					}
