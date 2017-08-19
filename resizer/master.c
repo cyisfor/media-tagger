@@ -52,10 +52,14 @@ void reap_workers(void) {
 			break;
 		}
 
-		record(INFO,"worker %d died (exit %d sig %d)",
-					 pid,
-					 WEXITSTATUS(status),
-					 WTERMSIG(status));
+		if(WIFSIGNALED(status) && SIGALRM==WTERMSIG(status)) {
+			record(INFO, "worker %d retiring",pid);
+		} else {
+			record(INFO,"worker %d died (exit %d sig %d)",
+						 pid,
+						 WEXITSTATUS(status),
+						 WTERMSIG(status));
+		}
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which] == pid) {
@@ -337,7 +341,6 @@ int main(int argc, char** argv) {
 				}
 			}
 		} else if(pfd[SIGNALS].revents) {
-			record(INFO, "signal?");
 			// something died
 			struct signalfd_siginfo info;
 			for(;;) {
