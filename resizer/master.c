@@ -248,7 +248,10 @@ int main(int argc, char** argv) {
 		}
 		if(pfd[0].revents) {
 			// file changed
-			struct inotify_event ev;
+			struct {
+				struct inotify_event ev;
+				char name[NAME_MAX];
+			} ev;
 			ssize_t amt = read(watcher,&ev,sizeof(ev));
 			if(amt < 0) {
 				perror("file changed");
