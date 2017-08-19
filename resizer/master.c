@@ -190,7 +190,7 @@ static void send_to_a_worker(struct writing* self) {
 		};
 		int timeout = 0;
 		for(;;) {
-			int res = poll(&pfd, 1, timeout);
+			int res = poll((struct pollfd*)&pfd, 1, timeout);
 			if(res == 0) {
 				// timeout
 				start_worker();
