@@ -96,7 +96,8 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		record(ERROR,"not a float? %s",buf);
 	}
 	// some BROKEN movies are 2 seconds long, then say "oh but we're 30s long we just start at 28s hurr durr"
-	char* cur = end;
+	assert(*end == '\n');
+	char* cur = end+1;
 	double start_time = strtod(cur,&end);
 	if(end == cur) {
 		record(ERROR,"not a float start time %s",buf);
