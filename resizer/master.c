@@ -121,7 +121,7 @@ void start_worker(void) {
 }
 
 static void dolock(void) {
-  int fd = open("/tmp/lackey-master.lock", O_WRONLY|O_CREAT,0600);
+  int fd = open("/tmp/lackey-masterderp.lock", O_WRONLY|O_CREAT,0600);
   if(fd < 0) error(1,0,"Lock wouldn't open.");
   struct flock lock = {
     .l_type = F_WRLCK,
