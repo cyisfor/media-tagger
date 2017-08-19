@@ -144,8 +144,7 @@ struct writing {
 
 static void send_to_a_worker(struct writing* self);
 static struct message file_changed(const char* filename) {
-	if(filename[0] == '\0' || filename[0] == '.') return;
-	
+
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<31)); // can bump 1<<31 up in message.h l8r
 	
@@ -284,11 +283,13 @@ int main(int argc, char** argv) {
 				assert(errno == EINTR || errno == EAGAIN);
 			} else {
 				assert(sizeof(ev) == amt);
-				message = file_changed(ev.name);
-				if(numworkers == 0)
+				if(filename[0] != '\0' && filename[0] != '.') {
+					message = file_changed(ev.name);
+					if(numworkers == 0)
 						start_worker(); // start at least one
 
-				pfd[1].events = POLLOUT;
+					pfd[1].events = POLLOUT;
+				}
 			}
 		} else if(pfd[1].revents) {			
 			// queue ready for writing
