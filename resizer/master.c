@@ -52,7 +52,10 @@ void reap_workers(void) {
 		int pid = waitpid(-1,&status,WNOHANG);
 		if(pid < 0) {
 			if(errno == EINTR) continue;
-			assert(errno == EAGAIN);
+			if(errno != EAGAIN) {
+				perror("reap");
+				abort();
+			}
 			break;
 		}
 
