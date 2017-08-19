@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // ppoll
 #include "record.h"
 #include "watch.h"
 #include "message.h"
