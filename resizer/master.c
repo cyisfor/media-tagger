@@ -112,6 +112,7 @@ void start_worker(void) {
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
+		chdir("..");
 		dup2(queue[0],0);
 		close(queue[0]);
 		close(queue[1]);
