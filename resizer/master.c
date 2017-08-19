@@ -232,6 +232,11 @@ int main(int argc, char** argv) {
 	int smess = 0;
 	int emess = 1;
 
+	void send_message(void) {
+		record(INFO,"sending req for %d to child",messages[smess].id);
+		return write(queue[1],&messages[smess],sizeof(messages[smess]));
+	}
+
 	struct timespec last;
 	clock_gettime(CLOCK_MONOTONIC,&last);
 
@@ -304,16 +309,22 @@ int main(int argc, char** argv) {
 							abort();
 						}
 						if(file_changed(&messages[emess-1], ev.name)) {
-							emess = (emess + 1) % NMESS;
 							if(numworkers == 0)
 								start_worker(); // start at least one
+							int res = send_message();
+							if(res < 0) {
+								// just trying it out
+								assert(errno == EINTR || errno == EAGAIN);
+								// definitely queue it since we can't write right now
+								emess = (emess + 1) % NMESS;
+							} else {
+								assert(res == sizeof(messages[smess]));
+							}
 						}
 					}
 				}
 			} else {
-				// queue ready for writing
-				record(INFO,"sending req for %d to child",messages[smess].id);
-				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
+				int res = send_message();
 				assert(res == sizeof(messages[smess]));
 				smess = (smess + 1) % NMESS;
 				if(smess == emess - 1) {
