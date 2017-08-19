@@ -193,6 +193,14 @@ int main(int argc, char** argv) {
 	chdir("/home/.local/filedb/incoming");
 
 	pipe(queue);
+	fcntl(queue[1], F_SETPIPE_SZ, 0);
+	/* rounds up to getpagesize.
+		 that's usually 512 bytes, I think, so
+		 512 / sizeof(struct message) = number that can be queued
+		 512 / 64 = 8 items that can queue up
+		 default is 65536 bytes (0x10000) letting 1024 items queue up
+		 ...which is way too many items.
+	 */
 	fcntl(queue[1],F_SETFL, fcntl(queue[1],F_GETFL) | O_NONBLOCK);
 	int watcher = inotify_init1(IN_NONBLOCK);
 
