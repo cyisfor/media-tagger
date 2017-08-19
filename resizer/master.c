@@ -292,6 +292,7 @@ int main(int argc, char** argv) {
 				for(;;) {
 					ssize_t amt = read(watcher,&ev,sizeof(ev));
 					if(amt < 0) {
+						if(errno == EAGAIN) break;
 						perror("file changed");
 						assert(errno == EINTR || errno == EAGAIN);
 					} else {
