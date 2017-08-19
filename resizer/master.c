@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
 		};
 		[WATCHERQUEUE] = {
 			.fd = watcher,
-			.events = POLLIN|POLLOUT
+			.events = POLLIN
 		}
 	};
 
