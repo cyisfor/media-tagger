@@ -27,28 +27,24 @@ struct lackey {
 	uv_pipe_t pipe;
 	uv_timer_t restart;
 	int which;
+	bool stopped;
 } workers[NUM];
 
 void start_lackey(struct lackey* who);
-
-void lackey_restarting(uv_timer_t* handle) {
-	struct lackey* self = (struct lackey*)handle->data;
-	record(INFO,"restarting worker %d",
-				 self->which);
-	start_lackey(self);
-}
 
 
 void lackey_closed(uv_handle_t* req) {
 	// magic
 	struct lackey* self = (struct lackey*)req;
-	uv_timer_start(&self->restart, lackey_restarting, RESTART_DELAY,0);
+	self->stopped = true;
+	record(INFO,"not restarting worker yet %d",
+				 self->which);
 }
 	
 
-void wait_then_restart_lackey(uv_process_t *req,
-															int64_t exit_status,
-															int term_signal) {
+void wait_then_stop_lackey(uv_process_t *req,
+													 int64_t exit_status,
+													 int term_signal) {
 	struct lackey* self = (struct lackey*)req;
 	record(INFO,"worker %d (%d) died (exit %d sig %d)",
 				 req->pid,
@@ -61,6 +57,8 @@ void wait_then_restart_lackey(uv_process_t *req,
 char lackey[PATH_MAX];
 
 void start_lackey(struct lackey* who) {
+	assert(who->stopped);
+	who->stopped = false;
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
@@ -97,7 +95,7 @@ void lackey_init(struct lackey* self, int which) {
 	uv_timer_init(uv_default_loop(), &self->restart);
 	self->restart.data = self;
 	self->which = which; // derp
-	start_lackey(self);
+	self->stopped = true;
 }
 
 void kill_lackey(uv_timer_t* handle) {
@@ -188,6 +186,10 @@ static void send_to_a_worker(struct writing* self) {
 	++start;
 	for(i=0;i<NUM;++i) {
 		int which = (start + i) % NUM;
+		if(workers[which].stopped) {
+			record(INFO, "Starting lackey %d for %d", which, self->which);
+			start_lackey(workers[which]);
+		}
 		int err =
 			uv_try_write((uv_stream_t*)&workers[which].pipe, &buf, 1);
 		if(err >= 0) {
