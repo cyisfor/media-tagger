@@ -334,6 +334,7 @@ int main(int argc, char** argv) {
 					// now pull more file changes
 					pfd[WATCHERQUEUE].fd = watcher;
 					pfd[WATCHERQUEUE].events = POLLIN;
+					watching = true;
 				}
 			}
 		} else if(pfd[SIGNALS].revents) {
