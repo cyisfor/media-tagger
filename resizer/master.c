@@ -224,12 +224,12 @@ int main(int argc, char** argv) {
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 
-	int timeout;
 	// shouldn't need a queue of these... I hope
 	// either poll watcher, or poll queue, if going in or out. always poll signalfd.
 	bool watching = true;
-	
-	struct message messages[0x100]; // keep a ring buffer I guess...
+
+#define NMESS 1024
+	struct message messages[NMESS]; // keep a ring buffer I guess...
 	int smess = 0;
 	int emess = 0;
 
@@ -245,7 +245,7 @@ int main(int argc, char** argv) {
 		// timeout = timeout - (now - last) watch out for signed error / overflow error
 		clock_gettime(CLOCK_MONOTONIC,&now);
 		timeout.tv_sec -= now.tv_sec - last.tv_sec;
-		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec;) {
+		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec) {
 			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
 		} else {
 			if(timeout.tv_sec == 0) {
