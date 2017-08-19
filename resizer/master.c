@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
 	chdir("/home/.local/filedb/incoming");
 
 	pipe(queue);
-	pipe(fail);
+	pipe(died);
 	int watcher = inotify_init();
 
 	struct pollfd pfd[] = {
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
 			.events = 0
 		},
 		{
-			.fd = fail[0],
+			.fd = died[0],
 			.events = POLLIN
 		}
 	};
