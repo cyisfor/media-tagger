@@ -47,6 +47,7 @@ void on_chld(int signum) {
 	for(;;) {
 		struct diedmsg msg;
 		msg.pid = waitpid(-1,&msg.status,WNOHANG);
+		printf("derp %d",msg.pid);
 		if(msg.pid < 0) {
 			if(errno == EINTR) continue;
 			assert(errno == EAGAIN);
