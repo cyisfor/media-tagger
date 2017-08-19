@@ -189,14 +189,13 @@ int main(int argc, char** argv) {
 	chdir("/home/.local/filedb/incoming");
 
 	pipe(queue);
-	pipe(died);
-	fcntl(died[1],F_SETFL, fcntl(died[1],F_GETFL) | O_NONBLOCK);
-	int watcher = inotify_init();
+	fcntl(queue[1],F_SETFL, fcntl(queue[1],F_GETFL) | O_NONBLOCK);
+	int watcher = inotify_init1(IN_NONBLOCK);
 
 	enum { SIGNALS, WATCHERQUEUE };
 
 	// could technically use queue[1] for this, since never read from it...?
-	int signals = signalfd(-1,&mysigs,0);
+	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
 
 	struct pollfd pfd[] = {
