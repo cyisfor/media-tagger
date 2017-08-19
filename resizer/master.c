@@ -359,6 +359,9 @@ int main(int argc, char** argv) {
 				assert(info.ssi_signo == SIGCHLD);
 				// don't care about ssi_pid since multiple kids could have exited
 				reap_workers();
+				if(numworkers == 0) {
+					start_worker();
+				}
 			}
 		}
 	}
