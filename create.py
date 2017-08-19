@@ -260,7 +260,7 @@ def getanId(sources,uniqueSources,download,name):
 
 			# create thumbnail proactively
 			# don't bother waiting for it to appear
-			filedb.incoming(id)
+			# filedb.incoming(id)
 			return id,True
 
 tagsModule = tags
