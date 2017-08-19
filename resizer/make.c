@@ -82,6 +82,14 @@ int make_thumbnail(context* ctx, uint32_t id) {
 	char buf[0x100];
 	ssize_t amt = read(io[0], buf, 0xFF);
 	buf[amt] = '\0';
+	int status;
+	waitpid(pid,&status,0);
+	if(!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
+		record(WARN,"Could not read media from '%x' (%s)",id,source);
+		free(source);
+		return 0;
+	}
+
 	char* end = NULL;
 	double duration = strtod(buf, &end);
 	if(end && end == buf) {
@@ -99,13 +107,6 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		} else {
 			duration -= start_time;
 		}
-	}
-	int status;
-	waitpid(pid,&status,0);
-	if(!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
-		record(WARN,"Could not read media from '%x' (%s)",id,source);
-		free(source);
-		return 0;
 	}
 
 	duration /= 1000; // it's in milliseconds...
