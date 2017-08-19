@@ -178,35 +178,6 @@ static bool file_changed(struct message* message, const char* filename) {
 	return false;
 }
 
-static void retry_send_places(uv_timer_t* req);
-static void send_to_a_worker(struct writing* self) {
-	if(numworkers == 0) {
-		start_worker();
-	} else {
-		// wait for the queue, if timeout fire off another worker
-		struct pollfd pfd = {
-			.fd = queue[1],
-			.events = POLLOUT
-		};
-		int timeout = 0;
-		for(;;) {
-			int res = poll((struct pollfd*)&pfd, 1, timeout);
-			if(res == 0) {
-				// timeout
-				start_worker();
-				poll(NULL,0,100); // wait a bit
-			}
-			if(res < 0) {
-				if(errno == EINTR) continue;
-				perror("poll");
-				abort();
-			}
-			// yay
-			break;
-		}
-	}
-}
-
 int main(int argc, char** argv) {
 	signal(SIGPIPE,SIG_IGN);
 	signal(SIGCHLD,SIG_IGN);
@@ -260,7 +231,7 @@ int main(int argc, char** argv) {
 		else if(numworkers == 3) timeout = 3000;
 		else timeout = WORKER_LIFETIME;
 
-		int res = poll(&pfd,sizeof(pfd)/sizeof(*pfd),timeout);
+		int res = poll((struct pollfd*)&pfd,sizeof(pfd)/sizeof(*pfd),timeout);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
