@@ -114,7 +114,7 @@ void start_worker(void) {
 		dup2(queue[0],0);
 		close(queue[0]);
 		close(queue[1]);
-		execvp("cgexec",args);
+		execvp("cgexec",(void*)args);
 		abort();
 	}
 	started_worker(pid);
