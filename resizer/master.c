@@ -183,7 +183,7 @@ static bool file_changed(struct message* message, const char* filename) {
 
 int main(int argc, char** argv) {
 	signal(SIGPIPE,SIG_IGN);
-	signal(SIGCHLD,SIG_IGN);
+	signal(SIGCHLD,on_chld);
   dolock();
 
 	srand(time(NULL));
