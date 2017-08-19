@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
 	
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
-		if(pfd[2].events == 0) timeout = 0;
+		if(pfd[2].events == 0) timeout = -1;
 		else if(numworkers == 1) timeout = 100;
 		else if(numworkers == 2) timeout = 500;
 		else if(numworkers == 3) timeout = 3000;
