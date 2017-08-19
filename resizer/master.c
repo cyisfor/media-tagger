@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
 							record(ERROR, "queue full!");
 							abort();
 						}
-						if(file_changed(&messages[emess-1], ev.name)) {
+						if(file_changed(&messages[emess], ev.name)) {
 							if(numworkers == 0)
 								start_worker(); // start at least one
 							int res = send_message();
@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
 				int res = send_message();
 				assert(res == sizeof(messages[smess]));
 				smess = (smess + 1) % NMESS;
-				if(smess == emess - 1) {
+				if(smess == emess) {
 					// queue empty
 					// now pull more file changes
 					pfd[WATCHERQUEUE].fd = watcher;
