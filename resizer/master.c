@@ -210,12 +210,12 @@ int main(int argc, char** argv) {
 			.events = POLLIN
 		},
 		{
-			.fd = queue[1],
-			.events = 0
-		},
-		{
 			.fd = died[0],
 			.events = POLLIN
+		},
+		{
+			.fd = queue[1],
+			.events = 0
 		}
 	};
 
@@ -225,20 +225,20 @@ int main(int argc, char** argv) {
 	
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
-		if(pfd[1].events == 0) timeout = 0;
+		if(pfd[2].events == 0) timeout = 0;
 		else if(numworkers == 1) timeout = 100;
 		else if(numworkers == 2) timeout = 500;
 		else if(numworkers == 3) timeout = 3000;
 		else timeout = WORKER_LIFETIME;
 
-		int res = poll((struct pollfd*)&pfd,3,timeout);
+		int res = poll((struct pollfd*)&pfd,pfd[2].events ? 3 : 2,timeout);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
 			abort();
 		}
 		if(res == 0) {
-			assert(pfd[1].events);
+			assert(pfd[2].events);
 			if(numworkers >= NUM) {
 				stop_a_worker();
 			}
@@ -258,15 +258,15 @@ int main(int argc, char** argv) {
 					if(numworkers == 0)
 						start_worker(); // start at least one
 
-					pfd[1].events = POLLOUT;
+					pfd[2].events = POLLOUT;
 				}
 			}
-		} else if(pfd[1].revents) {			
+		} else if(pfd[2].revents) {			
 			// queue ready for writing
 			ssize_t res = write(queue[1],&message,sizeof(message));
 			assert(res == sizeof(message));
 			pfd[1].events = 0;
-		} else if(pfd[2].revents) {
+		} else if(pfd[1].revents) {
 			// something died
 			struct diedmsg msg;
 			ssize_t amt = read(died[0],&msg,sizeof(msg));
