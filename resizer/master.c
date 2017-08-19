@@ -236,20 +236,34 @@ int main(int argc, char** argv) {
 	struct timespec last;
 	clock_gettime(CLOCK_MONOTONIC,&last);
 
-	int worker_lifetime(void) {
+	struct timespec timeout;
+	void worker_lifetime(void) {
 		struct timespec now;
+		timeout.tv_sec = WORKER_LIFETIME / 1000;
+		timeout.tv_nsec = 1000000*(WORKER_LIFETIME%1000);
+		// but reduce the timeout by the difference between last and now.
+		// timeout = timeout - (now - last) watch out for signed error / overflow error
 		clock_gettime(CLOCK_MONOTONIC,&now);
-		int elapsed = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
-		return WORKER_LIFETIME-elapsed > 0 ? WORKER_LIFETIME-elapsed : 0;
+		timeout.tv_sec -= now.tv_sec - last.tv_sec;
+		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec;) {
+			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
+		} else {
+			if(timeout.tv_sec == 0) {
+				timeout.tv_nsec = 0;
+			} else {
+				--timeout.tv_sec;
+				timeout.tv_nsec = 1000000000 - now.tv_nsec + timeout.tv_nsec + last.tv_nsec;
+			}				
+		}
 	}
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
-		if(watching || numworkers > 3) timeout = worker_lifetime();
-		else if(numworkers == 1) timeout = 100;
-		else if(numworkers == 2) timeout = 500;
-		else if(numworkers == 3) timeout = 3000;
+		if(watching || numworkers > 3) worker_lifetime();
+		else if(numworkers == 1) timeout.tv_sec = 100;
+		else if(numworkers == 2) timeout.tv_sec = 500;
+		else if(numworkers == 3) timeout.tv_sec = 3000;
 
-		int res = ppoll((struct pollfd*)&pfd, 2, timeout);
+		int res = ppoll((struct pollfd*)&pfd, 2, &timeout,&mysigs);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
