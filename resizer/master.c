@@ -207,8 +207,15 @@ int main(int argc, char** argv) {
 		}
 	};
 
-	inotify_add_watch(watcher,".",IN_MOVED_TO);
+	inotify_add_watch(watcher,".",IN_MOVED_TO|IN_CLOSE_WRITE);
 
+	/* block the signals we care about
+		 this does NOT ignore them, but queues them up
+		 and interrupts stuff like ppoll (which reenables getting hit by those signals atomically)
+		 then we can read info off the signalfd at our leisure, with no signal handler jammed in-between
+		 an if(numworkers == 0) and start_worker();
+	*/
+		 
 	sigemptyset(&mysigs);
 	sigaddset(&mysigs,SIGCHLD);
 	int res = sigprocmask(SIG_BLOCK, &myset, NULL);
@@ -218,6 +225,7 @@ int main(int argc, char** argv) {
 	// shouldn't need a queue of these... I hope
 	// either poll watcher, or poll queue, if going in or out. always poll signalfd.
 	bool watching = true;
+	
 	struct message messages[0x100]; // keep a ring buffer I guess...
 	int smess = 0;
 	int emess = 0;
@@ -228,7 +236,8 @@ int main(int argc, char** argv) {
 	int worker_lifetime(void) {
 		const struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC,&now);
-		int ms = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
+		int elapsed = (now.tv_sec - last.tv_sec) * 1000 + (now.tv_nsec - last.tv_nsec) / 1000000;
+		return WORKER_LIFETIME-elapsed > 0 ? WORKER_LIFETIME-elapsed : 0;
 	}
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
@@ -270,8 +279,13 @@ int main(int argc, char** argv) {
 						perror("file changed");
 						assert(errno == EINTR || errno == EAGAIN);
 					} else {
-						assert(sizeof(ev) >= amt);
-						assert(emess != smess); // queue full!
+						record(INFO,"file changed %s",ev.name);
+						assert(amt >= sizeof(ev.ev));
+						assert(amt <= sizeof(ev));
+						if(emess != smess) {
+							record(ERROR, "queue full!");
+							abort();
+						}
 						if(file_changed(&messages[emess-1], ev.name)) {
 							emess = (emess + 1) % NMESS;
 							if(numworkers == 0)
@@ -283,6 +297,7 @@ int main(int argc, char** argv) {
 				// queue ready for writing
 				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
 				assert(res == sizeof(messages[smess]));
+				record(INFO,"sent req for %d to child",messages[smess].which);
 				if(++smess == emess - 1) {
 					// queue empty
 					// now pull more file changes
