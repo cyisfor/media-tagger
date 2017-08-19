@@ -22,93 +22,99 @@
 #define WORKER_LIFETIME 3600 * 1000 // like an hour idk
 #define RESTART_DELAY 1000
 
-struct lackey {
-	uv_process_t process;
-	uv_pipe_t pipe;
-	uv_timer_t restart;
-	int which;
-	bool stopped;
-} workers[NUM];
+int queue[2];
 
-void start_lackey(struct lackey* who);
+int *workers = NULL;
+byte numworkers = 0;
 
-
-void lackey_closed(uv_handle_t* req) {
-	// magic
-	struct lackey* self = (struct lackey*)req;
-	self->stopped = true;
-	record(INFO,"not restarting worker yet %d",
-				 self->which);
+void started_worker(int pid) {
+	workers = realloc(workers,(++numworkers)*sizeof(*workers));
+	workers[numworkers-1] = pid;
 }
-	
 
-void wait_then_stop_lackey(uv_process_t *req,
-													 int64_t exit_status,
-													 int term_signal) {
-	struct lackey* self = (struct lackey*)req;
-	record(INFO,"worker %d (%d) died (exit %d sig %d)",
-				 req->pid,
-				 self->which,
-				 exit_status,
-				 term_signal);
-	uv_close((uv_handle_t*)req,lackey_closed);
+struct diedmsg {
+	int pid;
+	int status;
+};
+
+int died[2];
+
+void on_chld(int signum) {
+	for(;;) {
+		diedmsg msg;
+		msg.pid = waitpid(-1,&msg.status,WNOHANG);
+		if(msg.pid < 0) {
+			if(errno == EINTR) continue;
+			assert(errno == EAGAIN);
+			break;
+		}
+		for(;;) {
+			// shouldn't block for small messages, if we drain it soon enough.
+			int res = write(died[1],&msg,sizeof(msg));
+			if(res < 0) {
+				if(errno == EINTR) continue;
+				perror("died");
+				abort();
+			}
+		}
+	}
+}
+
+void worker_died(int pid, int status) {
+	record(INFO,"worker %d died (exit %d sig %d)",
+				 pid,
+				 WEXITSTATUS(status),
+				 WTERMSIG(status));
+	int which;
+	for(which=0;which<numworkers;++which) {
+		if(workers[which] == pid) {
+			memmove(workers+which,
+							workers+which+1,
+							--numworkers - which);
+		}
+	}
+}
+
+void stop_a_worker(void) {
+	/* 
+	byte which;
+	int res = getrandom(&which,sizeof(which),0);
+	assert(sizeof(which) == res);
+	which = which % numworkers;
+	*/
+	
+	static byte which = 0;
+	// note this could kill a worker in the middle of thumbnail generation
+	// but this will also kill a worker stuck in the middle of thumbnail generation
+	record(INFO,"killing worker %d",which);
+	
+	int pid = workers[which];
+	memmove(workers+which,
+					workers+which+1,
+					--numworkers - which);
+	// it'll cycle through them all in a lifetime
+	// visit each once a lifetime
+	which = (which + 1)%numworkers;
+	// just... assume it dies I guess.
+	kill(pid,SIGTERM);
 }
 
 char lackey[PATH_MAX];
 
-void start_lackey(struct lackey* who) {
-	assert(who->stopped);
-	who->stopped = false;
+
+void start_worker(void) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
-	uv_pipe_init(uv_default_loop(), &who->pipe, 1);
-	uv_stdio_container_t io[3] = {
-		{
-			.flags = UV_CREATE_PIPE | UV_READABLE_PIPE,
-			.data.stream = (uv_stream_t*) &who->pipe		
-		},
-		{
-			// stdout
-			.flags = UV_INHERIT_FD
-		},
-		{
-			// stderr
-			.flags = UV_INHERIT_FD
-		}
-	};
-
-	uv_process_options_t opt = {
-		.exit_cb = wait_then_restart_lackey,
-		.file = "cgexec",
-		.args = (char**)args,
-		.cwd = "..",
-		.env = NULL,
-		.flags = UV_PROCESS_WINDOWS_HIDE,
-		.stdio_count = 3,
-		.stdio = io
-	};
-	assert(0==uv_spawn(uv_default_loop(),&who->process, &opt));
-}
-
-void lackey_init(struct lackey* self, int which) {
-	uv_timer_init(uv_default_loop(), &self->restart);
-	self->restart.data = self;
-	self->which = which; // derp
-	self->stopped = true;
-}
-
-void kill_lackey(uv_timer_t* handle) {
-	// randomly kill a worker, to keep them fresh
-	// b/c memory leaks in ImageMagick
-	static int ctr = 0;
-	// note this could kill a worker in the middle of thumbnail generation
-	// but this will also kill a worker stuck in the middle of thumbnail generation
-	record(INFO,"killing worker %d",ctr);
-	uv_process_kill(&workers[ctr].process,SIGTERM);
-	ctr = (ctr + 1)%NUM;
-	// it'll cycle through them all in a lifetime
-	// visit each once a lifetime
+	int pid = fork();
+	if(pid == 0) {
+		dup2(queue[0],0);
+		close(queue[0]);
+		close(queue[1]);
+		execvp("cgexec",cgexec);
+		abort();
+	}
+	started_worker(pid);
 }
 
 static void dolock(void) {
@@ -134,7 +140,7 @@ struct writing {
 };
 
 static void send_to_a_worker(struct writing* self);
-static void file_changed(void* udata, const char* filename) {
+static struct message file_changed(const char* filename) {
 	if(filename[0] == '\0' || filename[0] == '.') return;
 	
 	uint32_t ident = strtol(filename,NULL,0x10);
@@ -151,75 +157,57 @@ static void file_changed(void* udata, const char* filename) {
 
 	char buf[0x100];
 	ssize_t len = read(fd,buf,0x100);
-	
-	struct writing* self = malloc(sizeof(struct writing));
-	uv_timer_init(uv_default_loop(),&self->timer);
-	self->which = 0;
-	
-	self->message.resize = false;
-	self->message.id = ident;
-	
+
+	struct message message = {
+		.resize = false,
+		.id = ident
+	};
+
 	if(len) {
 		buf[len] = '\0';
 		uint32_t width = strtol(buf, NULL, 0x10);
 		if(width > 0) {
 			record(INFO,"Got width %x, sending resize request",width);
-			self->message.resize = true;
-			self->message.resized.width = width;
+			message.resize = true;
+			message.resized.width = width;
 		}
 	}
-	
-	// pick a worker who isn't busy, or wait for one to finish.
-	// workers should only be busy if the write fails.
-	send_to_a_worker(self);
+
+	return message;
 }
 
 static void retry_send_places(uv_timer_t* req);
 static void send_to_a_worker(struct writing* self) {
-	uv_buf_t buf = {
-		.base = (void*)&self->message,
-		.len = sizeof(self->message)
-	};
-	int i;
-	// cycle around the workers naturally this way.
-	static int start = 0;
-	++start;
-	for(i=0;i<NUM;++i) {
-		int which = (start + i) % NUM;
-		if(workers[which].stopped) {
-			record(INFO, "Starting lackey %d for %d", which, self->which);
-			start_lackey(workers[which]);
-		}
-		int err =
-			uv_try_write((uv_stream_t*)&workers[which].pipe, &buf, 1);
-		if(err >= 0) {
-			free(self);
-			return;
-		}
-		if(err == EAGAIN) {
-			record(INFO,"Sending message to worker %d failed",which);
-		} else {
-			record(ERROR,"Write error on worker %d!",which);
+	if(numworkers == 0) {
+		start_worker();
+	} else {
+		// wait for the queue, if timeout fire off another worker
+		struct pollfd pfd = {
+			.fd = queue[1],
+			.events = POLLOUT
+		};
+		int timeout = 0;
+		for(;;) {
+			int res = poll(&pfd, 1, timeout);
+			if(res == 0) {
+				// timeout
+				start_worker();
+				poll(NULL,0,100); // wait a bit
+			}
+			if(res < 0) {
+				if(errno == EINTR) continue;
+				perror("poll");
+				abort();
+			}
+			// yay
+			break;
 		}
 	}
-	record(WARNING,"No workers could take our message!");
-	uv_timer_start(&self->timer, retry_send_places, 1000, 0);
-}
-
-static void retry_send_places(uv_timer_t* req) {
-	// magic
-	struct writing* self = (struct writing*)req;
-	record(WARNING,"Retrying sending %x to all workers...",
-				 self->message.id);
-	send_to_a_worker(self);
 }
 
 int main(int argc, char** argv) {
 	signal(SIGPIPE,SIG_IGN);
-	record(ERROR,"error");
-  record(WARN,"warning");
-  record(INFO,"info");
-  record(DEBUG,"debug");
+	signal(SIGCHLD,SIG_IGN);
   dolock();
 
 	srand(time(NULL));
@@ -239,25 +227,79 @@ int main(int argc, char** argv) {
 	
 	chdir("/home/.local/filedb/incoming");
 
-	uv_timer_t restart_timer;
-	uv_timer_init(uv_default_loop(),&restart_timer);
-	uv_timer_start(&restart_timer, kill_lackey,
-								 WORKER_LIFETIME, WORKER_LIFETIME);
+	pipe(queue);
+	pipe(fail);
+	int watcher = inotify_init();
 
-	int i = 0;
-	record(INFO,"Firing off %d workers",NUM);
-	for(;i<NUM;++i) {
-		lackey_init(&workers[i], i);
-	}
-
-	uv_fs_event_t watchreq;
-	struct watcher handle = {
-		.f = file_changed,
-		.udata = NULL
+	struct pollfd pfd[] = {
+		{
+			.fd = watcher,
+			.events = POLLIN
+		},
+		{
+			.fd = queue[1],
+			.events = 0
+		},
+		{
+			.fd = fail[0],
+			.events = POLLIN
+		}
 	};
-	watch_dir(&watchreq,
-						".",
-						&handle);				
-						
-	return uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+	inotify_add_watch(watcher,".",IN_MOVED_TO);
+	int timeout;
+	struct message message = {};
+	
+	for(;;) {
+		// ramp up timeout the more workers we have hanging out there
+		if(pfd[1].events == 0) timeout = 0;
+		else if(numworkers == 1) timeout = 100;
+		else if(numworkers == 2) timeout = 500;
+		else if(numworkers == 3) timeout = 3000;
+		else timeout = WORKER_LIFETIME;
+
+		int res = poll(&pfd,sizeof(pfd)/sizeof(*pfd),timeout);
+		if(res < 0) {
+			if(errno == EINTR) continue;
+			perror("poll");
+			abort();
+		}
+		if(res == 0) {
+			assert(pfd[1].events);
+			if(numworkers >= NUM) {
+				stop_a_worker();
+			}
+			start_worker();
+			poll(NULL,0,100); // wait a bit
+			continue;
+		}
+		if(pfd[0].revents) {
+			// file changed
+			struct inotify_event ev;
+			ssize_t amt = read(watcher,&ev,sizeof(ev));
+			if(amt < 0) {
+				assert(errno == EINTR || errno == EAGAIN);
+			} else {
+				assert(sizeof(ev) == amt);
+				message = file_changed(ev.name);
+				if(numworkers == 0)
+						start_worker(); // start at least one
+
+				pfd[1].events = POLLOUT;
+			}
+		} else if(pfd[1].revents) {			
+			// queue ready for writing
+			ssize_t res = write(queue[1],&self->message,sizeof(self->message));
+			assert(res == sizeof(self->message));
+			pfd[1].events = 0;
+		} else if(pfd[2].revents) {
+			// something died
+			struct diedmsg msg;
+			ssize_t amt = read(died[0],&msg,sizeof(msg));
+			assert(amt == sizeof(msg));
+			worker_died(msg.pid, msg.status);
+		} 
+			
+	}
+			
 }
