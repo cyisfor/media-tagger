@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
 				perror("file changed");
 				assert(errno == EINTR || errno == EAGAIN);
 			} else {
-				assert(sizeof(ev) == amt);
+				assert(sizeof(ev) >= amt);
 				if(file_changed(&message, ev.name)) {
 					if(numworkers == 0)
 						start_worker(); // start at least one
