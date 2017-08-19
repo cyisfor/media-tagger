@@ -30,6 +30,16 @@
 
 int errsock = -1;
 
+
+static void enter_debug(void) {
+	static int wait = 1;
+	printf("\ngdb -p %d\n",getpid());
+	while(wait) {
+		sleep(1);
+	}
+}
+
+
 int make_thumbnail(context* ctx, uint32_t id) {
   char* source = filedb_path("media",id);
   assert(source);
@@ -39,6 +49,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		return 0;
 	}
 
+	enter_debug();
   VipsImage* image = lib_thumbnail(ctx);
 	char* dest = filedb_path("thumb",id);
 	
