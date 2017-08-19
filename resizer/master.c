@@ -321,6 +321,9 @@ int main(int argc, char** argv) {
 							} else {
 								assert(res == sizeof(messages[smess]));
 								// don't bother queuing it.
+								watching = true;
+								pfd[WATCHERQUEUE].fd = watcher;
+								pfd[WATCHERQUEUE].events = POLLIN;
 							}
 						}
 					}
