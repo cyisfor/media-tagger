@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
 #define NMESS 1024
 	struct message messages[NMESS]; // keep a ring buffer I guess...
 	int smess = 0;
-	int emess = 0;
+	int emess = 1;
 
 	struct timespec last;
 	clock_gettime(CLOCK_MONOTONIC,&last);
@@ -315,7 +315,7 @@ int main(int argc, char** argv) {
 				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
 				assert(res == sizeof(messages[smess]));
 				record(INFO,"sent req for %d to child",messages[smess].id);
-				smess = (smess + 1 ) % NMESS;
+				smess = (smess + 1) % NMESS;
 				if(smess == emess - 1) {
 					// queue empty
 					// now pull more file changes
