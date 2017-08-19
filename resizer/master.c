@@ -286,9 +286,9 @@ int main(int argc, char** argv) {
 			abort();
 		}
 		if(res == 0) {
-			// timed out... we should kill a worker
-
 			if(!watching) {
+				// timed out while writing... we should kill a worker
+
 				if(numworkers >= NUM) {
 					stop_a_worker();
 				}
