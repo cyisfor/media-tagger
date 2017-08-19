@@ -143,7 +143,8 @@ struct writing {
 };
 
 static void send_to_a_worker(struct writing* self);
-static struct message file_changed(const char* filename) {
+static bool file_changed(struct message* message, const char* filename) {
+	if(filename[0] == '\0' || filename[0] == '.') return false;
 
 	uint32_t ident = strtol(filename,NULL,0x10);
 	assert(ident > 0 && ident < (1<<31)); // can bump 1<<31 up in message.h l8r
@@ -151,7 +152,7 @@ static struct message file_changed(const char* filename) {
 	int fd = open(filename,O_RDONLY);
 	if(fd == -1) {
 		// got deleted somehow
-		return;
+		return false;
 	}
 	// regardless of success, if fail this'll just repeatedly fail 
   // so delete it anyway
@@ -160,22 +161,21 @@ static struct message file_changed(const char* filename) {
 	char buf[0x100];
 	ssize_t len = read(fd,buf,0x100);
 
-	struct message message = {
-		.resize = false,
-		.id = ident
-	};
-
+	message->id = ident;
 	if(len) {
 		buf[len] = '\0';
 		uint32_t width = strtol(buf, NULL, 0x10);
 		if(width > 0) {
 			record(INFO,"Got width %x, sending resize request",width);
-			message.resize = true;
-			message.resized.width = width;
+			message->resize = true;
+			message->resized.width = width;
+			return true;
 		}
+	} else {
+		message->resize = false;
+		return true;
 	}
-
-	return message;
+	return false;
 }
 
 static void retry_send_places(uv_timer_t* req);
@@ -283,8 +283,7 @@ int main(int argc, char** argv) {
 				assert(errno == EINTR || errno == EAGAIN);
 			} else {
 				assert(sizeof(ev) == amt);
-				if(filename[0] != '\0' && filename[0] != '.') {
-					message = file_changed(ev.name);
+				if(file_changed(&message, ev.name)) {
 					if(numworkers == 0)
 						start_worker(); // start at least one
 
