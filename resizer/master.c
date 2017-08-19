@@ -314,7 +314,7 @@ int main(int argc, char** argv) {
 				// queue ready for writing
 				ssize_t res = write(queue[1],&messages[smess],sizeof(messages[smess]));
 				assert(res == sizeof(messages[smess]));
-				record(INFO,"sent req for %d to child",messages[smess].which);
+				record(INFO,"sent req for %d to child",messages[smess].id);
 				if(++smess == emess - 1) {
 					// queue empty
 					// now pull more file changes
@@ -334,8 +334,8 @@ int main(int argc, char** argv) {
 					abort();
 				}
 				assert(amt == sizeof(info));
-				assert(info.si_signo == SIGCHLD);
-				// don't care about si_pid since multiple kids could have exited
+				assert(info.ssi_signo == SIGCHLD);
+				// don't care about ssi_pid since multiple kids could have exited
 				reap_workers();
 			}
 		}
