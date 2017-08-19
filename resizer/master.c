@@ -194,6 +194,11 @@ int main(int argc, char** argv) {
 
 	enum { SIGNALS, WATCHERQUEUE };
 
+	sigemptyset(&mysigs);
+	sigaddset(&mysigs,SIGCHLD);
+	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
+	assert(res == 0);
+	
 	// could technically use queue[1] for this, since never read from it...?
 	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
@@ -218,11 +223,6 @@ int main(int argc, char** argv) {
 		 an if(numworkers == 0) and start_worker();
 	*/
 		 
-	sigemptyset(&mysigs);
-	sigaddset(&mysigs,SIGCHLD);
-	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
-	assert(res == 0);
-
 	// shouldn't need a queue of these... I hope
 	// either poll watcher, or poll queue, if going in or out. always poll signalfd.
 	bool watching = true;
