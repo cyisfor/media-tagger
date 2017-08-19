@@ -95,6 +95,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		return 0;
 	}
 
+	duration /= 1000; // it's in milliseconds...
 	snprintf(buf,0x100,"%lf",duration / 4);
 	record(WARN,"Uhm seeking to %lf",duration/4);
 
