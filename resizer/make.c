@@ -73,7 +73,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		close(io[1]);
 		close(2);
 		execlp("ffprobe","ffprobe",
-					 "-show_entries", "format=duration",
+					 "-show_entries", "format=duration,start_time",
 					 "-of","default=nw=1:nk=1",
 					 source,NULL);
 		abort();
@@ -86,6 +86,19 @@ int make_thumbnail(context* ctx, uint32_t id) {
 	double duration = strtod(buf, &end);
 	if(end && end == buf) {
 		record(ERROR,"not a float? %s",buf);
+	}
+	// some BROKEN movies are 2 seconds long, then say "oh but we're 30s long we just start at 28s hurr durr"
+	char* cur = end;
+	double start_time = strtod(cur,&end);
+	if(end == cur) {
+		record(ERROR,"not a float start time %s",buf);
+	} else {
+		if(duration < start_time) {
+			record(ERROR,"ffmpeg devs can't count to 10");
+			duration = start_time - duration;
+		} else {
+			duration -= start_time;
+		}
 	}
 	int status;
 	waitpid(pid,&status,0);
