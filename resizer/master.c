@@ -251,6 +251,7 @@ int main(int argc, char** argv) {
 			struct inotify_event ev;
 			ssize_t amt = read(watcher,&ev,sizeof(ev));
 			if(amt < 0) {
+				perror("file changed");
 				assert(errno == EINTR || errno == EAGAIN);
 			} else {
 				assert(sizeof(ev) == amt);
