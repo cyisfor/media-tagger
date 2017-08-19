@@ -87,9 +87,13 @@ void stop_a_worker(void) {
 
 	// should we not remove it proactively?
 	int pid = workers[which];
-	memmove(workers+which,
-					workers+which+1,
-					--numworkers - which);
+	if(which == numworkers-1) {
+		--numworkers;
+	} else {
+		memmove(workers+which,
+						workers+which+1,
+						--numworkers - which);
+	}
 	// it'll cycle through them all in a lifetime
 	// visit each once a lifetime
 	which = (which + 1)%numworkers;
