@@ -270,7 +270,7 @@ int main(int argc, char** argv) {
 			// queue ready for writing
 			ssize_t res = write(queue[1],&message,sizeof(message));
 			assert(res == sizeof(message));
-			pfd[1].events = 0;
+			pfd[2].events = 0;
 		} else if(pfd[1].revents) {
 			// something died
 			struct diedmsg msg;
