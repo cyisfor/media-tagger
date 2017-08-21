@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
 			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
 		} else if(timeout.tv_sec == 0) {
 			timeout.tv_nsec = 0;
-		} else if(timeout.tv_sec <= 0) {
+		} else if(timeout.tv_sec < 0) {
 			timeout.tv_sec = 0;
 			timeout.tv_nsec = 1000000;
 		} else {
