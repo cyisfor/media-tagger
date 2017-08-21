@@ -260,7 +260,6 @@ int main(int argc, char** argv) {
 		// but reduce the timeout by the difference between last and now.
 		// timeout = timeout - (now - last) watch out for signed error / overflow error
 		clock_gettime(CLOCK_MONOTONIC,&now);
-		timeout.tv_sec -= now.tv_sec - last.tv_sec;
 		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec) {
 			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
 		} else if(timeout.tv_sec == 0) {
@@ -272,6 +271,7 @@ int main(int argc, char** argv) {
 			--timeout.tv_sec;
 			timeout.tv_nsec = 1000000000 - now.tv_nsec + timeout.tv_nsec + last.tv_nsec;				
 		}
+		assert(timeout.tv_sec >= 0);
 	}
 	for(;;) {
 		// ramp up timeout the more workers we have hanging out there
@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
 		else if(numworkers == 1) timeout.tv_sec = 100;
 		else if(numworkers == 2) timeout.tv_sec = 500;
 		else if(numworkers == 3) timeout.tv_sec = 3000;
-
+		
 		int res = ppoll((struct pollfd*)&pfd, 2, &timeout,&mysigs);
 		if(res < 0) {
 			if(errno == EINTR) continue;
