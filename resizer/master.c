@@ -263,13 +263,14 @@ int main(int argc, char** argv) {
 		timeout.tv_sec -= now.tv_sec - last.tv_sec;
 		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec) {
 			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
+		} else if(timeout.tv_sec < 0) {
+			timeout.tv_sec = 0;
+			timeout.tv_nsec = 1000000;
+		} else if(timeout.tv_sec == 0) {
+			timeout.tv_nsec = 0;
 		} else {
-			if(timeout.tv_sec == 0) {
-				timeout.tv_nsec = 0;
-			} else {
-				--timeout.tv_sec;
-				timeout.tv_nsec = 1000000000 - now.tv_nsec + timeout.tv_nsec + last.tv_nsec;
-			}				
+			--timeout.tv_sec;
+			timeout.tv_nsec = 1000000000 - now.tv_nsec + timeout.tv_nsec + last.tv_nsec;				
 		}
 	}
 	for(;;) {
