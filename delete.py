@@ -11,6 +11,7 @@ version = Versioner('delete')
 def _():
 	db.setup('''CREATE TABLE blacklist(
 		id SERIAL PRIMARY KEY,
+	  oldmedium INTEGER NOT NULL REFERENCES media(id),
 		hash character varying(28) UNIQUE,
 		reason TEXT)''',
 			 '''CREATE TABLE dupes(
