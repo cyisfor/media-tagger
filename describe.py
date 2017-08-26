@@ -39,7 +39,8 @@ def edit(which):
 			temp.write(oldblurb.encode("utf-8"))
 			temp.flush()
 		editor = os.environ.get("EDITOR","emacs")
-		s = Gio.Subprocess.new([editor,temp.name],Gio.SubprocessFlags.None)
+		s = Gio.Subprocess.new([editor,temp.name],
+													 Gio.SubprocessFlags.None)
 		@partial(s.wait_async,None)
 		def _(s, res):
 			buf = mmap(temp.fileno(),0)
@@ -54,7 +55,7 @@ input = lambda p: None
 
 win = Gtk.Window()
 loop = GLib.MainLoop()
-win.connect("delete-event", loop.quit)
+win.connect("delete-event", lambda *a: loop.quit())
 
 grid = Gtk.Grid()
 win.add(grid)
