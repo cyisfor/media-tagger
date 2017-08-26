@@ -39,7 +39,7 @@ def edit(which):
 			temp.write(oldblurb.encode("utf-8"))
 			temp.flush()
 		editor = os.environ.get("EDITOR","emacs")
-		s = Gio.Subprocess.new([editor,temp.name])
+		s = Gio.Subprocess.new([editor,temp.name],Gio.SubprocessFlags.None)
 		@partial(s.wait_async,None)
 		def _(s, res):
 			buf = mmap(temp.fileno(),0)
