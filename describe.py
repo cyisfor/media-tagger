@@ -37,7 +37,8 @@ from functools import partial
 input = lambda p: None
 
 win = Gtk.Window()
-win.connect("delete-event", Gtk.main_quit)
+loop = GLib.MainLoop()
+win.connect("delete-event", loop.quit)
 
 grid = Gtk.Grid()
 win.add(grid)
@@ -65,4 +66,4 @@ def _(b):
 	edit(int(entry.get_text(),0x10))
 
 win.show_all()
-Gtk.main()
+loop.run()
