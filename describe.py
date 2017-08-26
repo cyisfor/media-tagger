@@ -5,11 +5,13 @@ import db
 
 import sys,os,tempfile
 from mmap import mmap
-import subprocess as s
+from delete import findId
 
-def edit(which):
+if len(sys.argv) > 1:
+	which = findId(sys.argv[1])
+	import subprocess as s
 	@describe(which,manual=True)
-	def _(oldblurb):
+	def _(oldblurb,changed):
 		temp = tempfile.NamedTemporaryFile(suffix=".html")
 		if oldblurb:
 			print("old",oldblurb)
@@ -20,17 +22,31 @@ def edit(which):
 
 		buf = mmap(temp.fileno(),0)
 		temp.close()
-		return buf[:]
-
-from delete import findId
-			
-if len(sys.argv) > 1:
-	edit(findId(sys.argv[1]))
+		with buf:
+			changed(buf[:])
 	raise SystemExit
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, Gio
+
+def edit(which):
+	@describe(which,manual=True)
+	def _(oldblurb,changed):
+		temp = tempfile.NamedTemporaryFile(suffix=".html")
+		if oldblurb:
+			print("old",oldblurb)
+			temp.write(oldblurb.encode("utf-8"))
+			temp.flush()
+		editor = os.environ.get("EDITOR","emacs")
+		s = Gio.Subprocess.new([editor,temp.name])
+		@partial(s.wait_async,None)
+		def _(s, res):
+			buf = mmap(temp.fileno(),0)
+			temp.close()
+			with buf:
+				changed(buf[:])
+
 
 from functools import partial
 
