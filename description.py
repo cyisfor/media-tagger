@@ -17,13 +17,7 @@ def _():
 version.setup()
 
 def describe(ident,manual=False):
-	def operation(change):
-		blurb = db.execute("SELECT blurb FROM descriptions WHERE id = $1",
-													(ident,))
-		if blurb:
-			blurb = blurb[0][0]
-		db.execute('BEGIN')
-		blurb = change(blurb)
+	def changed(blurb=None):
 		r = db.execute('SELECT id FROM descriptions WHERE id = $1',(ident,))
 		if r:
 			if blurb:
@@ -37,4 +31,11 @@ def describe(ident,manual=False):
 		r = r[0][0]
 		print('id',hex(r))
 		return r
+	def operation(change):
+		blurb = db.execute("SELECT blurb FROM descriptions WHERE id = $1",
+													(ident,))
+		if blurb:
+			blurb = blurb[0][0]
+		db.execute('BEGIN')
+		blurb = change(blurb,changed)
 	return operation

@@ -66,7 +66,8 @@ b = Gtk.Button(label="Paste")
 grid.add(b)
 clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 def gotclip(c,text):
-	entry.set_text('%x'%findId(text))
+	try: entry.set_text('%x'%findId(text))
+	except ValueError: pass
 
 @partial(b.connect,"clicked")
 def _(b):
