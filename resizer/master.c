@@ -370,6 +370,7 @@ int main(int argc, char** argv) {
 			}
 		} else if(pfd[SIGNALS].revents) {
 			// something died
+			// TODO: stop repeatedly trying to make thumbnails if it keeps dying
 			struct signalfd_siginfo info;
 			for(;;) {
 				ssize_t amt = read(signals,&info,sizeof(info));
