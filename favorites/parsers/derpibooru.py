@@ -58,6 +58,12 @@ class parse:
 			if line:
 				line = parse.parseLine(line).strip()
 				if line:
+					def bracketag(name,start,end):
+						line = line.replace("["+name+"]",start)
+						line = line.replace("[/"+name+"]",end)
+					bracketag("spoiler","<div class=spoiler>", "</div>")
+					bracketag("bq","<blockquote>", "</blockquote>")
+					line = line.replace(
 					ret += '<p>' + line + '</p>\n'
 		return ret
 	def parseLine(s):
