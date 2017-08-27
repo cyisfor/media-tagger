@@ -37,6 +37,14 @@ int main(int argc, char** argv) {
 			make_resized(ctx,m.resized.id,m.resized.width);
 		else
 			make_thumbnail(ctx,m.id);
+		// regardless of success, if fail this'll just repeatedly fail
+		// so delete it anyway
+		{
+			char filename[PATH_MAX];
+			snprintf(filename,"%x",m.id);
+			unlink(filename);
+		}
+
 		alarm(WORKER_IDLE);
 	}
 }		
