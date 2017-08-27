@@ -52,8 +52,9 @@ class parse:
 	def parse(s):
 		if s is None:
 			return
-		// these are easy
+		# these are easy
 		def bracketag(name,start,end):
+			nonlocal s
 			s = s.replace("["+name+"]",start)
 			s = s.replace("[/"+name+"]",end)
 		bracketag("spoiler","<div class=spoiler>", "</div>")
