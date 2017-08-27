@@ -274,8 +274,8 @@ def update(id,sources,tags,name):
 		# only new tags please
 		tags = set(tags)-set(oldTags)
 		if tags:
-			print(tags)
-			raise SystemExit
+			for tag in tags:
+				assert tag is not None, tags
 			tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
