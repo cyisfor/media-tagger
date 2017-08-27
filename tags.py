@@ -18,6 +18,54 @@ def disconnect(thing,nega):
 
 db.execute("SET work_mem TO 100000")
 
+def toids_posi(posi):
+	if isinstance(list(posi)[0],str):
+		categories = collections.defaultdict(list)
+		posi = list(posi)
+		# note: do NOT set posi since we still need them as string names
+		ntags = tuple(set(row[0] for row in db.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(posi,))))
+		note("connect")
+		for i in range(len(posi)):
+			if ':' in posi[i]:
+				category,name = posi[i].split(':')
+				category = db.execute("SELECT findTag($1)",(category,))[0][0]
+				name = db.execute("SELECT findTag($1)",(name,))[0][0]
+				wholetag = ntags[i]
+				categories[category].append(wholetag)
+				# NOT connect(category,wholetag)
+				# XXX: ...until we can fix the search to be breadth first...?
+				db.execute("SELECT connectOne($1,$2)",(name,wholetag))
+				db.execute("SELECT connectOne($1,$2)",(wholetag,name))
+		for category,ctags in categories.items():
+			db.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
+		return ntags
+	elif hasattr(list(posi)[0],'category'):
+		categories = collections.defaultdict(list)
+		out = []
+		for tag in posi:
+			if tag.category is None:
+				whole = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
+			else:
+				category = db.execute("SELECT findTag($1)",(tag.category,))[0][0]
+				name = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
+				whole = db.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
+				categories[category].append(whole)
+				db.execute("SELECT connectOne($1,$2)",(name,whole))
+				db.execute("SELECT connectOne($1,$2)",(whole,name))
+			out.append(whole)
+		for category,stags in categories.items():
+			db.execute('SELECT connectManyToOne($1,$2)',(stags,category))
+		return out
+
+def toids_nega(nega):
+	if isinstance(list(nega)[0],str):
+		# XXX: should we cascade tag deletion somehow...? delete artist -> all artist tags ew no
+		nega = db.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(nega,))
+		nega = [row[0] for row in nega]
+	elif hasattr(list(nega)[0],'category'):
+		nega = [db.execute('SELECT id FROM tags WHERE name = $1 AND category = $2',(tag.name,tag.category))[0][0] for tag in nega]
+		return nega
+			
 def tag(thing,tags):
 	if not isinstance(tags,Taglist):
 		derp = Taglist()
@@ -32,55 +80,13 @@ def tag(thing,tags):
 		implied = parse(implied)
 	with db.transaction():
 		if tags.nega:
-			if isinstance(list(tags.nega)[0],str):
-				# XXX: should we cascade tag deletion somehow...? delete artist -> all artist tags ew no
-				tags.nega = db.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(tags.nega,))
-				tags.nega = [row[0] for row in tags.nega]
-			elif hasattr(list(tags.nega)[0],'category'):
-				tags.nega = [db.execute('SELECT id FROM tags WHERE name = $1 AND category = $2',(tag.name,tag.category))[0][0] for tag in tags.nega]
-
+			tags.nega = toids_nega(tags.nega)
 			if implied: 
 				tags.update(implied)
 				implied = None
 			disconnect(thing,tags.nega)
 		if tags.posi:
-			if isinstance(list(tags.posi)[0],str):
-				categories = collections.defaultdict(list)
-				tags.posi = list(tags.posi)
-				# note: do NOT set tags.posi since we still need them as string names
-				ntags = tuple(set(row[0] for row in db.execute('SELECT findTag(name) FROM unnest($1::text[]) AS name',(tags.posi,))))
-				note("connect")
-				for i in range(len(tags.posi)):
-					if ':' in tags.posi[i]:
-						category,name = tags.posi[i].split(':')
-						category = db.execute("SELECT findTag($1)",(category,))[0][0]
-						name = db.execute("SELECT findTag($1)",(name,))[0][0]
-						wholetag = ntags[i]
-						categories[category].append(wholetag)
-						# NOT connect(category,wholetag)
-						# XXX: ...until we can fix the search to be breadth first...?
-						db.execute("SELECT connectOne($1,$2)",(name,wholetag))
-						db.execute("SELECT connectOne($1,$2)",(wholetag,name))
-				for category,ctags in categories.items():
-					db.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
-				tags.posi = ntags
-			elif hasattr(list(tags.posi)[0],'category'):
-				categories = collections.defaultdict(list)
-				out = []
-				for tag in tags.posi:
-					if tag.category is None:
-						whole = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
-					else:
-						category = db.execute("SELECT findTag($1)",(tag.category,))[0][0]
-						name = db.execute('SELECT findTag($1)',(tag.name,))[0][0]
-						whole = db.execute('SELECT findTag($1)',(tag.category+':'+tag.name,))[0][0]
-						categories[category].append(whole)
-						db.execute("SELECT connectOne($1,$2)",(name,whole))
-						db.execute("SELECT connectOne($1,$2)",(whole,name))
-					out.append(whole)
-				for category,stags in categories.items():
-					db.execute('SELECT connectManyToOne($1,$2)',(stags,category))
-				tags.posi = out
+			tags.posi = toids_posi(tags.posi)
 			if implied: tags.update(implied)
 			note("1tomany")
 			db.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
