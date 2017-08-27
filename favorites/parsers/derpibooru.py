@@ -36,6 +36,7 @@ def tagoid(lookup):
 	return lambda s: pat.sub(repl, s)
 
 striplinks = 'striplinks' in os.environ
+assert striplinks
 
 class parse:
 	base = 'https://derpibooru.org'
