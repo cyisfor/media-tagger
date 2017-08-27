@@ -65,14 +65,15 @@ class parse:
 		for m in parse.links.finditer(s):
 			mstart, mend = m.span()
 			ret += parse.parsePart(s[start:mstart])
-			if not striplinks: 
-				ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+parse.parsePart(m.group(1))+'</a>'
+			ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+parse.parsePart(m.group(1))+'</a>'
 			start = mend
 		ret += parse.parsePart(s[start:])
 		return ret
 	def parsePart(s):
 		s = parse.tags(s)
 		def repl(m):
+			if striplinks:
+				return ""
 			import db
 			note.purple("um",m.group(1))
 			uri = 'https://derpibooru.org/'+m.group(1)
