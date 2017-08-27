@@ -249,6 +249,16 @@ int main(int argc, char** argv) {
 		return write(queue[1],&messages[smess],sizeof(messages[smess]));
 	}
 
+	{
+		DIR* d = opendir(".");
+		struct dirent* ent;
+		while((ent = readdir(d))) {
+			if(file_changed(&messages[smess],ent->d_name))
+				send_message();
+		}
+		closedir(d);
+	}
+
 	struct timespec last;
 	clock_gettime(CLOCK_MONOTONIC,&last);
 
