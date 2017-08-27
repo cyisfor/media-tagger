@@ -57,7 +57,7 @@ class parse:
 			nonlocal s
 			s = s.replace("["+name+"]",start)
 			s = s.replace("[/"+name+"]",end)
-		bracketag("spoiler","<div class=spoiler>", "</div>")
+		bracketag("spoiler","<span class=spoiler>", "</span>")
 		bracketag("bq","<blockquote>", "</blockquote>")
 
 		ret = ""
