@@ -1,5 +1,5 @@
 from favorites.things import *
-import re
+import re,os
 import urllib.parse
 import note
 
@@ -35,9 +35,12 @@ def tagoid(lookup):
 		raise RuntimeError("should have matched!")
 	return lambda s: pat.sub(repl, s)
 
+striplinks = 'striplinks' in os.environ
+
 class parse:
 	base = 'https://derpibooru.org'
-	tags = tagoid({"_": 'i',
+	tags = tagoid({"==": 'pre',
+								 "_": 'i',
 								 "\\*": 'b',
 								 "\\+": 'u',
 								 "-": 's'})
@@ -61,7 +64,8 @@ class parse:
 		for m in parse.links.finditer(s):
 			mstart, mend = m.span()
 			ret += parse.parsePart(s[start:mstart])
-			ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+parse.parsePart(m.group(1))+'</a>'
+			if not striplinks: 
+				ret += '<a href=\"'+urllib.parse.urljoin(parse.base,m.group(2))+'">'+parse.parsePart(m.group(1))+'</a>'
 			start = mend
 		ret += parse.parsePart(s[start:])
 		return ret
