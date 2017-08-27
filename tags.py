@@ -19,7 +19,10 @@ def disconnect(thing,nega):
 db.execute("SET work_mem TO 100000")
 
 def toids_posi(posi):
-	if isinstance(list(posi)[0],str):
+	one = list(posi)[0]
+	if isinstance(one,int):
+		return posi
+	if isinstance(one,str):
 		categories = collections.defaultdict(list)
 		posi = list(posi)
 		# note: do NOT set posi since we still need them as string names
@@ -39,7 +42,7 @@ def toids_posi(posi):
 		for category,ctags in categories.items():
 			db.execute("SELECT connectManyToOne($1,$2)",(ctags,category))
 		return ntags
-	elif hasattr(list(posi)[0],'category'):
+	elif hasattr(one,'category'):
 		categories = collections.defaultdict(list)
 		out = []
 		for tag in posi:
@@ -56,13 +59,18 @@ def toids_posi(posi):
 		for category,stags in categories.items():
 			db.execute('SELECT connectManyToOne($1,$2)',(stags,category))
 		return out
+	else:
+		raise RuntimeException("what is "+repr(posi))
 
 def toids_nega(nega):
-	if isinstance(list(nega)[0],str):
+	one = list(nega)[0]
+	if isinstance(one,int):
+		return nega
+	if isinstance(one,str):
 		# XXX: should we cascade tag deletion somehow...? delete artist -> all artist tags ew no
 		nega = db.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(nega,))
 		nega = [row[0] for row in nega]
-	elif hasattr(list(nega)[0],'category'):
+	elif hasattr(one,'category'):
 		# this SHOULD work
 		# nega = [db.execute('SELECT id FROM things WHERE neighbors @> array(select id from tags where name = $1 UNION select id from tags where name = $2)',(tag.name,tag.category)) for tag in nega]
 		# nega = [tag[0][0] for tag in nega if tag]
@@ -70,7 +78,8 @@ def toids_nega(nega):
 		nega = [db.execute('SELECT id FROM tags WHERE name = $1',(whole,))[0][0]
 						for whole in nega]
 		return nega
-			
+	else:
+		raise RuntimeException("what is "+repr(posi))
 def tag(thing,tags):
 	if not isinstance(tags,Taglist):
 		derp = Taglist()
