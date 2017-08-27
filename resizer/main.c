@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
 		{
 			char filename[PATH_MAX];
 			snprintf(filename,PATH_MAX,"%x",m.id);
+			record(INFO,"Deleting %s",filename);
 			unlink(filename);
 		}
 
