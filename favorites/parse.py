@@ -188,7 +188,7 @@ def parse(primarySource,noCreate=False,progress=None):
 				if description:
 					note("yay",description,wasCreated)
 					@describe(image)
-					def _(olddesc):
+					def describing(olddesc):
 						if not olddesc:
 							return description
 				for e in explanations:
