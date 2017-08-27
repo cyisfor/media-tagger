@@ -147,9 +147,6 @@ static bool file_changed(struct message* message, const char* filename) {
 		// got deleted somehow
 		return false;
 	}
-	// regardless of success, if fail this'll just repeatedly fail
-  // so delete it anyway
-  unlink(filename);
 
 	char buf[0x100];
 	ssize_t len = read(fd,buf,0x100);
