@@ -247,11 +247,18 @@ int main(int argc, char** argv) {
 	}
 
 	{
+		bool gotsome = false;
 		DIR* d = opendir(".");
 		struct dirent* ent;
 		while((ent = readdir(d))) {
-			if(file_changed(&messages[smess],ent->d_name))
+			if(file_changed(&messages[smess],ent->d_name)) {
+				if(!gotsome) {
+					start_worker();
+					gotsome = true;
+				}
+
 				send_message();
+			}
 		}
 		closedir(d);
 	}
