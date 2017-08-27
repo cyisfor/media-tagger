@@ -63,8 +63,11 @@ def toids_nega(nega):
 		nega = db.execute('SELECT id FROM tags WHERE name = ANY($1::text[])',(nega,))
 		nega = [row[0] for row in nega]
 	elif hasattr(list(nega)[0],'category'):
-		nega = [db.execute('SELECT id FROM things WHERE neighbors @> array(select id from tags where name = $1 UNION select id from tags where name = $2)',(tag.name,tag.category)) for tag in nega]
-		nega = [tag[0][0] for tag in nega if tag]
+		# this SHOULD work
+		# nega = [db.execute('SELECT id FROM things WHERE neighbors @> array(select id from tags where name = $1 UNION select id from tags where name = $2)',(tag.name,tag.category)) for tag in nega]
+		# nega = [tag[0][0] for tag in nega if tag]
+		nega = [db.execute('SELECT id FROM tags WHERE name = $1',tag.category+':'+tag.name)
+						for tag in nega]
 		return nega
 			
 def tag(thing,tags):
