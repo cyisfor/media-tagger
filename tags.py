@@ -67,7 +67,7 @@ def toids_nega(nega):
 		# nega = [db.execute('SELECT id FROM things WHERE neighbors @> array(select id from tags where name = $1 UNION select id from tags where name = $2)',(tag.name,tag.category)) for tag in nega]
 		# nega = [tag[0][0] for tag in nega if tag]
 		nega = [tag.category+':'+tag.name if tag.category else tag.name for tag in nega]
-		nega = [db.execute('SELECT id FROM tags WHERE name = $1',whole)[0][0]
+		nega = [db.execute('SELECT id FROM tags WHERE name = $1',(whole,))[0][0]
 						for whole in nega]
 		return nega
 			
