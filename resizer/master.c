@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 	int emess = 0;
 
 	int send_message(void) {
-		record(INFO,"sending req for %d to child",messages[smess].id);
+		record(INFO,"sending req for %x to child",messages[smess].id);
 		return write(queue[1],&messages[smess],sizeof(messages[smess]));
 	}
 

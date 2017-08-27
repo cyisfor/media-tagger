@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
 	for(;;) {
 		assert(sizeof(m)==read(STDIN_FILENO,&m,sizeof(m)));
-//		puts("boop");
+		puts("boop");
 		if(m.resize)
 			make_resized(ctx,m.resized.id,m.resized.width);
 		else
