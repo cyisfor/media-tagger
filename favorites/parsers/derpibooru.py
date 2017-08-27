@@ -31,6 +31,7 @@ def tagoid(lookup):
 		for i in range(len(keys)):
 			if m.group(i+1):
 				tag = lookup[keys[i]]
+				if tag is None: return m.group(i+1)
 				return '<' + tag + '>' + m.group(i+1) + '</' + tag + '>'
 		raise RuntimeError("should have matched!")
 	return lambda s: pat.sub(repl, s)
@@ -40,7 +41,7 @@ assert striplinks
 
 class parse:
 	base = 'https://derpibooru.org'
-	tags = tagoid({"==": 'pre',
+	tags = tagoid({"==": None,
 								 "_": 'i',
 								 "\\*": 'b',
 								 "\\+": 'u',
