@@ -276,6 +276,7 @@ def update(id,sources,tags,name):
 		if tags:
 			for tag in tags:
 				assert tag is not None, tags
+			print(tags)
 			tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
