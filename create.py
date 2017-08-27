@@ -269,8 +269,10 @@ def update(id,sources,tags,name):
 	donetags = []
 	with db.transaction():
 		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::INTEGER[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
-
-	tagsModule.tag(id,tags)
+		oldTags = db.execute("SELECT neighbors FROM things WHERE id = $1",(id,))[0][0]
+		print(oldTags,tags)
+		raise SystemExit
+		tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
 	if not name:
