@@ -79,7 +79,8 @@ def toids_nega(nega):
 						for whole in nega]
 		return nega
 	else:
-		raise RuntimeException("what is "+repr(posi))
+		raise RuntimeException("what is "+repr(nega))
+	
 def tag(thing,tags):
 	if not isinstance(tags,Taglist):
 		derp = Taglist()
