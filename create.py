@@ -269,7 +269,7 @@ def update(id,sources,tags,name):
 	donetags = []
 	with db.transaction():
 		db.execute("UPDATE media SET name = coalesce($3,name), sources = array(SELECT unnest(sources) from media where id = $2 UNION SELECT unnest($1::INTEGER[])), modified = clock_timestamp() WHERE id = $2",([source.id for source in sources],id,name))
-		oldTags = [tagsModule.Tag(i) for i in db.execute("SELECT neighbors FROM things WHERE id = $1",(id,))[0][0]]
+		oldTags = db.execute("SELECT neighbors FROM things WHERE id = $1",(id,))[0][0]
 		tags = tagsModule.toids_nega(tags)
 		print(oldTags,tags)
 		raise SystemExit
