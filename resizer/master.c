@@ -370,8 +370,9 @@ int main(int argc, char** argv) {
 			int which;
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].efd) {
-					char c;
-					ssize_t amt = read(workers[which].efd,&c,1);
+					ssize_t amt = read(workers[which].efd,&m,1);
+					if(amt < 0) {
+						
 					ensure_eq(amt,1);
 					workers[which].status = IDLE;
 					break;
