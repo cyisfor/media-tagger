@@ -8,7 +8,7 @@ LDFLAGS+=`pkg-config --libs $(PACKAGES)` -lm
 
 LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-all: lackey-bin lackey-master
+all: lackey-bin lackey-master python.so
 
 lackey-bin: main.o $(objects)
 	$(LINK) -lbsd
