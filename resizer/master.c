@@ -126,7 +126,7 @@ struct worker {
 	int in[2];
 	int out[2];
 	uint32_t current;
-	time_t expiration;
+	struct timespec expiration;
 };
 #define MAXWORKERS 1 // # CPUs?
 
@@ -246,8 +246,7 @@ void stop_worker(int which) {
 	kill(workers[which].pid,SIGTERM);
 	reap_workers();
 	if(workers[which].status == DEAD) return;
-	getnowspec(&workers[which].expiration);
-	workers[which].expiration = timeadd(workers[which].expiration,DOOM_DELAY);
+	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
 }
 
 void send_message(size_t which, const struct message m) {
@@ -354,11 +353,11 @@ int main(int argc, char** argv) {
 	size_t soonest_worker;
 	if(numworkers > 0) {
 		size_t i;
-		timeout.tv_sec = workers[0].expiration;
-		timeout.tv_nsec = 0;
+		timeout = workers[0].expiration;
 		for(i=1;i<numworkers;++i) {
-			if(timeout.tv_sec > workers[i].expiration) {
-				timeout.tv_sec = workers[i].expiration;
+			if(timeunits(timediff(timeout.tv_sec, workers[i].expiration)) > 0) {
+				// this worker expires sooner
+				timeout = workers[i].expiration;
 				soonest_worker = i;
 			}
 		}
