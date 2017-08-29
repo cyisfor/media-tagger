@@ -145,6 +145,7 @@ size_t get_worker(size_t off) {
 	if(workers[numworkers].efd < 0) {
 		workers[numworkers].efd = eventfd(0,0);
 	}
+	workers[numworkers].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers);
 	workers[numworkers].pid = start_worker(workers[numworkers].efd);
 	set_expiration(numworkers);
@@ -198,6 +199,7 @@ void send_message(size_t which, const struct message m) {
 		kill(workers[which].pid,SIGTERM);
 	}
 	ensure_eq(amt, sizeof(m));
+	workers[which].current = m.id; // eh
 }
 
 int main(int argc, char** argv) {
