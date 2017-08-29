@@ -196,6 +196,7 @@ int main(int argc, char** argv) {
 			break;
 		}
 	}
+	// same for writing here.
 	int queuefull = open("queuefull",O_RDWR|O_NONBLOCK);
 	assert(queuefull >= 0);
 

@@ -24,4 +24,4 @@ try:
 except (AttributeError,OSError):
 	init()
 
-queue(0x7f851)
+queue(0x7f837)
