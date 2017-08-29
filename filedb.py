@@ -10,6 +10,12 @@ top = base
 
 temp = oj(base,'temp')
 
+class incoming:
+	queue = os.open("incoming/queue",os.O_NONBLOCK | os.O_WRONLY)
+	queuefull =	os.open("incoming/queuefull", os.O_WRONLY)
+	def need(id):
+		os.write
+
 def _incoming(id,contents=None):
 	target = oj(temp,id)
 	if os.path.exists(target): return

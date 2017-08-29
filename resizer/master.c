@@ -26,7 +26,7 @@
 #define WORKER_LIFETIME 3600 * 1000 // like an hour idk
 #define RESTART_DELAY 1000
 
-int queue[2];
+int queue;
 
 typedef unsigned char byte;
 
@@ -111,9 +111,8 @@ void start_worker(void) {
 	int pid = fork();
 	if(pid == 0) {
 		chdir("..");
-		dup2(queue[0],0);
-		close(queue[0]);
-		close(queue[1]);
+		dup2(queue,0);
+		close(queue);
 		execvp("cgexec",(void*)args);
 		abort();
 	}
@@ -168,6 +167,26 @@ static bool file_changed(struct message* message, const char* filename) {
 	return false;
 }
 
+/* inotify keeps missing files, and we don't really need a persistent queue.
+	 just re-queue thumbnails on demand if the computer dies.
+
+	 new plan:
+
+	 1 named pipe
+	 fixed size message struct
+	 various p's write messages to pipe
+	 lackeys read messages from pipe
+	 if pipe is full, send message to master, it may (MAY) spawn more lackeys
+	 then block
+
+
+	 1 named pipe master listens on
+	 when it gets a byte, someone's complaining the pipe is full.
+	 if not max lackeys, spawn a new one.
+	 always make sure at least 1 lackey is there to drain the pipe
+	 setup message pipe to be stdin on lackey
+*/
+
 int main(int argc, char** argv) {
 	sigset_t mysigs;
   dolock();
@@ -187,28 +206,31 @@ int main(int argc, char** argv) {
 	}
 	record(INFO, "lackey '%s'",lackey);
 
-	chdir("/home/.local/filedb/incoming");
+	chdir("/home/.local/filedb/incoming") || abort();
+	mkfifo("queue",0644);
+	mkfifo("queuefull",0644);
 
-	pipe(queue);
-	fcntl(queue[1], F_SETPIPE_SZ, 0);
-	/* rounds up to getpagesize.
-		 that's usually 512 bytes, I think, so
-		 512 / sizeof(struct message) = number that can be queued
-		 512 / 64 = 8 items that can queue up
-		 default is 65536 bytes (0x10000) letting 1024 items queue up
-		 ...which is way too many items.
-	 */
-	fcntl(queue[1],F_SETFL, fcntl(queue[1],F_GETFL) | O_NONBLOCK);
-	int watcher = inotify_init1(IN_NONBLOCK);
+	queue = open("queue",O_RDONLY); // dup2 this to stdin for lackeys, otherwise ignore
+	assert(queue >= 0);
+	int queuefull = open("queuefull",O_RDONLY);
+	assert(queuefull >= 0);
+	fcntl(queuefull,F_SETFL, fcntl(queuefull,F_GETFL) | O_NONBLOCK);
 
-	enum { SIGNALS, WATCHERQUEUE };
+	enum { SIGNALS, QUEUEFULL };
 
+	/* block the signals we care about
+		 this does NOT ignore them, but queues them up
+		 and interrupts stuff like ppoll (which reenables getting hit by those signals atomically)
+		 then we can read info off the signalfd at our leisure, with no signal handler jammed in-between
+		 an if(numworkers == 0) and start_worker();
+	*/
+	
 	sigemptyset(&mysigs);
 	sigaddset(&mysigs,SIGCHLD);
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 	
-	// could technically use queue[1] for this, since never read from it...?
+	// could technically use queue for this, since never read from it...?
 	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
 
@@ -217,156 +239,63 @@ int main(int argc, char** argv) {
 			.fd = signals,
 			.events = POLLIN
 		},
-		[WATCHERQUEUE] = {
-			.fd = watcher,
+		[QUEUEFULL] = {
+			.fd = queuefull,
 			.events = POLLIN
 		}
 	};
 
-	inotify_add_watch(watcher,".",IN_MOVED_TO|IN_CLOSE_WRITE);
+	start_worker();
 
-	/* block the signals we care about
-		 this does NOT ignore them, but queues them up
-		 and interrupts stuff like ppoll (which reenables getting hit by those signals atomically)
-		 then we can read info off the signalfd at our leisure, with no signal handler jammed in-between
-		 an if(numworkers == 0) and start_worker();
-	*/
-		 
-	// shouldn't need a queue of these... I hope
-	// either poll watcher, or poll queue, if going in or out. always poll signalfd.
-	bool watching = true;
-
-#define NMESS 1024
-	struct message messages[NMESS]; // keep a ring buffer I guess...
-	int smess = 0;
-	int emess = 0;
-
-	int send_message(void) {
-		record(INFO,"sending req for %x to child",messages[smess].id);
-		return write(queue[1],&messages[smess],sizeof(messages[smess]));
-	}
-
-	{
-		bool gotsome = false;
-		DIR* d = opendir(".");
-		struct dirent* ent;
-		while((ent = readdir(d))) {
-			if(file_changed(&messages[smess],ent->d_name)) {
-				if(!gotsome) {
-					start_worker();
-					gotsome = true;
-				}
-
-				send_message();
-			}
-		}
-		closedir(d);
-	}
-
-	struct timespec last;
-	clock_gettime(CLOCK_MONOTONIC,&last);
-
-	struct timespec timeout;
-	void worker_lifetime(void) {
-		struct timespec now;
-		timeout.tv_sec = WORKER_LIFETIME / 1000;
-		timeout.tv_nsec = 1000000*(WORKER_LIFETIME%1000);
-		// but reduce the timeout by the difference between last and now.
-		// timeout = timeout - (now - last) watch out for signed error / overflow error
-		clock_gettime(CLOCK_MONOTONIC,&now);
-		if(timeout.tv_nsec + last.tv_nsec >= now.tv_nsec) {
-			timeout.tv_nsec = timeout.tv_nsec + last.tv_nsec - now.tv_nsec;
-		} else if(timeout.tv_sec == 0) {
-			timeout.tv_nsec = 0;
-		} else if(timeout.tv_sec < 0) {
-			timeout.tv_sec = 0;
-			timeout.tv_nsec = 1000000;
-		} else {
-			--timeout.tv_sec;
-			timeout.tv_nsec = 1000000000 - now.tv_nsec + timeout.tv_nsec + last.tv_nsec;				
-		}
-		assert(timeout.tv_sec >= 0);
-	}
 	for(;;) {
-		// ramp up timeout the more workers we have hanging out there
-		if(watching || numworkers > 3) worker_lifetime();
-		else if(numworkers == 1) timeout.tv_sec = 100;
-		else if(numworkers == 2) timeout.tv_sec = 500;
-		else if(numworkers == 3) timeout.tv_sec = 3000;
-		
-		int res = ppoll((struct pollfd*)&pfd, 2, &timeout,&mysigs);
+		int res = ppoll((struct pollfd*)&pfd, 2, NULL, &mysigs);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
 			abort();
 		}
 		if(res == 0) {
-			if(!watching) {
-				// timed out while writing... we should kill a worker
-
-				if(numworkers >= NUM) {
-					stop_a_worker();
-				}
-				start_worker();
-				clock_gettime(CLOCK_MONOTONIC,&last);
-			}
+			// timed out while waiting for events?
 			continue;
 		}
-		if(pfd[WATCHERQUEUE].revents) {
-			// file changed, or need write message
-			if(watching) {
-				struct {
-					struct inotify_event ev;
-					char name[NAME_MAX];
-				} ev;
-				watching = false;
-				pfd[WATCHERQUEUE].fd = queue[1];
-				pfd[WATCHERQUEUE].events = POLLOUT;
+		if(pfd[QUEUEFULL].revents) {
+			char buf[0x1000];
+			size_t pokes = 0;
+			for(;;) {
+				ssize_t amt = read(queuefull,&buf,sizeof(buf));
+				if(amt == 0) {
+					perror("EOF on queuefull...");
+					break;
+				}
+				if(amt < 0) {
+					if(errno == EAGAIN) break;
+					perror("read queue full");
+					abort();
+				}
+				pokes += amt;
+			}
 
-				for(;;) {
-					ssize_t amt = read(watcher,&ev,sizeof(ev));
-					if(amt < 0) {
-						if(errno == EAGAIN) break;
-						perror("file changed");
-						assert(errno == EINTR);
-					} else {
-						record(INFO,"file changed %s",ev.name);
-						assert(amt >= sizeof(ev.ev));
-						assert(amt <= sizeof(ev));
-						if((emess+1)%NMESS == smess) {
-							record(ERROR, "queue full!");
-							abort();
-						}
-						if(file_changed(&messages[emess], ev.name)) {
-							if(numworkers == 0)
-								start_worker(); // start at least one
-							int res = send_message();
-							if(res < 0) {
-								// just trying it out
-								assert(errno == EINTR || errno == EAGAIN);
-								// definitely queue it since we can't write right now
-								emess = (emess + 1) % NMESS;
-							} else {
-								assert(res == sizeof(messages[smess]));
-								// don't bother queuing it.
-								watching = true;
-								pfd[WATCHERQUEUE].fd = watcher;
-								pfd[WATCHERQUEUE].events = POLLIN;
-							}
-						}
-					}
-				}
+			// stop a random worker in case it froze?
+			if(numworkers >= NUM) {
+				stop_a_worker();
+			}
+
+			/* the more pokes, the more stuff is blocking on this (hopefully)
+				 so make sure between cur and NUM lackeys are running, with more pokes closer to NUM
+
+				 TODO: benchmark this to determine how many pokes.
+			*/
+			int target;
+			if(pokes > 10) {
+				target = min(numworkers+3,NUM);
+			} else if(pokes > 3) {
+				target = min(numworkers+2,NUM);
 			} else {
-				int res = send_message();
-				assert(res == sizeof(messages[smess]));
-				smess = (smess + 1) % NMESS;
-				if(smess == emess) {
-					// queue empty
-					// now pull more file changes
-					pfd[WATCHERQUEUE].fd = watcher;
-					pfd[WATCHERQUEUE].events = POLLIN;
-					watching = true;
-				}
+				target = min(numworkers+1,NUM);
+			}
+			int i;
+			for(i=numworkers;i<target;++i) {
+				start_worker();
 			}
 		} else if(pfd[SIGNALS].revents) {
 			// something died
@@ -384,9 +313,9 @@ int main(int argc, char** argv) {
 				assert(info.ssi_signo == SIGCHLD);
 				// don't care about ssi_pid since multiple kids could have exited
 				reap_workers();
-/*				if(numworkers == 0) {
+				if(numworkers == 0) {
 					start_worker();
-				}*/
+				}
 			}
 		}
 	}
