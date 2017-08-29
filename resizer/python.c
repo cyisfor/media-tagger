@@ -7,19 +7,26 @@
 
 // a python ctypes stub for sending IDs as messages...
 
-int init(void) {
-	return open("incoming/queue",O_WRONLY|O_NONBLOCK);
-	return open("incoming/queuefull",O_WRONLY);
+int q,queuefull;
+
+void init(void) {
+	q = open("incoming/queue",O_WRONLY|O_NONBLOCK);
+	queuefull = open("incoming/queuefull",O_WRONLY);
 }
 
-void queue(int dest, uint32_t id, uint32_t width) {
+int queue(int dest, uint32_t id, uint32_t width) {
 	struct message m = {
 		.id = id,
 		.width = width
 	};
-	ssize_t amt = write(dest,&m,sizeof(m));
+	ssize_t amt = write(q,&m,sizeof(m));
 	if(amt == sizeof(m)) return;
 	if(amt < 0) {
+		if(errno == EAGAIN) {
+			char c = 0;
+			write(queuefull,&c,1);
+			return -1;
+		}
 		fprintf(stderr,"%d\n",dest);
 		perror("oops");
 		abort();
