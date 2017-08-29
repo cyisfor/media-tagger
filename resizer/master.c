@@ -235,6 +235,7 @@ int main(int argc, char** argv) {
 			perror("poll");
 			abort();
 		}
+		errno = 0;
 		if(res == 0) {
 			// timed out while waiting for events?
 			continue;

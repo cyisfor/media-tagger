@@ -16,7 +16,7 @@ void init(void) {
 	queuefull = open("incoming/queuefull",O_WRONLY);
 }
 
-int queue(int dest, uint32_t id, uint32_t width) {
+int queue(uint32_t id, uint32_t width) {
 	struct message m = {
 		.id = id,
 		.width = width
@@ -29,7 +29,7 @@ int queue(int dest, uint32_t id, uint32_t width) {
 			write(queuefull,&c,1);
 			return 0;
 		}
-		fprintf(stderr,"%d\n",dest);
+		fprintf(stderr,"%d\n",q);
 		perror("oops");
 		abort();
 	}
