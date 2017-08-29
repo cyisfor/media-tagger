@@ -1,6 +1,7 @@
 #ifndef _TIMEOP_H_
 #define _TIMEOP_H_
 
+#include "ensure.h"
 #include <time.h>
 
 typedef const struct timespec Time;
@@ -13,7 +14,7 @@ typedef const struct timespec Time;
 #define MYCLOCK CLOCK_MONOTONIC
 #endif
 #endif
-#endfi
+#endif
 
 static struct timespec timeres = {};
 typedef long int time_unit;
@@ -43,7 +44,7 @@ SI
 void init_timeop(void) {
 	int r = clock_getres(MYCLOCK, &timeres);
 	ensure_eq(r,0);
-	ensure_ed(timeres.tv_sec,0);
+	ensure_eq(timeres.tv_sec,0);
 	unitpersec = NSECPERSEC / timeres.tv_nsec;
 }
 
