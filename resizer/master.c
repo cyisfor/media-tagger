@@ -118,8 +118,8 @@ enum status { DEAD, DOOMED, IDLE, BUSY };
 struct worker {
 	enum status status;
 	int pid;
-	int in;
-	int out;
+	int in[2];
+	int out[2];
 	uint32_t current;
 	time_t expiration;
 };
