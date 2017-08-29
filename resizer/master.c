@@ -370,6 +370,7 @@ int main(int argc, char** argv) {
 			int which;
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].efd) {
+					struct message m;
 					ssize_t amt = read(workers[which].efd,&m,sizeof(m));
 					if(amt < 0) {
 						perror("huh?");

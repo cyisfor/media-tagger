@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 		else
 			make_thumbnail(ctx,m.id);
 
-		write(STDOUT_FILENO,&m,1);
+		write(STDOUT_FILENO,&m,sizeof(m));
 
 		alarm(WORKER_IDLE);
 	}
