@@ -26,17 +26,17 @@ int queue(int q, uint32_t id, uint32_t width) {
 		.width = width
 	};
 	ssize_t amt = write(q,&m,sizeof(m));
-	if(amt == sizeof(m)) return 1;
+	if(amt == sizeof(m)) return 0;
 	if(amt < 0) {
-		if(errno == EAGAIN) return 0;
+		if(errno == EAGAIN) return 1;
 		fprintf(stderr,"%d\n",q);
 		perror("oops");
-		abort();
+		return 2;
 	}
 	if(amt == 0) {
 		perror("whu?");
-		abort();
+		return 3;
 	}
 	fprintf(stderr,"Ummm %d %d\n",amt,sizeof(m));
-	abort();
+	return 4;
 }
