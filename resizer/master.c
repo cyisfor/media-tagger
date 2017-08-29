@@ -203,6 +203,11 @@ void send_message(size_t which, const struct message m) {
 
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
+
+	size_t i;
+	for(i=0;i<MAXWORKERS;++i) {
+		workers[i].efd = -1;
+	}
 	
 	sigset_t mysigs;
   dolock();
