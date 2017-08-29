@@ -247,6 +247,8 @@ int main(int argc, char** argv) {
 	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
 
+	enum { SIGNALS, INCOMING };
+
 	struct pollfd pfd[NUM+2] = {
 		[SIGNALS] = {
 			.fd = signals,
