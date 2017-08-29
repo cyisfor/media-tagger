@@ -26,12 +26,11 @@ int main(int argc, char** argv) {
 	record(INFO,"Started a lackey!");
   make_init();
 	context* ctx = make_context();
-	struct message m;
 	alarm(WORKER_IDLE);
 
 	for(;;) {
+		struct message m = {};
 		ensure_eq(sizeof(m),read(STDIN_FILENO,&m,sizeof(m)));
-		puts("boop");
 		if(m.width > 0)
 			make_resized(ctx,m.id,m.width);
 		else
