@@ -40,6 +40,10 @@ void started_worker(int pid) {
 	workers = realloc(workers,(++numworkers)*sizeof(*workers));
 	workers[numworkers-1] = pid;
 	assert(numworkers < 12);
+	if(numworkers > 1) {
+		// start paring down 60s after the last worker is started
+		alarm(60);
+	}
 }
 
 void reap_workers(void) {
@@ -210,7 +214,10 @@ int main(int argc, char** argv) {
 	*/
 	
 	sigemptyset(&mysigs);
+	// workers will die, we need to handle
 	sigaddset(&mysigs,SIGCHLD);
+	// this we use to pare down the active workers when idle
+	sigaddset(&mysigs,SIGALRM);
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 	
@@ -296,12 +303,23 @@ int main(int argc, char** argv) {
 					abort();
 				}
 				assert(amt == sizeof(info));
-				assert(info.ssi_signo == SIGCHLD);
-				// don't care about ssi_pid since multiple kids could have exited
-				reap_workers();
-				if(numworkers == 0) {
-					start_worker();
-				}
+				switch(info.ssi_signo) {
+				case SIGCHLD:
+					// don't care about ssi_pid since multiple kids could have exited
+					reap_workers();
+					if(numworkers == 0) {
+						start_worker();
+					}
+					break;
+				case SIGALRM:
+					if(numworkers > 1) {
+						kill(workers[numworkers-1],SIGTERM);
+						if(numworkers > 2) {
+							// naturally pare down every 60s
+							alarm(60);
+						}
+					}
+					break;
 			}
 		}
 	}
