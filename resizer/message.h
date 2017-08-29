@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdbool.h>
 
 struct message {
 	uint32_t id:32;

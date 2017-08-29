@@ -1,6 +1,5 @@
 #include "message.h"
 
-#include <stdint.h>
 #include <fcntl.h> // O_*, open
 #include <unistd.h> // write
 #include <assert.h>
@@ -13,8 +12,8 @@ int python_resize_init(void) {
 
 void python_queue_resize(int dest, uint32_t id, uint32_t width) {
 	struct message m = {
-		.id: id,
-		.width: width
+		.id = id,
+		.width = width
 	};
 	ssize_t amt = write(dest,&m,sizeof(m));
 	assert(amt == sizeof(m));
