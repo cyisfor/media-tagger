@@ -8,5 +8,10 @@ lib = os.path.join(here,"python.so");
 from ctypes import cdll
 
 lib = cdll.LoadLibrary(lib)
-print(lib)
+
+dest = lib.init()
+queue = lib.queue
+queue.argtypes = [c_int, c_uint, c_uint]
+
+print(dest)
 
