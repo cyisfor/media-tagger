@@ -8,7 +8,8 @@
 // a python ctypes stub for sending IDs as messages...
 
 int init(void) {
-	return open("incoming/queue",O_RDONLY|O_NONBLOCK);
+	return open("incoming/queue",O_WRONLY|O_NONBLOCK);
+	return open("incoming/queuefull",O_WRONLY);
 }
 
 void queue(int dest, uint32_t id, uint32_t width) {
@@ -19,6 +20,7 @@ void queue(int dest, uint32_t id, uint32_t width) {
 	ssize_t amt = write(dest,&m,sizeof(m));
 	if(amt == sizeof(m)) return;
 	if(amt < 0) {
+		fprintf(stderr,"%d\n",dest);
 		perror("oops");
 		abort();
 	}
