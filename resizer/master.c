@@ -5,7 +5,6 @@
 #include "message.h"
 
 #include <sys/signalfd.h>
-#include <sys/eventfd.h>
 
 #include <sys/inotify.h>
 #include <poll.h>
@@ -152,10 +151,9 @@ size_t get_worker(size_t off) {
 	if(numworkers == MAXWORKERS) {
 		return MAXWORKERS;
 	}
-	if(workers[numworkers].in < 0) {
-		workers[numworkers].in = eventfd(0,EFD_NONBLOCK);
-		workers[numworkers].out = eventfd(0,EFD_NONBLOCK);
-	}
+	workers[numworkers].in = eventfd(0,EFD_NONBLOCK);
+	workers[numworkers].out = eventfd(0,EFD_NONBLOCK);
+	
 	workers[numworkers].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers);
 	workers[numworkers].pid = start_worker(workers[numworkers].in,workers[numworkers].out);
@@ -188,6 +186,8 @@ void reap_workers(void) {
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
+				close(workers[which].in);
+				close(workers[which].out);
 				if(which == numworkers) {
 					// no problem
 				} else {
@@ -195,6 +195,7 @@ void reap_workers(void) {
 									workers+which+1,
 									sizeof(struct worker) * (numworkers - which - 1));
 				}
+				
 				workers[numworkers--].status = DEAD; // just in case...
 			}
 		}
