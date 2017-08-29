@@ -129,16 +129,18 @@ void set_expiration(size_t which) {
 	workers[which].expiration = now.tv_sec + WORKER_LIFETIME;
 }
 
-size_t get_worker(void) {
-	// send the message to a worker
+size_t get_worker(size_t off) {
+	// get a worker
+	// off, so we don't check worker 0 a million times
 	int which = 0;
 	for(which=0;which<numworkers;++which) {
-		if(workers[which].status == IDLE) {
-			workers[which].status = BUSY;
-			return which;
+		size_t derp = (which+off)%numworkers;
+		if(workers[derp].status == IDLE) {
+			workers[derp].status = BUSY;
+			return derp;
 		}
 	}
-	// need a new worker?
+	// need a new worker
 	if(numworkers + 1 == MAXWORKERS) {
 		return MAXWORKERS;
 	}
@@ -151,8 +153,6 @@ size_t get_worker(void) {
 	return numworkers++;
 }
 
-
-	
 void reap_workers(void) {
 	for(;;) {
 		int status;
@@ -231,8 +231,9 @@ int main(int argc, char** argv) {
 
 	void drain_incoming(void) {
 		struct message m;
+		size_t worker = 0;
 		for(;;) {
-			size_t worker = get_worker();
+			worker = get_worker(worker);
 			if(worker == MAXWORKERS) {
 				pfd[INCOMING].events = 0;
 				break;
