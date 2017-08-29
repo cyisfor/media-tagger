@@ -350,7 +350,7 @@ int main(int argc, char** argv) {
 
 	struct timespec timeout;
 	bool forever = true;
-	size_t soonest_worker;
+	size_t soonest_worker = 0;
 	if(numworkers > 0) {
 		size_t i;
 		timeout = workers[0].expiration;
