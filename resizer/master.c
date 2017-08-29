@@ -199,7 +199,7 @@ void reap_workers(void) {
 }
 
 void send_message(size_t which, const struct message m) {
-	record(INFO,"Sending %d to %d",m.id,which);
+	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
 	ssize_t amt = write(workers[which].in, &m, sizeof(m));
 	if(amt == 0) {
 		// full, but IDLE was set?
@@ -253,6 +253,7 @@ int main(int argc, char** argv) {
 	sigemptyset(&mysigs);
 	// workers will die, we need to handle
 	sigaddset(&mysigs,SIGCHLD);
+	sigaddset(&mysigs,SIGPIPE);
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 	
