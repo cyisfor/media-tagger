@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
 	}
 	record(INFO, "lackey '%s'",lackey);
 
-	chdir("/home/.local/filedb/incoming") || abort();
+	if(0!=chdir("/home/.local/filedb/incoming")) abort();
 	mkfifo("queue",0644);
 	mkfifo("queuefull",0644);
 
