@@ -117,7 +117,7 @@ static void dolock(void) {
 enum status { DEAD, DOOMED, IDLE, BUSY };
 Time DOOM_DELAY = {
 	tv_sec: 0,
-	tv_nsec: NSECPERSEC / 2; // half a second
+	tv_nsec: NSECPERSEC / 2 // half a second
 };
 
 struct worker {

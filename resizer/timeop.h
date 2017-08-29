@@ -14,7 +14,6 @@ typedef const struct timespec Time;
 #define MYCLOCK CLOCK_MONOTONIC
 #endif
 #endif
-#endif
 
 static struct timespec timeres = {};
 typedef long int time_unit;
