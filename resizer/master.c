@@ -42,10 +42,14 @@ int start_worker(int in, int out) {
 		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~O_NONBLOCK));
 		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~O_NONBLOCK));
 
-		dup2(in,0);
-		dup2(out,1);
-		close(in);
-		close(out);
+		if(in != 3) {
+			dup2(in,3);
+			close(in);
+		}
+		if(out != 4) {
+			dup2(out,4);
+			close(out);
+		}
 		// XXX: is this needed?
 		execvp("cgexec",(void*)args);
 		abort();
