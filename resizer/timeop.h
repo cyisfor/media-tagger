@@ -12,6 +12,8 @@ typedef const struct timespec Time;
 #else
 #define MYCLOCK CLOCK_MONOTONIC
 #endif
+#endif
+#endfi
 
 static struct timespec timeres = {};
 typedef long int time_unit;
@@ -31,7 +33,7 @@ SI void getnowspec(struct timespec* when) {
 
 SI Time getnow(void) {
 	struct timespec now;
-	gettime(&now);
+	getnowspec(&now);
 	return now;
 }
 
