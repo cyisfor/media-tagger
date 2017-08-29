@@ -35,7 +35,7 @@ char lackey[PATH_MAX];
 
 int start_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
-//												"valgrind",
+												"valgrind",
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
