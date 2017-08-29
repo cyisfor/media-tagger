@@ -313,6 +313,7 @@ int main(int argc, char** argv) {
 					break;
 				case SIGALRM:
 					if(numworkers > 1) {
+						record(INFO,"Paring down to %d",numworkers-1);
 						kill(workers[numworkers-1],SIGTERM);
 						if(numworkers > 2) {
 							// naturally pare down every 60s

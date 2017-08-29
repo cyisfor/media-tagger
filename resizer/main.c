@@ -13,7 +13,7 @@
 
 extern char* environ[];
 
-#define WORKER_IDLE 60
+#define WORKER_IDLE 3600
 
 int main(int argc, char** argv) {
   //struct rlimit memlimit = { 0x20000000, 0x20000000 };
