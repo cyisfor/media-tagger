@@ -59,7 +59,7 @@ int launch_worker(int in, int out) {
 }
 
 static void dolock(void) {
-  int fd = open("/tmp/lackey-master.lock", O_WRONLY|O_CREAT,0600);
+  int fd = open("temp/.lackey-master.lock", O_WRONLY|O_CREAT,0600);
   if(fd < 0) error(1,0,"Lock wouldn't open.");
   struct flock lock = {
     .l_type = F_WRLCK,
@@ -263,11 +263,13 @@ void send_message(size_t which, const struct message m) {
 
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
-
-	sigset_t mysigs;
+	ensure_eq(0,chdir(argv[1])); // ehhhh
+	
   dolock();
-	srand(time(NULL));
 	recordInit();
+
+	init_timeop();
+	
 	ssize_t amt;
 	realpath(argv[0],lackey);
 	char* lastslash = strrchr(lackey,'/');
@@ -281,8 +283,6 @@ int main(int argc, char** argv) {
 	}
 	record(INFO, "lackey '%s'",lackey);
 
-	if(0!=chdir(argv[1])) abort(); // ehhhh
-
 	mkfifo("incoming",0644); // not a directory anymore
 
 	// we're opening our pipe for writing, so that it doesn't go into an EOF spin loop
@@ -295,7 +295,8 @@ int main(int argc, char** argv) {
 		 then we can read info off the signalfd at our leisure, with no signal handler jammed in-between
 		 an if(numworkers == 0) and start_worker();
 	*/
-	
+
+	sigset_t mysigs;
 	sigemptyset(&mysigs);
 	// workers will die, we need to handle
 	sigaddset(&mysigs,SIGCHLD);
