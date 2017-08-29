@@ -255,6 +255,7 @@ int main(int argc, char** argv) {
 
 				 TODO: benchmark this to determine how many pokes.
 			*/
+#define min(a,b) ({ typeof(a) a1 = (a); typeof(b) b1 = (b); a1 < b1 ? a1 : b1 })
 			int target;
 			if(pokes > 10) {
 				target = min(numworkers+3,NUM);
