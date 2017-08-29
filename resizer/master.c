@@ -3,6 +3,7 @@
 #include "record.h"
 #include "watch.h"
 #include "message.h"
+#include "timeop.h"
 
 #include <sys/signalfd.h>
 #include <sys/eventfd.h>
@@ -33,7 +34,7 @@ typedef unsigned char byte;
 
 char lackey[PATH_MAX];
 
-int start_worker(int in, int out) {
+int launch_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
@@ -114,6 +115,10 @@ static void dolock(void) {
 */
 
 enum status { DEAD, DOOMED, IDLE, BUSY };
+Time DOOM_DELAY = {
+	tv_sec: 0,
+	tv_nsec: NSECPERSEC / 2; // half a second
+};
 
 struct worker {
 	enum status status;
@@ -130,39 +135,67 @@ size_t numworkers = 0;
 
 #define WORKER_LIFETIME 60
 
+
 void set_expiration(size_t which) {
 	// set on creation, reset every time a worker goes idle
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	workers[which].expiration = now.tv_sec + WORKER_LIFETIME;
+	getnowspec(&workers[which].expiration);
+	workers[which].expiration.tv_sec += WORKER_LIFETIME;
+}
+
+void start_worker(size_t which) {
+	pipe(workers[which].in);
+	pipe(workers[which].out);
+	
+	workers[which].status = IDLE;
+	record(INFO,"starting lackey #%d",which);
+	workers[which].pid = launch_worker(workers[which].in[0],
+																		 workers[which].out[1]);
+	close(workers[which].in[0]);
+	close(workers[which].out[1]);
+	set_expiration(which);
+	++numworkers;
 }
 
 size_t get_worker(size_t off) {
 	// get a worker
 	// off, so we don't check worker 0 a million times
 	int which = 0;
-	for(which=0;which<numworkers;++which) {
-		size_t derp = (which+off)%numworkers;
-		if(workers[derp].status == IDLE) {
+	for(which=0;which<MAXWORKERS;++which) {
+		size_t derp = (which+off)%MAXWORKERS;
+		switch(workers[derp].status) {
+		case DEAD:
+			continue;
+		case IDLE:
 			workers[derp].status = BUSY;
 			return derp;
-		}
+		};
 	}
-	// need a new worker
+
 	if(numworkers == MAXWORKERS) {
+		for(which=0;which<MAXWORKERS;++which) {
+			if(workers[which].status == DOOMED) {
+				/*
+					if 995 ns left (expiration - now) and doom delay is 1000ns
+					1000 - 995 < 50, so wait a teensy bit longer please
+				*/
+				Time diff = timediff(DOOM_DELAY,
+														 timediff(workers[which].expiration,
+																			getnow()));
+				if(diff.tv_nsec > 50) {
+					kill_worker(which);
+					start_worker(which);
+					return which;
+				}
+			}
+		}
 		return MAXWORKERS;
 	}
-	pipe(workers[numworkers].in);
-	pipe(workers[numworkers].out);
 	
-	workers[numworkers].status = IDLE;
-	record(INFO,"starting lackey #%d",numworkers);
-	workers[numworkers].pid = start_worker(workers[numworkers].in[0],
-																				 workers[numworkers].out[1]);
-	close(workers[numworkers].in[0]);
-	close(workers[numworkers].out[1]);
-	
-	set_expiration(numworkers);
+	for(which=0;which<MAXWORKERS;++which) {
+		if(workers[which].status != DEAD) continue;
+		start_worker(which);
+		return which;
+	}
 	return numworkers++;
 }
 
@@ -191,30 +224,38 @@ void reap_workers(void) {
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
+				--numworkers;
 				close(workers[which].in[1]);
 				close(workers[which].out[0]);
-				if(which == numworkers) {
-					// no problem
-				} else {
-					memmove(workers+which,
-									workers+which+1,
-									sizeof(struct worker) * (numworkers - which - 1));
-				}
-				
-				workers[numworkers--].status = DEAD; // just in case...
+				workers[which].status = DEAD;
 			}
 		}
 		// okay if never finds the pid, may have already been removed
 	}
 }
 
+void kill_worker(int which) {
+	kill(workers[which].pid,SIGKILL);
+	reap_workers();
+	ensure_eq(workers[which].status,DEAD);
+}
+
+
+void stop_worker(int which) {
+	workers[which].status = DOOMED;
+	kill(workers[which].pid,SIGTERM);
+	reap_workers();
+	if(workers[which].status == DEAD) return;
+	getnowspec(&workers[which].expiration);
+	workers[which].expiration = timeadd(workers[which].expiration,DOOM_DELAY);
+}
+
 void send_message(size_t which, const struct message m) {
 	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
 	ssize_t amt = write(workers[which].in[1], &m, sizeof(m));
 	if(amt == 0) {
-		// full, but IDLE was set?
-		workers[which].status = DOOMED;
-		kill(workers[which].pid,SIGTERM);
+		stop_worker(which);
+		return;
 	}
 	ensure_eq(amt, sizeof(m));
 	workers[which].current = m.id; // eh
@@ -321,8 +362,7 @@ int main(int argc, char** argv) {
 			}
 		}
 		forever = false;
-		struct timespec now;
-		clock_gettime(CLOCK_MONOTONIC,&now);
+		Time now = getnow();
 		if(timeout.tv_sec >= now.tv_sec) {
 			timeout.tv_sec -= now.tv_sec;
 		} else {
@@ -346,13 +386,12 @@ int main(int argc, char** argv) {
 		}
 		errno = 0;
 		if(res == 0) {
-#if 0
 			// timed out while waiting for events?
-			if(workers[soonest_worker].status == DOOMED) {
-				kill(workers[soonest_worker].pid,SIGKILL);
-			} else {
-				workers[soonest_worker].status = DOOMED;
-				kill(workers[soonest_worker].pid,SIGTERM);
+			kill_worker(soonest_worker);
+		}
+#if 0
+			else {
+				stop_worker(soonest_worker);
 			}
 #endif
 			continue;
@@ -391,13 +430,15 @@ int main(int argc, char** argv) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
 					char c;
 					ssize_t amt = read(workers[which].out[0],&c,1);
-					if(amt < 0) {
+					if(amt == 0) {
+						
+					} else if(amt < 0) {
 						perror("huh?");
 					} else {
 						ensure_eq(amt,1);
+						workers[which].status = IDLE;
+						pfd[INCOMING].events = POLLIN;
 					}
-					workers[which].status = IDLE;
-					pfd[INCOMING].events = POLLIN;
 					break;
 				}
 			}
