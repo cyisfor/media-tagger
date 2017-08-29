@@ -355,7 +355,7 @@ int main(int argc, char** argv) {
 		size_t i;
 		timeout = workers[0].expiration;
 		for(i=1;i<numworkers;++i) {
-			if(timeunits(timediff(timeout.tv_sec, workers[i].expiration)) > 0) {
+			if(time2units(timediff(timeout, workers[i].expiration)) > 0) {
 				// this worker expires sooner
 				timeout = workers[i].expiration;
 				soonest_worker = i;
