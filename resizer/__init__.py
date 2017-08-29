@@ -1,6 +1,6 @@
 import ctypes
-import sys
+import sys,os
 
-here = sys.modules[__name__].__path__
+here = os.path.dirname(sys.modules[__name__].__file__)
 
 print(here)
