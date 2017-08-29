@@ -195,6 +195,7 @@ void reap_workers(void) {
 }
 
 void send_message(size_t which, const struct message m) {
+	record(INFO,"Sending %d to %d",m.id,which);
 	ssize_t amt = write(workers[which].efd, &m, sizeof(m));
 	if(amt == 0) {
 		// full, but IDLE was set?
