@@ -187,7 +187,9 @@ int main(int argc, char** argv) {
 	// fcntl cannot remove nonblocking from pipes, so... just hang master until there's
 	// something to do.
 	for(;;) {
-		queue = open("queue",O_RDONLY); // dup2 this to stdin for lackeys, otherwise ignore
+		// we're opening our pipe for writing, so that it doesn't go into an EOF spin loop
+		// when there are no more writers
+		queue = open("queue",O_RDWR); // dup2 this to stdin for lackeys, otherwise ignore
 		if(queue<0) {
 			ensure_eq(errno,EINTR);
 		} else {
