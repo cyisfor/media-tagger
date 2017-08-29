@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h> // abort
 
-#define ERROR(...) fprintf(stderr, ## __VA_ARGS__)
+#define ERROR(fmt, ...) fprintf(stderr, fmt "\n", ## __VA_ARGS__)
 
 
 #define ensure0(test) { typeof(test) res = (test);	\
