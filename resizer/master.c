@@ -332,6 +332,7 @@ int main(int argc, char** argv) {
 
 	forever = false;
 	timeout.tv_sec = 3;
+	timeout.tv_nsec = 0;
 	
 	for(;;) {
 		int res = ppoll((struct pollfd*)&pfd,
