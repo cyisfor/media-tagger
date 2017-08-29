@@ -156,6 +156,7 @@ void reap_workers(void) {
 	for(;;) {
 		int status;
 		int pid = waitpid(-1,&status,WNOHANG);
+		if(pid == 0) return;
 		if(pid < 0) {
 			if(errno == EINTR) continue;
 			if(errno != EAGAIN && errno != ECHILD) {
