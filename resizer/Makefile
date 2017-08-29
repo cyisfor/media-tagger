@@ -6,16 +6,18 @@ CFLAGS+=-g
 CFLAGS+=`pkg-config --cflags $(PACKAGES)`
 LDFLAGS+=`pkg-config --libs $(PACKAGES)` -lm
 
+LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
 all: lackey-bin lackey-master
 
 lackey-bin: main.o $(objects)
-	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS) -lbsd
+	$(LINK) -lbsd
 
 lackey-master: master.o record.o watch.o
-	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(LINK)
 
 test_linebuf: test_linebuf.o linebuf.o record.o
-	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(LINK)
 
 %.o: %.c
 	gcc $(CFLAGS) -c -o $@ $^ 
@@ -24,4 +26,7 @@ clean:
 	rm -f lackey-bin lackey-master *.o
 
 test: test.o $(objects)
-	gcc $(CFLAGS) -o $@ $^ $(LDFLAGS) -lbsd
+	$(LINK) -lbsd
+
+python.so: python.c
+	$(LINK) -shared -fPIC
