@@ -197,7 +197,7 @@ void send_message(size_t which, const struct message m) {
 	if(amt == 0) {
 		// full, but IDLE was set?
 		workers[which].status = DOOMED;
-		kill(worker[which].pid,SIGTERM);
+		kill(workers[which].pid,SIGTERM);
 	}
 	ensure_eq(amt, sizeof(m));
 }
@@ -230,29 +230,6 @@ int main(int argc, char** argv) {
 	// when there are no more writers
 	int incoming = open("incoming",O_RDWR|O_NONBLOCK);
 
-	void drain_incoming(void) {
-		struct message m;
-		size_t worker = 0;
-		for(;;) {
-			worker = get_worker(worker);
-			if(worker == MAXWORKERS) {
-				pfd[INCOMING].events = 0;
-				break;
-			} 
-			ssize_t amt = read(incoming,&m,sizeof(m));
-			if(amt == 0) {
-				perror("EOF on queuefull...");
-				break;
-			}
-			if(amt < 0) {
-				if(errno == EAGAIN) break;
-				perror("incoming fail");
-				abort();
-			}
-			send_message(worker,m);
-		}
-	}
-
 	/* block the signals we care about
 		 this does NOT ignore them, but queues them up
 		 and interrupts stuff like ppoll (which reenables getting hit by those signals atomically)
@@ -283,6 +260,30 @@ int main(int argc, char** argv) {
 	};
 	size_t numpfd = 2; // = 2 + numworkers... always?
 
+
+	void drain_incoming(void) {
+		struct message m;
+		size_t worker = 0;
+		for(;;) {
+			worker = get_worker(worker);
+			if(worker == MAXWORKERS) {
+				pfd[INCOMING].events = 0;
+				break;
+			} 
+			ssize_t amt = read(incoming,&m,sizeof(m));
+			if(amt == 0) {
+				perror("EOF on queuefull...");
+				break;
+			}
+			if(amt < 0) {
+				if(errno == EAGAIN) break;
+				perror("incoming fail");
+				abort();
+			}
+			send_message(worker,m);
+		}
+	}
+	
 	// calculate timeout by worker with soonest expiration - now.
 
 	struct timespec timeout;
@@ -309,7 +310,7 @@ int main(int argc, char** argv) {
 	
 	for(;;) {
 		int res = ppoll((struct pollfd*)&pfd,
-										numpfd,
+										2+numworkers,
 										forever ? NULL : &timeout,
 										&mysigs);
 		if(res < 0) {
