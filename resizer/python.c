@@ -11,18 +11,16 @@
 
 // a python ctypes stub for sending IDs as messages...
 
-int q,queuefull;
-
-void init(const char* incoming) {
+int init(const char* incoming) {
 	int loc = open(incoming,O_DIRECTORY|O_PATH);
 	assert(loc >= 0);
-	q = openat(loc,"queue",O_WRONLY|O_NONBLOCK);
-	queuefull = openat(loc,"queuefull",O_WRONLY);
-	assert(q > 0);
+	int ret = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
+	assert(ret > 0);
 	close(loc);
+	return ret;
 }
 
-int queue(uint32_t id, uint32_t width) {
+int queue(int q, uint32_t id, uint32_t width) {
 	struct message m = {
 		.id = id,
 		.width = width

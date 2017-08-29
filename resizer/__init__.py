@@ -15,6 +15,6 @@ def init(base):
 	global queue
 	l = cdll.LoadLibrary(lib)
 	l.init.argtypes = [c_char_p]
-	l.init(base.encode("utf-8"))
-	queue = lambda id,width=0: l.queue(id,width or 0)
+	q = l.init(base.encode("utf-8"))
+	queue = lambda id,width=0: l.queue(q, id,width or 0)
 	l.queue.argtypes = [c_uint, c_uint]
