@@ -346,6 +346,7 @@ int main(int argc, char** argv) {
 		}
 		errno = 0;
 		if(res == 0) {
+#if 0
 			// timed out while waiting for events?
 			if(workers[soonest_worker].status == DOOMED) {
 				kill(workers[soonest_worker].pid,SIGKILL);
@@ -353,6 +354,7 @@ int main(int argc, char** argv) {
 				workers[soonest_worker].status = DOOMED;
 				kill(workers[soonest_worker].pid,SIGTERM);
 			}
+#endif
 			continue;
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
