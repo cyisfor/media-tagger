@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
 				pfd[INCOMING].events = 0;
 				break;
 			}
-			pfd[worker+2].fd = workers[worker].out;
+			pfd[worker+2].fd = workers[worker].out[0];
 			pfd[worker+2].events = POLLIN;
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
@@ -382,9 +382,9 @@ int main(int argc, char** argv) {
 			// someone went idle!
 			int which;
 			for(which=0;which<numworkers;++which) {
-				if(pfd[which+2].fd == workers[which].out) {
+				if(pfd[which+2].fd == workers[which].out[0]) {
 					char c;
-					ssize_t amt = read(workers[which].out,&c,1);
+					ssize_t amt = read(workers[which].out[0],&c,1);
 					if(amt < 0) {
 						perror("huh?");
 					} else {
