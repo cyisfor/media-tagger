@@ -28,8 +28,6 @@
 //#define WORKER_LIFETIME 3600 * 1000 // like an hour idk
 #define RESTART_DELAY 1000
 
-int queue;
-
 typedef unsigned char byte;
 
 char lackey[PATH_MAX];
@@ -229,7 +227,29 @@ int main(int argc, char** argv) {
 
 	// we're opening our pipe for writing, so that it doesn't go into an EOF spin loop
 	// when there are no more writers
-	int queue = open("incoming",O_RDWR|O_NONBLOCK);
+	int incoming = open("incoming",O_RDWR|O_NONBLOCK);
+
+	void drain_incoming(void) {
+		struct message m;
+		for(;;) {
+			size_t worker = get_worker();
+			if(worker == MAXWORKERS) {
+				pfd[INCOMING].events = 0;
+				break;
+			} 
+			ssize_t amt = read(incoming,&m,sizeof(m));
+			if(amt == 0) {
+				perror("EOF on queuefull...");
+				break;
+			}
+			if(amt < 0) {
+				if(errno == EAGAIN) break;
+				perror("incoming fail");
+				abort();
+			}
+			send_message(worker,m);
+		}
+	}
 
 	/* block the signals we care about
 		 this does NOT ignore them, but queues them up
@@ -307,25 +327,7 @@ int main(int argc, char** argv) {
 			continue;
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
-			struct message m;
-			for(;;) {
-				size_t worker = get_worker();
-				if(worker == MAXWORKERS) {
-					pfd[INCOMING].events = 0;
-					break;
-				} 
-				ssize_t amt = read(incoming,&m,sizeof(m));
-				if(amt == 0) {
-					perror("EOF on queuefull...");
-					break;
-				}
-				if(amt < 0) {
-					if(errno == EAGAIN) break;
-					perror("incoming fail");
-					abort();
-				}
-				send_message(worker,m);
-			}
+			drain_incoming();
 		} else if(pfd[SIGNALS].revents && POLLIN) {
 			// something died
 			struct signalfd_siginfo info;
@@ -341,10 +343,10 @@ int main(int argc, char** argv) {
 				switch(info.ssi_signo) {
 				case SIGCHLD:
 					// don't care about ssi_pid since multiple kids could have exited
+					// we can take more from the pipe now.
 					reap_workers();
-					if(numworkers == 0) {
-						start_worker();
-					}
+					pfd[INCOMING].events = POLLIN;
+					drain_incoming();
 					break;
 				default:
 					perror("huh?");
