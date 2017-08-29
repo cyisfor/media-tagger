@@ -25,8 +25,7 @@
 #include <time.h>
 #include <stdlib.h> // null
 
-#define NUM 4
-#define WORKER_LIFETIME 3600 * 1000 // like an hour idk
+//#define WORKER_LIFETIME 3600 * 1000 // like an hour idk
 #define RESTART_DELAY 1000
 
 int queue;
@@ -36,7 +35,6 @@ typedef unsigned char byte;
 char lackey[PATH_MAX];
 
 int start_worker(int efd) {
-	record(INFO,"starting lackey #%d",numworkers);
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
@@ -128,8 +126,9 @@ size_t numworkers = 0;
 
 void set_expiration(size_t which) {
 	// set on creation, reset every time a worker goes idle
-	clock_gettime(CLOCK_MONOTONIC, &workers[which].expiration);
-	workers[which].expiration.tv_sec += WORKER_LIFETIME;
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	workers[which].expiration = now.tv_sec + WORKER_LIFETIME;
 }
 
 size_t get_worker(void) {
@@ -148,6 +147,7 @@ size_t get_worker(void) {
 	if(workers[numworkers].efd < 0) {
 		workers[numworkers].efd = eventfd(0,0);
 	}
+	record(INFO,"starting lackey #%d",numworkers);
 	workers[numworkers].pid = start_worker(workers[numworkers].efd);
 	set_expiration(numworkers);
 	return numworkers++;
