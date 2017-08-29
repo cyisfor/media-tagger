@@ -385,7 +385,7 @@ int main(int argc, char** argv) {
 			abort();
 		}
 		errno = 0;
-		if(res == 0) {
+		if(res == 0 & numworkers > 0) {
 			// timed out while waiting for events?
 			if(workers[soonest_worker].status == DOOMED) {
 				kill_worker(soonest_worker);
