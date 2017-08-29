@@ -4,6 +4,8 @@
 #include <unistd.h> // write
 #include <assert.h>
 #include <stdio.h>
+#include <errno.h>
+
 
 // a python ctypes stub for sending IDs as messages...
 
