@@ -18,6 +18,7 @@ void init(const char* incoming) {
 	assert(loc >= 0);
 	q = openat(loc,"queue",O_WRONLY|O_NONBLOCK);
 	queuefull = openat(loc,"queuefull",O_WRONLY);
+	assert(q > 0);
 	close(loc);
 }
 
