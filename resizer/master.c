@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
 		for(;;) {
 			worker = get_worker(worker);
 			if(worker == MAXWORKERS) {
-				pfd[INCOMING].events = 0;
+				//pfd[INCOMING].events = 0; meh
 				break;
 			}
 			pfd[worker+2].fd = workers[worker].out[0];
