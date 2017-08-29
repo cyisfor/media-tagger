@@ -122,7 +122,7 @@ void start_worker(void) {
 }
 
 static void dolock(void) {
-  int fd = open("/tmp/lackey-masterderp.lock", O_WRONLY|O_CREAT,0600);
+  int fd = open("/tmp/lackey-master.lock", O_WRONLY|O_CREAT,0600);
   if(fd < 0) error(1,0,"Lock wouldn't open.");
   struct flock lock = {
     .l_type = F_WRLCK,
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
 
 				 TODO: benchmark this to determine how many pokes.
 			*/
-#define min(a,b) ({ typeof(a) a1 = (a); typeof(b) b1 = (b); a1 < b1 ? a1 : b1 })
+#define min(a,b) ({ typeof(a) a1 = (a); typeof(b) b1 = (b); a1 < b1 ? a1 : b1; })
 			int target;
 			if(pokes > 10) {
 				target = min(numworkers+3,NUM);
