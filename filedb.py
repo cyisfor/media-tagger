@@ -14,12 +14,6 @@ resizer.init(base)
 
 temp = oj(base,'temp')
 
-class incoming:
-	queue = os.open("incoming/queue",os.O_NONBLOCK | os.O_WRONLY)
-	queuefull =	os.open("incoming/queuefull", os.O_WRONLY)
-	def need(id):
-		os.write
-
 def _incoming(id,contents=None):
 	target = oj(temp,id)
 	if os.path.exists(target): return
@@ -31,28 +25,28 @@ def _incoming(id,contents=None):
 def incoming(id,contents=None):
 	return _incoming('{:x}'.format(id),contents)
 	
-def _check(id,category,create=True,contents=None):
+def _check(id,category,create=True,width=0):
     id = '{:x}'.format(id)
     medium = oj(base,category,id)
     if os.path.exists(medium): return id,True
     if not create:
 	    return id, False
-    _incoming(id,contents)
+		resizer.queue(id,width)
     return id, os.path.exists(medium)
 
 def check(id,**kw):
     kw.setdefault('category','thumb')
     if kw.get('create') and kw.get('category') == 'thumb':
         try:
-            del kw['contents']
+            del kw['width']
         except KeyError: pass
     return _check(id,**kw)
 
 def checkResized(id,**kw):
-    return _check(id,'resized',contents="{:x}".format(800),**kw)
+    return _check(id,'resized',800,**kw)
 
 def checkOEmbed(id,maxWidth,**kw):
-    return _check(id,'oembed',contents='{:x}'.format(maxWidth),**kw)
+    return _check(id,'oembed',maxWidth,**kw)
 
 def mediaPath(id=None):
     loc = os.path.join(base,'media')
