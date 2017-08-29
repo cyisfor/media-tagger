@@ -6,11 +6,11 @@
 
 // a python ctypes stub for sending IDs as messages...
 
-int python_resize_init(void) {
+int init(void) {
 	return open("incoming/queue",O_RDONLY|O_NONBLOCK);
 }
 
-void python_queue_resize(int dest, uint32_t id, uint32_t width) {
+void queue(int dest, uint32_t id, uint32_t width) {
 	struct message m = {
 		.id = id,
 		.width = width
