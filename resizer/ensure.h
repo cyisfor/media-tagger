@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h> // abort
 #include <error.h>
+#include <errno.h>
 
-#define ERROR(fmt, ...) error(0,0, fmt "\n", ## __VA_ARGS__)
+#define ERROR(fmt, ...) error(0,errno, fmt "\n", ## __VA_ARGS__)
 
 
 #define ensure0(test) { typeof(test) res = (test);	\
