@@ -40,6 +40,7 @@ int start_worker(int efd) {
 	int pid = fork();
 	if(pid == 0) {
 		dup2(efd,0);
+		dup2(efd,1);
 		close(efd);
 		// XXX: is this needed?
 		execvp("cgexec",(void*)args);
