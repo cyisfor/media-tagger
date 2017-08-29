@@ -33,85 +33,9 @@ int queue;
 
 typedef unsigned char byte;
 
-int *workers = NULL;
-byte numworkers = 0;
-
-void started_worker(int pid) {
-	workers = realloc(workers,(++numworkers)*sizeof(*workers));
-	workers[numworkers-1] = pid;
-	assert(numworkers < 12);
-	if(numworkers > 1) {
-		// start paring down 60s after the last worker is started
-		alarm(60);
-	}
-}
-
-void reap_workers(void) {
-	for(;;) {
-		int status;
-		int pid = waitpid(-1,&status,WNOHANG);
-		if(pid < 0) {
-			if(errno == EINTR) continue;
-			if(errno != EAGAIN && errno != ECHILD) {
-				perror("reap");
-				abort();
-			}
-			break;
-		}
-
-		if(WIFSIGNALED(status) && SIGALRM==WTERMSIG(status)) {
-			record(INFO, "worker %d retiring",pid);
-		} else {
-			record(INFO,"worker %d died (exit %d sig %d)",
-						 pid,
-						 WEXITSTATUS(status),
-						 WTERMSIG(status));
-		}
-		int which;
-		for(which=0;which<numworkers;++which) {
-			if(workers[which] == pid) {
-				memmove(workers+which,
-								workers+which+1,
-								--numworkers - which);
-			}
-		}
-		// okay if never finds the pid, may have already been removed
-	}
-}
-
-void stop_a_worker(void) {
-	/*
-	byte which;
-	int res = getrandom(&which,sizeof(which),0);
-	assert(sizeof(which) == res);
-	which = which % numworkers;
-	*/
-
-	static byte which = 0;
-	// note this could kill a worker in the middle of thumbnail generation
-	// but this will also kill a worker stuck in the middle of thumbnail generation
-	record(INFO,"killing worker %d",which);
-
-	// should we not remove it proactively?
-	int pid = workers[which];
-	if(which == numworkers-1) {
-		--numworkers;
-	} else {
-		memmove(workers+which,
-						workers+which+1,
-						--numworkers - which);
-	}
-	// it'll cycle through them all in a lifetime
-	// visit each once a lifetime
-	which = (which + 1)%numworkers;
-	// just... assume it dies I guess.
-	kill(pid,SIGTERM);
-}
-
 char lackey[PATH_MAX];
 
-
-void start_worker(void) {
+int start_worker(int efd) {
 	record(INFO,"starting lackey #%d",numworkers);
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
@@ -119,14 +43,15 @@ void start_worker(void) {
 	int pid = fork();
 	if(pid == 0) {
 		chdir("..");
-		dup2(queue,0);
-		close(queue);
+		dup2(efd,0);
+		close(efd);
+		// XXX: is this needed?
 		ensure0(fcntl(0,F_SETFL, fcntl(0,F_GETFL) & ~O_NONBLOCK));
 
 		execvp("cgexec",(void*)args);
 		abort();
 	}
-	started_worker(pid);
+	return pid;
 }
 
 static void dolock(void) {
@@ -163,12 +88,126 @@ static void dolock(void) {
 	 if not max lackeys, spawn a new one.
 	 always make sure at least 1 lackey is there to drain the pipe
 	 setup message pipe to be stdin on lackey
+
+	 this works, but...
+	 * can't tell which lackey's doing what thumb
+	 * can't tell when a lackey's finished with a thumb, to handle timeouts in master
+	 * can't really figure out how to ramp up as requests come in, since can't tell when
+	   lackeys are busy.
+
+	 so instead... 1 named pipe that master listens to, that messages are written on.
+	 each worker has an eventfd. master writes messages to that eventfd (64 bits), then
+	 marks the worker as busy. The worker writes a response, which master polls for, then
+	 sets the worker to not busy.
+
+	 Before reading from the pipe (once it's readable) if all workers are busy, add a new one,
+	 unless you're at max workers. Then disable polling on the pipe and chill. If an eventfd
+	 isn't readable in long enough, kill that worker, and set its error flag. if timeout again,
+	 kill it with KILL.
+	 
+	 when a worker dies, memmove the others together, so the top of the array is marked as
+	 the dead part. Can we reuse the eventfds? Mark as -1 initially, then when a dead worker's
+	 not -1, use that eventfd in the fork.
 */
 
+enum status { DEAD, DOOMED, IDLE, BUSY };
+
+struct worker {
+	enum status status;
+	int pid;
+	int efd;
+	uint32_t current;
+	time_t expiration;
+};
+#define MAXWORKERS 4 // # CPUs?
+
+struct worker workers[MAXWORKERS];
+size_t numworkers = 0;
+
+#define WORKER_LIFETIME 60
+
+void set_expiration(size_t which) {
+	// set on creation, reset every time a worker goes idle
+	clock_gettime(CLOCK_MONOTONIC, &workers[which].expiration);
+	workers[which].expiration.tv_sec += WORKER_LIFETIME;
+}
+
+size_t get_worker(void) {
+	// send the message to a worker
+	int which = 0;
+	for(which=0;which<numworkers;++which) {
+		if(workers[which].status == IDLE) {
+			workers[which].status = BUSY;
+			return which;
+		}
+	}
+	// need a new worker?
+	if(numworkers + 1 == MAXWORKERS) {
+		return MAXWORKERS;
+	}
+	if(workers[numworkers].efd < 0) {
+		workers[numworkers].efd = eventfd(0,0);
+	}
+	workers[numworkers].pid = start_worker(workers[numworkers].efd);
+	set_expiration(numworkers);
+	return numworkers++;
+}
+
+
+	
+void reap_workers(void) {
+	for(;;) {
+		int status;
+		int pid = waitpid(-1,&status,WNOHANG);
+		if(pid < 0) {
+			if(errno == EINTR) continue;
+			if(errno != EAGAIN && errno != ECHILD) {
+				perror("reap");
+				abort();
+			}
+			break;
+		}
+
+		if(WIFSIGNALED(status) && SIGALRM==WTERMSIG(status)) {
+			record(INFO, "worker %d retiring",pid);
+		} else {
+			record(INFO,"worker %d died (exit %d sig %d)",
+						 pid,
+						 WEXITSTATUS(status),
+						 WTERMSIG(status));
+		}
+		int which;
+		for(which=0;which<numworkers;++which) {
+			if(workers[which].pid == pid) {
+				if(which == numworkers) {
+					// no problem
+				} else {
+					memmove(workers+which,
+									workers+which+1,
+									sizeof(struct worker) * (--numworkers - which));
+				}
+				workers[numworkers--].status = DEAD; // just in case...
+			}
+		}
+		// okay if never finds the pid, may have already been removed
+	}
+}
+
+void send_message(size_t which, const struct message m) {
+	ssize_t amt = write(workers[which].efd, &m, sizeof(m));
+	if(amt == 0) {
+		// full, but IDLE was set?
+		workers[which].status = DOOMED;
+		kill(worker[which].pid,SIGTERM);
+	}
+	ensure_eq(amt, sizeof(m));
+}
+
 int main(int argc, char** argv) {
+	ensure_eq(argc,2);
+	
 	sigset_t mysigs;
   dolock();
-
 	srand(time(NULL));
 	recordInit();
 	ssize_t amt;
@@ -184,27 +223,13 @@ int main(int argc, char** argv) {
 	}
 	record(INFO, "lackey '%s'",lackey);
 
-	if(0!=chdir("/home/.local/filedb/incoming")) abort();
-	mkfifo("queue",0644);
-	mkfifo("queuefull",0644);
+	if(0!=chdir(argv[1])) abort(); // ehhhh
 
-	// fcntl cannot remove nonblocking from pipes, so... just hang master until there's
-	// something to do.
-	for(;;) {
-		// we're opening our pipe for writing, so that it doesn't go into an EOF spin loop
-		// when there are no more writers
-		queue = open("queue",O_RDWR); // dup2 this to stdin for lackeys, otherwise ignore
-		if(queue<0) {
-			ensure_eq(errno,EINTR);
-		} else {
-			break;
-		}
-	}
-	// same for writing here. we only read from this
-	int queuefull = open("queuefull",O_RDWR|O_NONBLOCK);
-	assert(queuefull >= 0);
+	mkfifo("incoming",0644); // not a directory anymore
 
-	enum { SIGNALS, QUEUEFULL };
+	// we're opening our pipe for writing, so that it doesn't go into an EOF spin loop
+	// when there are no more writers
+	int queue = open("incoming",O_RDWR|O_NONBLOCK);
 
 	/* block the signals we care about
 		 this does NOT ignore them, but queues them up
@@ -216,30 +241,53 @@ int main(int argc, char** argv) {
 	sigemptyset(&mysigs);
 	// workers will die, we need to handle
 	sigaddset(&mysigs,SIGCHLD);
-	// this we use to pare down the active workers when idle
-	sigaddset(&mysigs,SIGALRM);
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
 	
-	// could technically use queue for this, since never read from it...?
 	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
 
-	struct pollfd pfd[] = {
+	struct pollfd pfd[NUM+2] = {
 		[SIGNALS] = {
 			.fd = signals,
 			.events = POLLIN
 		},
-		[QUEUEFULL] = {
-			.fd = queuefull,
+		[INCOMING] = {
+			.fd = incoming,
 			.events = POLLIN
 		}
 	};
+	size_t numpfd = 2; // = 2 + numworkers... always?
 
-	start_worker();
+	// calculate timeout by worker with soonest expiration - now.
 
+	struct timespec timeout;
+	bool forever = true;
+	size_t soonest_worker;
+	if(numworkers > 0) {
+		timeout.tv_sec = workers[0].due;
+		timeout.tv_nsec = 0;
+		for(i=1;i<numworkers;++i) {
+			if(timeout.tv_sec > workers[i].expiration) {
+				timeout.tv_sec = workers[i].expiration;
+				soonest_worker = i;
+			}
+		}
+		forever = false;
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC,&now);
+		if(timeout.tv_sec >= now.tv_sec) {
+			timeout.tv_sec -= now.tv_sec;
+		} else {
+			timeout.tv_sec = 0;
+		}
+	}
+	
 	for(;;) {
-		int res = ppoll((struct pollfd*)&pfd, 2, NULL, &mysigs);
+		int res = ppoll((struct pollfd*)&pfd,
+										numpfd,
+										forever ? NULL : &timeout,
+										&mysigs);
 		if(res < 0) {
 			if(errno == EINTR) continue;
 			perror("poll");
@@ -248,51 +296,36 @@ int main(int argc, char** argv) {
 		errno = 0;
 		if(res == 0) {
 			// timed out while waiting for events?
+			if(worker[soonest_worker].status == DOOMED) {
+				kill(worker[soonest_worker].pid,SIGKILL);
+			} else {
+				worker[soonest_worker].status = DOOMED;
+				kill(worker[soonest_worker].pid,SIGTERM);
+			}
 			continue;
 		}
-		if(pfd[QUEUEFULL].revents && POLLIN) {
-			char buf[0x1000];
-			size_t pokes = 0;
+		if(pfd[INCOMING].revents && POLLIN) {
+			struct message m;
 			for(;;) {
-				ssize_t amt = read(queuefull,&buf,sizeof(buf));
+				size_t worker = get_worker();
+				if(worker == MAXWORKERS) {
+					pfd[INCOMING].events = 0;
+					break;
+				} 
+				ssize_t amt = read(incoming,&m,sizeof(m));
 				if(amt == 0) {
 					perror("EOF on queuefull...");
 					break;
 				}
 				if(amt < 0) {
 					if(errno == EAGAIN) break;
-					perror("read queue full");
+					perror("incoming fail");
 					abort();
 				}
-				pokes += amt;
+				send_message(worker,m);
 			}
-
-			// stop a random worker in case it froze?
-			if(numworkers >= NUM) {
-				stop_a_worker();
-			}
-
-			/* the more pokes, the more stuff is blocking on this (hopefully)
-				 so make sure between cur and NUM lackeys are running, with more pokes closer to NUM
-
-				 TODO: benchmark this to determine how many pokes.
-			*/
-#define min(a,b) ({ typeof(a) a1 = (a); typeof(b) b1 = (b); a1 < b1 ? a1 : b1; })
-			int target;
-			if(pokes > 10) {
-				target = min(numworkers+3,NUM);
-			} else if(pokes > 3) {
-				target = min(numworkers+2,NUM);
-			} else {
-				target = min(numworkers+1,NUM);
-			}
-			int i;
-			for(i=numworkers;i<target;++i) {
-				start_worker();
-			}
-		} else if(pfd[SIGNALS].revents) {
+		} else if(pfd[SIGNALS].revents && POLLIN) {
 			// something died
-			// TODO: stop repeatedly trying to make thumbnails if it keeps dying
 			struct signalfd_siginfo info;
 			for(;;) {
 				ssize_t amt = read(signals,&info,sizeof(info));
@@ -311,20 +344,22 @@ int main(int argc, char** argv) {
 						start_worker();
 					}
 					break;
-				case SIGALRM:
-					if(numworkers > 1) {
-						record(INFO,"Paring down to %d",numworkers-1);
-						kill(workers[numworkers-1],SIGTERM);
-						if(numworkers > 2) {
-							// naturally pare down every 60s
-							alarm(60);
-						}
-					}
-					break;
 				default:
 					perror("huh?");
 					abort();
 				};
+			}
+		} else {
+			// someone went idle!
+			int which;
+			for(which=0;which<numworkers;++which) {
+				if(pfd[which+2].fd == workers[which].efd) {
+					char c;
+					ssize_t amt = read(workers[which].efd,&c,1);
+					ensure_eq(amt,1);
+					workers[which].status = IDLE;
+					break;
+				}
 			}
 		}
 	}
