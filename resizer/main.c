@@ -1,3 +1,4 @@
+#include "ensure.h"
 #include "make.h"
 #include "message.h"
 #include "filedb.h"
@@ -9,8 +10,6 @@
 #include <sys/resource.h>
 #include <stdlib.h>
 #include <unistd.h> // read
-
-#include <assert.h>
 
 extern char* environ[];
 
@@ -31,7 +30,7 @@ int main(int argc, char** argv) {
 	alarm(WORKER_IDLE);
 
 	for(;;) {
-		assert(sizeof(m)==read(STDIN_FILENO,&m,sizeof(m)));
+		ensure_eq(sizeof(m),read(STDIN_FILENO,&m,sizeof(m)));
 		puts("boop");
 		if(m.resize)
 			make_resized(ctx,m.resized.id,m.resized.width);
