@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // O_PATH, openat
 #include "message.h"
 
 #include <fcntl.h> // O_*, open

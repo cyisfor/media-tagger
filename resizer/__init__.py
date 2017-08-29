@@ -15,5 +15,5 @@ def init(base):
 	global queue
 	l = cdll.LoadLibrary(lib)
 	l.init(base)
-	queue = lambda id,width=0: l.queue(id,width)
+	queue = lambda id,width=0: l.queue(id,width or 0)
 	l.queue.argtypes = [c_uint, c_uint]
