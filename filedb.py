@@ -26,7 +26,6 @@ def incoming(id,contents=None):
 	return _incoming('{:x}'.format(id),contents)
 	
 def _check(id,category,create=True,width=0):
-		id = '{:x}'.format(id)
 		medium = oj(base,category,id)
 		if os.path.exists(medium): return id,True
 		if not create:
