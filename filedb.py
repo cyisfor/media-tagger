@@ -2,11 +2,15 @@ from gevent import sleep
 import tempfile
 from contextlib import contextmanager
 
+import resizer
+
 import os,time
 oj = os.path.join
 
 base = os.path.expanduser("/home/.local/filedb")
 top = base
+
+resizer.init(base)
 
 temp = oj(base,'temp')
 

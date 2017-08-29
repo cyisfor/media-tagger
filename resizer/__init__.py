@@ -11,14 +11,9 @@ from ctypes import cdll,c_int,c_uint
 
 os.chdir("/home/.local/filedb")
 
-def init():
+def init(base):
 	global queue
 	l = cdll.LoadLibrary(lib)
-	l.init()
+	l.init(base)
 	queue = lambda id,width=0: l.queue(id,width)
 	l.queue.argtypes = [c_uint, c_uint]
-
-
-
-
-queue(0x7f82c)
