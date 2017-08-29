@@ -32,8 +32,8 @@ int main(int argc, char** argv) {
 	for(;;) {
 		ensure_eq(sizeof(m),read(STDIN_FILENO,&m,sizeof(m)));
 		puts("boop");
-		if(m.resize)
-			make_resized(ctx,m.resized.id,m.resized.width);
+		if(m.width > 0)
+			make_resized(ctx,m.id,m.width);
 		else
 			make_thumbnail(ctx,m.id);
 		// regardless of success, if fail this'll just repeatedly fail

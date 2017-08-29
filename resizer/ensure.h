@@ -1,4 +1,4 @@
-
+#include <stdio.h>
 #include <stdlib.h> // abort
 
 #define ERROR(...) fprintf(stderr, ## __VA_ARGS__)
