@@ -33,7 +33,7 @@ typedef unsigned char byte;
 
 char lackey[PATH_MAX];
 
-int start_worker(int efd) {
+int start_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
@@ -41,9 +41,10 @@ int start_worker(int efd) {
 	if(pid == 0) {
 		ensure0(fcntl(efd,F_SETFL, fcntl(efd,F_GETFL) & ~O_NONBLOCK));
 
-		dup2(efd,0);
-		dup2(efd,1);
-		close(efd);
+		dup2(in,0);
+		dup2(out,1);
+		close(in);
+		close(out);
 		// XXX: is this needed?
 		execvp("cgexec",(void*)args);
 		abort();
@@ -112,7 +113,8 @@ enum status { DEAD, DOOMED, IDLE, BUSY };
 struct worker {
 	enum status status;
 	int pid;
-	int efd;
+	int in;
+	int out;
 	uint32_t current;
 	time_t expiration;
 };
@@ -145,12 +147,13 @@ size_t get_worker(size_t off) {
 	if(numworkers + 1 == MAXWORKERS) {
 		return MAXWORKERS;
 	}
-	if(workers[numworkers].efd < 0) {
-		workers[numworkers].efd = eventfd(0,EFD_NONBLOCK);
+	if(workers[numworkers].in < 0) {
+		workers[numworkers].in = eventfd(0,EFD_NONBLOCK);
+		workers[numworkers].out = eventfd(0,EFD_NONBLOCK);
 	}
 	workers[numworkers].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers);
-	workers[numworkers].pid = start_worker(workers[numworkers].efd);
+	workers[numworkers].pid = start_worker(workers[numworkers].in,workers[numworkers].out);
 	set_expiration(numworkers);
 	return numworkers++;
 }
@@ -196,7 +199,7 @@ void reap_workers(void) {
 
 void send_message(size_t which, const struct message m) {
 	record(INFO,"Sending %d to %d",m.id,which);
-	ssize_t amt = write(workers[which].efd, &m, sizeof(m));
+	ssize_t amt = write(workers[which].in, &m, sizeof(m));
 	if(amt == 0) {
 		// full, but IDLE was set?
 		workers[which].status = DOOMED;
@@ -279,7 +282,7 @@ int main(int argc, char** argv) {
 				pfd[INCOMING].events = 0;
 				break;
 			}
-			pfd[worker+2].fd = workers[worker].efd;
+			pfd[worker+2].fd = workers[worker].out;
 			pfd[worker+2].events = POLLIN;
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
@@ -372,9 +375,9 @@ int main(int argc, char** argv) {
 			// someone went idle!
 			int which;
 			for(which=0;which<numworkers;++which) {
-				if(pfd[which+2].fd == workers[which].efd) {
-					struct message m;
-					ssize_t amt = read(workers[which].efd,&m,sizeof(m));
+				if(pfd[which+2].fd == workers[which].out) {
+					char c;
+					ssize_t amt = read(workers[which].out,&c,1);
 					if(amt < 0) {
 						perror("huh?");
 					} else {
