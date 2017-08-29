@@ -107,6 +107,7 @@ char lackey[PATH_MAX];
 
 
 void start_worker(void) {
+	record(INFO,"starting lackey #%d",numworkers);
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
