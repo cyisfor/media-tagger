@@ -1,4 +1,5 @@
 #define _GNU_SOURCE // ppoll
+#include "ensure.h"
 #include "record.h"
 #include "watch.h"
 #include "message.h"
@@ -116,6 +117,8 @@ void start_worker(void) {
 		chdir("..");
 		dup2(queue,0);
 		close(queue);
+		ensure0(fcntl(0,F_SETFL, fcntl(0,F_GETFL) & ~O_NONBLOCK));
+
 		execvp("cgexec",(void*)args);
 		abort();
 	}
