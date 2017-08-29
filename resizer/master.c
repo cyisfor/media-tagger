@@ -5,6 +5,7 @@
 #include "message.h"
 
 #include <sys/signalfd.h>
+#include <sys/eventfd.h>
 
 #include <sys/inotify.h>
 #include <poll.h>
