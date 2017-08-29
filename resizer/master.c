@@ -397,6 +397,7 @@ int main(int argc, char** argv) {
 						ensure_eq(amt,1);
 					}
 					workers[which].status = IDLE;
+					pfd[INCOMING].events = POLLIN;
 					break;
 				}
 			}
