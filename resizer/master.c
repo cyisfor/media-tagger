@@ -39,7 +39,6 @@ int start_worker(int efd) {
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
-		chdir("..");
 		dup2(efd,0);
 		close(efd);
 		// XXX: is this needed?
