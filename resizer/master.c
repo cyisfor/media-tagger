@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
 			break;
 		}
 	}
-	int queuefull = open("queuefull",O_RDONLY|O_NONBLOCK);
+	int queuefull = open("queuefull",O_RDWR|O_NONBLOCK);
 	assert(queuefull >= 0);
 
 	enum { SIGNALS, QUEUEFULL };
