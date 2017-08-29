@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
 	for(;;) {
 		int res = ppoll((struct pollfd*)&pfd,
 										2+numworkers,
-										forever ? NULL : &timeout,
+										&timeout,
 										&mysigs);
 		if(res < 0) {
 			if(errno == EINTR) continue;
