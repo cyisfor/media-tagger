@@ -43,8 +43,6 @@ int start_worker(int efd) {
 		dup2(efd,0);
 		close(efd);
 		// XXX: is this needed?
-		ensure0(fcntl(0,F_SETFL, fcntl(0,F_GETFL) & ~O_NONBLOCK));
-
 		execvp("cgexec",(void*)args);
 		abort();
 	}
