@@ -16,5 +16,15 @@ void queue(int dest, uint32_t id, uint32_t width) {
 		.width = width
 	};
 	ssize_t amt = write(dest,&m,sizeof(m));
-	assert(amt == sizeof(m));
+	if(amt == sizeof(m)) return;
+	if(amt < 0) {
+		perror("oops");
+		abort();
+	}
+	if(amt == 0) {
+		perror("whu?");
+		abort();
+	}
+	fprintf(stderr,"Ummm %d %d\n",amt,sizeof(m));
+	abort();
 }
