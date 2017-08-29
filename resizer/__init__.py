@@ -10,12 +10,12 @@ from ctypes import cdll,c_int,c_uint
 os.chdir("/home/.local/filedb")
 
 def init():
-	global dest, queue
+	global queue
 	l = cdll.LoadLibrary(lib)
 	print(l.init)
 	dest = l.init()
-	queue = l.queue
-	queue.argtypes = [c_int, c_uint, c_uint]
+	queue = lambda id: l.queue(dest,id)
+	l.queue.argtypes = [c_int, c_uint, c_uint]
 
 try:
 	init()
@@ -24,4 +24,4 @@ except AttributeError:
 	s.call(["make","-C",here,"python.so"])
 	init()
 
-print(dest)
+dest.queue(
