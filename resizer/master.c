@@ -149,7 +149,7 @@ size_t get_worker(size_t off) {
 		}
 	}
 	// need a new worker
-	if(numworkers + 1 == MAXWORKERS) {
+	if(numworkers == MAXWORKERS) {
 		return MAXWORKERS;
 	}
 	if(workers[numworkers].in < 0) {
