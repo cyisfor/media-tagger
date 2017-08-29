@@ -39,7 +39,8 @@ int start_worker(int in, int out) {
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
-		ensure0(fcntl(efd,F_SETFL, fcntl(efd,F_GETFL) & ~O_NONBLOCK));
+		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~O_NONBLOCK));
+		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~O_NONBLOCK));
 
 		dup2(in,0);
 		dup2(out,1);
@@ -381,7 +382,7 @@ int main(int argc, char** argv) {
 					if(amt < 0) {
 						perror("huh?");
 					} else {
-						ensure_eq(amt,sizeof(m));
+						ensure_eq(amt,1);
 					}
 					workers[which].status = IDLE;
 					break;
