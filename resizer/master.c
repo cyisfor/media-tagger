@@ -156,49 +156,6 @@ void start_worker(size_t which) {
 	++numworkers;
 }
 
-size_t get_worker(size_t off) {
-	// get a worker
-	// off, so we don't check worker 0 a million times
-	int which = 0;
-	for(which=0;which<MAXWORKERS;++which) {
-		size_t derp = (which+off)%MAXWORKERS;
-		switch(workers[derp].status) {
-		case DEAD:
-			continue;
-		case IDLE:
-			workers[derp].status = BUSY;
-			return derp;
-		};
-	}
-
-	if(numworkers == MAXWORKERS) {
-		for(which=0;which<MAXWORKERS;++which) {
-			if(workers[which].status == DOOMED) {
-				/*
-					if 995 ns left (expiration - now) and doom delay is 1000ns
-					1000 - 995 < 50, so wait a teensy bit longer please
-				*/
-				Time diff = timediff(DOOM_DELAY,
-														 timediff(workers[which].expiration,
-																			getnow()));
-				if(diff.tv_nsec > 50) {
-					kill_worker(which);
-					start_worker(which);
-					return which;
-				}
-			}
-		}
-		return MAXWORKERS;
-	}
-	
-	for(which=0;which<MAXWORKERS;++which) {
-		if(workers[which].status != DEAD) continue;
-		start_worker(which);
-		return which;
-	}
-	return numworkers++;
-}
-
 void reap_workers(void) {
 	for(;;) {
 		int status;
@@ -247,6 +204,49 @@ void stop_worker(int which) {
 	reap_workers();
 	if(workers[which].status == DEAD) return;
 	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
+}
+
+size_t get_worker(size_t off) {
+	// get a worker
+	// off, so we don't check worker 0 a million times
+	int which = 0;
+	for(which=0;which<MAXWORKERS;++which) {
+		size_t derp = (which+off)%MAXWORKERS;
+		switch(workers[derp].status) {
+		case DEAD:
+			continue;
+		case IDLE:
+			workers[derp].status = BUSY;
+			return derp;
+		};
+	}
+
+	if(numworkers == MAXWORKERS) {
+		for(which=0;which<MAXWORKERS;++which) {
+			if(workers[which].status == DOOMED) {
+				/*
+					if 995 ns left (expiration - now) and doom delay is 1000ns
+					1000 - 995 < 50, so wait a teensy bit longer please
+				*/
+				Time diff = timediff(DOOM_DELAY,
+														 timediff(workers[which].expiration,
+																			getnow()));
+				if(diff.tv_nsec > 50) {
+					kill_worker(which);
+					start_worker(which);
+					return which;
+				}
+			}
+		}
+		return MAXWORKERS;
+	}
+	
+	for(which=0;which<MAXWORKERS;++which) {
+		if(workers[which].status != DEAD) continue;
+		start_worker(which);
+		return which;
+	}
+	return numworkers++;
 }
 
 void send_message(size_t which, const struct message m) {
