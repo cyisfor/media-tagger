@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
 			// timed out while waiting for events?
 			continue;
 		}
-		if(pfd[QUEUEFULL].revents) {
+		if(pfd[QUEUEFULL].revents && POLLIN) {
 			char buf[0x1000];
 			size_t pokes = 0;
 			for(;;) {
