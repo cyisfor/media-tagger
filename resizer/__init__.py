@@ -19,7 +19,7 @@ def init():
 
 try:
 	init()
-except AttributeError:
+except (AttributeError,OSError):
 	import subprocess as s
 	s.call(["make","-C",here,"python.so"])
 	init()

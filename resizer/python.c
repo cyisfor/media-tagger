@@ -3,6 +3,7 @@
 #include <fcntl.h> // O_*, open
 #include <unistd.h> // write
 #include <assert.h>
+#include <stdio.h>
 
 // a python ctypes stub for sending IDs as messages...
 
