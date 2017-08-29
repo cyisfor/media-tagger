@@ -275,7 +275,9 @@ int main(int argc, char** argv) {
 			if(worker == MAXWORKERS) {
 				pfd[INCOMING].events = 0;
 				break;
-			} 
+			}
+			pfd[worker+2].fd = workers[worker].efd;
+			pfd[worker+2].events = POLLIN;
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
 				perror("EOF on queuefull...");
