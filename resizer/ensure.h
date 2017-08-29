@@ -1,6 +1,7 @@
-#include "note.h" // error(...)
+
 #include <stdlib.h> // abort
-#include <stdint.h> // intptr_t
+
+#define ERROR(...) fprintf(stderr, ## __VA_ARGS__)
 
 
 #define ensure0(test) { typeof(test) res = (test);	\
