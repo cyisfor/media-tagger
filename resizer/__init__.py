@@ -12,10 +12,9 @@ os.chdir("/home/.local/filedb")
 def init():
 	global queue
 	l = cdll.LoadLibrary(lib)
-	dest = l.init()
-	print(dest)
-	queue = lambda id,width=0: l.queue(dest,id,width)
-	l.queue.argtypes = [c_int, c_uint, c_uint]
+	l.init()
+	queue = lambda id,width=0: l.queue(id,width)
+	l.queue.argtypes = [c_uint, c_uint]
 
 import subprocess as s
 s.check_call(["make","-C",here,"python.so"])
