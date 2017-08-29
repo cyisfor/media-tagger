@@ -5,7 +5,7 @@ here = os.path.abspath(os.path.dirname(sys.modules[__name__].__file__))
 lib = os.path.join(here,"python.so");
 
 import subprocess as s
-s.check_call(["make","-q","-C",here,"python.so"])
+s.check_call(["make","-s","-C",here,"python.so"])
 
 from ctypes import cdll,c_int,c_uint
 
