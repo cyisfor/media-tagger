@@ -10,6 +10,8 @@
 
 #include <assert.h>
 
+#include <stdbool.h>
+
 #include <unistd.h>
 #include <string.h> // strrchr
 #include <stdlib.h> // malloc
@@ -133,38 +135,6 @@ static void dolock(void) {
   default:
     error(3,errno,"Couldn't set a lock.");
   };
-}
-
-static bool file_changed(struct message* message, const char* filename) {
-	if(filename[0] == '\0' || filename[0] == '.') return false;
-
-	uint32_t ident = strtol(filename,NULL,0x10);
-	assert(ident > 0 && ident < (1<<31)); // can bump 1<<31 up in message.h l8r
-
-	int fd = open(filename,O_RDONLY);
-	if(fd == -1) {
-		// got deleted somehow
-		return false;
-	}
-
-	char buf[0x100];
-	ssize_t len = read(fd,buf,0x100);
-
-	message->id = ident;
-	if(len) {
-		buf[len] = '\0';
-		uint32_t width = strtol(buf, NULL, 0x10);
-		if(width > 0) {
-			record(INFO,"Got width %x, sending resize request",width);
-			message->resize = true;
-			message->resized.width = width;
-			return true;
-		}
-	} else {
-		message->resize = false;
-		return true;
-	}
-	return false;
 }
 
 /* inotify keeps missing files, and we don't really need a persistent queue.

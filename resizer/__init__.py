@@ -23,4 +23,3 @@ except AttributeError:
 	init()
 
 print(dest)
-
