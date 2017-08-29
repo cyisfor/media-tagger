@@ -181,11 +181,10 @@ int main(int argc, char** argv) {
 	mkfifo("queue",0644);
 	mkfifo("queuefull",0644);
 
-	queue = open("queue",O_RDONLY); // dup2 this to stdin for lackeys, otherwise ignore
+	queue = open("queue",O_RDONLY|O_NONBLOCK); // dup2 this to stdin for lackeys, otherwise ignore
 	assert(queue >= 0);
-	int queuefull = open("queuefull",O_RDONLY);
+	int queuefull = open("queuefull",O_RDONLY|O_NONBLOCK);
 	assert(queuefull >= 0);
-	fcntl(queuefull,F_SETFL, fcntl(queuefull,F_GETFL) | O_NONBLOCK);
 
 	enum { SIGNALS, QUEUEFULL };
 
