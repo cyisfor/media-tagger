@@ -1,6 +1,6 @@
 function reload_later(dest,src) {
 	var img = document.createElement('img');
-	img.style.height = '219px';
+	img.style.height = '244px';
 	function setsrc() {
 		img.src = src;
 	}
