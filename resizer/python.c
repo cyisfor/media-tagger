@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h> // abort
 
 
 // a python ctypes stub for sending IDs as messages...
