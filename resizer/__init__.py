@@ -1,11 +1,13 @@
 import ctypes
 import sys,os
 
-here = os.path.dirname(sys.modules[__name__].__file__)
-if not here: here = os.curdir
+here = os.path.abspath(os.path.dirname(sys.modules[__name__].__file__))
+
 lib = os.path.join(here,"python.so");
 
 from ctypes import cdll,c_int,c_uint
+
+os.chdir("/home/.local/filedb")
 
 def init():
 	global dest, queue
