@@ -190,6 +190,8 @@ int main(int argc, char** argv) {
 		queue = open("queue",O_RDONLY); // dup2 this to stdin for lackeys, otherwise ignore
 		if(queue<0) {
 			ensure_eq(errno,EINTR);
+		} else {
+			break;
 		}
 	}
 	int queuefull = open("queuefull",O_RDONLY|O_NONBLOCK);
