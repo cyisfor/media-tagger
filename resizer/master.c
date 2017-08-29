@@ -39,6 +39,8 @@ int start_worker(int efd) {
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
+		ensure0(fcntl(efd,F_SETFL, fcntl(efd,F_GETFL) & ~O_NONBLOCK));
+
 		dup2(efd,0);
 		dup2(efd,1);
 		close(efd);
@@ -144,7 +146,7 @@ size_t get_worker(size_t off) {
 		return MAXWORKERS;
 	}
 	if(workers[numworkers].efd < 0) {
-		workers[numworkers].efd = eventfd(0,0);
+		workers[numworkers].efd = eventfd(0,EFD_NONBLOCK);
 	}
 	workers[numworkers].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers);
