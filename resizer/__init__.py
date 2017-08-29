@@ -7,11 +7,20 @@ lib = os.path.join(here,"python.so");
 
 from ctypes import cdll
 
-lib = cdll.LoadLibrary(lib)
+def init():
+	global dest, queue
+	l = cdll.LoadLibrary(lib)
+	dest = l.init()
+	queue = l.queue
+	queue.argtypes = [c_int, c_uint, c_uint]
 
-dest = lib.init()
-queue = lib.queue
-queue.argtypes = [c_int, c_uint, c_uint]
+
+try:
+	init()
+except AttributeError:
+	import subprocess as s
+	s.call(["make","-C",here,"python.so"])
+	init()
 
 print(dest)
 
