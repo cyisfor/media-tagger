@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
 
 	enum { SIGNALS, INCOMING };
 
-	struct pollfd pfd[NUM+2] = {
+	struct pollfd pfd[MAXWORKERS+2] = {
 		[SIGNALS] = {
 			.fd = signals,
 			.events = POLLIN
@@ -290,7 +290,8 @@ int main(int argc, char** argv) {
 	bool forever = true;
 	size_t soonest_worker;
 	if(numworkers > 0) {
-		timeout.tv_sec = workers[0].due;
+		size_t i;
+		timeout.tv_sec = workers[0].expiration;
 		timeout.tv_nsec = 0;
 		for(i=1;i<numworkers;++i) {
 			if(timeout.tv_sec > workers[i].expiration) {
