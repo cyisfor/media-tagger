@@ -14,6 +14,7 @@
 int q,queuefull;
 
 void init(const char* incoming) {
+	printf("ummmm %s\n",incoming);
 	int loc = open(incoming,O_DIRECTORY|O_PATH);
 	assert(loc >= 0);
 	q = openat(loc,"queue",O_WRONLY|O_NONBLOCK);

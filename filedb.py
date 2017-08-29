@@ -10,7 +10,7 @@ oj = os.path.join
 base = os.path.expanduser("/home/.local/filedb")
 top = base
 
-resizer.init(base)
+resizer.init(oj(base,"incoming"))
 
 temp = oj(base,'temp')
 
