@@ -39,8 +39,8 @@ int start_worker(int in, int out) {
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
-		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~O_NONBLOCK));
-		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~O_NONBLOCK));
+		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
+		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
 
 		if(in != 3) {
 			dup2(in,3);

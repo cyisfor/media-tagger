@@ -30,13 +30,13 @@ int main(int argc, char** argv) {
 
 	for(;;) {
 		struct message m = {};
-		ensure_eq(sizeof(m),read(STDIN_FILENO,&m,sizeof(m)));
+		ensure_eq(sizeof(m),read(3,&m,sizeof(m)));
 		if(m.width > 0)
 			make_resized(ctx,m.id,m.width);
 		else
 			make_thumbnail(ctx,m.id);
 
-		write(STDOUT_FILENO,&m,1);
+		write(4,&m,1);
 
 		alarm(WORKER_IDLE);
 	}
