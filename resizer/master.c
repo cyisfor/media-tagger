@@ -123,7 +123,7 @@ struct worker {
 	uint32_t current;
 	time_t expiration;
 };
-#define MAXWORKERS 4 // # CPUs?
+#define MAXWORKERS 1 // # CPUs?
 
 struct worker workers[MAXWORKERS];
 size_t numworkers = 0;
