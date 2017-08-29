@@ -181,7 +181,7 @@ void reap_workers(void) {
 				} else {
 					memmove(workers+which,
 									workers+which+1,
-									sizeof(struct worker) * (--numworkers - which));
+									sizeof(struct worker) * (numworkers - which - 1));
 				}
 				workers[numworkers--].status = DEAD; // just in case...
 			}
