@@ -65,14 +65,15 @@ Time timeadd(Time oldTime, Time time) {
 
 SI
 Time timediff(Time oldTime, Time time) {
-	if (time.tv_nsec < oldTime.tv_nsec)
+	if (time.tv_nsec < oldTime.tv_nsec) {
 		RETURN_TIME(
 			time.tv_sec - 1 - oldTime.tv_sec,
 			NSECPERSEC + time.tv_nsec - oldTime.tv_nsec);
-	else
+	} else {
 		RETURN_TIME(
 			time.tv_sec - oldTime.tv_sec,
 			time.tv_nsec - oldTime.tv_nsec);
+	}
 }
 
 SI
