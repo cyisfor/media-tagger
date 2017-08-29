@@ -322,11 +322,11 @@ int main(int argc, char** argv) {
 		errno = 0;
 		if(res == 0) {
 			// timed out while waiting for events?
-			if(worker[soonest_worker].status == DOOMED) {
-				kill(worker[soonest_worker].pid,SIGKILL);
+			if(workers[soonest_worker].status == DOOMED) {
+				kill(workers[soonest_worker].pid,SIGKILL);
 			} else {
-				worker[soonest_worker].status = DOOMED;
-				kill(worker[soonest_worker].pid,SIGTERM);
+				workers[soonest_worker].status = DOOMED;
+				kill(workers[soonest_worker].pid,SIGTERM);
 			}
 			continue;
 		}
