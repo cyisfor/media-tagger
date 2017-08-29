@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
 
 	size_t i;
 	for(i=0;i<MAXWORKERS;++i) {
-		workers[i].efd = -1;
+		workers[i].in = -1;
 	}
 	
 	sigset_t mysigs;
