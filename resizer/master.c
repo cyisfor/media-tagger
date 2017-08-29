@@ -152,12 +152,16 @@ size_t get_worker(size_t off) {
 	if(numworkers == MAXWORKERS) {
 		return MAXWORKERS;
 	}
-	workers[numworkers].in = eventfd(0,EFD_NONBLOCK);
-	workers[numworkers].out = eventfd(0,EFD_NONBLOCK);
+	pipe(workers[numworkers].in);
+	pipe(workers[numworkers].out);
 	
 	workers[numworkers].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers);
-	workers[numworkers].pid = start_worker(workers[numworkers].in,workers[numworkers].out);
+	workers[numworkers].pid = start_worker(workers[numworkers].in[0],
+																				 workers[numworkers].out[1]);
+	close(workers[numworkers].in[0]);
+	close(workers[numworkers].out[1]);
+	
 	set_expiration(numworkers);
 	return numworkers++;
 }
@@ -187,8 +191,8 @@ void reap_workers(void) {
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
-				close(workers[which].in);
-				close(workers[which].out);
+				close(workers[which].in[1]);
+				close(workers[which].out[0]);
 				if(which == numworkers) {
 					// no problem
 				} else {
@@ -206,7 +210,7 @@ void reap_workers(void) {
 
 void send_message(size_t which, const struct message m) {
 	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
-	ssize_t amt = write(workers[which].in, &m, sizeof(m));
+	ssize_t amt = write(workers[which].in[1], &m, sizeof(m));
 	if(amt == 0) {
 		// full, but IDLE was set?
 		workers[which].status = DOOMED;
@@ -219,11 +223,6 @@ void send_message(size_t which, const struct message m) {
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
 
-	size_t i;
-	for(i=0;i<MAXWORKERS;++i) {
-		workers[i].in = -1;
-	}
-	
 	sigset_t mysigs;
   dolock();
 	srand(time(NULL));
