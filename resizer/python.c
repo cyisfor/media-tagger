@@ -20,12 +20,12 @@ int queue(int dest, uint32_t id, uint32_t width) {
 		.width = width
 	};
 	ssize_t amt = write(q,&m,sizeof(m));
-	if(amt == sizeof(m)) return;
+	if(amt == sizeof(m)) return 1;
 	if(amt < 0) {
 		if(errno == EAGAIN) {
 			char c = 0;
 			write(queuefull,&c,1);
-			return -1;
+			return 0;
 		}
 		fprintf(stderr,"%d\n",dest);
 		perror("oops");
