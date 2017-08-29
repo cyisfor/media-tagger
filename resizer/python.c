@@ -11,9 +11,12 @@
 
 int q,queuefull;
 
-void init(void) {
-	q = open("incoming/queue",O_WRONLY|O_NONBLOCK);
-	queuefull = open("incoming/queuefull",O_WRONLY);
+void init(const char* incoming) {
+	int loc = open(incoming,O_DIRECTORY|O_PATH);
+	assert(loc >= 0);
+	q = openat(loc,"queue",O_WRONLY|O_NONBLOCK);
+	queuefull = openat(loc,"queuefull",O_WRONLY);
+	close(loc);
 }
 
 int queue(uint32_t id, uint32_t width) {
