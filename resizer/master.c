@@ -184,7 +184,9 @@ int main(int argc, char** argv) {
 	mkfifo("queue",0644);
 	mkfifo("queuefull",0644);
 
-	queue = open("queue",O_RDONLY|O_NONBLOCK); // dup2 this to stdin for lackeys, otherwise ignore
+	// fcntl cannot remove nonblocking from pipes, so... just hang master until there's
+	// something to do.
+	queue = open("queue",O_RDONLY); // dup2 this to stdin for lackeys, otherwise ignore
 	assert(queue >= 0);
 	int queuefull = open("queuefull",O_RDONLY|O_NONBLOCK);
 	assert(queuefull >= 0);
