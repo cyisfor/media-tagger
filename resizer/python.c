@@ -7,27 +7,34 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h> // abort
+#include <limits.h> // PATH_MAX
+#include <string.h> // memcpy
 
 
 // a python ctypes stub for sending IDs as messages...
 
-const char* reopen_incoming;
+const char reopen_incoming[PATH_MAX];
+int q = -1;
 
-int init(const char* incoming) {
-	reopen_incoming = incoming;
-	int loc = open(incoming,O_DIRECTORY|O_PATH);
+static void reinit() {
+	int loc = open(reopen_incoming,O_DIRECTORY|O_PATH);
 	assert(loc >= 0);
-	int ret = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
-	assert(ret > 0);
+	q = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
+	assert(q > 0);
 	close(loc);
-	return ret;
 }
 
-int queue(int q, uint32_t id, uint32_t width) {
+void init(const char* incoming, int len) {
+	memcpy(reopen_incoming, incoming, len);
+	reinit();
+}
+
+int queue(uint32_t id, uint32_t width) {
 	struct message m = {
 		.id = id,
 		.width = width
 	};
+	printf("queueing %d\n",q);
 	int doit(void) {
 		ssize_t amt = write(q,&m,sizeof(m));
 		if(amt == sizeof(m)) return 0;
