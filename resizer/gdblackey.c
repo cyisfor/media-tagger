@@ -7,6 +7,6 @@ int main(int argc, char *argv[])
 	size_t len = strlen(argv[0]);
 	memcpy(real,argv[0],len);
 	memcpy(real+len,"-real",6);
-	execlp("gdbserver","gdbserver","127.0.0.1:4411",real,NULL);
+	execlp("gdbserver","gdbserver","--debug","127.0.0.1:4411",real,NULL);
 	return 0;
 }
