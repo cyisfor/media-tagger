@@ -1,4 +1,5 @@
-#include <stdlib.h> // PATH_MAX
+#include <limits.h> // PATH_MAX
+#include <stdlib.h> // NULL
 
 int main(int argc, char *argv[])
 {
