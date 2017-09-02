@@ -13,7 +13,7 @@
 
 // a python ctypes stub for sending IDs as messages...
 
-static const char reopen_incoming[PATH_MAX];
+static char reopen_incoming[PATH_MAX];
 static int q = -1;
 
 static void reinit() {
@@ -41,7 +41,7 @@ int queue(uint32_t id, uint32_t width) {
 		if(amt < 0) {
 			if(errno == EAGAIN) return 1;
 			if(errno == EPIPE) {
-				init(reopen_incoming);
+				reinit();
 				return doit();
 			}
 			fprintf(stderr,"%d\n",q);
