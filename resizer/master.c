@@ -274,9 +274,6 @@ void send_message(size_t which, const struct message m) {
 
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
-	ensure_eq(0,chdir(argv[1])); // ehhhh
-	
-  dolock();
 	recordInit();
 
 	init_timeop();
@@ -293,6 +290,10 @@ int main(int argc, char** argv) {
 		memcpy(lackey+amt,"lackey-bin",sizeof("lackey-bin"));
 	}
 	record(INFO, "lackey '%s'",lackey);
+
+	ensure_eq(0,chdir(argv[1])); // ehhhh
+	
+  dolock();
 
 	mkfifo("incoming",0644); // not a directory anymore
 
