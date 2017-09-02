@@ -34,7 +34,7 @@ int queue(uint32_t id, uint32_t width) {
 		.id = id,
 		.width = width
 	};
-	printf("queueing %d\n",q);
+	printf("queueing %x\n",id);
 	int doit(void) {
 		ssize_t amt = write(q,&m,sizeof(m));
 		if(amt == sizeof(m)) return 0;
