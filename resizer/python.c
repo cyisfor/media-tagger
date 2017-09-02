@@ -13,8 +13,8 @@
 
 // a python ctypes stub for sending IDs as messages...
 
-const char reopen_incoming[PATH_MAX];
-int q = -1;
+static const char reopen_incoming[PATH_MAX];
+static int q = -1;
 
 static void reinit() {
 	int loc = open(reopen_incoming,O_DIRECTORY|O_PATH);
