@@ -259,7 +259,7 @@ void send_message(size_t which, const struct message m) {
 	if(amt < 0) {
 		switch(errno) {
 		case EPIPE:
-			return send_message(get_worker(worker), m);
+			return send_message(get_worker(which), m);
 		};
 		perror("write");
 		abort();
