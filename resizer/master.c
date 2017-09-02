@@ -34,12 +34,16 @@ typedef unsigned char byte;
 
 char lackey[PATH_MAX];
 
+static sigset_t mysigs;
+
+
 int launch_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
 	int pid = fork();
 	if(pid == 0) {
+		ensure_eq(0,sigprocmask(SIG_UNBLOCK, &mysigs, NULL));
 		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
 		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
 
@@ -303,7 +307,6 @@ int main(int argc, char** argv) {
 		 an if(numworkers == 0) and start_worker();
 	*/
 
-	sigset_t mysigs;
 	sigemptyset(&mysigs);
 	// workers will die, we need to handle
 	sigaddset(&mysigs,SIGCHLD);
