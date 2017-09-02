@@ -70,12 +70,12 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		}
 		int shrink = 1;
 		update_factor();
-		factor = 1/factor;
-		if(factor > 8) {
+		float rfactor = 1/factor;
+		if(rfactor > 8) {
 			shrink = 8;
-		} else if(factor > 4) {
+		} else if(rfactor > 4) {
 			shrink = 4;
-		} else if(factor > 2) {
+		} else if(rfactor > 2) {
 			shrink = 2;
 		}
 		if(shrink > 1) {
