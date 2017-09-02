@@ -256,6 +256,14 @@ void send_message(size_t which, const struct message m) {
 		stop_worker(which);
 		return;
 	}
+	if(amt < 0) {
+		switch(errno) {
+		case EPIPE:
+			return send_message(get_worker(worker), m);
+		};
+		perror("write");
+		abort();
+	}
 	ensure_eq(amt, sizeof(m));
 	workers[which].current = m.id; // eh
 }
