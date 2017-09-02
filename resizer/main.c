@@ -30,7 +30,11 @@ int main(int argc, char** argv) {
 
 	for(;;) {
 		struct message m = {};
-		ensure_eq(sizeof(m),read(3,&m,sizeof(m)));
+		ssize_t amt = read(3,&m,sizeof(m));
+		if(amt < 0) {
+			perror("foo");
+		}
+		ensure_eq(sizeof(m),amt);
 		if(m.width > 0)
 			make_resized(ctx,m.id,m.width);
 		else
