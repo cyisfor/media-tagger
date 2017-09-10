@@ -17,10 +17,10 @@ def fixCloudflareIdiocy(url):
 	url = url.replace('%28','').replace('%29','')
 	return url
 
-def tagoid(lookup):
+def tagoid(tags):
 	pat = None
-	keys = tuple(lookup.keys())
-	for key in keys:
+	tags = tuple(tags.items())
+	for key,_ in tags:
 		if pat is None:
 			pat = ''
 		else:
@@ -30,11 +30,11 @@ def tagoid(lookup):
 	def repl(m):
 		print(m.groups())
 		raise SystemExit
-		for i in range(len(keys)):
+		for i in range(len(tags)):
 			body = m.group(2*i+2)
 			if body:
 				body = m.group(2*i+1) + body
-				tag = lookup[keys[i]]
+				tag = tags[i][1]
 				if tag is None: return body
 				return '<' + tag + '>' + body + '</' + tag + '>'
 		raise RuntimeError("should have matched!")
