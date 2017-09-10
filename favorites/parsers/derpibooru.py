@@ -28,12 +28,10 @@ def tagoid(tags):
 		pat += "(^|\W)(?:" + key + "([^" + key + "\\n]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
-		print(m.groups())
-		raise SystemExit
 		for i in range(len(tags)):
-			body = m.group(2*i+2)
+			body = m.group(2*i+1)
 			if body:
-				body = m.group(2*i+1) + body
+				body = m.group(2*i) + body
 				tag = tags[i][1]
 				if tag is None: return body
 				return '<' + tag + '>' + body + '</' + tag + '>'
