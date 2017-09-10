@@ -25,7 +25,7 @@ def tagoid(lookup):
 			pat = ''
 		else:
 			pat += "|" 
-		pat += "(?:" + key + "([^" + key + "\\n]+)" + key + ")"
+		pat += "(?:^|\W)(?:" + key + "([^" + key + "\\n]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
 		for i in range(len(keys)):
