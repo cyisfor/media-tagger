@@ -28,6 +28,8 @@ def tagoid(lookup):
 		pat += "(^|\W)(?:" + key + "([^" + key + "\\n]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
+		print(m.groups())
+		raise SystemExit
 		for i in range(len(keys)):
 			body = m.group(2*i+2)
 			if body:
