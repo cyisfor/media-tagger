@@ -31,10 +31,10 @@ def tagoid(tags):
 		for i in range(len(tags)):
 			body = m.group(2*i+2)
 			if body:
-				body = m.group(2*i+1) + body
+				header = m.group(2*i+1)
 				tag = tags[i][1]
-				if tag is None: return body
-				return '<' + tag + '>' + body + '</' + tag + '>'
+				if tag is None: return header + body
+				return header + '<' + tag + '>' + body + '</' + tag + '>'
 		raise RuntimeError("should have matched!")
 	return lambda s: pat.sub(repl, s)
 
