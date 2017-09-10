@@ -31,7 +31,7 @@ def tagoid(lookup):
 		for i in range(len(keys)):
 			body = m.group(2*i+2)
 			if body:
-				header = m.group(2*i+1)
+				body = m.group(2*i+1) + body
 				tag = lookup[keys[i]]
 				if tag is None: return body
 				return '<' + tag + '>' + body + '</' + tag + '>'
