@@ -25,14 +25,16 @@ def tagoid(lookup):
 			pat = ''
 		else:
 			pat += "|" 
-		pat += "(?:^|\W)(?:" + key + "([^" + key + "\\n]+)" + key + ")"
+		pat += "(^|\W)(?:" + key + "([^" + key + "\\n]+)" + key + ")"
 	pat = re.compile(pat)
 	def repl(m):
 		for i in range(len(keys)):
-			if m.group(i+1):
+			body = m.group(2*i+2)
+			if body:
+				header = m.group(2*i+1)
 				tag = lookup[keys[i]]
-				if tag is None: return m.group(i+1)
-				return '<' + tag + '>' + m.group(i+1) + '</' + tag + '>'
+				if tag is None: return body
+				return '<' + tag + '>' + body + '</' + tag + '>'
 		raise RuntimeError("should have matched!")
 	return lambda s: pat.sub(repl, s)
 
