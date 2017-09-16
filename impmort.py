@@ -111,11 +111,13 @@ def impmort(path,implied,recheck=False,urisource=None):
 		with db.transaction():
 			if source:
 				source = source[0][0]
-				idnum = db.execute("SELECT id,hash,neighbors FROM media WHERE sources @> ARRAY[$1::int]",(source,))
+				idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
 				if idnum:
-					idnum,hash,neighbors = idnum[0]
+					idnum,hash = idnum[0]
 					if not recheck: #(officialTags or recheck):
-						if neighbors:
+						neighbors = db.execute("SELECT array_size(neighbors) FROM things WHERE id = $1",
+																	 (idnum,))
+						if neighbors and neighbors[0][0] > 0:
 							return
 						else:
 							print("need recheck for empty tags")
