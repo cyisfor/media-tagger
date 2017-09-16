@@ -110,13 +110,15 @@ def impmort(path,implied,recheck=False,urisource=None):
 	try:
 		with db.transaction():
 			if source:
-				if not recheck: #(officialTags or recheck):
-					#print("Not rechecking existing file")
-					return
 				source = source[0][0]
-				idnum = db.execute("SELECT id,hash FROM media WHERE sources @> ARRAY[$1::int]",(source,))
+				idnum = db.execute("SELECT id,hash,neighbors FROM media WHERE sources @> ARRAY[$1::int]",(source,))
 				if idnum:
-					idnum,hash = idnum[0]
+					idnum,hash,neighbors = idnum[0]
+					if not recheck: #(officialTags or recheck):
+						if neighbors:
+							return
+						else:
+							print("need recheck for empty tags")
 			else:
 				source = db.execute("INSERT INTO sources (hasTags) VALUES (TRUE) RETURNING id")[0][0]
 				db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
@@ -131,6 +133,8 @@ def impmort(path,implied,recheck=False,urisource=None):
 			except ImportError: return
 			if urisource:
 				urisource = create.Source(urisource,hasTags=True)
+			alltags = implied.union(discovered)
+			assert alltags, "no tags found for " + path
 			if idnum:
 				note("Adding source",idnum,source)
 				sources = [source]
@@ -138,7 +142,7 @@ def impmort(path,implied,recheck=False,urisource=None):
 					sources.append(urisource)
 				create.update(idnum,
 				              sources,
-				              implied.union(discovered),
+				              alltags,
 				              name)
 			else:
 				print("importing",path,discovered)
@@ -148,7 +152,7 @@ def impmort(path,implied,recheck=False,urisource=None):
 					sources = ()
 				create.internet(create.copyMe(path),
 				                source,
-				                implied.union(discovered),
+				                alltags,
 				                source,
 				                sources,
 				                name=name)
