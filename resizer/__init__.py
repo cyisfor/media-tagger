@@ -9,8 +9,6 @@ s.check_call(["make","-s","-C",here,"python.so"])
 
 from ctypes import cdll,c_int,c_uint,c_char_p
 
-os.chdir("/home/.local/filedb")
-
 def init(base):
 	global queue
 	l = cdll.LoadLibrary(lib)

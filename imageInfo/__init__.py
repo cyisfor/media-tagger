@@ -10,8 +10,10 @@ here = os.path.dirname(__file__)
 exe = os.path.join(here,'imageInfo')
 
 if not os.path.exists(exe):
+	there = os.path.abspath(os.cwd)
 	os.chdir(here)
 	subprocess.call(['make'])
+	os.chdir(there)
 
 def makeProcess():
 	return subprocess.Popen([
