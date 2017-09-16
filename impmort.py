@@ -91,6 +91,7 @@ def main():
 
 	vtop = '.'
 	for top,dirs,ns in os.walk(vtop):
+		print('in',os.path.abspath(top))
 		if 'sources.db' in ns:
 			print("found a sources database!")
 			if sources: sources.close()
