@@ -68,7 +68,7 @@ def dbdelete(good,bad,reason,inferior):
 
 
 def filedelete(bad):
-	for category in ('image','thumb','resized'):
+	for category in ('media','thumb','resized'):
 		place=os.path.join(filedb.top,category)
 		doomed = os.path.join(place,'{:x}'.format(bad))
 		# if we crash here, transaction will abort and the images will be un-deleted
