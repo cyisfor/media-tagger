@@ -115,9 +115,10 @@ def impmort(path,implied,recheck=False,urisource=None):
 				if idnum:
 					idnum,hash = idnum[0]
 					if not recheck: #(officialTags or recheck):
+						print(idnum)
 						neighbors = db.execute("SELECT array_length(neighbors,1) FROM things WHERE id = $1",
 																	 (idnum,))
-						if neighbors and neighbors[0][0] > 0:
+						if neighbors and neighbors[0][0]:
 							return
 						else:
 							print("need recheck for empty tags")
