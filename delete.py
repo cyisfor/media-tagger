@@ -1,6 +1,7 @@
 import db
 from versions import Versioner
 import filedb
+import note
 
 from itertools import count
 import sys,os
