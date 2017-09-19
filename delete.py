@@ -46,8 +46,11 @@ def commitDoomed():
 	start("tediously clearing neighbors")
 	# it's way less lag if we break this hella up
 	with db.transaction():
+		note("remove doomed from neighbors")
 		db.execute('UPDATE things SET neighbors = array(SELECT unnest(neighbors) EXCEPT SELECT id FROM doomed) WHERE neighbors && array(SELECT id FROM doomed)')
+		note("remove sources for doomed media")
 		db.execute("DELETE FROM sources USING media WHERE media.id in (select id from doomed) AND sources.id = ANY(media.sources)")
+		note("delete doomed media")
 		db.execute("DELETE FROM things WHERE id in (select id from doomed)")
 	done()
 
