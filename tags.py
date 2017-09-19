@@ -96,14 +96,15 @@ def tag(thing,tags):
 		implied = parse(implied)
 	with db.transaction():
 		if tags.nega:
-			note("nega",tags.nega)
 			tags.nega = toids_nega(tags.nega)
+			note("nega",tags.nega)
 			if implied: 
 				tags.update(implied)
 				implied = None
 			disconnect(thing,tags.nega)
 		if tags.posi:
 			tags.posi = toids_posi(tags.posi)
+			note("nega",tags.nega)
 			if implied: tags.update(implied)
 			note("1tomany",tags.posi)
 			db.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
