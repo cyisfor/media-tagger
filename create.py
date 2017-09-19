@@ -274,11 +274,11 @@ def update(id,sources,tags,name):
 		if oldTags:
 			# only new tags please
 			print(tags,oldTags)
-				tags = set(tags)-set(oldTags)
+			tags = set(tags)-set(oldTags)
 		if tags:
 			for tag in tags:
 				assert tag is not None, tags
-			print(tags)
+			note.red("setting tags",tags)
 			tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):

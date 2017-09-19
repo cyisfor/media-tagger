@@ -96,6 +96,7 @@ def tag(thing,tags):
 		implied = parse(implied)
 	with db.transaction():
 		if tags.nega:
+			note("nega",tags.nega)
 			tags.nega = toids_nega(tags.nega)
 			if implied: 
 				tags.update(implied)
@@ -104,7 +105,7 @@ def tag(thing,tags):
 		if tags.posi:
 			tags.posi = toids_posi(tags.posi)
 			if implied: tags.update(implied)
-			note("1tomany")
+			note("1tomany",tags.posi)
 			db.execute("SELECT connectOneToMany($1,$2)",(thing,tags.posi))
 			note("many2one")
 			db.execute("SELECT connectManyToOne($1,$2)",(tags.posi,thing))
