@@ -133,7 +133,9 @@ def impmort(path,implied,recheck=False,urisource=None):
 				if idnum: idnum = idnum[0][0]
 				print("Hasho",idnum)
 			try: discovered,name = discover(path)
-			except ImportError: return
+			except ImportError as e:
+				note.alarm("couldn't discover?",e)
+				return
 			if urisource:
 				urisource = create.Source(urisource,hasTags=True)
 			alltags = implied.union(discovered)
