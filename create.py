@@ -278,7 +278,7 @@ def update(id,sources,tags,name):
 		if tags:
 			for tag in tags:
 				assert tag is not None, tags
-			raise RuntimeError("setting tags",tags)
+			note("setting tags",tags)
 			tagsModule.tag(id,tags)
 
 def internet(download,media,tags,primarySource,otherSources,name=None):
