@@ -141,7 +141,7 @@ def impmort(path,implied,recheck=False,urisource=None):
 			alltags = implied.union(discovered)
 			assert alltags, "no tags found for " + path
 			if idnum:
-				note("Adding source",idnum,source)
+				note("updating",hex(idnum),source,alltags)
 				sources = [source]
 				if urisource:
 					sources.append(urisource)
