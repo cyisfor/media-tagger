@@ -2,7 +2,9 @@ import delete
 import withtags
 import tags
 
-reason = os.environ("reason")
+import os
+
+reason = os.environ.get("reason")
 tags = tags.parse(input("Tags: "))
 
 print("reason",reason)
