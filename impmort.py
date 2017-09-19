@@ -115,14 +115,13 @@ def impmort(path,implied,recheck=False,urisource=None):
 				if idnum:
 					idnum,hash = idnum[0]
 					if not recheck: #(officialTags or recheck):
-						print(hex(idnum))
 						# array_length returns NULL for 0-sized arrays, never 0
 						neighbors = db.execute("SELECT array_length(neighbors,1)::int FROM things WHERE id = $1",
 																	 (idnum,))
 						if neighbors and neighbors[0][0]:
 							return
 						else:
-							print("need recheck for empty tags")
+							note("need recheck for empty tags",hex(idnum))
 			else:
 				source = db.execute("INSERT INTO sources (hasTags) VALUES (TRUE) RETURNING id")[0][0]
 				db.execute("INSERT INTO filesources (id,path) VALUES ($1,$2)",(source,path))
