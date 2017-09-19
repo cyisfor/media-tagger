@@ -2,7 +2,7 @@ import db
 import filedb
 import os
 
-paths = set(int(s) for s in os.listdir(filedb.mediaPath()))
+paths = set(int(s,16) for s in os.listdir(filedb.mediaPath()))
 media = set(db.execute("SELECT id FROM media WHERE id = ANY($1::int[])",(paths,)))
 
 print("cd",filedb.mediaPath())
