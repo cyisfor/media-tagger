@@ -48,6 +48,7 @@ def later(what,*a,**kw):
 		what(*a,**kw)
 	GLib.idle_add(doit)
 
+
 img = ui.get_object("image")
 def gotPiece(piece):
 	import sys
