@@ -1,5 +1,5 @@
 def one(progress,total):
-	factor = total // 0xFFFF
+	factor = total // 0xFFFF + 1
 	return progress//factor, (total // factor - 1), factor
 
 print(one(1000000,1000000))
