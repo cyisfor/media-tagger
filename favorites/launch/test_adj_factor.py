@@ -1,6 +1,6 @@
 def one(progress,total):
 	factor = total / 0xFFFF
-	return int(progress/factor), int(total / factor), factor
+	return round(progress/factor), round(total / factor), factor
 
 print(one(1000000,1000000))
 print(one(0,1000000))
