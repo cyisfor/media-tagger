@@ -199,4 +199,15 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 					del connections[i]
 					# reset iterator
 					conns = enumerate(connections)[i:]
+		def done(self):
+			conns = enumerate(connections)
+			for i,conn in conns:
+				out = conn.get_output_stream()
+				ok, amt = out.write_all(struct.pack("!H",0xFFFF))
+				if not ok:
+					print("connection failed")
+					conn.disconnect()
+					del connections[i]
+					# reset iterator
+					conns = enumerate(connections)[i:]
 	return Progress()
