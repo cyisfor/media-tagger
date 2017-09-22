@@ -103,8 +103,8 @@ def to_catchup(info):
 		
 	def poke():
 		@have_connected.add_done_callback
-		def _(val):
-			inp,out = val
+		def _(f):
+			inp,out = f.get_result()
 			res = out.write(b"\0",None)
 			if res != 0:
 				reconnect()
