@@ -40,7 +40,7 @@ def to_catchup(info):
 	def connect():
 		@have_address
 		def _(f):
-			address = Gio.InetSocketAddress.new(f.get_result(),info.port)
+			address = Gio.InetSocketAddress.new(f.result(),info.port)
 			client.connect_async(address, None, on_connect, None)
 
 	def readmoar():
@@ -104,7 +104,7 @@ def to_catchup(info):
 	def poke():
 		@have_connected.add_done_callback
 		def _(f):
-			inp,out = f.get_result()
+			inp,out = f.result()
 			res = out.write(b"\0",None)
 			if res != 0:
 				reconnect()
@@ -144,7 +144,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 	have_address = lookup(address)
 	@have_address
 	def _(f):
-		address = Gio.InetSocketAddress.new(f.get_result(),port)
+		address = Gio.InetSocketAddress.new(f.result(),port)
 		service.add_address(address)
 		service.accept_async(None, on_accept, None)
 
