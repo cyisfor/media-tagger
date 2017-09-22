@@ -129,4 +129,7 @@ if __name__ == '__main__':
 	loop = GLib.MainLoop()
 	GLib.idle_add(lambda: run() and False)
 	GLib.timeout_add_seconds(20,run)
+
+	import signal
+	signal.signal(signal.SIGINT, signal.SIG_DFL)
 	loop.run()
