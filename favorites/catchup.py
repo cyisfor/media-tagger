@@ -20,7 +20,8 @@ def run():
 		return True
 	running = True
 	from random import randint
-	if randint(0,5) == 0:
+	print(running)
+	if randint(0,50) == 0:
 		raise RuntimeError("derp")
 	while True:
 		derp = catch_one()
