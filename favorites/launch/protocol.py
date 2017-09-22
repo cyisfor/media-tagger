@@ -52,7 +52,7 @@ def to_catchup(info):
 		inp.read_async(memoryview(buf)[woff:],0,None,on_input,conn)
 
 	def on_input(obj, result, conn):
-		nonlocal roff, woff, ident
+		nonlocal roff, woff, ident, buf
 		amt = inp.read_finish(result)
 		if amt < 0:
 			reconnect()
@@ -115,6 +115,7 @@ def to_catchup(info):
 
 	connect()
 	info.poke = poke
+	return info
 
 def as_catchup(on_poked, port=default_port, address="::1"):
 	service = Gio.SocketService.new()
