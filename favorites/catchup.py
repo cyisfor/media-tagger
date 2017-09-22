@@ -122,6 +122,6 @@ def catch_one():
 if __name__ == '__main__':
 	from gi.repository import GLib
 	loop = GLib.MainLoop()
-	GLib.idle_add(run)
+	GLib.idle_add(lambda: run() and False)
 	GLib.timeout_add_seconds(20,run)
 	loop.run()

@@ -1,6 +1,6 @@
 import note
 
-from protocol import to_catchup
+from favorites.launch.protocol import to_catchup
 
 import fcntl,os,time
 from itertools import count
