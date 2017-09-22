@@ -5,6 +5,8 @@ if __name__ == '__main__':
 
 import note
 
+#from favorites.launch.protocol import as_catchup
+
 import time
 from better import print as _
 import struct
@@ -20,6 +22,11 @@ def run():
 		from favorites.dbqueue import remaining
 		yield ident,medium,wasCreated
 
+def on_poked():
+	catch_one()
+		
+#progress = as_catchup(on_poked)
+		
 def catch_one():
 	from favorites.parse import alreadyHere,parse,ParseError
 	from favorites import parsers
@@ -48,11 +55,13 @@ def catch_one():
 	try:
 		try:
 			import db # .Error
+			#progress.starting(ident)
 			for attempts in range(2):
 				note("Parsing",uri)
 				try:
-					medium,wasCreated = parse(uri)
+					medium,wasCreated = parse(uri) #progress=progress.progressed
 					win(medium,uri)
+					#progress.done()
 					return ident,medium,wasCreated
 				except urllib.error.URLError as e:
 					note(e.headers)
@@ -67,6 +76,7 @@ def catch_one():
 						db.retransaction()
 			else:
 				print("Could not parse",uri)
+				#progress.done()
 		except (ParseError,imagecheck.NoGood) as e:
 			note('megafail',e)
 			megafail(uri)

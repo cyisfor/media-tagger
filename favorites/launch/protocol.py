@@ -9,18 +9,23 @@ def lookup(addr):
 	Gio.Resolver().lookup_by_name_async(addr,callback=set_address)
 	return address.add_done_callback
 
-def to_catchup(on_progress,port=default_port,address="::1"):
+def to_catchup(info):
 	inp = None
 	out = None
 	buf = bytearray(0x100)
 	roff = 0
 	woff = 0
 
+	if not hasattr(info,'address'):
+		info.address = '::1'
+	if not hasattr(info,'port'):
+		info.port = default_port
+
 	client = Gio.SocketClient.new()
-	have_address = lookup(address)
+	have_address = lookup(info.address)
 	have_connected = Future()
 
-	curname = None
+	ident = None
 
 	def reconnect():
 		nonlocal have_connected
@@ -31,7 +36,7 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 	def connect():
 		@have_address
 		def _(address):
-			address = Gio.InetSocketAddress.new(address,port)
+			address = Gio.InetSocketAddress.new(address,info.port)
 			client.connect_async(address, None, on_connect, None)
 
 	def readmoar():
@@ -41,7 +46,7 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 		inp.read_async(memoryview(buf)[woff:],0,None,on_input,conn)
 
 	def on_input(obj, result, conn):
-		nonlocal roff, woff, progress, curname
+		nonlocal roff, woff, progress, ident
 		amt = inp.read_finish(result)
 		if amt < 0:
 			reconnect()
@@ -49,11 +54,11 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 		woff += amt
 		head = memoryview(buf)[roff:woff]
 
-		if curname is None:
-			nl = head.find(b'\n')
-			if nl != -1:
-				curname = head[:nl].decode('utf-8')
-				head = head[nl+1:]
+		if ident is None:
+			if len(head) < 4: return
+			ident = struct.unpack("!I",head[:4])
+			head = head[4:]
+			info.starting(ident)
 
 		# when sending progress, 2 bytes that is the floating point value where 0xFFFF = 100%
 		# we can ignore all but the last complete progress
@@ -64,9 +69,12 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 		lo = hi - 1
 		if lo > 0:
 			progress = struct.unpack("!H",head[lo:hi])
-			on_progress(progress / 0xFFFF)
 			if progress == 0xFFFF:
-				curname = None
+				ident = None
+				info.done()
+			else:
+				info.progressed(progress / 0xFFFF)
+
 		roff = hi+1
 		if woff-roff > roff:
 			# almost always true, except maybe if half a long path
@@ -85,6 +93,10 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 		
 		readmoar()
 
+	superpoke = None
+	if hasattr(info,'poke'):
+		superpoke = info.poke
+		
 	def poke():
 		@have_connected.add_done_callback
 		def _(val):
@@ -92,9 +104,11 @@ def to_catchup(on_progress,port=default_port,address="::1"):
 			res = out.write(b"\0",None)
 			if res != 0:
 				reconnect()
+			if superpoke:
+				superpoke()
 
 	connect()
-	return poke
+	info.poke = poke
 
 def as_catchup(on_poked, port=default_port):
 	service = Gio.SocketService.new()
@@ -140,13 +154,12 @@ def as_catchup(on_poked, port=default_port):
 		
 	class Progress:
 		factor = 1
-		def __init__(self,name,total):
-			self.name = name
+		def starting(self,ident,total):
 			self.factor = 0xFFFF / total;
 			conns = enumerate(connections)
+			buf = struct.pack("!IH",ident,total)
 			for i,conn in conns:
 				out = conn.get_output_stream()
-				buf = name.encode("utf-8") + "\n" + struct.pack("!H",total)
 				ok, amt = out.write_all(buf,  None)
 				if not ok:
 					print("connection failed")
@@ -154,7 +167,7 @@ def as_catchup(on_poked, port=default_port):
 					del connections[i]
 					# reset iterator
 					conns = enumerate(connections)[i:]
-		def progress(self,progress):
+		def progressed(self,progress):
 			progress = round(progress * self.factor)
 			progress = struct.pack("!H",progress)
 			
