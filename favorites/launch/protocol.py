@@ -36,8 +36,9 @@ def to_catchup(info):
 	def reconnect(conn):
 		nonlocal have_connected
 		have_connected = Future()
-		help(conn)
-		conn.disconnect()
+		def on_closed(obj, result, _):
+			connect()
+		conn.close_async(None, on_closed)
 		connect()
 		
 	def connect():
