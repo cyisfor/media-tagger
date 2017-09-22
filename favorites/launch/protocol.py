@@ -1,11 +1,13 @@
 from concurrent.futures import Future
 from mygi import Gio,GLib
 
+default_port = 4589
+
 def lookup(addr):
 	address = Future()
 	def set_address(addrs):
 		address.set_result(addrs[0])
-	Gio.Resolver().lookup_by_name_async(addr,callback=set_address)
+	Gio.Resolver.lookup_by_name_async(addr,callback=set_address)
 	return address.add_done_callback
 
 def to_catchup(info):
@@ -109,7 +111,7 @@ def to_catchup(info):
 	connect()
 	info.poke = poke
 
-def as_catchup(on_poked, port=default_port):
+def as_catchup(on_poked, port=default_port, address="::1"):
 	service = Gio.SocketService.new()
 	service.set_backlog(5)
 
