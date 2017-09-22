@@ -55,7 +55,7 @@ def to_catchup(info):
 		nonlocal roff, woff, ident, buf
 		amt = inp.read_finish(result)
 		if amt < 0:
-			reconnect()
+			reconnect(conn)
 			return
 		woff += amt
 		head = memoryview(buf)[roff:woff]
@@ -95,7 +95,7 @@ def to_catchup(info):
 		inp = conn.get_input_stream()
 		out = conn.get_output_stream()
 
-		have_connected.set_result([inp,out])
+		have_connected.set_result(conn)
 		
 		readmoar(conn)
 
@@ -106,10 +106,10 @@ def to_catchup(info):
 	def poke():
 		@have_connected.add_done_callback
 		def _(f):
-			inp,out = f.result()
-			res = out.write(b"\0",None)
+			conn = f.result()
+			res = conn.get_output_stream().write(b"\0",None)
 			if res != 0:
-				reconnect()
+				reconnect(conn)
 			if superpoke:
 				superpoke()
 
