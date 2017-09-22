@@ -15,6 +15,7 @@ from ctypes import c_bool
 
 running = False
 def run():
+	global running
 	if running:
 		return True
 	running = True
@@ -116,7 +117,7 @@ def catch_one():
 	return True
 
 if __name__ == '__main__':
-	from favorites.launch.mygi import GLib
+	from gi.repository import GLib
 	loop = GLib.MainLoop()
 	GLib.idle_add(run)
 	GLib.timeout_add_seconds(20,run)
