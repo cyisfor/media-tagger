@@ -197,4 +197,4 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 					del connections[i]
 					# reset iterator
 					conns = enumerate(connections)[i:]
-	return Progress
+	return Progress()
