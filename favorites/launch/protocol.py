@@ -175,7 +175,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 		def starting(self,ident,total):
 			self.factor = 0xFFFF / total;
 			conns = enumerate(connections)
-			buf = struct.pack("!IH",ident,total)
+			buf = struct.pack("!I",ident)
 			for i,conn in conns:
 				out = conn.get_output_stream()
 				ok, amt = out.write_all(buf,  None)
