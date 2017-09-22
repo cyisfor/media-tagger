@@ -84,8 +84,8 @@ def to_catchup(info):
 
 	def on_connect(obj, result, user_data):
 		nonlocal inp, out
-    conn = client.connect_finish(result)
-    inp = conn.get_input_stream()
+		conn = client.connect_finish(result)
+		inp = conn.get_input_stream()
 		out = conn.get_output_stream()
 
 		have_connected.set_result([inp,out])
