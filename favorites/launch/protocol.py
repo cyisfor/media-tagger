@@ -5,9 +5,11 @@ default_port = 4589
 
 def lookup(addr):
 	address = Future()
-	def set_address(addrs):
+	def set_address(obj,result,resolver):
+		addrs = resolver.lookup_by_name_finish(result)
 		address.set_result(addrs[0])
-	Gio.Resolver.lookup_by_name_async(addr,callback=set_address)
+	resolver = Gio.Resolver.get_default()
+	resolver.lookup_by_name_async(addr, None, set_address, resolver)
 	return address.add_done_callback
 
 def to_catchup(info):
