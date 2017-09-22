@@ -37,8 +37,11 @@ def to_catchup(info):
 		nonlocal have_connected
 		have_connected = Future()
 		def on_closed(obj, result, _):
+			ok = conn.close_finish(result)
+			if not ok:
+				note.error("Bad close")
 			connect()
-		conn.close_async(None, on_closed)
+		conn.close_async(0, None, on_closed, None)
 		connect()
 		
 	def connect():
