@@ -146,7 +146,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 	def on_accept(obj, result, user_data):
 		conn, source = service.accept_finish(result)
 		buf = bytearray(0x10)
-		conn.get_output_stream().read_async(buf,0,None,on_input,conn)
+		conn.get_input_stream().read_async(buf,0,None,on_input,conn)
 		connections.append(conn)
 	
 	have_address = lookup(address)
