@@ -1,7 +1,9 @@
+import note
+
 from concurrent.futures import Future
 from mygi import Gio,GLib
 
-import note
+import struct
 
 default_port = 4589
 
