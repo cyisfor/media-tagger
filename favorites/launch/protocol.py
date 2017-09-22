@@ -1,6 +1,8 @@
 from concurrent.futures import Future
 from mygi import Gio,GLib
 
+import note
+
 default_port = 4589
 
 def lookup(addr):
@@ -43,7 +45,7 @@ def to_catchup(info):
 			address = Gio.InetSocketAddress.new(f.result(),info.port)
 			client.connect_async(address, None, on_connect, None)
 
-	def readmoar():
+	def readmoar(conn):
 		if len(buf) - woff < 0x100:
 			# this calls brk/mmap even less than C realloc...
 			buf[len(buf):] = bytearray(0x100)
@@ -85,7 +87,7 @@ def to_catchup(info):
 			buf = bytearray(buf[roff:woff])
 			woff -= roff
 			roff = 0
-		readmoar()
+		readmoar(conn)
 
 	def on_connect(obj, result, user_data):
 		nonlocal inp, out
@@ -95,7 +97,7 @@ def to_catchup(info):
 
 		have_connected.set_result([inp,out])
 		
-		readmoar()
+		readmoar(conn)
 
 	superpoke = None
 	if hasattr(info,'poke'):
