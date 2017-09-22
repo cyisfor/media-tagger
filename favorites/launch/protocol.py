@@ -145,7 +145,10 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 	@have_address
 	def _(f):
 		address = Gio.InetSocketAddress.new(f.result(),port)
-		service.add_address(address)
+		service.add_address(address,
+												Gio.SocketType.STREAM,
+												Gio.SocketProtocol.DEFAULT,
+												None)
 		service.accept_async(None, on_accept, None)
 		note("accepting")
 
