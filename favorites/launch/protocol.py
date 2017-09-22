@@ -1,6 +1,5 @@
 from myfuture import Future
-
-default_port = 4587
+from mygi import Gio,GLib
 
 def lookup(addr):
 	address = Future()
