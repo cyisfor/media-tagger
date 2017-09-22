@@ -7,11 +7,11 @@ def lookup(addr):
 	address = Future()
 	def set_address(obj,result,resolver):
 		addrs = resolver.lookup_by_name_finish(result)
-		print("YAY",addrs)
+		print("YAY",addrs[0])
 		address.set_result(addrs[0])
 	resolver = Gio.Resolver.get_default()
 	resolver.lookup_by_name_async(addr, None, set_address, resolver)
-	return address.add_done_callback
+	return lambda cb: address.add_done_callback(cb)
 
 def to_catchup(info):
 	inp = None
