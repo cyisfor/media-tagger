@@ -7,6 +7,7 @@ def lookup(addr):
 	address = Future()
 	def set_address(obj,result,resolver):
 		addrs = resolver.lookup_by_name_finish(result)
+		print("YAY",addrs)
 		address.set_result(addrs[0])
 	resolver = Gio.Resolver.get_default()
 	resolver.lookup_by_name_async(addr, None, set_address, resolver)
