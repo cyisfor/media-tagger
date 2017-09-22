@@ -64,7 +64,7 @@ def catch_one():
 		try:
 			import db # .Error
 			started = False
-			def progress(sofar,total):
+			def derprogress(sofar,total):
 				nonlocal started
 				if not started:
 					progress.starting(ident,total)
@@ -72,7 +72,7 @@ def catch_one():
 			for attempts in range(2):
 				note("Parsing",uri)
 				try:
-					medium,wasCreated = parse(uri,progress=progress)
+					medium,wasCreated = parse(uri,progress=derprogress)
 					win(medium,uri)
 					progress.done()
 					return ident,medium,wasCreated
