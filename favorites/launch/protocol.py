@@ -33,10 +33,10 @@ def to_catchup(info):
 
 	ident = None
 
-	def reconnect():
+	def reconnect(conn):
 		nonlocal have_connected
 		have_connected = Future()
-		client.disconnect()
+		conn.disconnect()
 		connect()
 		
 	def connect():
