@@ -1,3 +1,3 @@
 # derp
 
-from concurrent.futures._base import Future
+from concurrent.futures import Future

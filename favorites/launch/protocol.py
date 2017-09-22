@@ -1,4 +1,4 @@
-from myfuture import Future
+from concurrent.futures import Future
 from mygi import Gio,GLib
 
 def lookup(addr):
@@ -45,7 +45,7 @@ def to_catchup(info):
 		inp.read_async(memoryview(buf)[woff:],0,None,on_input,conn)
 
 	def on_input(obj, result, conn):
-		nonlocal roff, woff, progress, ident
+		nonlocal roff, woff, ident
 		amt = inp.read_finish(result)
 		if amt < 0:
 			reconnect()
