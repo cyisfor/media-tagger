@@ -19,10 +19,7 @@ def run():
 	if running:
 		return True
 	running = True
-	from random import randint
 	print("running!")
-	if randint(0,50) == 0:
-		raise RuntimeError("derp")
 	while True:
 		derp = catch_one()
 		if not derp: break

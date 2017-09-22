@@ -137,6 +137,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 
 	def on_input(obj, result, conn):
 		nonlocal poking
+		inp = conn.get_input_stream()
 		amt = inp.read_finish(result)
 		# just ignore rapidfire pokes...
 		# XXX: warn if amt == 0x10 for out of control client?
