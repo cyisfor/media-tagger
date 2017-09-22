@@ -41,7 +41,7 @@ def on_progress(frac):
 progress = ui.get_object("progress")
 progress.set_name("progress")
 	
-@procotol.to_catchup
+@to_catchup
 class Progress:
 	def starting(ident):
 		win.set_tooltip("%d" % ident)
