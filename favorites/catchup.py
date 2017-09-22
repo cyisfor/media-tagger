@@ -5,7 +5,7 @@ if __name__ == '__main__':
 
 import note
 
-#from favorites.launch.protocol import as_catchup
+from favorites.launch.protocol import as_catchup
 
 import time
 from better import print as _
@@ -13,19 +13,23 @@ import struct
 
 from ctypes import c_bool
 
+running = False
 def run():
+	if running:
+		return True
+	running = True
+	note("running")
 	while True:
 		derp = catch_one()
 		if not derp: break
 		if derp is True: continue
-		ident,medium,wasCreated = derp
-		from favorites.dbqueue import remaining
-		yield ident,medium,wasCreated
+		#ident,medium,wasCreated = derp
+		#from favorites.dbqueue import remaining
+		#yield ident,medium,wasCreated
+	running = False
+	return True
 
-def on_poked():
-	catch_one()
-		
-#progress = as_catchup(on_poked)
+progress = as_catchup(run)
 		
 def catch_one():
 	from favorites.parse import alreadyHere,parse,ParseError
@@ -55,13 +59,13 @@ def catch_one():
 	try:
 		try:
 			import db # .Error
-			#progress.starting(ident)
+			progress.starting(ident)
 			for attempts in range(2):
 				note("Parsing",uri)
 				try:
-					medium,wasCreated = parse(uri) #progress=progress.progressed
+					medium,wasCreated = parse(uri,progress=progress.progressed)
 					win(medium,uri)
-					#progress.done()
+					progress.done()
 					return ident,medium,wasCreated
 				except urllib.error.URLError as e:
 					note(e.headers)
@@ -76,7 +80,7 @@ def catch_one():
 						db.retransaction()
 			else:
 				print("Could not parse",uri)
-				#progress.done()
+				progress.done()
 		except (ParseError,imagecheck.NoGood) as e:
 			note('megafail',e)
 			megafail(uri)
@@ -112,9 +116,8 @@ def catch_one():
 	return True
 
 if __name__ == '__main__':
-	while True:
-		gotit = False
-		for rec in run(): gotit = True
-		if gotit:
-			note.purple("waiting")
-		time.sleep(3)
+	from gi.repository import GLib
+	loop = GLib.MainLoop()
+	GLib.idle_add(run)
+	GLib.timeout_add_seconds(20,run)
+	loop.run()

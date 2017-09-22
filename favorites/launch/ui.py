@@ -1,5 +1,7 @@
 import note
 
+from protocol import to_catchup
+
 import fcntl,os,time
 from itertools import count
 from functools import partial
@@ -10,18 +12,6 @@ here = os.path.dirname(__file__)
 
 print('loading UI')
 ui = Gtk.Builder.new_from_file(os.path.join(here,"ui.xml"))			
-progress = ui.get_object("progress")
-progress.set_name("progress")
-
-def gui_progress(cur,total):
-	progress.set_fraction(cur/total)
-	progress.show()
-
-processed = 0
-def set_remaining(remaining):
-	global processed
-	win.set_tooltip_text("%d→%d"%(remaining,processed))
-	processed += 1
 
 busy = GdkPixbuf.PixbufAnimation.new_from_file(
 	os.path.join(here,"sweetie_thinking.gif"))
@@ -43,11 +33,25 @@ def set_busy(is_busy=True):
 	img.set_from_animation(busy)
 	progress.set_fraction(0)
 
-def later(what,*a,**kw):
-	def doit():
-		what(*a,**kw)
-	GLib.idle_add(doit)
-
+def on_progress(frac):
+	if frac is None:
+		set_busy(False)
+		return
+	
+progress = ui.get_object("progress")
+progress.set_name("progress")
+	
+@procotol.to_catchup
+class Progress:
+	def starting(ident):
+		win.set_tooltip("%d" % ident)
+		set_busy(True)
+	def progressed(frac):
+		progress.set_fraction(frac)
+	def done():
+		set_busy(False)
+	def poke():
+		print("poking")
 
 img = ui.get_object("image")
 def gotPiece(piece):
@@ -56,9 +60,9 @@ def gotPiece(piece):
 	print("Trying {}".format(piece.strip().replace('\n',' ')[:90]))
 	sys.stdout.flush()
 	enqueue(piece.strip())
-	print("poked")
-
-	print('Ready to parse')
+	Progress.poke()
+	print('Tried')
+	
 win.set_title('parse')
 win.show_all()
 
