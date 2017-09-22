@@ -147,6 +147,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 		address = Gio.InetSocketAddress.new(f.result(),port)
 		service.add_address(address)
 		service.accept_async(None, on_accept, None)
+		note("accepting")
 
 	def on_name_written(obj, result, val):
 		conn, out, name, on_ready = val
