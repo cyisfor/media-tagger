@@ -11,7 +11,7 @@ def lookup(addr):
 		address.set_result(addrs[0])
 	resolver = Gio.Resolver.get_default()
 	resolver.lookup_by_name_async(addr, None, set_address, resolver)
-	return lambda cb: address.add_done_callback(cb)
+	return address.add_done_callback
 
 def to_catchup(info):
 	inp = None
@@ -39,8 +39,8 @@ def to_catchup(info):
 		
 	def connect():
 		@have_address
-		def _(address):
-			address = Gio.InetSocketAddress.new(address,info.port)
+		def _(f):
+			address = Gio.InetSocketAddress.new(f.get_result(),info.port)
 			client.connect_async(address, None, on_connect, None)
 
 	def readmoar():
@@ -143,8 +143,8 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 	
 	have_address = lookup(address)
 	@have_address
-	def _(address):
-		address = Gio.InetSocketAddress.new(address,port)
+	def _(f):
+		address = Gio.InetSocketAddress.new(f.get_result(),port)
 		service.add_address(address)
 		service.accept_async(None, on_accept, None)
 
