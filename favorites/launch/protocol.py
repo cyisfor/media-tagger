@@ -134,6 +134,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 		nonlocal poking
 		on_poked()
 		poking = None
+		return False
 
 	def on_input(obj, result, conn):
 		nonlocal poking
@@ -142,7 +143,7 @@ def as_catchup(on_poked, port=default_port, address="::1"):
 		# just ignore rapidfire pokes...
 		# XXX: warn if amt == 0x10 for out of control client?
 		if poking: return
-		poking = Glib.timeout_add(500,un_poke)
+		poking = GLib.timeout_add(500,un_poke)
 
 	connections = []
 		
