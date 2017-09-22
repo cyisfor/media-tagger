@@ -20,7 +20,7 @@ def run():
 		return True
 	running = True
 	from random import randint
-	print(running)
+	print("running!")
 	if randint(0,50) == 0:
 		raise RuntimeError("derp")
 	while True:
