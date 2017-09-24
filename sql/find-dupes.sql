@@ -48,7 +48,7 @@ _count int DEFAULT 0;
 _now TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
-    raise notice 'top % bottom %', (select top from dupeCheckPosition), (select bottom from dupeCheckPosition);
+    raise notice 'top % bottom %', (select to_hex(top) from dupeCheckPosition), (select to_hex(bottom) from dupeCheckPosition);
     FOR _test IN SELECT media.id,phash FROM media
 		    LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
 				WHERE 
@@ -75,12 +75,12 @@ BEGIN
           AND media.id < _test.id
           AND hammingfast(phash,_test.phash) < _threshold
       LOOP
-				raise notice 'dupe % % %',_test.id,_result.id,_result.dist;
+				raise notice 'dupe % % %',to_hex(_test.id),to_hex(_result.id),_result.dist;
 				BEGIN
 					INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
         EXCEPTION
 					WHEN unique_violation THEN
-						RAISE NOTICE 'already checked (thisisbad) %',_test.id;
+						RAISE NOTICE 'already checked (thisisbad) %',to_hex(_test.id);
         END;
 			END LOOP;
 						
@@ -88,8 +88,7 @@ BEGIN
 			DELETE FROM dupesNeedRecheck WHERE id = _test.id;
 			_count := _count + 1;
 			_now := clock_timestamp();
-			RAISE NOTICE 'elapsed %',_now-_last;
-			IF _now - _last > 60; THEN
+			IF _now - _last > '60 seconds'::interval THEN
 				 RETURN _count;
 			END IF;
     END LOOP;
