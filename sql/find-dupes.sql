@@ -14,11 +14,11 @@ UNIQUE(sis,bro));
 
 --BEGIN;
 CREATE TABLE dupeCheckPosition (
-bottom INTEGER PRIMARY KEY NOT NULL DEFAULT 0 -- REFERENCES media(id) ON DELETE RESTRICT meh!
+bottom INTEGER PRIMARY KEY NOT NULL DEFAULT 0, -- REFERENCES media(id) ON DELETE RESTRICT meh!
 sentinel BOOLEAN UNIQUE NOT NULL DEFAULT FALSE
 );
 
-INSERT INTO dupecheckposition SELECT min(id)-1 FROM media;
+INSERT INTO dupeCheckPosition (bottom) SELECT min(id)-1 FROM media;
 -- CREATE RULE dupeCheckNotEmpty AS
 -- ON DELETE TO media DO ALSO
 --    UPDATE dupeCheckPosition SET bottom = (SELECT min(media.id) FROM media where media.id > bottom);
@@ -41,6 +41,7 @@ _result record;
 _bottom INTEGER;
 _count int DEFAULT 0;
 BEGIN
+	raise notice 'bottom %', (select bottom from dupeCheckPosition);
     FOR _test IN SELECT media.id,phash FROM media
     LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
     WHERE 
