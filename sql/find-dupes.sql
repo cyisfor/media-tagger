@@ -15,6 +15,7 @@ UNIQUE(sis,bro));
 --BEGIN;
 CREATE TABLE dupeCheckPosition (
 bottom INTEGER PRIMARY KEY NOT NULL DEFAULT 0, -- REFERENCES media(id) ON DELETE RESTRICT meh!
+top INTEGER,
 sentinel BOOLEAN UNIQUE NOT NULL DEFAULT FALSE
 );
 
@@ -34,6 +35,10 @@ id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE);
 
 DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AND bro IN (select ID from media where pHashFail);
 
+-- go from max image down
+-- check from last checked position, comparing with all images below it.
+-- this works when new images are added
+
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
 _test record;
@@ -48,8 +53,17 @@ BEGIN
           phash != 0  AND
           phash IS NOT NULL AND 
           possibleDupes.id IS NULL
-    AND media.id > coalesce((SELECT bottom FROM dupeCheckPosition),0)
-    ORDER BY media.id LIMIT 1000
+    AND media.id > (SELECT bottom FROM dupeCheckPosition)
+		-- note: bottom should only be set when done traversing
+		-- don't set bottom w/out checking ALL media below it
+		AND (
+				(SELECT top FROM dupeCheckPosition) IS NULL
+				OR media.id < (SELECT top FROM dupeCheckPosition)
+				)
+		-- top probably shouldn't be set, but when incrementally traversing
+		-- since postgres is retarded and cannot do loops outside of transactions
+		-- set top lower each time, until done. then set top to NULL
+    ORDER BY media.id DESC LIMIT 1000
     LOOP
     		    	 _count := _count + 1;
                          --raise NOTICE 'testing %', to_hex(_test.id);
