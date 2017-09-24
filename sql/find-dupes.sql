@@ -57,7 +57,8 @@ BEGIN
             LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
             WHERE nadupes.id IS NULL
             AND phash != 0
-            AND phash IS NOT NULL AND media.id < _test.id
+            AND phash IS NOT NULL
+						AND media.id > _test.id
     	AND hammingfast(phash,_test.phash) < _threshold
             LOOP
 	        raise notice 'dupe % % %',_test.id,_result.id,_result.dist;
