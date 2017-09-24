@@ -92,21 +92,23 @@ BEGIN
 
     FOR _test IN SELECT id,mh_hash FROM media
         WHERE
-				id NOT IN (select id from possibleDupes) AND
+				id NOT IN (select sis from possibleDupes) AND
 				id > (select id from lastCheckedForDupe) AND
         mh_hash IS NOT NULL AND
         pHash = 0
 				ORDER BY id ASC
     LOOP
-        RAISE NOTICE 'mh_check %',_test.id;
         FOR _result IN SELECT media.id,mh_hash, hamming(mh_hash,_test.mh_hash) AS dist FROM media
         LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND media.id = nadupes.sis
         WHERE nadupes.id IS NULL AND
               mh_hash IS NOT NULL AND
-              pHash = 0 
-              AND hamming(mh_hash,_test.mh_hash) < _threshold
+              pHash = 0 AND
+							not pHashFail AND
+              hamming(mh_hash,_test.mh_hash) < _threshold
          LOOP
             BEGIN
+							RAISE NOTICE 'lost dupe sis % bro %',_test.id,_result.id;
+
                 INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
                 _count := _count + 1;
             EXCEPTION
