@@ -45,48 +45,66 @@ _test record;
 _result record;
 _bottom INTEGER;
 _count int DEFAULT 0;
+_now TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+_last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
     raise notice 'top % bottom %', (select top from dupeCheckPosition), (select bottom from dupeCheckPosition);
     FOR _test IN SELECT media.id,phash FROM media
-    LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
-    WHERE 
+		    LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
+				WHERE 
           phash != 0  AND
           phash IS NOT NULL AND 
           possibleDupes.id IS NULL
-    AND media.id > (SELECT bottom FROM dupeCheckPosition)
+				AND media.id > (SELECT bottom FROM dupeCheckPosition)
         -- note: bottom should only be set when done traversing
         -- don't set bottom w/out checking ALL media below it
-        AND (
-                (SELECT top FROM dupeCheckPosition) IS NULL
-                OR media.id < (SELECT top FROM dupeCheckPosition)
-                )
+        AND ((SELECT top FROM dupeCheckPosition) IS NULL
+                OR media.id < (SELECT top FROM dupeCheckPosition))
         -- top probably shouldn't be set, but when incrementally traversing
         -- since postgres is retarded and cannot do loops outside of transactions
         -- set top lower each time, until done. then set top to NULL
-    ORDER BY media.id DESC LIMIT 1000
+				ORDER BY media.id DESC LIMIT 1000
     LOOP
-                     _count := _count + 1;
-                         --raise NOTICE 'testing %', to_hex(_test.id);
-            FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash) AS dist FROM media 
-            LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
-            WHERE nadupes.id IS NULL
-            AND phash != 0
-            AND phash IS NOT NULL
-                        AND media.id > _test.id
-        AND hammingfast(phash,_test.phash) < _threshold
-            LOOP
-            raise notice 'dupe % % %',_test.id,_result.id,_result.dist;
-                BEGIN
-            INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+			raise NOTICE 'testing %', to_hex(_test.id);
+      FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash)
+					AS dist FROM media
+					LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
+          WHERE nadupes.id IS NULL
+          AND phash != 0
+          AND phash IS NOT NULL
+          AND media.id < _test.id
+          AND hammingfast(phash,_test.phash) < _threshold
+      LOOP
+				raise notice 'dupe % % %',_test.id,_result.id,_result.dist;
+				BEGIN
+					INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
         EXCEPTION
-                WHEN unique_violation THEN
-                    RAISE NOTICE 'already checked (thisisbad) %',_test.id;
+					WHEN unique_violation THEN
+						RAISE NOTICE 'already checked (thisisbad) %',_test.id;
         END;
-            END LOOP;
-        UPDATE dupeCheckPosition SET top = _test.id;
-        DELETE FROM dupesNeedRecheck WHERE id = _test.id;
+			END LOOP;
+						
+			UPDATE dupeCheckPosition SET top = _test.id;
+			DELETE FROM dupesNeedRecheck WHERE id = _test.id;
+			_count := _count + 1;
+			_now := clock_timestamp();
+			RAISE NOTICE 'elapsed %',_now-_last;
+			IF _now - _last > 60; THEN
+				 RETURN _count;
+			END IF;
     END LOOP;
-    FOR _test IN SELECT media.id,phash FROM media WHERE phash IS NOT NULL AND
+    RETURN _count;
+END
+$$ language 'plpgsql';
+
+CREATE OR REPLACE FUNCTION recheckFindDupes(_threshold float4) RETURNS int AS $$
+DECLARE
+_test record;
+_result record;
+_bottom INTEGER;
+_count int DEFAULT 0;
+BEGIN
+	FOR _test IN SELECT media.id,phash FROM media WHERE phash IS NOT NULL AND
     media.id IN (select id from dupesneedrecheck) LIMIT 1000
 
     LOOP
@@ -107,13 +125,13 @@ BEGIN
     DELETE FROM dupesNeedRecheck WHERE id = _test.id;
     RAISE NOTICE 'finished rechecking %',_test.id;
     END LOOP;
-		RETURN _count;
+    RETURN _count;
 END
 $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION findDupesDone() RETURNS VOID AS $$
 BEGIN
-	UPDATE dupesCheckPosition SET bottom = top, top = NULL WHERE top IS NOT NULL;
+  UPDATE dupesCheckPosition SET bottom = top, top = NULL WHERE top IS NOT NULL;
 END
 $$ language 'plpgsql';
 
@@ -141,9 +159,9 @@ BEGIN
               hamming(mh_hash,_test.mh_hash) < _threshold
          LOOP
             BEGIN
-							RAISE NOTICE 'lost dupe sis % bro % dist %',_test.id,_result.id,_result.dist;
+              RAISE NOTICE 'lost dupe sis % bro % dist %',_test.id,_result.id,_result.dist;
 
-							INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+              INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
               _count := _count + 1;
             EXCEPTION
                 WHEN unique_violation THEN
