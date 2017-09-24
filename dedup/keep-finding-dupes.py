@@ -9,3 +9,6 @@ while True:
 	print(count)
 	for id,dupes,elapsed in rows:
 		if dupes: print(hex(id),[hex(id) for id in dupes])
+
+
+db.execute("SELECT * FROM findDupesDone()")

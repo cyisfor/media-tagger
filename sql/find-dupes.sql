@@ -149,7 +149,7 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION findDupesDone() RETURNS VOID AS $$
 BEGIN
-  UPDATE dupesCheckPosition SET
+  UPDATE dupeCheckPosition SET
 				 bottom = pendingbottom,
 				 top = NULL,
 				 pendingbottom = NULL
