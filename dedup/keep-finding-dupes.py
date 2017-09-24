@@ -8,4 +8,4 @@ while True:
 	if count == 0: break
 	print(count)
 	for id,dupes,elapsed in rows:
-		if dupes: print(id,dupes)
+		if dupes: print(hex(id),[hex(id) for id in dupes])
