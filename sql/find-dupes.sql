@@ -45,7 +45,8 @@ _test record;
 _result record;
 _bottom INTEGER;
 _count int DEFAULT 0;
-_now TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
+_now TIMESTAMPTZ;
+_start TIMESTAMPTZ;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
     raise notice 'top % bottom %', (select to_hex(top) from dupeCheckPosition), (select to_hex(bottom) from dupeCheckPosition);
@@ -65,7 +66,7 @@ BEGIN
         -- set top lower each time, until done. then set top to NULL
 				ORDER BY media.id DESC LIMIT 1000
     LOOP
-			raise NOTICE 'testing %', to_hex(_test.id);
+			_start := clock_timestamp();
       FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash)
 					AS dist FROM media
 					LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
@@ -88,7 +89,9 @@ BEGIN
 			DELETE FROM dupesNeedRecheck WHERE id = _test.id;
 			_count := _count + 1;
 			_now := clock_timestamp();
-			IF _now - _last > '60 seconds'::interval THEN
+			raise NOTICE 'tested % %', to_hex(_test.id),extract(epoch from (_now-_start));
+
+			IF _now - _last > '6 seconds'::interval THEN
 				 RETURN _count;
 			END IF;
     END LOOP;
