@@ -39,17 +39,20 @@ DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AN
 -- check from last checked position, comparing with all images below it.
 -- this works when new images are added
 
-CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval) RETURNS SETOF int AS $$
+CREATE TYPE dupe_result AS (id INTEGER, dupes INT[]);
+
+CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval) RETURNS SETOF dupe_result AS $$
 DECLARE
-_test record;
-_result record;
+_sis record;
+_bro record;
+_result dupe_result;
 _bottom INTEGER;
 _now TIMESTAMPTZ;
 _start TIMESTAMPTZ;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
     raise notice 'top % bottom %', (select to_hex(top) from dupeCheckPosition), (select to_hex(bottom) from dupeCheckPosition);
-    FOR _test IN SELECT media.id,phash FROM media
+    FOR _sis IN SELECT media.id,phash FROM media
 		    LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
 				WHERE 
           phash != 0  AND
@@ -65,30 +68,33 @@ BEGIN
         -- set top lower each time, until done. then set top to NULL
 				ORDER BY media.id DESC LIMIT 1000
     LOOP
+			_result.id := sis;
 			_start := clock_timestamp();
-      FOR _result IN SELECT media.id,pHash as hash,hammingfast(phash,_test.phash)
+      FOR _bro IN SELECT media.id,pHash as hash,hammingfast(phash,_sis.phash)
 					AS dist FROM media
-					LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _test.id = nadupes.sis
+					LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND _sis.id = nadupes.sis
           WHERE nadupes.id IS NULL
           AND phash != 0
           AND phash IS NOT NULL
-          AND media.id < _test.id
-          AND hammingfast(phash,_test.phash) < _threshold
+          AND media.id < _sis.id
+          AND hammingfast(phash,_sis.phash) < _threshold
       LOOP
-				raise notice 'dupe % % %',to_hex(_test.id),to_hex(_result.id),_result.dist;
+				_result.dupes := array_append(_result.dupes,_bro.id)
+				-- raise notice 'dupe % % %',to_hex(_sis.id),to_hex(_bro.id),_bro.dist;
 				BEGIN
-					INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+					INSERT INTO possibleDupes (sis,bro,dist) VALUES (_sis.id,_bro.id,_bro.dist);
         EXCEPTION
 					WHEN unique_violation THEN
-						RAISE NOTICE 'already checked (thisisbad) %',to_hex(_test.id);
+						RAISE NOTICE 'already checked (thisisbad) %',to_hex(_sis.id);
         END;
 			END LOOP;
 						
-			UPDATE dupeCheckPosition SET top = _test.id;
-			DELETE FROM dupesNeedRecheck WHERE id = _test.id;
-			RETURN NEXT _test.id;
+			UPDATE dupeCheckPosition SET top = _sis.id;
+			DELETE FROM dupesNeedRecheck WHERE id = _sis.id;
+			RETURN NEXT _result;
+			_result.dupes := '{}'::int[];
 			_now := clock_timestamp();
-			--raise NOTICE 'tested % %', to_hex(_test.id),extract(epoch from (_now-_start));
+			--raise NOTICE 'tested % %', to_hex(_sis.id),extract(epoch from (_now-_start));
 
 			IF _now - _last > '20 seconds'::interval THEN
 				 RETURN;
@@ -99,31 +105,31 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION recheckFindDupes(_threshold float4) RETURNS int AS $$
 DECLARE
-_test record;
-_result record;
+_sis record;
+_bro record;
 _bottom INTEGER;
 _count int DEFAULT 0;
 BEGIN
-	FOR _test IN SELECT media.id,phash FROM media WHERE phash IS NOT NULL AND
+	FOR _sis IN SELECT media.id,phash FROM media WHERE phash IS NOT NULL AND
     media.id IN (select id from dupesneedrecheck) LIMIT 1000
 
     LOOP
-        FOR _result IN SELECT media.id,pHash as hash, hammingfast(phash,_test.phash) AS dist FROM media
+        FOR _bro IN SELECT media.id,pHash as hash, hammingfast(phash,_sis.phash) AS dist FROM media
     LEFT OUTER JOIN dupesneedrecheck ON media.id = dupesneedrecheck.id
             WHERE phash IS NOT NULL AND dupesneedrecheck.id IS NULL
-              AND media.id != _test.id
---              AND hammingfast(phash,_test.phash) < _threshold
+              AND media.id != _sis.id
+--              AND hammingfast(phash,_sis.phash) < _threshold
         LOOP
             BEGIN
-        INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+        INSERT INTO possibleDupes (sis,bro,dist) VALUES (_sis.id,_bro.id,_bro.dist);
         _count := _count + 1;
         EXCEPTION
                  WHEN unique_violation THEN
-                 RAISE NOTICE 'already checked % %',_test.id,_result.id;
+                 RAISE NOTICE 'already checked % %',_sis.id,_bro.id;
         END;
         END LOOP;
-    DELETE FROM dupesNeedRecheck WHERE id = _test.id;
-    RAISE NOTICE 'finished rechecking %',_test.id;
+    DELETE FROM dupesNeedRecheck WHERE id = _sis.id;
+    RAISE NOTICE 'finished rechecking %',_sis.id;
     END LOOP;
     RETURN _count;
 END
@@ -137,12 +143,12 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION findEmptyDupes(_threshold float4) RETURNS int AS $$
 DECLARE
-_test record;
-_result record;
+_sis record;
+_bro record;
 _bottom INTEGER;
 _count int DEFAULT 0;
 BEGIN
-    FOR _test IN SELECT id,mh_hash FROM media
+    FOR _sis IN SELECT id,mh_hash FROM media
         WHERE
                 id NOT IN (select sis from possibleDupes) AND
                 id > (select id from lastCheckedForDupe) AND
@@ -150,25 +156,25 @@ BEGIN
         pHash = 0
                 ORDER BY id ASC
     LOOP
-        FOR _result IN SELECT media.id,mh_hash, hamming(mh_hash,_test.mh_hash) AS dist FROM media
+        FOR _bro IN SELECT media.id,mh_hash, hamming(mh_hash,_sis.mh_hash) AS dist FROM media
         LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND media.id = nadupes.sis
         WHERE nadupes.id IS NULL AND
               mh_hash IS NOT NULL AND
               pHash = 0 AND
                             not pHashFail AND
-              hamming(mh_hash,_test.mh_hash) < _threshold
+              hamming(mh_hash,_sis.mh_hash) < _threshold
          LOOP
             BEGIN
-              RAISE NOTICE 'lost dupe sis % bro % dist %',_test.id,_result.id,_result.dist;
+              RAISE NOTICE 'lost dupe sis % bro % dist %',_sis.id,_bro.id,_bro.dist;
 
-              INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
+              INSERT INTO possibleDupes (sis,bro,dist) VALUES (_sis.id,_bro.id,_bro.dist);
               _count := _count + 1;
             EXCEPTION
                 WHEN unique_violation THEN
-                    RAISE NOTICE 'already checked (thisisbad) %',_test.id; 
+                    RAISE NOTICE 'already checked (thisisbad) %',_sis.id; 
             END;
          END LOOP;
-                 UPDATE lastCheckedForDupe set id = _test.id;
+                 UPDATE lastCheckedForDupe set id = _sis.id;
     END LOOP;
     RETURN _count;
 END
