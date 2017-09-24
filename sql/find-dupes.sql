@@ -39,12 +39,11 @@ DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AN
 -- check from last checked position, comparing with all images below it.
 -- this works when new images are added
 
-CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
+CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval) RETURNS SETOF int AS $$
 DECLARE
 _test record;
 _result record;
 _bottom INTEGER;
-_count int DEFAULT 0;
 _now TIMESTAMPTZ;
 _start TIMESTAMPTZ;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
@@ -87,15 +86,14 @@ BEGIN
 						
 			UPDATE dupeCheckPosition SET top = _test.id;
 			DELETE FROM dupesNeedRecheck WHERE id = _test.id;
-			_count := _count + 1;
+			RETURN NEXT _test.id;
 			_now := clock_timestamp();
-			raise NOTICE 'tested % %', to_hex(_test.id),extract(epoch from (_now-_start));
+			--raise NOTICE 'tested % %', to_hex(_test.id),extract(epoch from (_now-_start));
 
 			IF _now - _last > '20 seconds'::interval THEN
-				 RETURN _count;
+				 RETURN;
 			END IF;
     END LOOP;
-    RETURN _count;
 END
 $$ language 'plpgsql';
 
