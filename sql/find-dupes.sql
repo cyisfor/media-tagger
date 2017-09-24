@@ -80,7 +80,7 @@ BEGIN
           AND media.id < _sis.id
           AND hammingfast(phash,_sis.phash) < _threshold
       LOOP
-				_result.dupes := array_append(_result.dupes,_bro.id)
+				_result.dupes := array_append(_result.dupes,_bro.id);
 				-- raise notice 'dupe % % %',to_hex(_sis.id),to_hex(_bro.id),_bro.dist;
 				BEGIN
 					INSERT INTO possibleDupes (sis,bro,dist) VALUES (_sis.id,_bro.id,_bro.dist);
