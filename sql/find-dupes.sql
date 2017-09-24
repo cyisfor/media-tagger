@@ -1,7 +1,7 @@
 CREATE TABLE lastCheckedForDupe (
 -- not references media, since this needs to get > media ids.
 			 id INTEGER PRIMARY KEY,
-			 sentinel BOOLEAN UNIQUE DEFAULT FALSE);
+			 sentinel BOOLEAN UNIQUE NOT NULL DEFAULT FALSE);
 
 INSERT INTO lastCheckedForDupe SELECT min(id)-1 FROM media;
 
@@ -14,9 +14,11 @@ UNIQUE(sis,bro));
 
 --BEGIN;
 CREATE TABLE dupeCheckPosition (
-id int PRIMARY KEY,
-bottom BIGINT -- REFERENCES media(id) ON DELETE RESTRICT meh!
+bottom INTEGER PRIMARY KEY NOT NULL DEFAULT 0 -- REFERENCES media(id) ON DELETE RESTRICT meh!
+sentinel BOOLEAN UNIQUE NOT NULL DEFAULT FALSE
 );
+
+INSERT INTO dupecheckposition SELECT min(id)-1 FROM media;
 -- CREATE RULE dupeCheckNotEmpty AS
 -- ON DELETE TO media DO ALSO
 --    UPDATE dupeCheckPosition SET bottom = (SELECT min(media.id) FROM media where media.id > bottom);
