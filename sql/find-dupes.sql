@@ -30,7 +30,7 @@ id BIGINT PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE);
 --UPDATE dupeCheckPosition SET bottom = COALESCE(GREATEST((SELECT MAX(sis) FROM possibleDupes),(SELECT MAX(bro) FROM possibleDupes),bottom),bottom);
 -- mehhh
 
-DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHash = 0) AND bro IN (select ID from media where pHash = 0);
+DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AND bro IN (select ID from media where pHashFail);
 
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4) RETURNS int AS $$
 DECLARE
@@ -107,7 +107,7 @@ BEGIN
               hamming(mh_hash,_test.mh_hash) < _threshold
          LOOP
             BEGIN
-							RAISE NOTICE 'lost dupe sis % bro %',_test.id,_result.id;
+							RAISE NOTICE 'lost dupe sis % bro % dist %',_test.id,_result.id,_result.dist;
 
                 INSERT INTO possibleDupes (sis,bro,dist) VALUES (_test.id,_result.id,_result.dist);
                 _count := _count + 1;
