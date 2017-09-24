@@ -15,6 +15,7 @@ UNIQUE(sis,bro));
 --BEGIN;
 CREATE TABLE dupeCheckPosition (
 bottom INTEGER PRIMARY KEY NOT NULL DEFAULT 0, -- REFERENCES media(id) ON DELETE RESTRICT meh!
+pendingbottom INTEGER,
 top INTEGER,
 sentinel BOOLEAN UNIQUE NOT NULL DEFAULT FALSE
 );
@@ -52,6 +53,9 @@ _now TIMESTAMPTZ;
 _start TIMESTAMPTZ;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
+	IF pendingbottom IS NULL FROM dupeCheckPosition THEN
+		 UPDATE dupeCheckPosition SET pendingbottom = SELECT MAX(id) FROM media;
+	END IF;
     raise notice 'top % bottom %', (select to_hex(top) from dupeCheckPosition), (select to_hex(bottom) from dupeCheckPosition);
     FOR _sis IN SELECT media.id,phash FROM media
 		    LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
@@ -145,7 +149,7 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION findDupesDone() RETURNS VOID AS $$
 BEGIN
-  UPDATE dupesCheckPosition SET bottom = top, top = NULL WHERE top IS NOT NULL;
+  UPDATE dupesCheckPosition SET bottom = pendingbottom, top = NULL;
 END
 $$ language 'plpgsql';
 
