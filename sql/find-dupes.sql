@@ -3,7 +3,7 @@ CREATE TABLE lastCheckedForDupe (
 			 id INTEGER PRIMARY KEY,
 			 sentinel BOOLEAN UNIQUE DEFAULT FALSE);
 
-INSERT INTO lastCheckesForDupe SELECT min(id)-1 FROM media;
+INSERT INTO lastCheckedForDupe SELECT min(id)-1 FROM media;
 
 CREATE TABLE possibleDupes (
     id SERIAL PRIMARY KEY,
@@ -96,8 +96,9 @@ BEGIN
 				id > (select id from lastCheckedForDupe) AND
         mh_hash IS NOT NULL AND
         pHash = 0
+				ORDER BY id ASC
     LOOP
-        --RAISE NOTICE 'mh_check %',_test.id;
+        RAISE NOTICE 'mh_check %',_test.id;
         FOR _result IN SELECT media.id,mh_hash, hamming(mh_hash,_test.mh_hash) AS dist FROM media
         LEFT OUTER JOIN nadupes ON media.id = nadupes.bro AND media.id = nadupes.sis
         WHERE nadupes.id IS NULL AND
