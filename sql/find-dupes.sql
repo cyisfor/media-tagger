@@ -54,7 +54,7 @@ _start TIMESTAMPTZ;
 _last TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 BEGIN
 	IF pendingbottom IS NULL FROM dupeCheckPosition THEN
-		 UPDATE dupeCheckPosition SET pendingbottom = SELECT MAX(id) FROM media;
+		 UPDATE dupeCheckPosition SET pendingbottom = (SELECT MAX(id) FROM media);
 	END IF;
     raise notice 'top % bottom %', (select to_hex(top) from dupeCheckPosition), (select to_hex(bottom) from dupeCheckPosition);
     FOR _sis IN SELECT media.id,phash FROM media
@@ -149,7 +149,11 @@ $$ language 'plpgsql';
 
 CREATE OR REPLACE FUNCTION findDupesDone() RETURNS VOID AS $$
 BEGIN
-  UPDATE dupesCheckPosition SET bottom = pendingbottom, top = NULL;
+  UPDATE dupesCheckPosition SET
+				 bottom = pendingbottom,
+				 top = NULL,
+				 pendingbottom = NULL
+			WHERE pendingbottom IS NOT NULL;
 END
 $$ language 'plpgsql';
 
