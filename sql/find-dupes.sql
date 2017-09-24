@@ -39,7 +39,7 @@ DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AN
 -- check from last checked position, comparing with all images below it.
 -- this works when new images are added
 
-CREATE TYPE dupe_result AS (id INTEGER, dupes INT[]);
+CREATE TYPE dupe_result AS (id INTEGER, dupes INT[], elapsed interval);
 
 CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval, _maxrows INTEGER DEFAULT -1) RETURNS SETOF dupe_result AS $$
 DECLARE
@@ -95,6 +95,7 @@ BEGIN
 			RETURN NEXT _result;
 			_result.dupes := '{}'::int[];
 			_now := clock_timestamp();
+			_result.elapsed = _now - _start;
 			--raise NOTICE 'tested % %', to_hex(_sis.id),extract(epoch from (_now-_start));
 
 			IF _now - _last > _timeout THEN
