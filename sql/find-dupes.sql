@@ -41,10 +41,11 @@ DELETE FROM possibleDupes WHERE sis IN (select ID from media where pHashFail) AN
 
 CREATE TYPE dupe_result AS (id INTEGER, dupes INT[]);
 
-CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval) RETURNS SETOF dupe_result AS $$
+CREATE OR REPLACE FUNCTION findDupes(_threshold float4, _timeout interval, _maxrows INTEGER DEFAULT -1) RETURNS SETOF dupe_result AS $$
 DECLARE
 _sis record;
 _bro record;
+_count INTEGER DEFAULT 0;
 _result dupe_result;
 _bottom INTEGER;
 _now TIMESTAMPTZ;
@@ -96,8 +97,14 @@ BEGIN
 			_now := clock_timestamp();
 			--raise NOTICE 'tested % %', to_hex(_sis.id),extract(epoch from (_now-_start));
 
-			IF _now - _last > '20 seconds'::interval THEN
+			IF _now - _last > _timeout THEN
 				 RETURN;
+			END IF;
+			IF _maxrows > 0 THEN
+				 _count := _count + 1;
+				 IF _count > _maxrows THEN
+				 		RETURN;
+				 END IF;
 			END IF;
     END LOOP;
 END
