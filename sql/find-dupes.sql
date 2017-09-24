@@ -91,7 +91,7 @@ BEGIN
 			_now := clock_timestamp();
 			raise NOTICE 'tested % %', to_hex(_test.id),extract(epoch from (_now-_start));
 
-			IF _now - _last > '6 seconds'::interval THEN
+			IF _now - _last > '20 seconds'::interval THEN
 				 RETURN _count;
 			END IF;
     END LOOP;
