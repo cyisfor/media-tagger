@@ -107,6 +107,7 @@ BEGIN
     DELETE FROM dupesNeedRecheck WHERE id = _test.id;
     RAISE NOTICE 'finished rechecking %',_test.id;
     END LOOP;
+		RETURN _count;
 END
 $$ language 'plpgsql';
 
