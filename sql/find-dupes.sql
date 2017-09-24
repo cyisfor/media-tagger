@@ -69,7 +69,7 @@ BEGIN
         -- set top lower each time, until done. then set top to NULL
 				ORDER BY media.id DESC LIMIT 1000
     LOOP
-			_result.id := sis;
+			_result.id := _sis.id;
 			_start := clock_timestamp();
       FOR _bro IN SELECT media.id,pHash as hash,hammingfast(phash,_sis.phash)
 					AS dist FROM media
