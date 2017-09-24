@@ -1,3 +1,10 @@
+CREATE TABLE lastCheckedForDupe (
+-- not references media, since this needs to get > media ids.
+			 id INTEGER PRIMARY KEY,
+			 sentinel BOOLEAN UNIQUE DEFAULT FALSE);
+
+INSERT INTO lastCheckesForDupe SELECT min(id)-1 FROM media;
+
 CREATE TABLE possibleDupes (
     id SERIAL PRIMARY KEY,
     sis BIGINT REFERENCES media(id) ON DELETE CASCADE,
@@ -83,12 +90,12 @@ BEGIN
 	RAISE NOTICE 'finished rechecking %',_test.id;
     END LOOP;
 
-    FOR _test IN SELECT media.id,mh_hash FROM media
-        LEFT OUTER JOIN possibleDupes ON media.id = possibleDupes.sis
-        WHERE 
-              possibleDupes.id IS NULL AND
-              mh_hash IS NOT NULL AND
-              pHash = 0
+    FOR _test IN SELECT id,mh_hash FROM media
+        WHERE
+				id NOT IN (select id from possibleDupes) AND
+				id > (select id from lastCheckedForDupe) AND
+        mh_hash IS NOT NULL AND
+        pHash = 0
     LOOP
         --RAISE NOTICE 'mh_check %',_test.id;
         FOR _result IN SELECT media.id,mh_hash, hamming(mh_hash,_test.mh_hash) AS dist FROM media
@@ -106,6 +113,7 @@ BEGIN
 			        RAISE NOTICE 'already checked (thisisbad) %',_test.id; 
             END;
          END LOOP;
+				 UPDATE lastCheckedForDupe set id = _test.id;
     END LOOP;
     RETURN _count;
 END
