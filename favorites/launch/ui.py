@@ -1,6 +1,6 @@
 import note
 
-from favorites.launch.protocol import to_catchup
+from favorites.launch.protocol import to_catchup, Handler
 
 import fcntl,os,time
 from itertools import count
@@ -28,8 +28,11 @@ def set_busy(is_busy=True):
 		win.set_keep_above(False)
 		win.set_icon(ready)
 		return
+	progress.show()
 	win.set_keep_above(True)
 	win.set_icon(busystatic)
+	win.present()
+	win.set_focus(None)
 	img.set_from_animation(busy)
 	progress.set_fraction(0)
 
@@ -40,18 +43,19 @@ def on_progress(frac):
 	
 progress = ui.get_object("progress")
 progress.set_name("progress")
-	
+
 @to_catchup
-class Progress:
+class Progress(Handler):
 	def starting(ident):
-		win.set_tooltip("%d" % ident)
+		from favorites.dbqueue import urifor
+		win.set_tooltip_text(urifor(ident))
 		set_busy(True)
 	def progressed(frac):
 		progress.set_fraction(frac)
 	def done():
 		set_busy(False)
-	def poke():
-		print("poking")
+
+#Progress.poke()
 
 img = ui.get_object("image")
 def gotPiece(piece):
@@ -65,6 +69,7 @@ def gotPiece(piece):
 	
 win.set_title('parse')
 win.show_all()
+#GLib.idle_add(win.iconify)
 
 css = Gtk.CssProvider()
 css.load_from_path(os.path.join(here,"ui.css"))

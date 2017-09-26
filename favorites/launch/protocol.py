@@ -1,215 +1,214 @@
+# Gio suuuuuucks
+# it randomly segfaults
+# it raises errors with every read and write
+# PLEASE let me use just python sockets
+
+import socket,errno
+
 import note
 
+import threading
+# Gtk p. much mandates this, since the GUI freezes
+# DURING GLIB TIMEOUTS
+
 from concurrent.futures import Future
-from mygi import Gio,GLib
+from mygi import GLib
 
 import struct
 
 default_port = 4589
 
-def lookup(addr):
-	address = Future()
-	def set_address(obj,result,resolver):
-		addrs = resolver.lookup_by_name_finish(result)
-		print("YAY",addrs[0])
-		address.set_result(addrs[0])
-	resolver = Gio.Resolver.get_default()
-	resolver.lookup_by_name_async(addr, None, set_address, resolver)
-	return address.add_done_callback
+class Node:
+	address = ('127.0.0.1', default_port)
+	multicast = ('224.0.0.1', default_port + 1)
 
-def to_catchup(info):
-	inp = None
-	out = None
-	buf = bytearray(0x100)
-	roff = 0
-	woff = 0
+class Handler(Node):
+	def starting(self,ident): pass
+	def progressed(self,progress): pass
+	def done(self): pass
 
-	if not hasattr(info,'address'):
-		info.address = '::1'
-	if not hasattr(info,'port'):
-		info.port = default_port
+def makesock():
+	sock = socket.socket(family=socket.AF_INET,type=socket.SOCK_DGRAM,proto=socket.IPPROTO_UDP)
+	return sock
 
-	client = Gio.SocketClient.new()
-	have_address = lookup(info.address)
-	have_connected = Future()
+def multicast(sock,group):
+	mreq = struct.pack("4sl", socket.inet_aton(group[0]), socket.INADDR_ANY)
+	sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-	ident = None
+def send_all(out,buf,addr):
+	done = Future()
+	buf = memoryview(buf)
+	def on_writeable(sock, condition, _, _2):
+		nonlocal buf
+		while buf:
+			try:
+				amt = out.sendto(buf,0,addr)
+			except socket.error as e:
+				if e.errno == EINTR:
+					continue
+				elif e.errno == errno.EAGAIN:
+					return True # not false, still sending
+				done.set_exception(e)
+				note.error(e)
+				return False
+			assert amt >= 0
+			buf = buf[amt:]
+		# done sending
+		done.set_result(True)
+		return False
+	if on_writeable(None,GLib.IO_OUT,None,None):
+		GLib.unix_fd_add_full(0,
+													out.fileno(),
+													GLib.IO_OUT,
+													on_writeable,
+													None,None)
+	return done
 
-	def reconnect(conn):
-		nonlocal have_connected
-		have_connected = Future()
-		def on_closed(obj, result, _):
-			ok = conn.close_finish(result)
-			if not ok:
-				note.error("Bad close")
-			connect()
-		conn.close_async(0, None, on_closed, None)
-		connect()
-		
-	def connect():
-		@have_address
-		def _(f):
-			address = Gio.InetSocketAddress.new(f.result(),info.port)
-			client.connect_async(address, None, on_connect, None)
+class Idler:
+	"runs functions in the main thread"
+	def __getattr__(self,name):
+		func = getattr(self.o,name)
+		if not callable(func):
+			setattr(self,name,func)
+			return func
+		def wrapper(*a):
+			GLib.idle_add(func,*a)
+		setattr(self,name,wrapper)
+		return wrapper
+	def __init__(self,o):
+		self.o = o
 
-	def readmoar(conn):
-		if len(buf) - woff < 0x100:
-			# this calls brk/mmap even less than C realloc...
-			buf[len(buf):] = bytearray(0x100)
-		inp.read_async(memoryview(buf)[woff:],0,None,on_input,conn)
+def to_catchup_start_reading(node):
 
-	def on_input(obj, result, conn):
-		nonlocal roff, woff, ident, buf
-		amt = inp.read_finish(result)
-		if amt < 0:
-			reconnect(conn)
-			return
-		woff += amt
-		head = memoryview(buf)[roff:woff]
+	node = Idler(node)
 
-		if ident is None:
-			if len(head) < 4: return
-			ident = struct.unpack("!I",head[:4])
-			head = head[4:]
-			info.starting(ident)
+	def reader():
+		# note = Idler(note) eh, maybe...
+		inp = makesock()
+		inp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		res = inp.bind(node.multicast)
+		multicast(inp,node.multicast)
 
-		# when sending progress, 2 bytes that is the floating point value where 0xFFFF = 100%
-		# we can ignore all but the last complete progress
-		# so 55 -> use 53,54, leave 55
-		# 54 -> use 53, 54, leave none
-		# etc
-		hi = len(head) - len(head)%2
-		lo = hi - 1
-		if lo > 0:
-			progress = struct.unpack("!H",head[lo:hi])
-			if progress == 0xFFFF:
-				ident = None
-				info.done()
+		buf = bytearray(5)
+
+		def ptype():
+			# make sure we receive the full packet
+			# (truncated and lost, if not)
+			amt,addr = inp.recvfrom_into(buf,5)
+			return buf[0]
+
+		def readint(size):
+			# had to recvfrom above
+			if size == 4:
+				fmt = '!I'
+			elif size == 2:
+				fmt = '!H'
 			else:
-				info.progressed(progress / 0xFFFF)
-
-		roff = hi+1
-		if woff-roff > roff:
-			# almost always true, except maybe if half a long path
-			buf = bytearray(buf[roff:woff])
-			woff -= roff
-			roff = 0
-		readmoar(conn)
-
-	def on_connect(obj, result, user_data):
-		nonlocal inp, out
-		conn = client.connect_finish(result)
-		inp = conn.get_input_stream()
-		out = conn.get_output_stream()
-
-		have_connected.set_result(conn)
+				raise RuntimeError("foo")
+			return struct.unpack(fmt,memoryview(buf)[1:1+size])[0]
 		
-		readmoar(conn)
+		while True:
+			pt = ptype()
+			if pt == 0:
+				ident = readint(4)
+				node.starting(ident)
+			elif pt == 1:
+				progress = readint(2)
+				note.yellow("progress",progress)
+				node.progressed(progress / 0xFFFF)
+				if progress == 0xFFFF:
+					node.done()
 
+	threading.Thread(target=reader,daemon=True,name="Reader").start()
+
+def to_catchup(node=Handler):
 	superpoke = None
-	if hasattr(info,'poke'):
-		superpoke = info.poke
-		
+	if hasattr(node,'poke'):
+		superpoke = node.poke
+			
+	out = makesock()
+	out.setblocking(False) # ? no real diff there...
+
 	def poke():
-		@have_connected.add_done_callback
-		def _(f):
-			conn = f.result()
-			res = conn.get_output_stream().write(b"\0",None)
-			if res != 0:
-				reconnect(conn)
-			if superpoke:
-				superpoke()
+			# 1 byte will either succeed or fail, no EAGAIN, or EINTR...
+		try:
+			res = out.sendto(b"\0",0,node.address)
+		except socket.error as e:
+			if e.errno == EAGAIN: return
+			note("write error",e)
+			return
+		if superpoke:
+			superpoke()
 
-	connect()
-	info.poke = poke
-	return info
+	node.poke = poke
 
-def as_catchup(on_poked, port=default_port, address="::1"):
-	service = Gio.SocketService.new()
-	service.set_backlog(5)
+	to_catchup_start_reading(node)
 
-	poking = None
+	return node # class decorator
+
+trashbuf = bytearray(0x10)
 	
+def as_catchup(on_poked, node=Node):
+	inp = makesock()
+	out = makesock()
+	out.setblocking(False)
+
+	# catchup, input is unicast (just us) output is multicast
+	# input is bound, output is the unbound
+	# don't SUBSCRIBE to multicast on output
+	# multicast(out,node.multicast)
+	inp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	inp.bind(node.address)
+	# ?
+	out.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+
+	node.glibsucks = [inp,out]
+	
+	poking = None
+
 	def un_poke():
 		nonlocal poking
 		on_poked()
 		poking = None
 		return False
 
-	def on_input(obj, result, conn):
-		nonlocal poking
-		inp = conn.get_input_stream()
-		amt = inp.read_finish(result)
-		# just ignore rapidfire pokes...
-		# XXX: warn if amt == 0x10 for out of control client?
-		if poking: return
-		poking = GLib.timeout_add(500,un_poke)
+	def reader():
+		while True:
+			try:
+				amt,addr = inp.recvfrom_into(trashbuf)
+			except socket.error as e:
+				if e.errno == errno.EINTR: continue
+				note.error(e)
+				break
+			note("poked from",amt,addr)
 
-	connections = []
-		
-	def on_accept(obj, result, user_data):
-		conn, source = service.accept_finish(result)
-		buf = bytearray(0x10)
-		conn.get_input_stream().read_async(buf,0,None,on_input,conn)
-		connections.append(conn)
-	
-	have_address = lookup(address)
-	@have_address
-	def _(f):
-		address = Gio.InetSocketAddress.new(f.result(),port)
-		service.add_address(address,
-												Gio.SocketType.STREAM,
-												Gio.SocketProtocol.DEFAULT,
-												None)
-		service.accept_async(None, on_accept, None)
-		note("accepting")
+			nonlocal poking
+			# just ignore rapidfire pokes...
+			# XXX: warn if amt == 0x10 for out of control client?
+			if poking:
+				continue
+			poking = GLib.timeout_add(500,un_poke)
 
-	def on_name_written(obj, result, val):
-		conn, out, name, on_ready = val
-		ok, amt = val.write_finish(result)
-		if not ok:
-			conn.disconnect()
-			conn = None
-			Progress.start(name, on_ready)		
-		
+	threading.Thread(target=reader,name="Pokey",daemon=1).start()
+
 	class Progress:
 		factor = 1
 		def starting(self,ident,total):
+			note("starting",ident)
 			self.factor = 0xFFFF / total;
-			conns = enumerate(connections)
-			buf = struct.pack("!I",ident)
-			for i,conn in conns:
-				out = conn.get_output_stream()
-				ok, amt = out.write_all(buf,  None)
-				if not ok:
-					print("connection failed")
-					conn.disconnect()
-					del connections[i]
-					# reset iterator
-					conns = enumerate(connections)[i:]
-		def progressed(self,progress):
-			progress = round(progress * self.factor)
-			progress = struct.pack("!H",progress)
+			ident = struct.pack("!BI",0,ident)
+			note("ident",ident)
 			
-			conns = enumerate(connections)
-			for i,conn in conns:
-				out = conn.get_output_stream()
-				ok, amt = out.write_all(progress, None)
-				if not ok:
-					print("connection failed")
-					conn.disconnect()
-					del connections[i]
-					# reset iterator
-					conns = enumerate(connections)[i:]
+			return send_all(out,
+											ident,
+											node.multicast)
+
+		def progressed(self,progress):
+			#note("derp",progress*self.factor/0xFFFF)
+			progress = round(progress * self.factor)
+			progress = struct.pack("!BH",1,progress)
+
+			return send_all(out,progress,node.multicast)
 		def done(self):
-			conns = enumerate(connections)
-			for i,conn in conns:
-				out = conn.get_output_stream()
-				ok, amt = out.write_all(struct.pack("!H",0xFFFF))
-				if not ok:
-					print("connection failed")
-					conn.disconnect()
-					del connections[i]
-					# reset iterator
-					conns = enumerate(connections)[i:]
+			return send_all(out,struct.pack("!BH",1,0xFFFF),node.multicast)
 	return Progress()

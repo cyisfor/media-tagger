@@ -230,7 +230,7 @@ def myretrieve(request,dest,progress=None):
 		total = headers.get('Content-Length')
 		if total:
 			total = int(total)
-		block = bytearray(0x1000)
+		block = bytearray(512)
 		sofar = 0
 		print('progress?',progress)
 		while True:

@@ -59,3 +59,8 @@ def megafail(uri):
 	db.execute("UPDATE parseQueue SET tries = 9001 WHERE uri = $1",(uri,))
 def win(medium,uri):
 	db.execute("UPDATE parseQueue SET medium = $2 WHERE uri = $1",(uri,medium))
+
+def urifor(ident):
+	r = db.execute('SELECT uri FROM parseQueue WHERE id = $1',(ident,))
+	if r:
+		return r[0][0]

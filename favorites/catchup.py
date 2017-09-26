@@ -65,13 +65,18 @@ def catch_one():
 				nonlocal started
 				if not started:
 					progress.starting(ident,total)
-					started = True
+					started = sofar
+				elif (sofar - started) > 0.01 * total:
+					# only once every percent, please
+					started = sofar
+					progress.progressed(sofar)
 			for attempts in range(2):
 				note("Parsing",uri)
 				try:
 					medium,wasCreated = parse(uri,progress=derprogress)
 					win(medium,uri)
 					progress.done()
+					note("ok...?")
 					return ident,medium,wasCreated
 				except urllib.error.URLError as e:
 					note(e.headers)
@@ -124,8 +129,8 @@ def catch_one():
 if __name__ == '__main__':
 	from gi.repository import GLib
 	loop = GLib.MainLoop()
-	GLib.idle_add(lambda: run() and False)
-	GLib.timeout_add_seconds(20,run)
+	#GLib.idle_add(lambda: run() and False)
+	#GLib.timeout_add_seconds(20,run)
 
 	import signal
 	signal.signal(signal.SIGINT, signal.SIG_DFL)
