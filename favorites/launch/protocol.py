@@ -173,6 +173,7 @@ def as_catchup(on_poked, node=Node):
 		return False
 
 	def reader():
+		GLib.timeout_add_seconds(5,un_poke);
 		while True:
 			try:
 				amt,addr = inp.recvfrom_into(trashbuf)
@@ -187,7 +188,7 @@ def as_catchup(on_poked, node=Node):
 			# XXX: warn if amt == 0x10 for out of control client?
 			if poking:
 				continue
-			poking = GLib.timeout_add(500,un_poke)
+			poking = GLib.timeout_add_seconds(1,un_poke)
 
 	threading.Thread(target=reader,name="Pokey",daemon=1).start()
 
