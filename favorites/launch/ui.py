@@ -31,8 +31,9 @@ def set_busy(is_busy=True):
 	progress.show()
 	win.set_keep_above(True)
 	win.set_icon(busystatic)
-	win.present()
-	win.set_focus(None)
+	# keep above, not present, avoids stealing focus
+	#win.present()
+	win.set_focus(None) # this doesn't really do anything
 	img.set_from_animation(busy)
 	progress.set_fraction(0)
 
