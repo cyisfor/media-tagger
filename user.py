@@ -38,6 +38,10 @@ class VersionHolder:
 	def jsreload():
 		"Users might be able to load individual failed thumbs, instead of the whole page"
 		db.setup("ALTER TABLE uzers ADD COLUMN loadjs BOOLEAN NOT NULL DEFAULT FALSE")
+	@v(version=7)
+	def set_width():
+		"Users can choose how wide to resize their images"
+		db.setup("ALTER TABLE uzers ADD COLUMN resized_width INTEGER NOT NULL DEFAULT 800")
 v.setup()
 
 def currentUser():
@@ -55,6 +59,7 @@ class User:
 	noComics = True
 	navigate = False
 	loadjs = False
+	resized_width = 800
 	def tags():
 		if User.defaultTags:
 			return dtags
@@ -73,7 +78,7 @@ class User:
 		return '<user '+User.ident+'>'
 	def setup(ident):
 		for go in range(2):
-			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate,loadjs FROM uzers WHERE ident = $1",(ident,))
+			result = db.execute("SELECT id,rescaleImages,defaultTags,noComics,navigate,loadjs,resized_width FROM uzers WHERE ident = $1",(ident,))
 			if result and len(result[0]) == 6:
 				result = result[0]
 				User.ident = ident
@@ -83,6 +88,7 @@ class User:
 				User.noComics = result[3]
 				User.navigate = result[4]
 				User.loadjs = result[5]
+				User.resized_width = result[6]
 				return
 			db.execute("INSERT INTO uzers (ident) VALUES ($1)",(ident,))
 		raise RuntimeError("Something's inserting the same user weirdly so the database is failing to get it at any time!")

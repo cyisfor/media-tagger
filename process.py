@@ -19,7 +19,8 @@ def user(path,params,data):
 		'rescaleimages': checkB('rescale'),
 		'nocomics': checkB('comic'),
 		'navigate': checkB('navigate'),
-		'loadjs': checkB('loadjs')
+		'loadjs': checkB('loadjs'),
+		'resize_width': checkB('resize_width')
 	}
 
 	newtags = check('tags')
@@ -38,5 +39,5 @@ def user(path,params,data):
 			if tags.nega:
 				db.execute('INSERT INTO uzertags (tag,uzer,nega) SELECT unnest(array(SELECT unnest($1::INTEGER[]) EXCEPT SELECT tag FROM uzertags WHERE uzer = $2)),$2,TRUE',(tags.nega,self.id))
 		db.execute('UPDATE uzers SET defaultTags = FALSE WHERE id = $1',(self.id,))
-	derp.set(news.items())
+		derp.set(news.items())
 	return ""

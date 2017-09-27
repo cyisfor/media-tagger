@@ -427,6 +427,8 @@ def resized(info,path,params):
 	while not exists:
 		time.sleep(1)
 		fid, exists = filedb.checkResized(id,width=width,create=False)
+	raise Redirect("/resized/"+fid+"/donotsave.this")
+
 
 tagsModule = tags # sigh
 
