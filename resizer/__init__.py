@@ -17,6 +17,7 @@ def init(base):
 	base = base.encode("utf-8")
 	l.init(base,len(base))
 	def queue(id,width=0):
+		raise RuntimeError("boop")
 		res = l.queue(id,width or 0)
 		assert(res == 0, res)
 	l.queue.argtypes = [c_uint, c_uint]

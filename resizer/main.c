@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
 			perror("foo");
 		}
 		ensure_eq(sizeof(m),amt);
+		record(DEBUG,"message %x %d",m.id, m.width);
 		if(m.width > 0)
 			make_resized(ctx,m.id,m.width);
 		else

@@ -48,6 +48,7 @@ int make_thumbnail(context* ctx, uint32_t id) {
 		record(ERROR,"couldn't stat %x",id);
 		return 0;
 	}
+	//enter_debug();
 
   VipsImage* image = lib_thumbnail(ctx);
 	char* dest = filedb_path("thumb",id);

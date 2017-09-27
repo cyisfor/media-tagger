@@ -333,6 +333,18 @@ int main(int argc, char** argv) {
 	size_t numpfd = 2; // = 2 + numworkers... always?
 
 
+	void clear_incoming(void) {
+		char buf[512];
+		for(;;) {
+			ssize_t amt = read(incoming,buf,512);
+			if(amt <= 0) {
+				ensure_eq(errno,EAGAIN);
+				return;
+			}
+		}
+	}
+	clear_incoming();
+	
 	void drain_incoming(void) {
 		struct message m;
 		size_t worker = 0;
