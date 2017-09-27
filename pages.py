@@ -789,8 +789,7 @@ def user(info,path,params):
 				with d.tr:
 					d.td("Rescaled width:")
 					with d.td:
-						d.input(type="range",name="rescale_width
-
+						d.input(type="range",name="rescale_width",min=400,max=2048)
 				checkbox("Only First Comic Page?",'comic',User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				checkbox("Javascript thumbnail checking?",'loadjs',User.loadjs)

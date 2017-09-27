@@ -15,12 +15,23 @@ def user(path,params,data):
 		if check(name):
 			return True
 		return False
+
+	rescale_width = check('rescale_width')
+	if rescale_width:
+		rescale_width = int(rescale_width)
+		if rescale_width > 2048:
+			rescale_width = 2048
+		elif rescale_width < 400:
+			rescale_width = 400
+	else:
+		rescale_width = 800
+	assert rescale_width
 	news = {
 		'rescaleimages': checkB('rescale'),
 		'nocomics': checkB('comic'),
 		'navigate': checkB('navigate'),
 		'loadjs': checkB('loadjs'),
-		'rescale_width': checkB('rescale_width')
+		'rescale_width': rescale_width,
 	}
 
 	newtags = check('tags')
