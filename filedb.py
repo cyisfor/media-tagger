@@ -42,10 +42,10 @@ def check(id,**kw):
 	return _check(id,**kw)
 
 def checkResized(id,**kw):
-	return _check(id,'resized',800,**kw)
+	return _check(id,category='resized',width=800,**kw)
 
 def checkOEmbed(id,maxWidth,**kw):
-	return _check(id,'oembed',maxWidth,**kw)
+	return _check(id,category='oembed',width=maxWidth,**kw)
 
 def mediaPath(id=None):
 	loc = os.path.join(base,'media')

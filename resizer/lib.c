@@ -53,9 +53,9 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		*wider = in->Ysize < in->Xsize;
 		// if wider, use shorter one... except if this is an upper bound, then do opposite.
 		if((*wider) ^ upper_bound) {
-			factor = (float)SIDE/in->Ysize;
+			factor = (float)target_width/in->Ysize;
 		} else {
-			factor = (float)SIDE/in->Xsize;
+			factor = (float)target_width/in->Xsize;
 		}
 	}
 
@@ -89,7 +89,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 			MOVED;
 			update_factor();
 		} else {
-			if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
+			if (in->Ysize <= target_width && in->Xsize <= target_width) {
 				if(ctx->stat.st_size < 10000) {
 					// can just directly use this image
 					return in;
@@ -101,7 +101,7 @@ static VipsImage* do_resize(context* ctx, int target_width, bool upper_bound, bo
 		if(in == NULL) {
 			return NULL;
 		}
-		if (in->Ysize <= SIDE && in->Xsize <= SIDE) {
+		if (in->Ysize <= target_width && in->Xsize <= target_width) {
 			if(ctx->stat.st_size < 10000) {
 				// can just directly use this image
 				return in;

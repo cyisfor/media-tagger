@@ -339,9 +339,10 @@ int main(int argc, char** argv) {
 			ssize_t amt = read(incoming,buf,512);
 			if(amt <= 0) {
 				ensure_eq(errno,EAGAIN);
-				return;
+				break;
 			}
 		}
+		record(INFO,"Incoming fifo unclogged");
 	}
 	clear_incoming();
 	
