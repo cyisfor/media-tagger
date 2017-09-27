@@ -36,6 +36,12 @@ char lackey[PATH_MAX];
 
 static sigset_t mysigs;
 
+struct pollfd pfd[MAXWORKERS+2] = {};
+size_t numpfd = 2; // = 2 + numworkers... always?
+
+
+
+
 
 int launch_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
@@ -156,6 +162,10 @@ void start_worker(size_t which) {
 																		 workers[which].out[1]);
 	close(workers[which].in[0]);
 	close(workers[which].out[1]);
+
+	pfd[which+2].fd = workers[worker].out[0];
+	pfd[which+2].events = POLLIN;
+
 	set_expiration(which);
 	++numworkers;
 }
@@ -199,8 +209,8 @@ void kill_worker(int which) {
 	kill(workers[which].pid,SIGKILL);
 	reap_workers();
 	ensure_eq(workers[which].status,DEAD);
+	pfd[which+2].events = 0;
 }
-
 
 void stop_worker(int which) {
 	workers[which].status = DOOMED;
@@ -221,6 +231,7 @@ size_t get_worker(size_t off) {
 			continue;
 		case IDLE:
 			workers[derp].status = BUSY;
+			pfd[derp+2].events = POLLIN;
 			return derp;
 		};
 	}
@@ -320,18 +331,10 @@ int main(int argc, char** argv) {
 
 	enum { SIGNALS, INCOMING };
 
-	struct pollfd pfd[MAXWORKERS+2] = {
-		[SIGNALS] = {
-			.fd = signals,
-			.events = POLLIN
-		},
-		[INCOMING] = {
-			.fd = incoming,
-			.events = POLLIN
-		}
-	};
-	size_t numpfd = 2; // = 2 + numworkers... always?
-
+	pfd[SIGNALS].fd = incoming;
+	pfd[SIGNALS].events = POLLIN;
+	pfd[INCOMING].fd = signals;
+	pfd[INCOMING].events = POLLIN;
 
 	void clear_incoming(void) {
 		char buf[512];
@@ -355,8 +358,6 @@ int main(int argc, char** argv) {
 				pfd[INCOMING].events = 0;
 				break;
 			}
-			pfd[worker+2].fd = workers[worker].out[0];
-			pfd[worker+2].events = POLLIN;
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
 				perror("EOF on queuefull...");
@@ -463,7 +464,7 @@ int main(int argc, char** argv) {
 					} else {
 						ensure_eq(amt,1);
 						workers[which].status = IDLE;
-						pfd[INCOMING].events = POLLIN;
+						pfd[which+2].events = 0;
 					}
 					break;
 				}
