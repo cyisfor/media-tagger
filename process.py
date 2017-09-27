@@ -20,7 +20,7 @@ def user(path,params,data):
 		'nocomics': checkB('comic'),
 		'navigate': checkB('navigate'),
 		'loadjs': checkB('loadjs'),
-		'resize_width': checkB('resize_width')
+		'rescale_width': checkB('rescale_width')
 	}
 
 	newtags = check('tags')

@@ -786,6 +786,11 @@ def user(info,path,params):
 		            method="post"):
 			with d.table(Class="info"):
 				checkbox("Rescale Images?",'rescale',User.rescaleImages)
+				with d.tr:
+					d.td("Rescaled width:")
+					with d.td:
+						d.input(type="range",name="rescale_width
+
 				checkbox("Only First Comic Page?",'comic',User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				checkbox("Javascript thumbnail checking?",'loadjs',User.loadjs)
