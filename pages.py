@@ -49,7 +49,7 @@ def notempty(it):
 	it = iter(it)
 	first = next(it)
 	return chain((first,),it)
-						
+
 def clump(it,n=8):
 	it = iter(it)
 	while True:
@@ -57,7 +57,7 @@ def clump(it,n=8):
 
 def consume(it):
 	for _ in it: pass
-		
+
 def wrappit(s):
 	return textwrap.fill(s,width=0x40)
 
@@ -104,7 +104,7 @@ def headLink(head=None):
 	if head is None:
 		return place
 	return place + head + '/'
-		
+
 def place(mode):
 	return headLink('~'+mode)
 
@@ -229,7 +229,7 @@ def makeLinks(info,linkfor=None):
 			d.script("\n".join(("reload_later(document.getElementById("+repr(tagid)+"),"+repr(src)+");") for tagid,src in missing))
 		else:
 			Session.refresh = True
-		
+
 
 def makeBase():
 	# drop bass
@@ -290,7 +290,7 @@ def standardHead(title,*contents):
 		yield head
 
 from ensure import ensure
-		
+
 derpage = None
 def pagemaker(f):
 	def wrapper(*a,**kw):
@@ -299,7 +299,7 @@ def pagemaker(f):
 			assert derpage is not None
 			return derpage.commit()
 	return wrapper
-		
+
 @contextmanager
 def makePage(title,custom_head=False,douser=True):
 	global derpage
@@ -423,11 +423,10 @@ def resized(info,path,params):
 	width = 800
 	if len(path) == 3:
 		width = int(path[2])
-	while True:
-		fid, exists = filedb.checkResized(id,width=width)
-		if exists: break
+	fid, exists = filedb.checkResized(id,width=width,create=True)
+	while not exists:
 		time.sleep(1)
-	raise Redirect("/resized/"+fid+"/donotsave.this")
+		fid, exists = filedb.checkResized(id,width=width,create=False)
 
 tagsModule = tags # sigh
 
@@ -476,7 +475,7 @@ def checkExplain(id,link,width,height,thing):
 
 
 linepat = re.compile('[ \t]*\n+\s*')
-	
+
 def maybeDesc(id):
 	blurb = db.execute('SELECT blurb FROM descriptions WHERE id = $1',(id,))
 	if blurb:
@@ -489,7 +488,7 @@ def maybeDesc(id):
 		# assuming blurb is trusted!
 		with d.div(id='desc'):
 			for p in lines:
-				d.p(RawString(p)) 
+				d.p(RawString(p))
 	return None
 
 @pagemaker
@@ -615,7 +614,7 @@ def info(info,path,params):
 						e(dd.a(source,href=source))
 						if m:
 							e(" "+str(m.group(1)))
-							
+
 
 
 def like(info):
@@ -704,7 +703,7 @@ def desktop(raw,path,params):
 	if 'd' in params:
 		raise Redirect(mediaLink(history[0]))
 	return desktop_base(history,"/",None,pageLink,n)
-	
+
 def desktop_base(history,base,progress,pageLink,n):
 	if Session.head:
 		Session.modified = db.execute("SELECT EXTRACT(EPOCH FROM modified) FROM media WHERE media.id = $1",(history[0],))[0][0]
@@ -732,7 +731,7 @@ def desktop_base(history,base,progress,pageLink,n):
 			with d.p, d.a(href=pageLink(current)):
 				d.img(class_='wid',
 				      src=base+"/".join((
-					      "media",'{:x}'.format(current),type,name)))				
+					      "media",'{:x}'.format(current),type,name)))
 			d.p("Having tags ",doTags(place,tags))
 			d.hr()
 

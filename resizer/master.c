@@ -353,11 +353,6 @@ int main(int argc, char** argv) {
 		struct message m;
 		size_t worker = 0;
 		for(;;) {
-			worker = get_worker(worker);
-			if(worker == MAXWORKERS) {
-				pfd[INCOMING].events = 0;
-				break;
-			}
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
 				perror("EOF on queuefull...");
@@ -367,6 +362,11 @@ int main(int argc, char** argv) {
 				if(errno == EAGAIN) break;
 				perror("incoming fail");
 				abort();
+			}
+			worker = get_worker(worker);
+			if(worker == MAXWORKERS) {
+				pfd[INCOMING].events = 0;
+				break;
 			}
 			send_message(worker,m);
 		}
