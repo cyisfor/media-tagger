@@ -329,7 +329,7 @@ def makeLink(id,type,name,doScale,width=None,height=None,style=None):
 	isImage = None
 	if doScale:
 		isImage = type.startswith('image')
-		fid,exists = filedb.checkResized(id)
+		fid,exists = filedb.checkResized(id,width=User.rescale_width)
 		resized = '/resized/'+fid+'/donotsave.this'
 		Session.refresh = not exists and isImage
 	else:
@@ -420,13 +420,10 @@ def simple(info,path,params):
 
 def resized(info,path,params):
 	id = int(path[1],0x10)
-	width = 800
-	if len(path) == 3:
-		width = int(path[2])
-	fid, exists = filedb.checkResized(id,width=width,create=True)
+	fid, exists = filedb.checkResized(id,width=User.rescale_width,create=True)
 	while not exists:
 		time.sleep(1)
-		fid, exists = filedb.checkResized(id,width=width,create=False)
+		fid, exists = filedb.checkResized(id,width=User.rescale_width,create=False)
 	raise Redirect("/resized/"+fid+"/donotsave.this")
 
 
@@ -505,7 +502,7 @@ def page(info,path,params):
 
 	if Session.head:
 		if doScale:
-			fid, exists = filedb.checkResized(id)
+			fid, exists = filedb.checkResized(id,width=User.rescale_width)
 			Session.refresh = not exists and type.startswith('image')
 		Session.modified = modified
 		return
@@ -789,7 +786,8 @@ def user(info,path,params):
 				with d.tr:
 					d.td("Rescaled width:")
 					with d.td:
-						d.input(type="range",name="rescale_width",min=400,max=2048)
+						d.input(type="text",name="rescale_width",
+										value=User.rescale_width)
 				checkbox("Only First Comic Page?",'comic',User.noComics)
 				checkbox("Javascript Navigation?",'navigate',User.navigate)
 				checkbox("Javascript thumbnail checking?",'loadjs',User.loadjs)
