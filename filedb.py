@@ -42,7 +42,8 @@ def check(id,**kw):
 	return _check(id,**kw)
 
 def checkResized(id,**kw):
-	return _check(id,category='resized',width=800,**kw)
+	kw.setdefault('width',800)
+	return _check(id,category='resized',**kw)
 
 def checkOEmbed(id,maxWidth,**kw):
 	return _check(id,category='oembed',width=maxWidth,**kw)

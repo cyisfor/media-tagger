@@ -420,8 +420,11 @@ def simple(info,path,params):
 
 def resized(info,path,params):
 	id = int(path[1],0x10)
+	width = 800
+	if len(path) == 3:
+		width = int(path[2])
 	while True:
-		fid, exists = filedb.checkResized(id)
+		fid, exists = filedb.checkResized(id,width=width)
 		if exists: break
 		time.sleep(1)
 	raise Redirect("/resized/"+fid+"/donotsave.this")
