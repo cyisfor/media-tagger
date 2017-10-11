@@ -2,18 +2,23 @@ import pages,info,process,uploader,jsony
 import randomDerp
 
 modes = {
-        'random': (randomDerp.page, randomDerp.info),
-        'resized': (pages.resized,lambda path,params: None),
-        'simple': (pages.simple,info.simple),
-        'page': (pages.page,info.page),
-        'info': (pages.info,info.info),
-        'like': (pages.like,info.like),
-        'user': (pages.user,info.user,process.user),
-        'desktop': (pages.desktop,lambda path,params: path),
-        'comic': (pages.showComic,(lambda *a: None)),
-        'uploads': (uploader.page, uploader.post),
-        'oembed': (pages.oembed, info.oembed)
-        }
+  'random': (randomDerp.page, randomDerp.info),
+  'resized': (pages.resized,lambda path,params: None),
+  'simple': (pages.simple,info.simple),
+  'page': (pages.page,info.page),
+  'info': (pages.info,info.info),
+  'like': (pages.like,info.like),
+  'user': (pages.user,
+					 info.user,
+					 process.user),
+  'desktop': (pages.desktop,lambda path,params: path),
+  'comic': (pages.showComic,(lambda *a: None)),
+  'uploads': (uploader.page,
+							(lambda path, params: (path, params)),
+							uploader.post),
+  'oembed': (pages.oembed, info.oembed),
+	'direct': (pages.direct, info.simple)
+}
 
 
 def dispatch(json,mode,path,params):

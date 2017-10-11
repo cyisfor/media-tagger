@@ -1,7 +1,7 @@
 import tags,db,pages,create,filedb
 tagsModule = tags
 from user import User
-from pages import d,RawString,Links
+from pages import d,RawString,Links,pagemaker,makePage
 
 from replacer import replacerFile
 
@@ -155,7 +155,7 @@ def manage(req):
 	self.future.set_result(modified)
 	# this closes the crab
 
-
+@pagemaker
 def page(info,path,params):
 	def contents():
 		first = True
@@ -188,9 +188,9 @@ def page(info,path,params):
 					d.div(d.button("Update")),
 					enctype='multipart/form-data',
 					method='POST'))
-	with Links:
-		Links.style = "/style/upload.css"
-		return pages.makePage('Pending uploads',contents())
+	Links.style = "/style/upload.css"
+	with makePage('Pending uploads') as page:
+		page(contents())
 
 def addInfoToMedia(form,media=None):
 	if not media:
