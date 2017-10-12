@@ -953,9 +953,9 @@ def showComicPage(path,fitHeight):
 	medium = comic.findMedium(com,which)
 	doScale = User.rescaleImages and size >= maxSize
 	if fitHeight:
-		style = 'height: 100%'
+		style = 'height: 100vh'
 	else:
-		style = 'width: 100%'
+		style = 'width: 100vw'
 	fid,link,thing = makeLink(medium,typ,name,
 			doScale,style=style)
 	with makePage("{:x} page ".format(which)+title):
@@ -984,7 +984,7 @@ def showComic(info,path,params):
 	elif len(path) == 1:
 		return showPages(path,params)
 	else:
-		fitHeight = len(params.get('h')) > 0
+		fitHeight = params.get('h') is not None
 		
 		return showComicPage(path,fitHeight)
 
