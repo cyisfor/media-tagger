@@ -930,7 +930,7 @@ def showPages(path,params):
 					d.a(" Next",href=Links.next)
 				d.a(" Latest", href=latest)
 
-def showComicPage(path):
+def showComicPage(path,fitHeight):
 	com = int(path[0],0x10)
 	which = int(path[1],0x10)
 	if which < 0:
@@ -952,8 +952,12 @@ def showComicPage(path):
 	Links.contents = ".."
 	medium = comic.findMedium(com,which)
 	doScale = User.rescaleImages and size >= maxSize
+	if fitHeight:
+		style = 'height: 100%'
+	else:
+		style = 'width: 100%'
 	fid,link,thing = makeLink(medium,typ,name,
-			doScale,style='width: 100%')
+			doScale,style=style)
 	with makePage("{:x} page ".format(which)+title):
 		with d.div:
 			checkExplain(medium,link,width,height,Links.next)
@@ -980,7 +984,9 @@ def showComic(info,path,params):
 	elif len(path) == 1:
 		return showPages(path,params)
 	else:
-		return showComicPage(path)
+		fitHeight = len(params.get('h')) > 0
+		
+		return showComicPage(path,fitHeight)
 
 def oembed(info, path, params):
 	Session.type = 'application/json'
