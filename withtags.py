@@ -43,11 +43,11 @@ class scalartuple(tuple):
 
 def nonumbers(f):
 	def filter(tags):
-		for id,tag in tags:
+		for ident,tag in tags:
 			if isinstance(tag,'str'):
 				yield tag
 			else:
-				db.execute("DELETE FROM tags WHERE id = $1",(id,))
+				db.execute("DELETE FROM tags WHERE id = $1",(ident,))
 	def wrapper(*k,**a):
 		return filter(f(*k,**a))
 	return wrapper
@@ -104,7 +104,6 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 		mainOrdered = Group(Limit(mainOrdered,limit=arg(0x30)))
 		mainOrdered.is_array = True
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
-		print(mainOrdered.sql())
 		if tags.posi:
 			mainOrdered = AND(
 							NOT(EQ('tags.id',ANY(posi))),
@@ -180,9 +179,9 @@ from base64 import b64encode
 class Cursor:
 	offset = 0
 	def __init__(self,wantRelated,sql,args=()):
-		self.name = "c"+str((User.id,wantRelated))
+		self.name = "c"+str(str(User.id)+("t" if wantRelated else "f"))
 		self.sql = sql
-		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt, args)
+		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + sql, args)
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	cursor = cursors.get((User.id,wantRelated))
@@ -203,21 +202,22 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		cursor = Cursor(wantRelated,stmt,args)
 		cursors[(User.id,wantRelated)] = cursor
 		
-	if offset != cursor.offset:
-		diff = offset - cursor.offset - limit
+	diff = offset - cursor.offset
+	print(id(cursor),offset,cursor.offset,diff)
+	if diff != 0:
 		db.execute("MOVE RELATIVE " +str(diff)+" FROM " + cursor.name)
-		cursor.offset = offset 
+	cursor.offset = offset + limit
 		
 	for row in db.execute("FETCH FORWARD "+str(limit)+" FROM " + cursor.name):
 		if explain:
 			print(row[0])
 		else:
 			if wantRelated:
-				id,tag = row
+				ident,tag = row
 				if isinstance(tag,str):
 					yield tag
 				else:
-					db.execute("DELETE FROM tags WHERE id = $1",(id,))
+					db.execute("DELETE FROM tags WHERE id = $1",(ident,))
 			else:
 				yield row
 	if explain:
