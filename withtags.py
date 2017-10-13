@@ -101,7 +101,10 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 
 
 	if wantRelated:
+		mainOrdered = Group(Limit(mainOrdered,limit=arg(0x30)))
+		mainOrdered.is_array = True
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
+		print(mainOrdered.sql())
 		if tags.posi:
 			mainOrdered = AND(
 							NOT(EQ('tags.id',ANY(posi))),
@@ -111,7 +114,7 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 			['tags.id','first(tags.name) as name'],
 			InnerJoin('tags','things',
 					  EQ('tags.id','ANY(things.neighbors)')),
-			Limit(mainOrdered,arg(0x30)))
+			mainOrdered)
 		lim = GroupBy(tagStuff,'tags.id')
 		if taglimit:
 			lim = Limit(lim,limit=arg(taglimit)),
@@ -200,9 +203,9 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 		cursors[(User.ident,wantRelated)] = cursor
 		
 	if offset != cursor.offset:
-		diff = offset - cursor.offset
+		diff = offset - cursor.offset - limit
 		db.execute("MOVE RELATIVE " +str(diff)+" FROM " + cursor.name)
-		cursor.offset = offset + limit
+		cursor.offset = offset 
 		
 	for row in db.execute("FETCH FORWARD "+str(limit)+" FROM " + cursor.name):
 		if explain:
