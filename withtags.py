@@ -62,7 +62,7 @@ tagsWhat = (
 			)
 
 
-def tagStatement(tags,wantRelated=False,tagLimit=0x10):
+def tagStatement(tags,wantRelated=False,taglimit=0x10):
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
 	negaWanted = Select('id','unwanted')
 	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
@@ -174,28 +174,34 @@ cursors = {}
 class Cursor:
 	cursorseq = count(0)
 	offset = 0
-	def __init__(self,stmt):
+	def __init__(self,stmt,args=()):
 		self.name = "c"+str(next(Cursor.cursorseq))
 		self.sql = stmt
-		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt)
+		with db.transaction():
+			db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt, args)
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	cursor = cursors.get(User.ident)
+	stmt,args = tagStatement(tags,wantRelated,taglimit)
+	stmt = stmt.sql()
+	args = args.args
+	if cursor:
+		if cursor.sql != stmt:
+			db.execute("CLOSE "+cursor.name)
+			cursor = None
 	if not cursor:
-		stmt,args = tagStatement(tags,wantRelated,taglimit)
-		stmt = stmt.sql()
-		args = args.args
 		if explain:
 			print(stmt)
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
 			
-		cursor = Cursor(stmt)
+		cursor = Cursor(stmt,args)
 		cursors[User.ident] = cursor
-	
+		
 	if offset != cursor.offset:
 		db.execute("MOVE RELATIVE ? FROM " + cursor.name, offset - cursor.offset)
 		cursor.offset = offset + limit
+		
 	for row in db.execute("FETCH FORWARD ? FROM " + cursor.name,(limit,)):
 		if explain:
 			print(row[0])
