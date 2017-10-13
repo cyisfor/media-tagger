@@ -200,7 +200,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	stmt = stmt.sql()
 	args = args.args
 	if cursor:
-		if not cursor.same(sql,arg):
+		if not cursor.same(stmt,args):
 			db.execute("CLOSE "+cursor.name)
 			db.retransaction()
 			cursor = None
