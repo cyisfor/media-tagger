@@ -115,8 +115,8 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 					  EQ('tags.id','ANY(things.neighbors)')),
 			mainOrdered)
 		lim = GroupBy(tagStuff,'tags.id')
-		if taglimit:
-			lim = Limit(lim,limit=arg(taglimit)),
+#		if taglimit:
+#			lim = Limit(lim,limit=arg(taglimit)),
 		stmt = Select(['derp.id','derp.name'],AS(lim,'derp'))
 
 		stmt = Order(stmt,'derp.name')
@@ -182,6 +182,17 @@ class Cursor:
 		self.name = "c"+str(str(User.id)+("t" if wantRelated else "f"))
 		self.sql = sql
 		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + sql, args)
+	sql = None
+	args = ()
+	def same(self,sql,args):
+		if sql == self.sql:
+			if args == self.args:
+				return True
+			self.args = args
+		else:
+			self.sql = sql
+			self.args = args
+		return False
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	cursor = cursors.get((User.id,wantRelated))
@@ -189,7 +200,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	stmt = stmt.sql()
 	args = args.args
 	if cursor:
-		if cursor.sql != stmt:
+		if not cursor.same(sql,arg):
 			db.execute("CLOSE "+cursor.name)
 			db.retransaction()
 			cursor = None

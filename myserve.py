@@ -325,7 +325,7 @@ class Handler(FormCollector,BaseHTTPRequestHandler):
 						withtags.searchForTags(
 							tags,
 							offset=offset,
-							limit=pageSize,
+							limit=0x10,
 							wantRelated=True),
 						basic)
 			with disp.Links():
