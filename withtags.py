@@ -1,5 +1,8 @@
 from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
+# TODO: declare a cursor, then FETCH to scroll around it, deleting when the query changes
+# no LIMIT or OFFSET clauses
+# one cursor per user...
 
 from user import User
 import db												#
@@ -59,7 +62,7 @@ tagsWhat = (
 			)
 
 
-def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
+def tagStatement(tags,wantRelated=False,tagLimit=0x10):
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
 	negaWanted = Select('id','unwanted')
 	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
@@ -91,12 +94,7 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	mainCriteria = Select('things.id',From,where)
 	mainOrdered = Order(mainCriteria,
 						  'media.added DESC')
-	if limit or offset:
-		mainOrdered = Limit(mainOrdered,
-												(arg(offset) if offset else False),
-												(arg(limit) if limit else False))
-	if limit != 1:
-		mainOrdered.is_array = True
+	mainOrdered.is_array = True
 		
 	if tags.posi:
 		posi = Type(arg([getTag(tag) if isinstance(tag,str) else tag for tag in tags.posi]),'int[]',True)
@@ -171,15 +169,34 @@ def tagStatement(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 
 	return stmt,arg
 
+cursors = {}
+
+class Cursor:
+	cursorseq = count(0)
+	offset = 0
+	def __init__(self,stmt):
+		self.name = "c"+str(next(Cursor.cursorseq))
+		self.sql = stmt
+		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt)
+
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	stmt,args = tagStatement(tags,offset,limit,taglimit,wantRelated)
-	stmt = stmt.sql()
-	args = args.args
-	if explain:
-		print(stmt)
-		print(args)
-		stmt = "EXPLAIN ANALYZE "+stmt
-	for row in resultCache.encache(stmt,args,not explain):
+	cursor = cursors.get(User.ident)
+	if not cursor:
+		stmt,args = tagStatement(tags,wantRelated,taglimit)
+		stmt = stmt.sql()
+		args = args.args
+		if explain:
+			print(stmt)
+			print(args)
+			stmt = "EXPLAIN ANALYZE "+stmt
+			
+		cursor = Cursor(stmt)
+		cursors[User.ident] = cursor
+	
+	if offset != cursor.offset:
+		db.execute("MOVE RELATIVE ? FROM " + cursor.name, offset - cursor.offset)
+		cursor.offset = offset + limit
+	for row in db.execute("FETCH FORWARD ? FROM " + cursor.name,(limit,)):
 		if explain:
 			print(row[0])
 		else:
