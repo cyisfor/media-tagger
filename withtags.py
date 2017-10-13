@@ -174,17 +174,18 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 
 cursors = {}
 
+from hashlib import sha1
+from base64 import b64encode
+
 class Cursor:
-	cursorseq = count(0)
 	offset = 0
-	def __init__(self,stmt,args=()):
-		self.name = "c"+str(next(Cursor.cursorseq))
-		self.sql = stmt
-		print(stmt)
+	def __init__(self,wantRelated,sql,args=()):
+		self.name = "c"+str((User.id,wantRelated))
+		self.sql = sql
 		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt, args)
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	cursor = cursors.get((User.ident,wantRelated))
+	cursor = cursors.get((User.id,wantRelated))
 	stmt,args = tagStatement(tags,wantRelated,taglimit)
 	stmt = stmt.sql()
 	args = args.args
@@ -199,8 +200,8 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
 		db.execute("BEGIN");
-		cursor = Cursor(stmt,args)
-		cursors[(User.ident,wantRelated)] = cursor
+		cursor = Cursor(wantRelated,stmt,args)
+		cursors[(User.id,wantRelated)] = cursor
 		
 	if offset != cursor.offset:
 		diff = offset - cursor.offset - limit

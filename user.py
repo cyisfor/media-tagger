@@ -42,6 +42,10 @@ class VersionHolder:
 	def set_width():
 		"Users can choose how wide to resize their images"
 		db.setup("ALTER TABLE uzers ADD COLUMN rescale_width INTEGER NOT NULL DEFAULT 800")
+	@v(version=9)
+	def cursor_info():
+		db.setup("ALTER TABLE uzers ADD COLUMN sql TEXT",
+						 "ALTER TABLE uzers ADD COLUMN args TEXT")
 v.setup()
 
 def currentUser():
@@ -60,6 +64,12 @@ class User:
 	navigate = False
 	loadjs = False
 	rescale_width = 800
+	def same_sql(sql,args):
+		args = '\1'.join(str(a) for a in args)
+		res = db.execute("""UPDATE uzers SET sql = $2 AND args = $3
+		WHERE id = $1 AND sql != $2 AND args != $3""",
+										 (User.id,sql,args))
+		return res.tuplesUpdated == 0
 	def tags():
 		if User.defaultTags:
 			return dtags
