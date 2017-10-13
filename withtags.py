@@ -111,7 +111,7 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 			['tags.id','first(tags.name) as name'],
 			InnerJoin('tags','things',
 					  EQ('tags.id','ANY(things.neighbors)')),
-			mainOrdered)
+			Limit(mainOrdered,arg(0x30)))
 		lim = GroupBy(tagStuff,'tags.id')
 		if taglimit:
 			lim = Limit(lim,limit=arg(taglimit)),
@@ -177,32 +177,34 @@ class Cursor:
 	def __init__(self,stmt,args=()):
 		self.name = "c"+str(next(Cursor.cursorseq))
 		self.sql = stmt
-		with db.transaction():
-			db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt, args)
+		print(stmt)
+		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + stmt, args)
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	cursor = cursors.get(User.ident)
+	cursor = cursors.get((User.ident,wantRelated))
 	stmt,args = tagStatement(tags,wantRelated,taglimit)
 	stmt = stmt.sql()
 	args = args.args
 	if cursor:
 		if cursor.sql != stmt:
 			db.execute("CLOSE "+cursor.name)
+			db.retransaction()
 			cursor = None
 	if not cursor:
 		if explain:
 			print(stmt)
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
-			
+		db.execute("BEGIN");
 		cursor = Cursor(stmt,args)
-		cursors[User.ident] = cursor
+		cursors[(User.ident,wantRelated)] = cursor
 		
 	if offset != cursor.offset:
-		db.execute("MOVE RELATIVE ? FROM " + cursor.name, offset - cursor.offset)
+		diff = offset - cursor.offset
+		db.execute("MOVE RELATIVE " +str(diff)+" FROM " + cursor.name)
 		cursor.offset = offset + limit
 		
-	for row in db.execute("FETCH FORWARD ? FROM " + cursor.name,(limit,)):
+	for row in db.execute("FETCH FORWARD "+str(limit)+" FROM " + cursor.name):
 		if explain:
 			print(row[0])
 		else:
