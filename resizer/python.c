@@ -16,22 +16,21 @@
 static char reopen_incoming[PATH_MAX];
 static int q = -1;
 
-static void reinit() {
+static int reinit() {
 	int loc = open(reopen_incoming,O_DIRECTORY|O_PATH);
 	assert(loc >= 0);
 	q = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
 	if(q < 0) {
 		printf("oops %s\n",reopen_incoming);
-		perror("derp");
-		abort();
+		return -1;
 	}
-	assert(q > 0);
 	close(loc);
+	return 0;
 }
 
-void init(const char* incoming, int len) {
+int init(const char* incoming, int len) {
 	memcpy(reopen_incoming, incoming, len);
-	reinit();
+	return reinit();
 }
 
 int queue(uint32_t id, uint32_t width) {

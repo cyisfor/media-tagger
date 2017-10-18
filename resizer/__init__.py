@@ -13,9 +13,11 @@ def init(base):
 	global queue
 	l = cdll.LoadLibrary(lib)
 	l.init.argtypes = [c_char_p]
-	l.init.restype = None
+	l.init.restype = c_int
 	base = base.encode("utf-8")
-	l.init(base,len(base))
+	res = l.init(base,len(base))
+	if res != 0:
+		print("couldn't init queue thing")
 	def queue(id,width=0):
 		res = l.queue(id,width or 0)
 		assert(res == 0, res)
