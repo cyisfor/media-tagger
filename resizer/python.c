@@ -20,6 +20,11 @@ static void reinit() {
 	int loc = open(reopen_incoming,O_DIRECTORY|O_PATH);
 	assert(loc >= 0);
 	q = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
+	if(q < 0) {
+		printf("oops %s\n",reopen_incoming);
+		perror("derp");
+		abort();
+	}
 	assert(q > 0);
 	close(loc);
 }

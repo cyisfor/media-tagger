@@ -130,4 +130,4 @@ SELECT EXISTS (
 		return self.execute(stmt,(schema,table))[0][0]
 
 sys.modules[__name__] = DBProxy()
-print("aoeu")
+

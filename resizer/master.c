@@ -36,6 +36,8 @@ char lackey[PATH_MAX];
 
 static sigset_t mysigs;
 
+#define MAXWORKERS 5
+
 struct pollfd pfd[MAXWORKERS+2] = {};
 size_t numpfd = 2; // = 2 + numworkers... always?
 
@@ -138,7 +140,6 @@ struct worker {
 	uint32_t current;
 	struct timespec expiration;
 };
-#define MAXWORKERS 1 // # CPUs?
 
 struct worker workers[MAXWORKERS];
 size_t numworkers = 0;
@@ -163,7 +164,7 @@ void start_worker(size_t which) {
 	close(workers[which].in[0]);
 	close(workers[which].out[1]);
 
-	pfd[which+2].fd = workers[worker].out[0];
+	pfd[which+2].fd = workers[which].out[0];
 	pfd[which+2].events = POLLIN;
 
 	set_expiration(which);
