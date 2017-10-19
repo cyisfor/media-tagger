@@ -7,8 +7,10 @@ from mygi import GLib
 import os
 
 def databaseInit():
+	print('db')
 	import comic,db
 	from favorites.parse import parse, ParseError, normalize
+	print("dpp")
 	import favorites.parsers # side effects galore!
 	
 foreground = GLib.idle_add
