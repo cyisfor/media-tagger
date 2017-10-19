@@ -18,10 +18,16 @@ static int q = -1;
 
 static int reinit() {
 	int loc = open(reopen_incoming,O_DIRECTORY|O_PATH);
-	assert(loc >= 0);
+	if(loc < 0) {
+		printf("bad loc %s\n",reopen_incoming);
+		perror("foo");
+		abort();
+	}
 	q = openat(loc,"incoming",O_WRONLY|O_NONBLOCK);
 	if(q < 0) {
 		printf("oops %s\n",reopen_incoming);
+		close(loc);
+		sleep(1);
 		return -1;
 	}
 	close(loc);

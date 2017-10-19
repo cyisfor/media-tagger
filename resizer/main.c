@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 			make_resized(ctx,m.id,m.width);
 		else
 			make_thumbnail(ctx,m.id);
-
+		record(DEBUG,"message %x done",m.id);
 		write(4,&m,1);
 
 		alarm(WORKER_IDLE);

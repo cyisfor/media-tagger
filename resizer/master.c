@@ -154,8 +154,8 @@ void set_expiration(size_t which) {
 }
 
 void start_worker(size_t which) {
-	pipe(workers[which].in);
-	pipe(workers[which].out);
+	pipe2(workers[which].in,O_NONBLOCK);
+	pipe2(workers[which].out,O_NONBLOCK);
 	
 	workers[which].status = IDLE;
 	record(INFO,"starting lackey #%d",which);
