@@ -439,6 +439,8 @@ int main(int argc, char** argv) {
 				}
 				assert(amt == sizeof(info));
 				switch(info.ssi_signo) {
+				case SIGPIPE:
+					continue; // eh
 				case SIGCHLD:
 					// don't care about ssi_pid since multiple kids could have exited
 					// we can take more from the pipe now.
@@ -454,27 +456,30 @@ int main(int argc, char** argv) {
 		} else {
 			// someone went idle!
 			int which;
+			char c;
+			void drain(void) {
+				for(;;) {
+					ssize_t amt = read(workers[which].out[0],&c,1);
+					if(amt == 0) {
+						return;
+					} else if(amt < 0) {
+						switch(errno) {
+						case EAGAIN:
+							return;
+						case EINTR:
+							continue;
+						default:
+							perror("huh?");
+							abort();
+						};
+					} else {
+						//ensure_eq(amt,1);
+					}
+				}
+			}
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
-					char c;
-					for(;;) {
-						ssize_t amt = read(workers[which].out[0],&c,1);
-						if(amt == 0) {
-							break;
-						} else if(amt < 0) {
-							switch(errno) {
-							case EAGAIN:
-								break;
-							case EINTR:
-								continue;
-							default:
-								perror("huh?");
-								abort();
-							};
-						} else {
-							ensure_eq(amt,1);
-						}
-					}
+					drain();
 					workers[which].status = IDLE;
 					pfd[which+2].events = 0;
 				}
