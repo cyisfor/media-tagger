@@ -284,6 +284,8 @@ void send_message(size_t which, const struct message m) {
 	workers[which].current = m.id; // eh
 }
 
+void derp() {}
+
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
 	recordInit();
@@ -322,7 +324,9 @@ int main(int argc, char** argv) {
 
 	sigemptyset(&mysigs);
 	// workers will die, we need to handle
+//	signal(SIGCHLD,derp);
 	sigaddset(&mysigs,SIGCHLD);
+//	signal(SIGPIPE,derp);
 	sigaddset(&mysigs,SIGPIPE);
 	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
 	assert(res == 0);
