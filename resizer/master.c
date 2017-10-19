@@ -332,9 +332,9 @@ int main(int argc, char** argv) {
 
 	enum { SIGNALS, INCOMING };
 
-	pfd[SIGNALS].fd = incoming;
+	pfd[SIGNALS].fd = signals;
 	pfd[SIGNALS].events = POLLIN;
-	pfd[INCOMING].fd = signals;
+	pfd[INCOMING].fd = incoming;
 	pfd[INCOMING].events = POLLIN;
 
 	void clear_incoming(void) {

@@ -43,14 +43,19 @@ int queue(uint32_t id, uint32_t width) {
 		ssize_t amt = write(q,&m,sizeof(m));
 		if(amt == sizeof(m)) return 0;
 		if(amt < 0) {
-			if(errno == EAGAIN) return 1;
-			if(errno == EPIPE) {
+			switch(errno) {
+			case EAGAIN:
+			case EINTR:
+				return 1;
+			case EPIPE:
+			case EBADF:
 				reinit();
 				return doit();
-			}
-			fprintf(stderr,"%d\n",q);
-			perror("oops");
-			return 2;
+			default:
+				fprintf(stderr,"%d\n",q);
+				perror("oops");
+				return 2;
+			};
 		}
 		if(amt == 0) {
 			perror("whu?");
