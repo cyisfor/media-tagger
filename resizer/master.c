@@ -457,17 +457,26 @@ int main(int argc, char** argv) {
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
 					char c;
-					ssize_t amt = read(workers[which].out[0],&c,1);
-					if(amt == 0) {
-						
-					} else if(amt < 0) {
-						perror("huh?");
-					} else {
-						ensure_eq(amt,1);
-						workers[which].status = IDLE;
-						pfd[which+2].events = 0;
+					for(;;) {
+						ssize_t amt = read(workers[which].out[0],&c,1);
+						if(amt == 0) {
+							break;
+						} else if(amt < 0) {
+							switch(errno) {
+							case EAGAIN:
+								break;
+							case EINTR:
+								continue;
+							default:
+								perror("huh?");
+								abort();
+							};
+						} else {
+							ensure_eq(amt,1);
+						}
 					}
-					break;
+					workers[which].status = IDLE;
+					pfd[which+2].events = 0;
 				}
 			}
 		}
