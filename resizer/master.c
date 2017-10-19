@@ -328,8 +328,8 @@ int main(int argc, char** argv) {
 	sigaddset(&mysigs,SIGCHLD);
 //	signal(SIGPIPE,derp);
 	sigaddset(&mysigs,SIGPIPE);
-	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
-	assert(res == 0);
+/*	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
+	assert(res == 0);*/
 	
 	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
 	assert(signals >= 0);
