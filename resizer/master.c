@@ -194,12 +194,13 @@ void reap_workers(void) {
 						 WTERMSIG(status));
 		}
 		int which;
+		int dead = 0;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
-				--numworkers;
 				close(workers[which].in[1]);
 				close(workers[which].out[0]);
-				workers[which].status = DEAD;
+				start_worker(which);
+				break;
 			}
 		}
 		// okay if never finds the pid, may have already been removed
@@ -209,8 +210,6 @@ void reap_workers(void) {
 void kill_worker(int which) {
 	kill(workers[which].pid,SIGKILL);
 	reap_workers();
-	ensure_eq(workers[which].status,DEAD);
-	pfd[which+2].events = 0;
 }
 
 void stop_worker(int which) {
@@ -461,7 +460,7 @@ int main(int argc, char** argv) {
 			// someone went idle!
 			int which;
 			char c;
-			void drain(void) {
+			void drain(int which) {
 				for(;;) {
 					ssize_t amt = read(workers[which].out[0],&c,1);
 					if(amt == 0) {
@@ -483,9 +482,15 @@ int main(int argc, char** argv) {
 			}
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
-					drain();
+					if(pfd[which+2].revents && POLLHUP) {
+						reap_workers();
+					} else if(pfd[which+2].revents && POLLIN) {
+						drain();
+					} else {
+						perror("weird event?");
+						abort();
+					}
 					workers[which].status = IDLE;
-					pfd[which+2].events = 0;
 				}
 			}
 		}
