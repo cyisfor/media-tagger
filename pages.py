@@ -184,6 +184,7 @@ def makeLinks(info,linkfor=None):
 		i = next(counter)
 		tags = [str(tag) for tag in tags]
 		tagid = None
+		src='/stuff/loading.gif'
 		if type == 'application/x-shockwave-flash':
 			src = '/flash.jpg'
 		else:
