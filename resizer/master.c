@@ -199,7 +199,7 @@ void reap_workers(void) {
 			if(workers[which].pid == pid) {
 				close(workers[which].in[1]);
 				close(workers[which].out[0]);
-				start_worker(which);
+				workers[which].status = DEAD;
 				break;
 			}
 		}
@@ -261,7 +261,7 @@ size_t get_worker(size_t off) {
 		start_worker(which);
 		return which;
 	}
-	return numworkers++;
+	return numworkers;
 }
 
 void send_message(size_t which, const struct message m) {
@@ -460,7 +460,7 @@ int main(int argc, char** argv) {
 			// someone went idle!
 			int which;
 			char c;
-			void drain(int which) {
+			void drain(void) {
 				for(;;) {
 					ssize_t amt = read(workers[which].out[0],&c,1);
 					if(amt == 0) {
