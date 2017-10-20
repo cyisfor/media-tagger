@@ -354,6 +354,7 @@ int main(int argc, char** argv) {
 	clear_incoming();
 	
 	void drain_incoming(void) {
+		record(DEBUG, "drain incoming");
 		struct message m;
 		size_t worker = 0;
 		for(;;) {
@@ -485,7 +486,8 @@ int main(int argc, char** argv) {
 			}
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
-					if(pfd[which+2].revents && POLLHUP) {
+					if(pfd[which+2].revents == 0) {
+					} else if(pfd[which+2].revents && POLLHUP) {
 						drain();
 						pfd[which+2].events = 0;
 						reap_workers();
