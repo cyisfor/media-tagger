@@ -467,6 +467,9 @@ int main(int argc, char** argv) {
 						return;
 					} else if(amt < 0) {
 						switch(errno) {
+						case EBADF:
+							close(workers[which].out[0]);
+							return;
 						case EAGAIN:
 							return;
 						case EINTR:
@@ -483,14 +486,15 @@ int main(int argc, char** argv) {
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
 					if(pfd[which+2].revents && POLLHUP) {
+						drain();
+						pfd[which+2].events = 0;
 						reap_workers();
 					} else if(pfd[which+2].revents && POLLIN) {
 						drain();
+						workers[which].status = IDLE;
 					} else {
-						perror("weird event?");
-						abort();
+						printf("weird revent? %x\n",pfd[which+2].revents);
 					}
-					workers[which].status = IDLE;
 				}
 			}
 		}
