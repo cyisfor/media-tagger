@@ -3,6 +3,8 @@ export PKG_CONFIG_PATH:=/custom/vips/lib/pkgconfig
 
 PACKAGES=libuv vips
 CFLAGS+=-g
+CFLAGS+=-Ichild_waiter/
+LDLIBS+=
 CFLAGS+=`pkg-config --cflags $(PACKAGES)`
 LDFLAGS+=`pkg-config --libs $(PACKAGES)` -lm
 
@@ -13,7 +15,7 @@ all: lackey-bin lackey-master python.so
 lackey-bin: main.o $(objects)
 	$(LINK) -lbsd
 
-lackey-master: master.o record.o watch.o
+lackey-master: master.o record.o watch.o child_waiter/libwaiter.a
 	$(LINK)
 
 test_linebuf: test_linebuf.o linebuf.o record.o
@@ -30,3 +32,9 @@ test: test.o $(objects)
 
 python.so: python.c
 	$(LINK) -shared -fPIC
+
+child_waiter/libwaiter.a: | child_waiter
+	$(MAKE) -C child_waiter libwaiter.a
+
+child_waiter:
+	git clone ~/code/child_waiter/ child_waiter
