@@ -272,26 +272,25 @@ size_t get_worker(void) {
 	return MAXWORKERS;
 }
 
-void send_message(size_t which, const struct message m) {
+bool send_message(size_t which, const struct message m) {
 	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
 	ssize_t amt = write(workers[which].in[1], &m, sizeof(m));
 	if(amt == 0) {
 		stop_worker(which);
-		return;
+		return false;
 	}
 	if(amt < 0) {
 		switch(errno) {
 		case EPIPE:
 			stop_worker(which);
-			worker = get_worker();
-			assert(worker != MAXWORKERS);
-			return send_message(worker, m);
+			return false;
 		};
 		perror("write");
 		abort();
 	}
 	ensure_eq(amt, sizeof(m));
 	workers[which].current = m.id; // eh
+	return true;
 }
 
 void derp() {}
@@ -383,7 +382,13 @@ int main(int argc, char** argv) {
 				pfd[INCOMING].events = 0;
 				break;
 			}
-			send_message(worker,m);
+			if(!send_message(worker,m)) {
+				perror("send message failed...");
+				// since we just read, we should be able to write without blocking
+				int res = write(incoming,&m,sizeof(m));
+				assert(res == sizeof(m));
+				break;
+			}
 		}
 	}
 	
