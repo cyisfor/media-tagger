@@ -33,7 +33,7 @@ test: test.o $(objects)
 python.so: python.c
 	$(LINK) -shared -fPIC
 
-child_waiter/libwaiter.a: | child_waiter
+child_waiter/libwaiter.a: child_waiter/waiter.c | child_waiter
 	$(MAKE) -C child_waiter libwaiter.a
 
 child_waiter:
