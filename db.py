@@ -14,6 +14,7 @@ import gevent.queue
 
 queue = gevent.queue.Queue()
 def export(f):
+	return f
 	# since the database cannot execute while executing (asynchronously)
 	# need to queue up requests to do stuff, switch back when done
 	def wrapper(*a,**kw):
@@ -58,11 +59,7 @@ class DBProxy:
 	def execute(self,*a,**kw):
 		if not hasattr(self,'c'):
 			self.reopen()
-		print("boop",self)
-		try:
-			return self.c.execute(*a,**kw)
-		finally:
-			print("voop")
+		return self.c.execute(*a,**kw)
 	@export
 	def retransaction(self,rollback=False):
 		return pg.retransaction(self.c,rollback)

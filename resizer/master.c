@@ -502,6 +502,14 @@ int main(int argc, char** argv) {
 			for(which=0;which<numworkers;++which) {
 				if(pfd[which+2].fd == workers[which].out[0]) {
 					if(pfd[which+2].revents == 0) {
+					} else if(pfd[which+2].revents && POLLNVAL) {
+						printf("invalid socket at %d %d\n",which,workers[which].out[0]);
+						drain();
+						reap_workers();
+						if(numworkers > 0 && workers[which].out[0] == pfd[which+2].fd) {
+							remove_worker(which);
+						}
+						--which; // ++ in the next iteration
 					} else if(pfd[which+2].revents && POLLHUP) {
 						drain();
 						pfd[which+2].events = 0;
