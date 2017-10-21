@@ -18,10 +18,11 @@ def export(f):
 	# need to queue up requests to do stuff, switch back when done
 	def wrapper(*a,**kw):
 		if gevent.getcurrent() == drainQueue:
+			print("calling queue in queue...")
 			return f(*a,**kw)
 		resume = gevent.event.AsyncResult()
 		queue.put((f,a,kw,resume))
-		return resume.wait()
+		return resume.get()
 	return wrapper
 
 @gevent.spawn
@@ -34,9 +35,10 @@ def drainQueue():
 			print("runnnn",ret)
 			resume.set(ret)
 		except Exception as e:
-			print("boooo",e)
-			resume.set_exception(ret)
-		
+			print("boooo")
+			import traceback
+			traceback.print_exc()
+			resume.set_exception(e)
 
 tempctr = count(1)
 place = os.path.dirname(__file__)
