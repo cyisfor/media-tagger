@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h> // getenv
-#include <unistd.h> // getpid
 
 recordLevel maximumLevel = DEBUG;
 
@@ -35,7 +34,6 @@ void recordInit(void) {
 
 void record(recordLevel level, const char* fmt, ...) {
     if (level > maximumLevel) return;
-    fprintf(stderr,"%d ",getpid());
     fprintf(stderr,"\x1b[%dm\x1b[1m%s\x1b[0m ",color[level],name[level]);
     va_list args;
     va_start(args,fmt);

@@ -6,9 +6,6 @@
 #include "timeop.h"
 #include "waiter.h"
 
-#include <sys/signalfd.h>
-#include <sys/eventfd.h>
-
 #include <sys/inotify.h>
 #include <poll.h>
 
@@ -53,7 +50,6 @@ int launch_worker(int in, int out) {
 									lackey,NULL};
 	int pid = waiter_fork();
 	if(pid == 0) {
-		ensure_eq(0,sigprocmask(SIG_UNBLOCK, &mysigs, NULL));
 		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
 		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
 
@@ -415,6 +411,9 @@ int main(int argc, char** argv) {
 			if(errno == EINTR) {
 				reap_workers();
 				pfd[INCOMING].events = POLLIN;
+				continue;
+			} else if(errno == EAGAIN) {
+				// huh?
 				continue;
 			}
 			perror("poll");
