@@ -1,5 +1,3 @@
-def export(f): return f # meh
-
 import sqlparse
 
 import sys,os
@@ -10,6 +8,24 @@ from itertools import count, chain
 
 ProgrammingError = pg.SQLError
 Error = pg.SQLError
+
+queue = gevent.queue.Queue()
+def export(f):
+	# since the database cannot execute while executing (asynchronously)
+	# need to queue up requests to do stuff, switch back when done
+	def wrapper(*a,**kw):
+		queue.push((f,a,kw))
+	return wrapper
+
+def drainQueue():
+	while True:
+		f,a,kw,resume = queue.get()
+		try:
+			ret = f(*a,**kw)
+			resume.set(ret)
+		catch Exception as e:
+		
+		
 
 tempctr = count(1)
 place = os.path.dirname(__file__)
