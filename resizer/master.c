@@ -128,7 +128,7 @@ static void dolock(void) {
 	 not -1, use that eventfd in the fork.
 */
 
-enum status { DEAD, DOOMED, IDLE, BUSY };
+enum status { DOOMED, IDLE, BUSY };
 Time DOOM_DELAY = {
 	tv_sec: 0,
 	tv_nsec: NSECPERSEC / 2 // half a second
@@ -170,7 +170,6 @@ void start_worker(size_t which) {
 	pfd[which+2].events = POLLIN;
 
 	set_expiration(which);
-	++numworkers;
 }
 
 void remove_worker(int which) {
@@ -229,10 +228,12 @@ void stop_worker(int which) {
 	reap_workers();
 }
 
-size_t get_worker(size_t off) {
+size_t get_worker(void) {
 	// get a worker
 	// off, so we don't check worker 0 a million times
-	int which = 0;
+	static size_t off = -1;
+	++off;
+	int which;
 	for(which=0;which<numworkers;++which) {
 		size_t derp = (which+off)%numworkers;
 		switch(workers[derp].status) {
@@ -243,34 +244,32 @@ size_t get_worker(size_t off) {
 		};
 	}
 
-	if(numworkers == MAXWORKERS) {
-		/* no idle found, check if any doomed */
-		for(which=0;which<MAXWORKERS;++which) {
-			if(workers[which].status == DOOMED) {
-				/*
-					if 995 ns left (expiration - now) and doom delay is 1000ns
-					1000 - 995 < 50, so wait a teensy bit longer please
-				*/
-				Time diff = timediff(DOOM_DELAY,
-														 timediff(workers[which].expiration,
-																			getnow()));
-				if(diff.tv_nsec > 50) {
-					// waited too long, kill the thing.
-					kill_worker(which);
-					start_worker(which);
-					return which;
-				}
-			}
-		}
-		return MAXWORKERS;
+	if(numworkers < MAXWORKERS) {
+		// add a worker to the end
+		start_worker(numworkers);
+		return numworkers++;
 	}
 	
+	/* no idle found, check if any doomed */
 	for(which=0;which<MAXWORKERS;++which) {
-		if(workers[which].status != DEAD) continue;
-		start_worker(which);
-		return which;
+		if(workers[which].status == DOOMED) {
+			/*
+				if 995 ns left (expiration - now) and doom delay is 1000ns
+				1000 - 995 < 50, so wait a teensy bit longer please
+			*/
+			Time diff = timediff(DOOM_DELAY,
+													 timediff(workers[which].expiration,
+																		getnow()));
+			if(diff.tv_nsec > 50) {
+				// waited too long, kill the thing.
+				kill_worker(which);
+				start_worker(which);
+				return which;
+			}
+		}
 	}
-	return numworkers;
+	// none found...
+	return MAXWORKERS;
 }
 
 void send_message(size_t which, const struct message m) {
@@ -284,7 +283,6 @@ void send_message(size_t which, const struct message m) {
 		switch(errno) {
 		case EPIPE:
 			stop_worker(which);
-			reap_workers();
 			worker = get_worker();
 			assert(worker != MAXWORKERS);
 			return send_message(worker, m);
