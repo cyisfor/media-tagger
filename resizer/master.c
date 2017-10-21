@@ -406,7 +406,7 @@ int main(int argc, char** argv) {
 	for(;;) {
 		int res = waiter_wait((struct pollfd*)&pfd,
 													1+numworkers,
-													3);
+													-1);
 		if(res < 0) {
 			if(errno == EINTR) {
 				reap_workers();
