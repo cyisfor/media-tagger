@@ -41,8 +41,10 @@ static sigset_t mysigs;
 struct pollfd pfd[MAXWORKERS+2] = {};
 size_t numpfd = 2; // = 2 + numworkers... always?
 
-
-
+/* Note: must move out any dead workers from pfd, adjusting which etc.
+	 because providing bad fds to poll goes into a spin loop returning POLLNVAL
+	 even if events = 0
+	 */
 
 
 int launch_worker(int in, int out) {
@@ -171,6 +173,15 @@ void start_worker(size_t which) {
 	++numworkers;
 }
 
+void remove_worker(int which) {
+	int i;
+	for(i=which;i<numworkers-1;++i) {
+		pfd[which+2] = pfd[which+3];
+		workers[which] = workers[which+1];
+	}
+	--numworkers;
+}
+
 void reap_workers(void) {
 	for(;;) {
 		int status;
@@ -194,12 +205,11 @@ void reap_workers(void) {
 						 WTERMSIG(status));
 		}
 		int which;
-		int dead = 0;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
 				close(workers[which].in[1]);
 				close(workers[which].out[0]);
-				workers[which].status = DEAD;
+				remove_worker(which);
 				break;
 			}
 		}
@@ -214,21 +224,18 @@ void kill_worker(int which) {
 
 void stop_worker(int which) {
 	workers[which].status = DOOMED;
+	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
 	kill(workers[which].pid,SIGTERM);
 	reap_workers();
-	if(workers[which].status == DEAD) return;
-	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
 }
 
 size_t get_worker(size_t off) {
 	// get a worker
 	// off, so we don't check worker 0 a million times
 	int which = 0;
-	for(which=0;which<MAXWORKERS;++which) {
-		size_t derp = (which+off)%MAXWORKERS;
+	for(which=0;which<numworkers;++which) {
+		size_t derp = (which+off)%numworkers;
 		switch(workers[derp].status) {
-		case DEAD:
-			continue;
 		case IDLE:
 			workers[derp].status = BUSY;
 			pfd[derp+2].events = POLLIN;
@@ -237,6 +244,7 @@ size_t get_worker(size_t off) {
 	}
 
 	if(numworkers == MAXWORKERS) {
+		/* no idle found, check if any doomed */
 		for(which=0;which<MAXWORKERS;++which) {
 			if(workers[which].status == DOOMED) {
 				/*
@@ -247,6 +255,7 @@ size_t get_worker(size_t off) {
 														 timediff(workers[which].expiration,
 																			getnow()));
 				if(diff.tv_nsec > 50) {
+					// waited too long, kill the thing.
 					kill_worker(which);
 					start_worker(which);
 					return which;
@@ -274,7 +283,11 @@ void send_message(size_t which, const struct message m) {
 	if(amt < 0) {
 		switch(errno) {
 		case EPIPE:
-			return send_message(get_worker(which), m);
+			stop_worker(which);
+			reap_workers();
+			worker = get_worker();
+			assert(worker != MAXWORKERS);
+			return send_message(worker, m);
 		};
 		perror("write");
 		abort();
@@ -356,7 +369,6 @@ int main(int argc, char** argv) {
 	void drain_incoming(void) {
 		record(DEBUG, "drain incoming");
 		struct message m;
-		size_t worker = 0;
 		for(;;) {
 			ssize_t amt = read(incoming,&m,sizeof(m));
 			if(amt == 0) {
@@ -368,7 +380,7 @@ int main(int argc, char** argv) {
 				perror("incoming fail");
 				abort();
 			}
-			worker = get_worker(worker);
+			size_t worker = get_worker();
 			if(worker == MAXWORKERS) {
 				pfd[INCOMING].events = 0;
 				break;
