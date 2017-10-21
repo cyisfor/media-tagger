@@ -17,19 +17,24 @@ def export(f):
 	# since the database cannot execute while executing (asynchronously)
 	# need to queue up requests to do stuff, switch back when done
 	def wrapper(*a,**kw):
+		if gevent.getcurrent() == drainQueue:
+			return f(*a,**kw)
 		resume = gevent.event.AsyncResult()
 		queue.put((f,a,kw,resume))
 		return resume.wait()
 	return wrapper
 
-@gevent.greenlet.greenlet
+@gevent.spawn
 def drainQueue():
 	while True:
 		f,a,kw,resume = queue.get()
 		try:
+			print("run",f)
 			ret = f(*a,**kw)
+			print("runnnn",ret)
 			resume.set(ret)
 		except Exception as e:
+			print("boooo",e)
 			resume.set_exception(ret)
 		
 
@@ -51,7 +56,11 @@ class DBProxy:
 	def execute(self,*a,**kw):
 		if not hasattr(self,'c'):
 			self.reopen()
-		return self.c.execute(*a,**kw)
+		print("boop",self)
+		try:
+			return self.c.execute(*a,**kw)
+		finally:
+			print("voop")
 	@export
 	def retransaction(self,rollback=False):
 		return pg.retransaction(self.c,rollback)
