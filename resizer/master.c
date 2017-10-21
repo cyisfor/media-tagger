@@ -4,6 +4,7 @@
 #include "watch.h"
 #include "message.h"
 #include "timeop.h"
+#include "waiter.h"
 
 #include <sys/signalfd.h>
 #include <sys/eventfd.h>
@@ -34,24 +35,23 @@ typedef unsigned char byte;
 
 char lackey[PATH_MAX];
 
-static sigset_t mysigs;
-
 #define MAXWORKERS 5
 
-struct pollfd pfd[MAXWORKERS+2] = {};
-size_t numpfd = 2; // = 2 + numworkers... always?
+struct pollfd pfd[MAXWORKERS+1] = {};
+size_t numpfd = 1; // = 1 + numworkers... always?
+#define PFD(which) pfd[which+1]
 
 /* Note: must move out any dead workers from pfd, adjusting which etc.
 	 because providing bad fds to poll goes into a spin loop returning POLLNVAL
 	 even if events = 0
 	 */
 
-
+static
 int launch_worker(int in, int out) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
-	int pid = fork();
+	int pid = waiter_fork();
 	if(pid == 0) {
 		ensure_eq(0,sigprocmask(SIG_UNBLOCK, &mysigs, NULL));
 		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
@@ -166,8 +166,8 @@ void start_worker(size_t which) {
 	close(workers[which].in[0]);
 	close(workers[which].out[1]);
 
-	pfd[which+2].fd = workers[which].out[0];
-	pfd[which+2].events = POLLIN;
+	PFD(which).fd = workers[which].out[0];
+	PFD(which).events = POLLIN;
 
 	set_expiration(which);
 }
@@ -175,16 +175,17 @@ void start_worker(size_t which) {
 void remove_worker(int which) {
 	int i;
 	for(i=which;i<numworkers-1;++i) {
-		pfd[which+2] = pfd[which+3];
+		PFD(which) = (&(PFD(which)))[1];
 		workers[which] = workers[which+1];
 	}
 	--numworkers;
 }
 
 void reap_workers(void) {
+	waiter_drain();
 	for(;;) {
 		int status;
-		int pid = waitpid(-1,&status,WNOHANG);
+		int pid = waiter_next(&status);
 		if(pid == 0) return;
 		if(pid < 0) {
 			if(errno == EINTR) continue;
@@ -239,7 +240,7 @@ size_t get_worker(void) {
 		switch(workers[derp].status) {
 		case IDLE:
 			workers[derp].status = BUSY;
-			pfd[derp+2].events = POLLIN;
+			PFD(derp).events = POLLIN;
 			return derp;
 		};
 	}
@@ -293,8 +294,6 @@ bool send_message(size_t which, const struct message m) {
 	return true;
 }
 
-void derp() {}
-
 int main(int argc, char** argv) {
 	ensure_eq(argc,2);
 	recordInit();
@@ -331,22 +330,10 @@ int main(int argc, char** argv) {
 		 an if(numworkers == 0) and start_worker();
 	*/
 
-	sigemptyset(&mysigs);
-	// workers will die, we need to handle
-//	signal(SIGCHLD,derp);
-	sigaddset(&mysigs,SIGCHLD);
-//	signal(SIGPIPE,derp);
-	sigaddset(&mysigs,SIGPIPE);
-/*	int res = sigprocmask(SIG_BLOCK, &mysigs, NULL);
-	assert(res == 0);*/
-	
-	int signals = signalfd(-1,&mysigs,SFD_NONBLOCK);
-	assert(signals >= 0);
+	waiter_setup();
 
-	enum { SIGNALS, INCOMING };
+	enum { INCOMING };
 
-	pfd[SIGNALS].fd = signals;
-	pfd[SIGNALS].events = POLLIN;
 	pfd[INCOMING].fd = incoming;
 	pfd[INCOMING].events = POLLIN;
 
@@ -421,12 +408,15 @@ int main(int argc, char** argv) {
 	timeout.tv_nsec = 0;
 	
 	for(;;) {
-		int res = ppoll((struct pollfd*)&pfd,
-										2+numworkers,
-										&timeout,
-										&mysigs);
+		int res = waiter_wait((struct pollfd*)&pfd,
+													1+numworkers,
+													3);
 		if(res < 0) {
-			if(errno == EINTR) continue;
+			if(errno == EINTR) {
+				reap_workers();
+				pfd[INCOMING].events = POLLIN;
+				continue;
+			}
 			perror("poll");
 			abort();
 		}
@@ -445,33 +435,6 @@ int main(int argc, char** argv) {
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
 			drain_incoming();
-		} else if(pfd[SIGNALS].revents && POLLIN) {
-			// something died
-			struct signalfd_siginfo info;
-			for(;;) {
-				ssize_t amt = read(signals,&info,sizeof(info));
-				if(amt < 0) {
-					if(errno == EAGAIN) break;
-					if(errno==EINTR) continue;
-					perror("signals");
-					abort();
-				}
-				assert(amt == sizeof(info));
-				switch(info.ssi_signo) {
-				case SIGPIPE:
-					continue; // eh
-				case SIGCHLD:
-					// don't care about ssi_pid since multiple kids could have exited
-					// we can take more from the pipe now.
-					reap_workers();
-					pfd[INCOMING].events = POLLIN;
-					drain_incoming();
-					break;
-				default:
-					perror("huh?");
-					abort();
-				};
-			}
 		} else {
 			// someone went idle!
 			int which;
@@ -500,25 +463,25 @@ int main(int argc, char** argv) {
 				}
 			}
 			for(which=0;which<numworkers;++which) {
-				if(pfd[which+2].fd == workers[which].out[0]) {
-					if(pfd[which+2].revents == 0) {
-					} else if(pfd[which+2].revents && POLLNVAL) {
+				if(PFD(which).fd == workers[which].out[0]) {
+					if(PFD(which).revents == 0) {
+					} else if(PFD(which).revents && POLLNVAL) {
 						printf("invalid socket at %d %d\n",which,workers[which].out[0]);
 						drain();
 						reap_workers();
-						if(numworkers > 0 && workers[which].out[0] == pfd[which+2].fd) {
+						if(numworkers > 0 && workers[which].out[0] == PFD(which).fd) {
 							remove_worker(which);
 						}
 						--which; // ++ in the next iteration
-					} else if(pfd[which+2].revents && POLLHUP) {
+					} else if(PFD(which).revents && POLLHUP) {
 						drain();
-						pfd[which+2].events = 0;
+						PFD(which).events = 0;
 						reap_workers();
-					} else if(pfd[which+2].revents && POLLIN) {
+					} else if(PFD(which).revents && POLLIN) {
 						drain();
 						workers[which].status = IDLE;
 					} else {
-						printf("weird revent? %x\n",pfd[which+2].revents);
+						printf("weird revent? %x\n",PFD(which).revents);
 					}
 				}
 			}
