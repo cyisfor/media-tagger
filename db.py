@@ -9,22 +9,28 @@ from itertools import count, chain
 ProgrammingError = pg.SQLError
 Error = pg.SQLError
 
+import gevent
+import gevent.queue
+
 queue = gevent.queue.Queue()
 def export(f):
 	# since the database cannot execute while executing (asynchronously)
 	# need to queue up requests to do stuff, switch back when done
 	def wrapper(*a,**kw):
-		queue.push((f,a,kw))
+		resume = gevent.event.AsyncResult()
+		queue.put((f,a,kw,resume))
+		return resume.wait()
 	return wrapper
 
+@gevent.greenlet.greenlet
 def drainQueue():
 	while True:
 		f,a,kw,resume = queue.get()
 		try:
 			ret = f(*a,**kw)
 			resume.set(ret)
-		catch Exception as e:
-		
+		except Exception as e:
+			resume.set_exception(ret)
 		
 
 tempctr = count(1)
