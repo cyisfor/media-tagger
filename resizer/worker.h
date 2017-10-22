@@ -1,1 +1,3 @@
-#define WORKERADDR "\0/image-resizer/master"
+#include <stdbool.h>
+
+int start_working(bool is_master);

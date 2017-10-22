@@ -28,9 +28,11 @@ int main(int argc, char** argv) {
 	context* ctx = make_context();
 	alarm(WORKER_IDLE);
 
+	int master = start_working(false);
+
 	for(;;) {
 		struct message m = {};
-		ssize_t amt = read(3,&m,sizeof(m));
+		ssize_t amt = read(master,&m,sizeof(m));
 		if(amt < 0) {
 			perror("foo");
 		}
@@ -41,8 +43,7 @@ int main(int argc, char** argv) {
 		else
 			make_thumbnail(ctx,m.id);
 		record(DEBUG,"message %x done",m.id);
-		write(4,&m,1);
-
+		write(master,&m,1);
 		alarm(WORKER_IDLE);
 	}
 }		

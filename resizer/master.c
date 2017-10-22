@@ -1,4 +1,5 @@
 #define _GNU_SOURCE // ppoll
+#include "worker.h"
 #include "ensure.h"
 #include "record.h"
 #include "watch.h"
@@ -44,28 +45,16 @@ size_t numpfd = 1; // = 1 + numworkers... always?
 	 */
 
 static
-int launch_worker(int in, int out) {
+int launch_worker(void) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
 	int pid = waiter_fork();
-	if(pid == 0) {
-		ensure0(fcntl(in,F_SETFL, fcntl(in,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
-		ensure0(fcntl(out,F_SETFL, fcntl(out,F_GETFL) & ~(O_CLOEXEC | O_NONBLOCK)));
-
-		if(in != 3) {
-			dup2(in,3);
-			close(in);
-		}
-		if(out != 4) {
-			dup2(out,4);
-			close(out);
-		}
-		// XXX: is this needed?
-		execvp("cgexec",(void*)args);
-		abort();
-	}
-	return pid;
+	if(pid != 0) return pid;
+	
+	// XXX: is this needed?
+	execvp("cgexec",(void*)args);
+	abort();
 }
 
 static void dolock(void) {
