@@ -144,14 +144,13 @@ void remove_worker(int which) {
 		PFD(which) = (&(PFD(which)))[1];
 		workers[which] = workers[which+1];
 	}
-	--numpfd;
 	--numworkers; // don't bother with shrinking realloc
 }
 
 struct sub {
 	bool doomed;
 	pid_t pid;
-	Time expiration;
+	struct timespec expiration;
 }	subs[MAXWORKERS];
 int nsubs = 0;
 
@@ -241,13 +240,13 @@ size_t get_worker(void) {
 
 	reap_subs();
 	for(which=0;which<nsubs;++which) {
-		if(subs[which].status == DOOMED) {
+		if(subs[which].doomed) {
 			/*
 				if 995 ns left (expiration - now) and doom delay is 1000ns
 				1000 - 995 < 50, so wait a teensy bit longer please
 			*/
 			Time diff = timediff(DOOM_DELAY,
-													 timediff(workers[which].expiration,
+													 timediff(subs[which].expiration,
 																		getnow()));
 			if(diff.tv_nsec > 50) {
 				// waited too long, kill the thing.
@@ -261,8 +260,8 @@ size_t get_worker(void) {
 }
 
 bool send_message(size_t which, const struct message m) {
-	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
-	ssize_t amt = write(workers[which].in[1], &m, sizeof(m));
+	record(INFO,"Sending %d to %d",m.id,workers[which].sock);
+	ssize_t amt = write(workers[which].sock, &m, sizeof(m));
 	if(amt == 0) {
 		return false;
 	}
@@ -319,8 +318,8 @@ int main(int argc, char** argv) {
 
 	enum { INCOMING, ACCEPTING };
 
-	numpfd = 2;
-	pfd = malloc(sizeof(pfd)*numpfd);
+	assert(0 == numworkers);
+	pfd = malloc(sizeof(pfd)*2);
 
 	pfd[INCOMING].fd = incoming;
 	pfd[INCOMING].events = POLLIN;

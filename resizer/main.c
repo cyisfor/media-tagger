@@ -1,3 +1,4 @@
+#include "worker.h"
 #include "ensure.h"
 #include "make.h"
 #include "message.h"
@@ -29,6 +30,9 @@ int main(int argc, char** argv) {
 	alarm(WORKER_IDLE);
 
 	int master = start_working(false);
+
+	// write something so they know we're idle
+	write(master,&master,1);
 
 	for(;;) {
 		struct message m = {};
