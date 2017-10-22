@@ -143,7 +143,7 @@ void worker_connected(int sock) {
 	workers = realloc(workers,sizeof(*workers)*++numworkers);
 	workers[numworkers-1].status = IDLE;
 	workers[numworkers-1].pid = -1;
-	record(INFO,"starting lackey #%d",numworkers-1);
+	record(INFO,"starting lackey #%d %d",numworkers-1,sock);
 
 	pfd = realloc(pfd,sizeof(*pfd)*(numworkers+2));
 	pfd[numworkers+1].fd = sock;
@@ -228,7 +228,7 @@ bool start_worker(void) {
 	// returns true if ACCEPTING is ready
 	int pair[2];
 	ensure0(socketpair(AF_UNIX,SOCK_STREAM,0,pair));
-	worker_connected(pair[1]);
+	worker_connected(pair[0]);
 	getnowspec(&workers[numworkers-1].expiration);
 	workers[numworkers-1].expiration.tv_sec += WORKER_LIFETIME;
 	workers[numworkers-1].pid = launch_worker(pair[1]);
@@ -535,7 +535,7 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		void check(int which) {
+		int check(int which) {
 			if(PFD(which).revents == 0) {
 				// nothing here
 			} else if(PFD(which).revents & POLLNVAL) {
@@ -544,12 +544,14 @@ int main(int argc, char** argv) {
 							 PFD(which).fd,
 							 PFD(which).revents,
 							 workers[which].pid);
+				poll(NULL, 0, 1000);
 				drain(which);
 				reap_workers();
-				//remove_worker(which);
+				remove_worker(which);
+				return which;
 				//--which; // ++ in the next iteration
 			} else if(PFD(which).revents & POLLHUP) {
-				printf("worker %d hung up\n",which);
+				printf("worker %d(%d) hung up\n",PFD(which).fd, which);
 				drain(which);
 				close(PFD(which).fd);
 				if(workers[which].pid != -1) {
@@ -557,19 +559,20 @@ int main(int argc, char** argv) {
 				}
 				remove_worker(which);
 				reap_workers();
-				--which; // ++ in the etc
+				return which;
 			} else if(PFD(which).revents & POLLIN) {
-				printf("worker %d went idle\n",which);
+				printf("worker %d(%d) went idle\n",PFD(which).fd, which);
 				drain(which);
 				workers[which].status = IDLE;
 				drain_incoming();
 			} else {
 				printf("weird revent? %x\n",PFD(which).revents);
 			}
+			return which+1;
 		}
-		int which;
-		for(which=0;which<numworkers;++which) {
-			check(which);
+		int which=0;
+		while(which<numworkers) {
+			which = check(which);
 		}
 		if(pending.ready) {
 			if(start_worker())
