@@ -122,7 +122,6 @@ Time DOOM_DELAY = {
 
 struct worker {
 	enum status status;
-	int sock;
 	uint32_t current;
 };
 
@@ -233,7 +232,7 @@ size_t get_worker(void) {
 	}
 
 	errno = EAGAIN; // eh
-	
+	return -1; // debug
 	/* no idle found, try starting some subs */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
@@ -263,8 +262,8 @@ size_t get_worker(void) {
 }
 
 bool send_message(size_t which, const struct message m) {
-	record(INFO,"Sending %d to %d",m.id,workers[which].sock);
-	ssize_t amt = write(workers[which].sock, &m, sizeof(m));
+	record(INFO,"Sending %d to %d",m.id,PFD(which).fd);
+	ssize_t amt = write(PFD(which).fd, &m, sizeof(m));
 	if(amt == 0) {
 		return false;
 	}
@@ -457,19 +456,20 @@ int main(int argc, char** argv) {
 			drain_incoming();
 		} else if(pfd[ACCEPTING].revents && POLLIN) {
 			accept_workers();
+			resend_pending();
 		} else {
 			// someone went idle!
 			int which;
 			char c;
 			void drain(void) {
 				for(;;) {
-					ssize_t amt = read(workers[which].sock,&c,1);
+					ssize_t amt = read(PFD(which).fd,&c,1);
 					if(amt == 0) {
 						return;
 					} else if(amt < 0) {
 						switch(errno) {
 						case EBADF:
-							close(workers[which].sock);
+							close(PFD(which).fd);
 							return;
 						case EAGAIN:
 							return;
@@ -488,14 +488,14 @@ int main(int argc, char** argv) {
 				if(PFD(which).revents == 0) {
 					// nothing here
 				} else if(PFD(which).revents && POLLNVAL) {
-					printf("invalid socket at %d %d\n",which,workers[which].sock);
+					printf("invalid socket at %d %d\n",which,PFD(which).fd);
 					drain();
 					reap_subs();
-					remove_worker(which);
-					--which; // ++ in the next iteration
+					//remove_worker(which);
+					//--which; // ++ in the next iteration
 				} else if(PFD(which).revents && POLLHUP) {
 					drain();
-					close(workers[which].sock);
+					close(PFD(which).fd);
 					reap_subs();
 					remove_worker(which);
 					--which; // ++ in the etc
