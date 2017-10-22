@@ -44,6 +44,8 @@ struct pollfd* pfd = NULL;
 // pfd[x+2] => worker[x]
 #define PFD(which) pfd[which+2]
 
+enum { INCOMING, ACCEPTING };
+
 static
 int launch_worker(void) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
@@ -198,7 +200,9 @@ void reap_subs(void) {
 
 static
 bool start_sub(void) {
-	if(nsubs == MAXWORKERS) return;
+	// returns true if ACCEPTING is ready
+	
+	if(nsubs == MAXWORKERS) return false;
 	subs[nsubs].doomed = false;
 	getnowspec(&subs[nsubs].expiration);
 	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
@@ -217,13 +221,9 @@ bool start_sub(void) {
 			perror("get_worker wait");
 			abort();
 		}
-		if(accept_workers()) {
-			return true;
-		}
+		return res == 1;
 		// don't waste time hanging in this mini-poll waiting for accept
-		break;
 	}
-	return false;
 }
 
 void kill_sub(int which) {
@@ -238,6 +238,7 @@ void stop_sub(int which) {
 	reap_subs();
 }
 
+static
 bool accept_workers(void) {
 	bool dirty = false;
 	for(;;) {
@@ -273,7 +274,9 @@ size_t get_worker(void) {
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
 		if(start_sub()) {
-			return get_worker();
+			if(accept_workers()) {
+				return get_worker();
+			}
 		}
 	} else {
 		reap_subs();
@@ -290,7 +293,9 @@ size_t get_worker(void) {
 					// waited too long, kill the thing.
 					kill_sub(which);
 					if(start_sub()) {
-						return get_worker();
+						if(accept_workers()) {
+							return get_worker();
+						}
 					}
 				}
 			}
@@ -357,8 +362,6 @@ int main(int argc, char** argv) {
 	*/
 
 	waiter_setup();
-
-	enum { INCOMING, ACCEPTING };
 
 	assert(0 == numworkers);
 	pfd = malloc(sizeof(*pfd)*2);
