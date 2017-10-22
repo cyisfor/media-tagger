@@ -187,7 +187,7 @@ void reap_workers(void) {
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
-				close(workers[which].sock);
+				close(PFD(which).fd);
 				remove_worker(which);
 				break;
 			}
@@ -206,6 +206,10 @@ bool wait_for_accept(void) {
 		if(res < 0) {
 			if(errno == EINTR) {
 				reap_workers();
+				continue;
+			}
+			if(errno == EAGAIN) {
+				// uh... how?
 				continue;
 			}
 			perror("get_worker wait");
@@ -231,13 +235,13 @@ bool start_worker(void) {
 
 void kill_worker(int which) {
 	kill(workers[which].pid,SIGKILL);
-	close(workers[which].sock);
+	close(PFD(which).fd);
 	remove_worker(which);
 	reap_workers();
 }
 
 void stop_worker(int which) {
-	workers[which].status = DOOMED
+	workers[which].status = DOOMED;
 	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
 	kill(workers[which].pid,SIGTERM);
 	reap_workers();
@@ -313,7 +317,7 @@ size_t get_worker(void) {
 }
 
 bool send_message(size_t which, const struct message m) {
-	record(INFO,"Sending %d to %d",m.id,PFD(which).fd);
+	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
 	ssize_t amt = write(PFD(which).fd, &m, sizeof(m));
 	if(amt == 0) {
 		return false;
@@ -402,7 +406,7 @@ int main(int argc, char** argv) {
 			size_t worker = get_worker();
 			if(worker == -1) {
 				// clog us up until we can get a worker
-				puts("can't find a worker to send to");
+				printf("can't find a worker to send %d\n", pending.m.id);
 				return;
 			}
 			if(send_message(worker,pending.m)) {
@@ -433,6 +437,7 @@ int main(int argc, char** argv) {
 				perror("incoming fail");
 				abort();
 			}
+			printf("%d pending\n",pending.m.id);
 			pending.ready = true;
 			pfd[INCOMING].events = 0;
 			resend_pending();
@@ -495,7 +500,7 @@ int main(int argc, char** argv) {
 		}
 		if(pfd[ACCEPTING].revents && POLLIN) {
 			accept_workers();
-			resend_pending();
+			drain_incoming();
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
 			drain_incoming();
@@ -553,7 +558,7 @@ int main(int argc, char** argv) {
 				printf("worker %d went idle\n",which);
 				drain();
 				workers[which].status = IDLE;
-				resend_pending();
+				drain_incoming();
 			} else {
 				printf("weird revent? %x\n",PFD(which).revents);
 			}
