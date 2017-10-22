@@ -36,9 +36,10 @@ char lackey[PATH_MAX];
 #define MAXWORKERS 5
 
 struct pollfd* pfd = NULL;
-int numpfd = 0;
-// pfd[0] is for accepting
-#define PFD(which) pfd[which+1]
+// pfd[0] is for incoming requests
+// pfd[1] is for accepting lackey connections
+// pfd[x+2] => worker[x]
+#define PFD(which) pfd[which+2]
 
 static
 int launch_worker(void) {
@@ -132,11 +133,9 @@ void worker_connected(int sock) {
 	workers[numworkers-1].status = IDLE;
 	record(INFO,"starting lackey #%d",numworkers-1);
 
-	pfd = realloc(pfd,sizeof(*pfd)*(++numpfd));
-	pfd[numpfd-1].fd = sock;
-	pfd[numpfd-1].events = POLLIN;
-
-	assert(numpfd - 1 == numworkers);
+	pfd = realloc(pfd,sizeof(*pfd)*(numworkers+2));
+	pfd[numworkers+1].fd = sock;
+	pfd[numworkers+1].events = POLLIN;
 }
 
 void remove_worker(int which) {
@@ -145,6 +144,7 @@ void remove_worker(int which) {
 		PFD(which) = (&(PFD(which)))[1];
 		workers[which] = workers[which+1];
 	}
+	--numpfd;
 	--numworkers; // don't bother with shrinking realloc
 }
 
@@ -317,10 +317,16 @@ int main(int argc, char** argv) {
 
 	waiter_setup();
 
-	enum { INCOMING };
+	enum { INCOMING, ACCEPTING };
+
+	numpfd = 2;
+	pfd = malloc(sizeof(pfd)*numpfd);
 
 	pfd[INCOMING].fd = incoming;
 	pfd[INCOMING].events = POLLIN;
+
+	pfd[ACCEPTING].fd = start_working(true);
+	pfd[ACCEPTING].events = POLLIN;
 
 	void clear_incoming(void) {
 		char buf[512];
@@ -334,6 +340,17 @@ int main(int argc, char** argv) {
 		record(INFO,"Incoming fifo unclogged");
 	}
 	clear_incoming();
+
+	void accept_workers(void) {
+		for(;;) {
+			int sock = accept(pfd[ACCEPTING].fd, NULL, NULL);
+			if(sock < 0) {
+				if(errno == EAGAIN) return;
+				perror("accept");
+			}
+			worker_connected(sock);
+		}
+	}		
 
 	struct {
 		struct message m;
@@ -371,7 +388,8 @@ int main(int argc, char** argv) {
 					pending.is = true;
 					return;
 				}
-				if(send_message(worker,m)) {
+				if(send_message(worker,pending.m)) {
+					pending.is = false;
 					return;
 				}
 				perror("send message failed...");
@@ -434,6 +452,8 @@ int main(int argc, char** argv) {
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
 			drain_incoming();
+		} else if(pfd[ACCEPTING].revents && POLLIN) {
+			accept_workers();
 		} else {
 			// someone went idle!
 			int which;
