@@ -400,20 +400,20 @@ int main(int argc, char** argv) {
 		bool ready;
 	} pending = {};
 
-	void resend_pending(void) {
-		if(!pending.ready) return;
+	bool resend_pending(void) {
+		if(!pending.ready) return false;
 		for(;;) {
 			size_t worker = get_worker();
 			if(worker == -1) {
 				// clog us up until we can get a worker
 				printf("can't find a worker to send %d\n", pending.m.id);
-				return;
+				return false;
 			}
 			if(send_message(worker,pending.m)) {
 				puts("sent message");
 				pfd[INCOMING].events = POLLIN;
 				pending.ready = false;
-				return;
+				return true;
 			}
 			perror("send message failed...");
 			workers[worker].status = BUSY;
@@ -424,7 +424,8 @@ int main(int argc, char** argv) {
 	void drain_incoming(void) {
 		record(DEBUG, "drain incoming");		
 		if(pending.ready) {
-			return resend_pending();
+			resend_pending();
+			return;
 		}
 		for(;;) {
 			ssize_t amt = read(incoming,&pending.m,sizeof(pending.m));
@@ -440,7 +441,7 @@ int main(int argc, char** argv) {
 			printf("%d pending\n",pending.m.id);
 			pending.ready = true;
 			pfd[INCOMING].events = 0;
-			resend_pending();
+			if(!resend_pending()) break;
 		}
 	}
 	
@@ -506,15 +507,15 @@ int main(int argc, char** argv) {
 			drain_incoming();
 		}
 		// check who went idle
-		int which;
 		char c;
-		void drain(void) {
+		void drain(int which) {
 			for(;;) {
 				ssize_t amt = read(PFD(which).fd,&c,1);
 				if(amt == 0) {
 					return;
 				} else if(amt < 0) {
 					switch(errno) {
+					case ECONNRESET:
 					case EBADF:
 						close(PFD(which).fd);
 						return;
@@ -531,7 +532,7 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		for(which=0;which<numworkers;++which) {
+		void check(int which) {
 			if(PFD(which).revents == 0) {
 				// nothing here
 			} else if(PFD(which).revents & POLLNVAL) {
@@ -540,13 +541,13 @@ int main(int argc, char** argv) {
 							 PFD(which).fd,
 							 PFD(which).revents,
 							 workers[which].pid);
-				drain();
+				drain(which);
 				reap_workers();
 				//remove_worker(which);
 				//--which; // ++ in the next iteration
 			} else if(PFD(which).revents & POLLHUP) {
 				printf("worker %d hung up\n",which);
-				drain();
+				drain(which);
 				close(PFD(which).fd);
 				if(workers[which].pid != -1) {
 					stop_worker(which); // bad idea?
@@ -556,12 +557,19 @@ int main(int argc, char** argv) {
 				--which; // ++ in the etc
 			} else if(PFD(which).revents & POLLIN) {
 				printf("worker %d went idle\n",which);
-				drain();
+				drain(which);
 				workers[which].status = IDLE;
 				drain_incoming();
 			} else {
 				printf("weird revent? %x\n",PFD(which).revents);
 			}
+		}
+		for(which=0;which<numworkers;++which) {
+			check(which);
+		}
+		if(pending.ready) {
+			if(start_worker())
+				check(numworkers-1);
 		}
 	}
 }
