@@ -250,6 +250,23 @@ size_t get_worker(void) {
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
 		start_sub();
+		struct timespec timeout = {0, 500000000};
+		for(;;) {
+			int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
+			if(res < 0) {
+				if(errno == EINTR) {
+					reap_subs();
+					continue;
+				}
+				perror("get_worker wait");
+				abort();
+			}
+			if(accept_workers()) {
+				return get_worker();
+			}
+			// don't waste time hanging in this mini-poll waiting for accept
+			break;
+		}
 	} else {
 		reap_subs();
 		for(which=0;which<nsubs;++which) {
@@ -269,13 +286,8 @@ size_t get_worker(void) {
 			}
 		}
 	}
-	// not ppoll, want to wait even if signal
-	poll(NULL,0,500);
+	// have to wait until the new worker connects
 	errno = EAGAIN; // eh
-	if(accept_workers()) {
-		return get_worker();
-	}
-	// have to poll to accept the new worker's connection
 	return -1;
 }
 
