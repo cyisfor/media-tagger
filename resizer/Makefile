@@ -1,27 +1,30 @@
+PACKAGES=libuv vips
 objects:=lib.o filedb.o make.o record.o
 export PKG_CONFIG_PATH:=/custom/vips/lib/pkgconfig
 
-PACKAGES=libuv vips
 CFLAGS+=-g
 CFLAGS+=-Ichild_waiter/
-LDLIBS+=
 CFLAGS+=`pkg-config --cflags $(PACKAGES)`
-LDFLAGS+=`pkg-config --libs $(PACKAGES)` -lm
 
 LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 all: lackey-bin lackey-master python.so
 
-O=$(patsubst $(N),%,o/%.o)
+O=$(patsubst %,o/%.o,$(N))
 
-N=main worker record make
+PACKAGES:=libuv vips
+N:=main worker record make filedb lib
 lackey-bin: $(O)
-	$(LINK) -lbsd
+	$(LINK) -lbsd `pkg-config --libs $(PACKAGES)`
 
-lackey-master: master.o record.o watch.o worker.o child_waiter/libwaiter.a
+
+PACKAGES:=
+N:=master record watch worker
+lackey-master: $(O) child_waiter/libwaiter.a
 	$(LINK)
 
-test_linebuf: test_linebuf.o linebuf.o record.o
+N:=test_linebuf linebuf record
+test_linebuf: $(O)
 	$(LINK)
 
 o/%.o: %.c | o
