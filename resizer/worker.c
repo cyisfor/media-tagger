@@ -4,8 +4,13 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h> // _un
+
+
 #include <stdlib.h> // abort
-#include <stdio.h> // perrorh
+#include <stdio.h> // perror
+#include <string.h> // memcpy
+
 
 #define WORKERADDR "\0/image-resizer/master"
 
@@ -16,14 +21,14 @@ int start_working(bool is_master) {
 	};
 	memcpy(addr.sun_path,LITLEN(WORKERADDR));
 	if(is_master) {
-		if(bind(sock, &addr, sizeof(addr)) < 0)
+		if(bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
 			return -1;
 		if(listen(sock, 5) < 0) {
 			perror("listen master");
 			abort();
 		}
 	} else {
-		if(connect(sock, &addr, sizeof(addr)) < 0)
+		if(connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
 			return -1;
 	}
 	return sock;

@@ -12,7 +12,10 @@ LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 all: lackey-bin lackey-master python.so
 
-lackey-bin: main.o worker.o
+O=$(patsubst $(N),%,o/%.o)
+
+N=main worker record make
+lackey-bin: $(O)
 	$(LINK) -lbsd
 
 lackey-master: master.o record.o watch.o worker.o child_waiter/libwaiter.a
@@ -21,11 +24,15 @@ lackey-master: master.o record.o watch.o worker.o child_waiter/libwaiter.a
 test_linebuf: test_linebuf.o linebuf.o record.o
 	$(LINK)
 
-%.o: %.c
-	gcc $(CFLAGS) -c -o $@ $^ 
+o/%.o: %.c | o
+	gcc $(CFLAGS) -c -o $@ $^
+
+o:
+	mkdir $@
 
 clean:
 	rm -f lackey-bin lackey-master *.o
+	rm -rf o/
 
 test: test.o $(objects)
 	$(LINK) -lbsd
