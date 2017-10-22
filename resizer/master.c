@@ -376,15 +376,15 @@ int main(int argc, char** argv) {
 
 	struct timespec timeout;
 	bool forever = true;
-	size_t soonest_worker = 0;
-	if(numworkers > 0) {
+	size_t soonest_sub = 0;
+	if(nsubs > 0) {
 		size_t i;
-		timeout = workers[0].expiration;
-		for(i=1;i<numworkers;++i) {
-			if(time2units(timediff(timeout, workers[i].expiration)) > 0) {
+		timeout = subs[0].expiration;
+		for(i=1;i<nsubs;++i) {
+			if(time2units(timediff(timeout, subs[i].expiration)) > 0) {
 				// this worker expires sooner
-				timeout = workers[i].expiration;
-				soonest_worker = i;
+				timeout = subs[i].expiration;
+				soonest_sub = i;
 			}
 		}
 		forever = false;
@@ -396,14 +396,10 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	forever = false;
-	timeout.tv_sec = 3;
-	timeout.tv_nsec = 0;
-	
 	for(;;) {
 		int res = waiter_wait((struct pollfd*)&pfd,
 													1+numworkers,
-													-1);
+													forever ? NULL : &timeout);
 		if(res < 0) {
 			if(errno == EINTR) {
 				reap_workers();
@@ -417,16 +413,14 @@ int main(int argc, char** argv) {
 			abort();
 		}
 		errno = 0;
-		if(res == 0 & numworkers > 0) {
+		if(res == 0 & nsubs > 0) {
 			// timed out while waiting for events?
-			if(workers[soonest_worker].status == DOOMED) {
-				kill_worker(soonest_worker);
+			if(subs[soonest_sub].doomed) {
+				// took too long to die, so kill it
+				kill_sub(soonest_sub);
+			} else {
+				stop_sub(soonest_sub);
 			}
-#if 0
-			else {
-				stop_worker(soonest_worker);
-			}
-#endif
 			continue;
 		}
 		if(pfd[INCOMING].revents && POLLIN) {
@@ -437,13 +431,13 @@ int main(int argc, char** argv) {
 			char c;
 			void drain(void) {
 				for(;;) {
-					ssize_t amt = read(workers[which].out[0],&c,1);
+					ssize_t amt = read(workers[which].sock,&c,1);
 					if(amt == 0) {
 						return;
 					} else if(amt < 0) {
 						switch(errno) {
 						case EBADF:
-							close(workers[which].out[0]);
+							close(workers[which].sock);
 							return;
 						case EAGAIN:
 							return;
@@ -459,20 +453,21 @@ int main(int argc, char** argv) {
 				}
 			}
 			for(which=0;which<numworkers;++which) {
-				if(PFD(which).fd == workers[which].out[0]) {
+				if(PFD(which).fd == workers[which].sock) {
 					if(PFD(which).revents == 0) {
+						// nothing here
 					} else if(PFD(which).revents && POLLNVAL) {
-						printf("invalid socket at %d %d %d\n",which,PFD(which).fd,workers[which].out[0]);
+						printf("invalid socket at %d %d\n",which,workers[which].sock);
 						drain();
-						reap_workers();
-						if(numworkers > 0 && workers[which].out[0] == PFD(which).fd) {
-							remove_worker(which);
-						}
+						reap_subs();
+						remove_worker(which);
 						--which; // ++ in the next iteration
 					} else if(PFD(which).revents && POLLHUP) {
 						drain();
-						PFD(which).events = 0;
-						reap_workers();
+						close(workers[which].sock);
+						reap_subs();
+						remove_worker(which);
+						--which; // ++ in the etc
 					} else if(PFD(which).revents && POLLIN) {
 						drain();
 						workers[which].status = IDLE;
