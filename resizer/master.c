@@ -156,35 +156,6 @@ struct sub {
 }	subs[MAXWORKERS];
 int nsubs = 0;
 
-static
-bool start_sub(void) {
-	if(nsubs == MAXWORKERS) return;
-	subs[nsubs].doomed = false;
-	getnowspec(&subs[nsubs].expiration);
-	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
-	subs[nsubs].pid = launch_worker();
-
-	// accept the connection
-	// wait up to 0.5s
-	struct timespec timeout = {0, 500000000};
-	for(;;) {
-		int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
-		if(res < 0) {
-			if(errno == EINTR) {
-				reap_subs();
-				continue;
-			}
-			perror("get_worker wait");
-			abort();
-		}
-		if(accept_workers()) {
-			return true;
-		}
-		// don't waste time hanging in this mini-poll waiting for accept
-		break;
-	}
-	return false;
-}
 
 static
 void reap_subs(void) {
@@ -222,6 +193,37 @@ void reap_subs(void) {
 		}
 		// okay if never finds the pid, may have already been removed
 	}
+}
+
+
+static
+bool start_sub(void) {
+	if(nsubs == MAXWORKERS) return;
+	subs[nsubs].doomed = false;
+	getnowspec(&subs[nsubs].expiration);
+	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
+	subs[nsubs].pid = launch_worker();
+
+	// accept the connection
+	// wait up to 0.5s
+	struct timespec timeout = {0, 500000000};
+	for(;;) {
+		int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
+		if(res < 0) {
+			if(errno == EINTR) {
+				reap_subs();
+				continue;
+			}
+			perror("get_worker wait");
+			abort();
+		}
+		if(accept_workers()) {
+			return true;
+		}
+		// don't waste time hanging in this mini-poll waiting for accept
+		break;
+	}
+	return false;
 }
 
 void kill_sub(int which) {
