@@ -151,9 +151,18 @@ void remove_worker(int which) {
 struct sub {
 	bool doomed;
 	pid_t pid;
-	struct timespec expiration;
+	Time expiration;
 }	subs[MAXWORKERS];
 int nsubs = 0;
+
+static
+void start_sub(void) {
+	if(nsubs == MAXWORKERS) return;
+	subs[nsubs].doomed = false;
+	getnowspec(&subs[nsubs].expiration);
+	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
+	subs[nsubs].pid = launch_worker();
+}
 
 static
 void reap_subs(void) {
@@ -255,13 +264,11 @@ bool send_message(size_t which, const struct message m) {
 	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
 	ssize_t amt = write(workers[which].in[1], &m, sizeof(m));
 	if(amt == 0) {
-		stop_worker(which);
 		return false;
 	}
 	if(amt < 0) {
 		switch(errno) {
 		case EPIPE:
-			stop_worker(which);
 			return false;
 		};
 		perror("write");
@@ -404,7 +411,7 @@ int main(int argc, char** argv) {
 													forever ? NULL : &timeout);
 		if(res < 0) {
 			if(errno == EINTR) {
-				reap_workers();
+				reap_subs();
 				pfd[INCOMING].events = POLLIN;
 				continue;
 			} else if(errno == EAGAIN) {
