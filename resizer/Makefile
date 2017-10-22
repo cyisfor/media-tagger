@@ -12,10 +12,10 @@ LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 all: lackey-bin lackey-master python.so
 
-lackey-bin: main.o $(objects)
+lackey-bin: main.o worker.o
 	$(LINK) -lbsd
 
-lackey-master: master.o record.o watch.o child_waiter/libwaiter.a
+lackey-master: master.o record.o watch.o worker.o child_waiter/libwaiter.a
 	$(LINK)
 
 test_linebuf: test_linebuf.o linebuf.o record.o
@@ -33,7 +33,7 @@ test: test.o $(objects)
 python.so: python.c
 	$(LINK) -shared -fPIC
 
-child_waiter/libwaiter.a: child_waiter/waiter.c | child_waiter
+child_waiter/libwaiter.a: child_waiter/waiter.c| child_waiter
 	$(MAKE) -C child_waiter libwaiter.a
 
 child_waiter:

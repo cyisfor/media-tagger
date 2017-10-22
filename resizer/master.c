@@ -109,7 +109,8 @@ static void dolock(void) {
 	 not -1, use that eventfd in the fork.
 */
 
-enum status { DOOMED, IDLE, BUSY };
+enum status { IDLE, BUSY };
+
 Time DOOM_DELAY = {
 	tv_sec: 0,
 	tv_nsec: NSECPERSEC / 2 // half a second
@@ -117,6 +118,7 @@ Time DOOM_DELAY = {
 
 struct worker {
 	enum status status;
+	int sock;
 	uint32_t current;
 };
 
@@ -146,12 +148,12 @@ void remove_worker(int which) {
 	--numworkers; // don't bother with shrinking realloc
 }
 
-struct {
+struct sub {
 	bool doomed;
 	pid_t pid;
 	struct timespec expiration;
 }	subs[MAXWORKERS];
-int nsub = 0;
+int nsubs = 0;
 
 static
 void reap_subs(void) {
@@ -179,7 +181,7 @@ void reap_subs(void) {
 		}
 		int which;
 		for(which=0;which<nsubs;++which) {
-			if(subs[which] == pid) {
+			if(subs[which].pid == pid) {
 				for(;which<nsubs;++which) {
 					subs[which] = subs[which+1];
 				}
