@@ -215,6 +215,21 @@ void stop_sub(int which) {
 	reap_subs();
 }
 
+bool accept_workers(void) {
+	bool dirty = false;
+	for(;;) {
+		int sock = accept(pfd[ACCEPTING].fd, NULL, NULL);
+		if(sock < 0) {
+			if(errno == EAGAIN) return dirty;
+			perror("accept");
+			abort();
+		}
+		dirty = true;
+		fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
+		worker_connected(sock);
+	}
+}		
+
 size_t get_worker(void) {
 	// get a worker
 	// off, so we don't check worker 0 a million times
@@ -231,33 +246,36 @@ size_t get_worker(void) {
 		};
 	}
 
-	errno = EAGAIN; // eh
-	return -1; // debug
 	/* no idle found, try starting some subs */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
 		start_sub();
-		return -1;
-	}
-
-	reap_subs();
-	for(which=0;which<nsubs;++which) {
-		if(subs[which].doomed) {
-			/*
-				if 995 ns left (expiration - now) and doom delay is 1000ns
-				1000 - 995 < 50, so wait a teensy bit longer please
-			*/
-			Time diff = timediff(DOOM_DELAY,
-													 timediff(subs[which].expiration,
-																		getnow()));
-			if(diff.tv_nsec > 50) {
-				// waited too long, kill the thing.
-				kill_sub(which);
-				start_sub();
+	} else {
+		reap_subs();
+		for(which=0;which<nsubs;++which) {
+			if(subs[which].doomed) {
+				/*
+					if 995 ns left (expiration - now) and doom delay is 1000ns
+					1000 - 995 < 50, so wait a teensy bit longer please
+				*/
+				Time diff = timediff(DOOM_DELAY,
+														 timediff(subs[which].expiration,
+																			getnow()));
+				if(diff.tv_nsec > 50) {
+					// waited too long, kill the thing.
+					kill_sub(which);
+					start_sub();
+				}
 			}
 		}
 	}
-	// have to wait for the worker to connect now...
+	// not ppoll, want to wait even if signal
+	poll(NULL,0,500);
+	errno = EAGAIN; // eh
+	if(accept_workers()) {
+		return get_worker();
+	}
+	// have to poll to accept the new worker's connection
 	return -1;
 }
 
@@ -341,18 +359,6 @@ int main(int argc, char** argv) {
 		record(INFO,"Incoming fifo unclogged");
 	}
 	clear_incoming();
-
-	void accept_workers(void) {
-		for(;;) {
-			int sock = accept(pfd[ACCEPTING].fd, NULL, NULL);
-			if(sock < 0) {
-				if(errno == EAGAIN) return;
-				perror("accept");
-			}
-			fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
-			worker_connected(sock);
-		}
-	}		
 
 	struct {
 		struct message m;
@@ -453,64 +459,64 @@ int main(int argc, char** argv) {
 			}
 			continue;
 		}
-		if(pfd[INCOMING].revents && POLLIN) {
-			drain_incoming();
-		} else if(pfd[ACCEPTING].revents && POLLIN) {
+		if(pfd[ACCEPTING].revents && POLLIN) {
 			accept_workers();
 			resend_pending();
-		} else {
-			// someone went idle!
-			int which;
-			char c;
-			void drain(void) {
-				for(;;) {
-					ssize_t amt = read(PFD(which).fd,&c,1);
-					if(amt == 0) {
+		}
+		if(pfd[INCOMING].revents && POLLIN) {
+			drain_incoming();
+		}
+		// check who went idle
+		int which;
+		char c;
+		void drain(void) {
+			for(;;) {
+				ssize_t amt = read(PFD(which).fd,&c,1);
+				if(amt == 0) {
+					return;
+				} else if(amt < 0) {
+					switch(errno) {
+					case EBADF:
+						close(PFD(which).fd);
 						return;
-					} else if(amt < 0) {
-						switch(errno) {
-						case EBADF:
-							close(PFD(which).fd);
-							return;
-						case EAGAIN:
-							return;
-						case EINTR:
-							continue;
-						default:
-							perror("huh?");
-							abort();
-						};
-					} else {
-						//ensure_eq(amt,1);
-					}
+					case EAGAIN:
+						return;
+					case EINTR:
+						continue;
+					default:
+						perror("huh?");
+						abort();
+					};
+				} else {
+					//ensure_eq(amt,1);
 				}
 			}
-			for(which=0;which<numworkers;++which) {
-				if(PFD(which).revents == 0) {
-					// nothing here
-				} else if(PFD(which).revents & POLLNVAL) {
-					printf("invalid socket at %d %d %d %d\n",which,
-								 PFD(which).fd,
-						PFD(which).revents,
-						POLLNVAL);
-					drain();
-					reap_subs();
-					//remove_worker(which);
-					//--which; // ++ in the next iteration
-				} else if(PFD(which).revents & POLLHUP) {
-					drain();
-					//close(PFD(which).fd);
-					reap_subs();
-					remove_worker(which);
-					--which; // ++ in the etc
-				} else if(PFD(which).revents & POLLIN) {
-					printf("worker %d went idle\n",which);
-					drain();
-					workers[which].status = IDLE;
-					resend_pending();
-				} else {
-					printf("weird revent? %x\n",PFD(which).revents);
-				}
+		}
+		for(which=0;which<numworkers;++which) {
+			if(PFD(which).revents == 0) {
+				// nothing here
+			} else if(PFD(which).revents & POLLNVAL) {
+				printf("invalid socket at %d %d %d %d\n",which,
+							 PFD(which).fd,
+							 PFD(which).revents,
+							 POLLNVAL);
+				drain();
+				reap_subs();
+				//remove_worker(which);
+				//--which; // ++ in the next iteration
+			} else if(PFD(which).revents & POLLHUP) {
+				drain();
+				close(PFD(which).fd);
+				reap_subs();
+				remove_worker(which);
+				--which; // ++ in the etc
+			} else if(PFD(which).revents & POLLIN) {
+				printf("worker %d went idle\n",which);
+				drain();
+				workers[which].status = IDLE;
+				resend_pending();
+			} else {
+				printf("weird revent? %x\n",PFD(which).revents);
 			}
 		}
 	}
