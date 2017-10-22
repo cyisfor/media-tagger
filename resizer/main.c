@@ -32,7 +32,8 @@ int main(int argc, char** argv) {
 	int master = start_working(false);
 
 	// write something so they know we're idle
-	write(master,&master,1);
+	// connecting is sufficient "writing"
+	//write(master,&master,1);
 
 	for(;;) {
 		struct message m = {};

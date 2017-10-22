@@ -349,6 +349,7 @@ int main(int argc, char** argv) {
 				if(errno == EAGAIN) return;
 				perror("accept");
 			}
+			fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
 			worker_connected(sock);
 		}
 	}		
@@ -487,19 +488,22 @@ int main(int argc, char** argv) {
 			for(which=0;which<numworkers;++which) {
 				if(PFD(which).revents == 0) {
 					// nothing here
-				} else if(PFD(which).revents && POLLNVAL) {
-					printf("invalid socket at %d %d\n",which,PFD(which).fd);
+				} else if(PFD(which).revents & POLLNVAL) {
+					printf("invalid socket at %d %d %d %d\n",which,
+								 PFD(which).fd,
+						PFD(which).revents,
+						POLLNVAL);
 					drain();
 					reap_subs();
 					//remove_worker(which);
 					//--which; // ++ in the next iteration
-				} else if(PFD(which).revents && POLLHUP) {
+				} else if(PFD(which).revents & POLLHUP) {
 					drain();
-					close(PFD(which).fd);
+					//close(PFD(which).fd);
 					reap_subs();
 					remove_worker(which);
 					--which; // ++ in the etc
-				} else if(PFD(which).revents && POLLIN) {
+				} else if(PFD(which).revents & POLLIN) {
 					drain();
 					workers[which].status = IDLE;
 				} else {
