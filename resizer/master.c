@@ -465,7 +465,7 @@ int main(int argc, char** argv) {
 				if(PFD(which).fd == workers[which].out[0]) {
 					if(PFD(which).revents == 0) {
 					} else if(PFD(which).revents && POLLNVAL) {
-						printf("invalid socket at %d %d\n",which,workers[which].out[0]);
+						printf("invalid socket at %d %d %d\n",which,PFD(which).fd,workers[which].out[0]);
 						drain();
 						reap_workers();
 						if(numworkers > 0 && workers[which].out[0] == PFD(which).fd) {
