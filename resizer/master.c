@@ -148,6 +148,8 @@ void worker_connected(int sock) {
 	pfd = realloc(pfd,sizeof(*pfd)*(numworkers+2));
 	pfd[numworkers+1].fd = sock;
 	pfd[numworkers+1].events = POLLIN;
+	//pfd[numworkers+1].revents = POLLOUT; meh
+	pfd[numworkers+1].revents = 0;
 }
 
 void remove_worker(int which) {
@@ -317,7 +319,7 @@ size_t get_worker(void) {
 }
 
 bool send_message(size_t which, const struct message m) {
-	record(INFO,"Sending %d to %d",m.id,workers[which].pid);
+	record(INFO,"Sending %d to %d",m.id,which);
 	ssize_t amt = write(PFD(which).fd, &m, sizeof(m));
 	if(amt == 0) {
 		return false;
@@ -325,6 +327,7 @@ bool send_message(size_t which, const struct message m) {
 	if(amt < 0) {
 		switch(errno) {
 		case EPIPE:
+		case EBADF:
 			return false;
 		};
 		perror("write");
@@ -564,6 +567,7 @@ int main(int argc, char** argv) {
 				printf("weird revent? %x\n",PFD(which).revents);
 			}
 		}
+		int which;
 		for(which=0;which<numworkers;++which) {
 			check(which);
 		}

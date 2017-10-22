@@ -37,9 +37,14 @@ int main(int argc, char** argv) {
 
 	for(;;) {
 		struct message m = {};
+		errno = 0;
 		ssize_t amt = read(master,&m,sizeof(m));
 		if(amt < 0) {
 			perror("foo");
+		}
+		if(amt == 0) {
+			perror("closed??");
+			abort();
 		}
 		ensure_eq(sizeof(m),amt);
 		record(DEBUG,"message %x %d",m.id, m.width);
