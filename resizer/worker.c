@@ -15,7 +15,7 @@
 #define WORKERADDR "\0/image-resizer/master"
 
 int start_working(bool is_master) {
-	int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+	int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	struct sockaddr_un addr = {
 		.sun_family = AF_UNIX,
 	};

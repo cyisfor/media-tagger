@@ -2,12 +2,15 @@
 #include "worker.h"
 #include "ensure.h"
 #include "record.h"
-#include "watch.h"
 #include "message.h"
 #include "timeop.h"
 #include "waiter.h"
 
-#include <sys/inotify.h>
+#include <sys/stat.h> // mkfifo
+#include <sys/socket.h> // accept
+
+#include <limits.h> // PATH_MAX
+
 #include <poll.h>
 
 #include <assert.h>
@@ -16,7 +19,7 @@
 
 #include <unistd.h>
 #include <string.h> // strrchr
-#include <stdlib.h> // malloc
+#include <stdlib.h> // malloc, realpath
 #include <stdio.h>
 #include <errno.h>
 #include <signal.h>
@@ -319,7 +322,7 @@ int main(int argc, char** argv) {
 	enum { INCOMING, ACCEPTING };
 
 	assert(0 == numworkers);
-	pfd = malloc(sizeof(pfd)*2);
+	pfd = malloc(sizeof(*pfd)*2);
 
 	pfd[INCOMING].fd = incoming;
 	pfd[INCOMING].events = POLLIN;
@@ -423,7 +426,7 @@ int main(int argc, char** argv) {
 	}
 
 	for(;;) {
-		int res = waiter_wait((struct pollfd*)&pfd,
+		int res = waiter_wait(pfd,
 													1+numworkers,
 													forever ? NULL : &timeout);
 		if(res < 0) {

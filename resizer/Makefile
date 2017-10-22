@@ -1,10 +1,8 @@
-PACKAGES=libuv vips
 objects:=lib.o filedb.o make.o record.o
 export PKG_CONFIG_PATH:=/custom/vips/lib/pkgconfig
 
 CFLAGS+=-g
 CFLAGS+=-Ichild_waiter/
-CFLAGS+=`pkg-config --cflags $(PACKAGES)`
 
 LINK=$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
@@ -17,9 +15,9 @@ N:=main worker record make filedb lib
 lackey-bin: $(O)
 	$(LINK) -lbsd `pkg-config --libs $(PACKAGES)`
 
+o/make.o o/main.o o/lib.o: CFLAGS+=`pkg-config --cflags $(PACKAGES)`
 
-PACKAGES:=
-N:=master record watch worker
+N:=master record worker
 lackey-master: $(O) child_waiter/libwaiter.a
 	$(LINK)
 
