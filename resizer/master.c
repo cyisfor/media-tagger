@@ -356,20 +356,35 @@ int main(int argc, char** argv) {
 
 	struct {
 		struct message m;
-		bool is;
+		bool ready;
 	} pending = {};
-	
-	void drain_incoming(void) {
-		record(DEBUG, "drain incoming");		
-		if(pending.is) {
+
+	void resend_pending(void) {
+		if(!pending.ready) return;
+		for(;;) {
 			size_t worker = get_worker();
-			if(worker == -1) return;
-			if(!send_message(worker,pending.m)) {
-				perror("send message failed...");
+			if(worker == -1) {
+				pfd[INCOMING].events = 0;
+				// clog us up until we can get a worker
+				perror("can't find a worker to send to");
+				pending.ready = true;
 				return;
 			}
-			pending.is = false;
-			return;
+			if(send_message(worker,pending.m)) {
+				puts("sent message");
+				pending.ready = false;
+				return;
+			}
+			perror("send message failed...");
+			workers[worker].status = BUSY;
+			// then try getting another worker.
+		}
+	}
+
+	void drain_incoming(void) {
+		record(DEBUG, "drain incoming");		
+		if(pending.ready) {
+			return resend_pending();
 		}
 		for(;;) {
 			ssize_t amt = read(incoming,&pending.m,sizeof(pending.m));
@@ -382,22 +397,8 @@ int main(int argc, char** argv) {
 				perror("incoming fail");
 				abort();
 			}
-			for(;;) {
-				size_t worker = get_worker();
-				if(worker == -1) {
-					pfd[INCOMING].events = 0;
-					// clog us up until we can get a worker
-					pending.is = true;
-					return;
-				}
-				if(send_message(worker,pending.m)) {
-					pending.is = false;
-					return;
-				}
-				perror("send message failed...");
-				workers[worker].status = BUSY;
-				// then try getting another worker.
-			}
+			pending.ready = true;
+			resend_pending();
 		}
 	}
 	
@@ -427,7 +428,7 @@ int main(int argc, char** argv) {
 
 	for(;;) {
 		int res = waiter_wait(pfd,
-													1+numworkers,
+													numworkers+2,
 													forever ? NULL : &timeout);
 		if(res < 0) {
 			if(errno == EINTR) {
@@ -484,27 +485,25 @@ int main(int argc, char** argv) {
 				}
 			}
 			for(which=0;which<numworkers;++which) {
-				if(PFD(which).fd == workers[which].sock) {
-					if(PFD(which).revents == 0) {
-						// nothing here
-					} else if(PFD(which).revents && POLLNVAL) {
-						printf("invalid socket at %d %d\n",which,workers[which].sock);
-						drain();
-						reap_subs();
-						remove_worker(which);
-						--which; // ++ in the next iteration
-					} else if(PFD(which).revents && POLLHUP) {
-						drain();
-						close(workers[which].sock);
-						reap_subs();
-						remove_worker(which);
-						--which; // ++ in the etc
-					} else if(PFD(which).revents && POLLIN) {
-						drain();
-						workers[which].status = IDLE;
-					} else {
-						printf("weird revent? %x\n",PFD(which).revents);
-					}
+				if(PFD(which).revents == 0) {
+					// nothing here
+				} else if(PFD(which).revents && POLLNVAL) {
+					printf("invalid socket at %d %d\n",which,workers[which].sock);
+					drain();
+					reap_subs();
+					remove_worker(which);
+					--which; // ++ in the next iteration
+				} else if(PFD(which).revents && POLLHUP) {
+					drain();
+					close(workers[which].sock);
+					reap_subs();
+					remove_worker(which);
+					--which; // ++ in the etc
+				} else if(PFD(which).revents && POLLIN) {
+					drain();
+					workers[which].status = IDLE;
+				} else {
+					printf("weird revent? %x\n",PFD(which).revents);
 				}
 			}
 		}

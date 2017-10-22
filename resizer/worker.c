@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <sys/un.h> // _un
 
-
+#include <fcntl.h> // O_*
 #include <stdlib.h> // abort
 #include <stdio.h> // perror
 #include <string.h> // memcpy
@@ -27,6 +27,7 @@ int start_working(bool is_master) {
 			perror("listen master");
 			abort();
 		}
+		fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);	
 	} else {
 		if(connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
 			return -1;
