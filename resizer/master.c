@@ -47,14 +47,19 @@ struct pollfd* pfd = NULL;
 enum { INCOMING, ACCEPTING };
 
 static
-int launch_worker(void) {
+int launch_worker(int master) {
 	const char* args[] = {"cgexec","-g","memory:/image_manipulation",
 //												"valgrind",
 									lackey,NULL};
 	int pid = waiter_fork();
 	if(pid != 0) return pid;
-	
-	// XXX: is this needed?
+
+	if(master != 3) {
+		dup2(master,3);
+		close(master);
+	}
+	setenv("usethree","1",1);
+
 	execvp("cgexec",(void*)args);
 	abort();
 }
@@ -115,7 +120,7 @@ static void dolock(void) {
 	 not -1, use that eventfd in the fork.
 */
 
-enum status { IDLE, BUSY };
+enum status { IDLE, BUSY, DOOMED };
 
 Time DOOM_DELAY = {
 	tv_sec: 0,
@@ -125,6 +130,8 @@ Time DOOM_DELAY = {
 struct worker {
 	enum status status;
 	uint32_t current;
+	pid_t pid;
+	struct timespec expiration;
 };
 
 struct worker* workers = NULL;
@@ -135,6 +142,7 @@ size_t numworkers = 0;
 void worker_connected(int sock) {
 	workers = realloc(workers,sizeof(*workers)*++numworkers);
 	workers[numworkers-1].status = IDLE;
+	workers[numworkers-1].pid = -1;
 	record(INFO,"starting lackey #%d",numworkers-1);
 
 	pfd = realloc(pfd,sizeof(*pfd)*(numworkers+2));
@@ -146,21 +154,14 @@ void remove_worker(int which) {
 	int i;
 	for(i=which;i<numworkers-1;++i) {
 		PFD(which) = (&(PFD(which)))[1];
+		// XXX: close() kill() waitpid()?
 		workers[which] = workers[which+1];
 	}
 	--numworkers; // don't bother with shrinking realloc
 }
 
-struct sub {
-	bool doomed;
-	pid_t pid;
-	struct timespec expiration;
-}	subs[MAXWORKERS];
-int nsubs = 0;
-
-
 static
-void reap_subs(void) {
+void reap_workers(void) {
 	waiter_drain();
 	for(;;) {
 		int status;
@@ -184,12 +185,10 @@ void reap_subs(void) {
 						 WTERMSIG(status));
 		}
 		int which;
-		for(which=0;which<nsubs;++which) {
-			if(subs[which].pid == pid) {
-				for(;which<nsubs;++which) {
-					subs[which] = subs[which+1];
-				}
-				--nsubs;
+		for(which=0;which<numworkers;++which) {
+			if(workers[which].pid == pid) {
+				close(workers[which].sock);
+				remove_worker(which);
 				break;
 			}
 		}
@@ -206,7 +205,7 @@ bool wait_for_accept(void) {
 		int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
 		if(res < 0) {
 			if(errno == EINTR) {
-				reap_subs();
+				reap_workers();
 				continue;
 			}
 			perror("get_worker wait");
@@ -218,27 +217,30 @@ bool wait_for_accept(void) {
 }
 
 static
-bool start_sub(void) {
+bool start_worker(void) {
+	if(numworkers >= MAXWORKERS) return false;
 	// returns true if ACCEPTING is ready
-	
-	if(nsubs == MAXWORKERS) return false;
-	subs[nsubs].doomed = false;
-	getnowspec(&subs[nsubs].expiration);
-	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
-	subs[nsubs].pid = launch_worker();
-	return wait_for_accept();
+	int pair[2];
+	ensure0(socketpair(AF_UNIX,SOCK_STREAM,0,pair));
+	worker_connected(pair[1]);
+	getnowspec(&workers[numworkers-1].expiration);
+	workers[numworkers-1].expiration.tv_sec += WORKER_LIFETIME;
+	workers[numworkers-1].pid = launch_worker(pair[1]);
+	close(pair[1]);
 }
 
-void kill_sub(int which) {
-	kill(subs[which].pid,SIGKILL);
-	reap_subs();
+void kill_worker(int which) {
+	kill(workers[which].pid,SIGKILL);
+	close(workers[which].sock);
+	remove_worker(which);
+	reap_workers();
 }
 
-void stop_sub(int which) {
-	subs[which].doomed = true;
-	subs[which].expiration = timeadd(getnow(),DOOM_DELAY);
-	kill(subs[which].pid,SIGTERM);
-	reap_subs();
+void stop_worker(int which) {
+	workers[which].status = DOOMED
+	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
+	kill(workers[which].pid,SIGTERM);
+	reap_workers();
 }
 
 static
@@ -273,32 +275,28 @@ size_t get_worker(void) {
 		};
 	}
 
-	/* no idle found, try starting some subs */
+	/* no idle found, try starting some workers */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
-		if(start_sub()) {
-			if(accept_workers()) {
-				return get_worker();
-			}
+		if(start_worker()) {
+			return numworkers-1;
 		}
 	} else {
-		reap_subs();
-		for(which=0;which<nsubs;++which) {
-			if(subs[which].doomed) {
+		reap_workers();
+		for(which=0;which<numworkers;++which) {
+			if(workers[which].status == DOOMED) {
 				/*
 					if 995 ns left (expiration - now) and doom delay is 1000ns
 					1000 - 995 < 50, so wait a teensy bit longer please
 				*/
 				Time diff = timediff(DOOM_DELAY,
-														 timediff(subs[which].expiration,
+														 timediff(workers[which].expiration,
 																			getnow()));
 				if(diff.tv_nsec > 50) {
 					// waited too long, kill the thing.
-					kill_sub(which);
-					if(start_sub()) {
-						if(accept_workers()) {
-							return get_worker();
-						}
+					kill_worker(which);
+					if(start_worker()) {
+						return numworkers-1;
 					}
 				}
 			}
@@ -445,23 +443,26 @@ int main(int argc, char** argv) {
 
 	struct timespec timeout;
 	bool forever = true;
-	size_t soonest_sub = 0;
-	if(nsubs > 0) {
+	size_t soonest_worker = 0;
+	if(numworkers > 0) {
 		size_t i;
-		timeout = subs[0].expiration;
-		for(i=1;i<nsubs;++i) {
-			if(time2units(timediff(timeout, subs[i].expiration)) > 0) {
-				// this worker expires sooner
-				timeout = subs[i].expiration;
-				soonest_sub = i;
+		for(i=1;i<numworkers;++i) {
+			if(workers[i].pid != -1) {
+				forever = false;
+				timeout = workers[i].expiration;
+				for(++i;i<numworkers;++i) {
+					if(workers[i].pid == -1) continue;
+					if(time2units(timediff(timeout, workers[i].expiration)) > 0) {
+						// this worker expires sooner
+						timeout = workers[i].expiration;
+						soonest_worker = i;
+					}
+				}
 			}
 		}
-		forever = false;
-		Time now = getnow();
-		if(timeout.tv_sec >= now.tv_sec) {
-			timeout.tv_sec -= now.tv_sec;
-		} else {
-			timeout.tv_sec = 0;
+		if(!forever) {
+			Time now = getnow();
+			timeout = timediff(timeout,now);
 		}
 	}
 
@@ -471,7 +472,7 @@ int main(int argc, char** argv) {
 													forever ? NULL : &timeout);
 		if(res < 0) {
 			if(errno == EINTR) {
-				reap_subs();
+				reap_workers();
 				pfd[INCOMING].events = POLLIN;
 				continue;
 			} else if(errno == EAGAIN) {
@@ -482,13 +483,13 @@ int main(int argc, char** argv) {
 			abort();
 		}
 		errno = 0;
-		if(res == 0 & nsubs > 0) {
+		if(res == 0 & numworkers > 0) {
 			// timed out while waiting for events?
-			if(subs[soonest_sub].doomed) {
+			if(workers[soonest_worker].status == DOOMED) {
 				// took too long to die, so kill it
-				kill_sub(soonest_sub);
+				kill_worker(soonest_worker);
 			} else {
-				stop_sub(soonest_sub);
+				stop_worker(soonest_worker);
 			}
 			continue;
 		}
@@ -529,20 +530,24 @@ int main(int argc, char** argv) {
 			if(PFD(which).revents == 0) {
 				// nothing here
 			} else if(PFD(which).revents & POLLNVAL) {
-				printf("invalid socket at %d %d %d %d\n",which,
+				printf("invalid socket at %d %d %d %d\n",
+							 which,
 							 PFD(which).fd,
 							 PFD(which).revents,
-							 POLLNVAL);
+							 workers[which].pid);
 				drain();
-				reap_subs();
+				reap_workers();
 				//remove_worker(which);
 				//--which; // ++ in the next iteration
 			} else if(PFD(which).revents & POLLHUP) {
+				printf("worker %d hung up\n",which);
 				drain();
 				close(PFD(which).fd);
-				reap_subs();
-				printf("worker %d hung up\n",which);
+				if(workers[which].pid != -1) {
+					stop_worker(which); // bad idea?
+				}
 				remove_worker(which);
+				reap_workers();
 				--which; // ++ in the etc
 			} else if(PFD(which).revents & POLLIN) {
 				printf("worker %d went idle\n",which);
