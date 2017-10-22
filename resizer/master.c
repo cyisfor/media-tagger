@@ -35,14 +35,10 @@ char lackey[PATH_MAX];
 
 #define MAXWORKERS 5
 
-struct pollfd pfd[MAXWORKERS+1] = {};
-size_t numpfd = 1; // = 1 + numworkers... always?
+struct pollfd* pfd = NULL;
+int numpfd = 0;
+// pfd[0] is for accepting
 #define PFD(which) pfd[which+1]
-
-/* Note: must move out any dead workers from pfd, adjusting which etc.
-	 because providing bad fds to poll goes into a spin loop returning POLLNVAL
-	 even if events = 0
-	 */
 
 static
 int launch_worker(void) {
@@ -121,40 +117,24 @@ Time DOOM_DELAY = {
 
 struct worker {
 	enum status status;
-	int pid;
-	int in[2];
-	int out[2];
 	uint32_t current;
-	struct timespec expiration;
 };
 
-struct worker workers[MAXWORKERS];
+struct worker* workers = NULL;
 size_t numworkers = 0;
 
 #define WORKER_LIFETIME 60
 
+void worker_connected(int sock) {
+	workers = realloc(workers,sizeof(*workers)*++numworkers);
+	workers[numworkers-1].status = IDLE;
+	record(INFO,"starting lackey #%d",numworkers-1);
 
-void set_expiration(size_t which) {
-	// set on creation, reset every time a worker goes idle
-	getnowspec(&workers[which].expiration);
-	workers[which].expiration.tv_sec += WORKER_LIFETIME;
-}
+	pfd = realloc(pfd,sizeof(*pfd)*(++numpfd));
+	pfd[numpfd-1].fd = sock;
+	pfd[numpfd-1].events = POLLIN;
 
-void start_worker(size_t which) {
-	pipe2(workers[which].in,O_NONBLOCK);
-	pipe2(workers[which].out,O_NONBLOCK);
-	
-	workers[which].status = IDLE;
-	record(INFO,"starting lackey #%d",which);
-	workers[which].pid = launch_worker(workers[which].in[0],
-																		 workers[which].out[1]);
-	close(workers[which].in[0]);
-	close(workers[which].out[1]);
-
-	PFD(which).fd = workers[which].out[0];
-	PFD(which).events = POLLIN;
-
-	set_expiration(which);
+	assert(numpfd - 1 == numworkers);
 }
 
 void remove_worker(int which) {
@@ -163,10 +143,18 @@ void remove_worker(int which) {
 		PFD(which) = (&(PFD(which)))[1];
 		workers[which] = workers[which+1];
 	}
-	--numworkers;
+	--numworkers; // don't bother with shrinking realloc
 }
 
-void reap_workers(void) {
+struct {
+	bool doomed;
+	pid_t pid;
+	struct timespec expiration;
+}	subs[MAXWORKERS];
+int nsub = 0;
+
+static
+void reap_subs(void) {
 	waiter_drain();
 	for(;;) {
 		int status;
@@ -190,11 +178,12 @@ void reap_workers(void) {
 						 WTERMSIG(status));
 		}
 		int which;
-		for(which=0;which<numworkers;++which) {
-			if(workers[which].pid == pid) {
-				close(workers[which].in[1]);
-				close(workers[which].out[0]);
-				remove_worker(which);
+		for(which=0;which<nsubs;++which) {
+			if(subs[which] == pid) {
+				for(;which<nsubs;++which) {
+					subs[which] = subs[which+1];
+				}
+				--nsubs;
 				break;
 			}
 		}
@@ -202,16 +191,16 @@ void reap_workers(void) {
 	}
 }
 
-void kill_worker(int which) {
-	kill(workers[which].pid,SIGKILL);
-	reap_workers();
+void kill_sub(int which) {
+	kill(subs[which].pid,SIGKILL);
+	reap_subs();
 }
 
-void stop_worker(int which) {
-	workers[which].status = DOOMED;
-	workers[which].expiration = timeadd(getnow(),DOOM_DELAY);
-	kill(workers[which].pid,SIGTERM);
-	reap_workers();
+void stop_sub(int which) {
+	subs[which].doomed = true;
+	subs[which].expiration = timeadd(getnow(),DOOM_DELAY);
+	kill(subs[which].pid,SIGTERM);
+	reap_subs();
 }
 
 size_t get_worker(void) {
@@ -230,15 +219,18 @@ size_t get_worker(void) {
 		};
 	}
 
+	errno = EAGAIN; // eh
+	
+	/* no idle found, try starting some subs */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
-		start_worker(numworkers);
-		return numworkers++;
+		start_sub();
+		return -1;
 	}
-	
-	/* no idle found, check if any doomed */
-	for(which=0;which<MAXWORKERS;++which) {
-		if(workers[which].status == DOOMED) {
+
+	reap_subs();
+	for(which=0;which<nsubs;++which) {
+		if(subs[which].status == DOOMED) {
 			/*
 				if 995 ns left (expiration - now) and doom delay is 1000ns
 				1000 - 995 < 50, so wait a teensy bit longer please
@@ -248,14 +240,13 @@ size_t get_worker(void) {
 																		getnow()));
 			if(diff.tv_nsec > 50) {
 				// waited too long, kill the thing.
-				kill_worker(which);
-				start_worker(which);
-				return which;
+				kill_sub(which);
+				start_sub();
 			}
 		}
 	}
-	// none found...
-	return MAXWORKERS;
+	// have to wait for the worker to connect now...
+	return -1;
 }
 
 bool send_message(size_t which, const struct message m) {
@@ -334,32 +325,49 @@ int main(int argc, char** argv) {
 		record(INFO,"Incoming fifo unclogged");
 	}
 	clear_incoming();
+
+	struct {
+		struct message m;
+		bool is;
+	} pending = {};
 	
 	void drain_incoming(void) {
-		record(DEBUG, "drain incoming");
-		struct message m;
+		record(DEBUG, "drain incoming");		
+		if(pending.is) {
+			size_t worker = get_worker();
+			if(worker == -1) return;
+			if(!send_message(worker,pending.m)) {
+				perror("send message failed...");
+				return;
+			}
+			pending.is = false;
+			return;
+		}
 		for(;;) {
-			ssize_t amt = read(incoming,&m,sizeof(m));
+			ssize_t amt = read(incoming,&pending.m,sizeof(pending.m));
 			if(amt == 0) {
 				perror("EOF on queuefull...");
 				break;
 			}
 			if(amt < 0) {
-				if(errno == EAGAIN) break;
+				if(errno == EAGAIN) return;
 				perror("incoming fail");
 				abort();
 			}
-			size_t worker = get_worker();
-			if(worker == MAXWORKERS) {
-				pfd[INCOMING].events = 0;
-				break;
-			}
-			if(!send_message(worker,m)) {
+			for(;;) {
+				size_t worker = get_worker();
+				if(worker == -1) {
+					pfd[INCOMING].events = 0;
+					// clog us up until we can get a worker
+					pending.is = true;
+					return;
+				}
+				if(send_message(worker,m)) {
+					return;
+				}
 				perror("send message failed...");
-				// since we just read, we should be able to write without blocking
-				int res = write(incoming,&m,sizeof(m));
-				assert(res == sizeof(m));
-				break;
+				workers[worker].status = BUSY;
+				// then try getting another worker.
 			}
 		}
 	}
