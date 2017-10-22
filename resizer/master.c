@@ -176,9 +176,9 @@ void reap_subs(void) {
 		}
 
 		if(WIFSIGNALED(status) && SIGALRM==WTERMSIG(status)) {
-			record(INFO, "worker %d retiring",pid);
+			record(INFO, "sub %d retiring",pid);
 		} else {
-			record(INFO,"worker %d died (exit %d sig %d)",
+			record(INFO,"sub %d died (exit %d sig %d)",
 						 pid,
 						 WEXITSTATUS(status),
 						 WTERMSIG(status));
@@ -197,17 +197,8 @@ void reap_subs(void) {
 	}
 }
 
-
 static
-bool start_sub(void) {
-	// returns true if ACCEPTING is ready
-	
-	if(nsubs == MAXWORKERS) return false;
-	subs[nsubs].doomed = false;
-	getnowspec(&subs[nsubs].expiration);
-	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
-	subs[nsubs].pid = launch_worker();
-
+bool wait_for_accept(void) {
 	// accept the connection
 	// wait up to 0.5s
 	struct timespec timeout = {0, 500000000};
@@ -224,6 +215,18 @@ bool start_sub(void) {
 		return res == 1;
 		// don't waste time hanging in this mini-poll waiting for accept
 	}
+}
+
+static
+bool start_sub(void) {
+	// returns true if ACCEPTING is ready
+	
+	if(nsubs == MAXWORKERS) return false;
+	subs[nsubs].doomed = false;
+	getnowspec(&subs[nsubs].expiration);
+	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
+	subs[nsubs].pid = launch_worker();
+	return wait_for_accept();
 }
 
 void kill_sub(int which) {
@@ -299,6 +302,11 @@ size_t get_worker(void) {
 					}
 				}
 			}
+		}
+	}
+	if(wait_for_accept()) {
+		if(accept_workers()) {
+			return get_worker();
 		}
 	}
 	// have to wait until the new worker connects
@@ -533,6 +541,7 @@ int main(int argc, char** argv) {
 				drain();
 				close(PFD(which).fd);
 				reap_subs();
+				printf("worker %d hung up\n",which);
 				remove_worker(which);
 				--which; // ++ in the etc
 			} else if(PFD(which).revents & POLLIN) {
