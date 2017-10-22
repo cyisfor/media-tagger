@@ -1,4 +1,12 @@
 #include "worker.h"
+
+#define LITLEN(a) a,(sizeof(a)-1)
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stdlib.h> // abort
+#include <stdio.h> // perrorh
+
 #define WORKERADDR "\0/image-resizer/master"
 
 int start_working(bool is_master) {
@@ -6,15 +14,17 @@ int start_working(bool is_master) {
 	struct sockaddr_un addr = {
 		.sun_family = AF_UNIX,
 	};
-	memcpy(addr.sun_path,LITLEN(ERRPATH));
-	if(capturing) {
+	memcpy(addr.sun_path,LITLEN(WORKERADDR));
+	if(is_master) {
 		if(bind(sock, &addr, sizeof(addr)) < 0)
 			return -1;
-		failif(listen(sock, 5),"listen capture");
+		if(listen(sock, 5) < 0) {
+			perror("listen master");
+			abort();
+		}
 	} else {
 		if(connect(sock, &addr, sizeof(addr)) < 0)
 			return -1;
 	}
 	return sock;
 }
-
