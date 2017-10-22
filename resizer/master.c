@@ -364,14 +364,13 @@ int main(int argc, char** argv) {
 		for(;;) {
 			size_t worker = get_worker();
 			if(worker == -1) {
-				pfd[INCOMING].events = 0;
 				// clog us up until we can get a worker
-				perror("can't find a worker to send to");
-				pending.ready = true;
+				puts("can't find a worker to send to");
 				return;
 			}
 			if(send_message(worker,pending.m)) {
 				puts("sent message");
+				pfd[INCOMING].events = POLLIN;
 				pending.ready = false;
 				return;
 			}
@@ -398,6 +397,7 @@ int main(int argc, char** argv) {
 				abort();
 			}
 			pending.ready = true;
+			pfd[INCOMING].events = 0;
 			resend_pending();
 		}
 	}
@@ -504,8 +504,10 @@ int main(int argc, char** argv) {
 					remove_worker(which);
 					--which; // ++ in the etc
 				} else if(PFD(which).revents & POLLIN) {
+					printf("worker %d went idle\n",which);
 					drain();
 					workers[which].status = IDLE;
+					resend_pending();
 				} else {
 					printf("weird revent? %x\n",PFD(which).revents);
 				}
