@@ -157,12 +157,33 @@ struct sub {
 int nsubs = 0;
 
 static
-void start_sub(void) {
+bool start_sub(void) {
 	if(nsubs == MAXWORKERS) return;
 	subs[nsubs].doomed = false;
 	getnowspec(&subs[nsubs].expiration);
 	subs[nsubs].expiration.tv_sec += WORKER_LIFETIME;
 	subs[nsubs].pid = launch_worker();
+
+	// accept the connection
+	// wait up to 0.5s
+	struct timespec timeout = {0, 500000000};
+	for(;;) {
+		int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
+		if(res < 0) {
+			if(errno == EINTR) {
+				reap_subs();
+				continue;
+			}
+			perror("get_worker wait");
+			abort();
+		}
+		if(accept_workers()) {
+			return true;
+		}
+		// don't waste time hanging in this mini-poll waiting for accept
+		break;
+	}
+	return false;
 }
 
 static
@@ -249,23 +270,8 @@ size_t get_worker(void) {
 	/* no idle found, try starting some subs */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
-		start_sub();
-		struct timespec timeout = {0, 500000000};
-		for(;;) {
-			int res = waiter_wait(&pfd[ACCEPTING],1,&timeout);
-			if(res < 0) {
-				if(errno == EINTR) {
-					reap_subs();
-					continue;
-				}
-				perror("get_worker wait");
-				abort();
-			}
-			if(accept_workers()) {
-				return get_worker();
-			}
-			// don't waste time hanging in this mini-poll waiting for accept
-			break;
+		if(start_sub()) {
+			return get_worker();
 		}
 	} else {
 		reap_subs();
@@ -281,7 +287,9 @@ size_t get_worker(void) {
 				if(diff.tv_nsec > 50) {
 					// waited too long, kill the thing.
 					kill_sub(which);
-					start_sub();
+					if(start_sub()) {
+						return get_worker();
+					}
 				}
 			}
 		}
