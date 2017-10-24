@@ -153,8 +153,7 @@ void worker_connected(int sock) {
 }
 
 void remove_worker(int which) {
-	int i;
-	for(i=which;i<numworkers-1;++i) {
+	for(;which<numworkers-1;++which) {
 		PFD(which) = (&(PFD(which)))[1];
 		// XXX: close() kill() waitpid()?
 		workers[which] = workers[which+1];
