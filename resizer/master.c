@@ -158,7 +158,9 @@ void remove_worker(int which) {
 		// XXX: close() kill() waitpid()?
 		workers[which] = workers[which+1];
 	}
-	--numworkers; // don't bother with shrinking realloc
+	if(numworkers > 0) { // uh?
+		--numworkers; // don't bother with shrinking realloc
+	}
 }
 
 static
