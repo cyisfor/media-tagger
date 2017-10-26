@@ -153,6 +153,7 @@ void worker_connected(int sock) {
 }
 
 void remove_worker(int which) {
+	close(PFD(which).fd);
 	for(;which+1<numworkers;++which) {
 		PFD(which) = (&(PFD(which)))[1];
 		// XXX: close() kill() waitpid()?
@@ -190,7 +191,6 @@ void reap_workers(void) {
 		int which;
 		for(which=0;which<numworkers;++which) {
 			if(workers[which].pid == pid) {
-				close(PFD(which).fd);
 				remove_worker(which);
 				break;
 			}
@@ -238,7 +238,6 @@ bool start_worker(void) {
 
 void kill_worker(int which) {
 	kill(workers[which].pid,SIGKILL);
-	close(PFD(which).fd);
 	remove_worker(which);
 	reap_workers();
 }
