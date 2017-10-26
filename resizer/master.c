@@ -269,6 +269,7 @@ size_t get_worker(void) {
 	// get a worker
 	// off, so we don't check worker 0 a million times
 	static size_t off = -1;
+	static int tries = 0;
 	++off;
 	int which;
 	for(which=0;which<numworkers;++which) {
@@ -277,14 +278,22 @@ size_t get_worker(void) {
 		case IDLE:
 			workers[derp].status = BUSY;
 			PFD(derp).events = POLLIN;
+			tries = 0;
 			return derp;
 		};
+	}
+
+	if(tries < 3) {
+		++tries;
+		// if we timeout 3 times, stop waiting for idle workers.
+		return -1;
 	}
 
 	/* no idle found, try starting some workers */
 	if(numworkers < MAXWORKERS) {
 		// add a worker to the end
 		if(start_worker()) {
+			tries = 0;
 			return numworkers-1;
 		}
 	} else {
@@ -302,6 +311,7 @@ size_t get_worker(void) {
 					// waited too long, kill the thing.
 					kill_worker(which);
 					if(start_worker()) {
+						tries = 0;
 						return numworkers-1;
 					}
 				}
