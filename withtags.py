@@ -173,23 +173,20 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 
 cursors = {}
 
-def close_later(derp):
+def close_later(cursor):
 	import gevent
-	gevent.sleep(6)
-	cursor = derp.cursor
-	if not cursor: return
-	derp.cursor = None
-	print("timeout",cursor.name)
-	cursor.close()
+	@gevent.spawn
+	def squeak():
+		gevent.sleep(6)
+		cursor.close()
+	return squeak
 
 def addcursor(key,cursor):
-	class derp:
-		cursor = cursor
-	cursors[key] = derp
+	cursors[key] = cursor
 	def poke():
 		if cursor.timeout:
 			cursor.timeout.kill()
-		cursor.timeout = close_later(derp)
+		cursor.timeout = close_later(cursor)
 		# the gevent SHOULD keep a ref until the timeout...
 	cursor.poke = poke
 	cursor.timeout = None
@@ -199,19 +196,20 @@ from hashlib import sha1
 from base64 import b64encode
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	derp = cursors.get((User.id,wantRelated))
+	cursor = cursors.get((User.id,wantRelated))
 	stmt,args = tagStatement(tags,wantRelated,taglimit)
 	stmt = stmt.sql()
 	args = args.args
-	if derp and derp.cursor:
-		cursor = derp.cursor
+	if cursor:
 		if not cursor.same(stmt,args):
 			cursor.timeout.kill()
 			cursor.close()
 			cursor = None
 	else:
 		cursor = None
-	if not cursor:
+	if cursor:
+		cursor.poke()
+	else:
 		if explain:
 			print(stmt)
 			print(args)
