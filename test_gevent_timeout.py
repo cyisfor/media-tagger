@@ -1,16 +1,11 @@
 import gevent
 
-longwait = gevent.timeout.Timeout(100)
-shortwait = gevent.timeout.Timeout(1)
-
 @gevent.spawn
 def longwaiter():
-	with longwait:
-		print("we waited!")
-	print("long done")
+	gevent.sleep(3)
+	print("we long waited!")
 
-
-with shortwait:
-	print("short waited")
-longwait.cancel()
-	
+gevent.sleep(1)
+print("short waited")
+#longwaiter.kill()
+gevent.wait([longwaiter])
