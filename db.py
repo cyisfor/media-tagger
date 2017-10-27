@@ -64,6 +64,9 @@ class DBProxy:
 	def retransaction(self,rollback=False):
 		return pg.retransaction(self.c,rollback)
 	@export
+	def cursor(self,name,stmt,args=()):
+		return self.c.cursor(name,stmt,args)
+	@export
 	def transaction(self):
 		return pg.transaction(self.c)
 	@export

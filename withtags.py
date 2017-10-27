@@ -172,12 +172,14 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 	return stmt,arg
 
 import weakref as weak
-cursors = weak.WeakValueDictionary()
+cursors = {}
 
 def close_later(weak):
-	gevent.sleep(60)
+	import gevent
+	gevent.sleep(6)
 	cursor = weak()
 	if cursor is None: return
+	print("timeout",cursor.name)
 	cursor.close()
 
 def addcursor(key,cursor):
@@ -208,10 +210,12 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			print(stmt)
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
-		cursor = pg.cursor(wantRelated,stmt,args)
+
+		name = "c"+str(str(User.id)+("t" if wantRelated else "f"))
+		cursor = db.cursor(name,stmt,args)
 		addcursor((User.id,wantRelated), cursor)
 
-	cursor.move(offset, offset + limit)
+	cursor.move(offset)
 	for row in cursor.fetch(limit):
 		if explain:
 			print(row[0])
