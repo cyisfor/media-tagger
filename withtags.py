@@ -171,7 +171,25 @@ def tagStatement(tags,wantRelated=False,taglimit=0x10):
 
 	return stmt,arg
 
-cursors = {}
+import weakref as weak
+cursors = weak.WeakValueDictionary()
+
+def close_later(weak):
+	gevent.sleep(60)
+	cursor = weak()
+	if cursor is None: return
+	cursor.close()
+
+def addcursor(key,cursor):
+	cursors[key] = cursor
+	def poke():
+		if cursor.timeout:
+			cursor.timeout.kill()
+		cursor.timeout = close_later(weak.ref(cursor))
+		# the gevent SHOULD keep a ref until the timeout...
+	cursor.poke = poke
+	cursor.timeout = None
+	cursor.poke()
 
 from hashlib import sha1
 from base64 import b64encode
@@ -191,7 +209,7 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
 		cursor = pg.cursor(wantRelated,stmt,args)
-		cursors[(User.id,wantRelated)] = cursor
+		addcursor((User.id,wantRelated), cursor)
 
 	cursor.move(offset, offset + limit)
 	for row in cursor.fetch(limit):
