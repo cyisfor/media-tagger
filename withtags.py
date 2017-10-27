@@ -176,24 +176,6 @@ cursors = {}
 from hashlib import sha1
 from base64 import b64encode
 
-class Cursor:
-	offset = 0
-	def __init__(self,wantRelated,sql,args=()):
-		self.name = "c"+str(str(User.id)+("t" if wantRelated else "f"))
-		self.sql = sql
-		db.execute("DECLARE " + self.name + " SCROLL CURSOR FOR " + sql, args)
-	sql = None
-	args = ()
-	def same(self,sql,args):
-		if sql == self.sql:
-			if args == self.args:
-				return True
-			self.args = args
-		else:
-			self.sql = sql
-			self.args = args
-		return False
-
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	cursor = cursors.get((User.id,wantRelated))
 	stmt,args = tagStatement(tags,wantRelated,taglimit)
@@ -201,25 +183,18 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 	args = args.args
 	if cursor:
 		if not cursor.same(stmt,args):
-			db.execute("CLOSE "+cursor.name)
-			db.retransaction()
+			cursor.close()
 			cursor = None
 	if not cursor:
 		if explain:
 			print(stmt)
 			print(args)
 			stmt = "EXPLAIN ANALYZE "+stmt
-		db.execute("BEGIN");
-		cursor = Cursor(wantRelated,stmt,args)
+		cursor = pg.cursor(wantRelated,stmt,args)
 		cursors[(User.id,wantRelated)] = cursor
-		
-	diff = offset - cursor.offset
-	print(id(cursor),offset,cursor.offset,diff)
-	if diff != 0:
-		db.execute("MOVE RELATIVE " +str(diff)+" FROM " + cursor.name)
-	cursor.offset = offset + limit
-		
-	for row in db.execute("FETCH FORWARD "+str(limit)+" FROM " + cursor.name):
+
+	cursor.move(offset, offset + limit)
+	for row in cursor.fetch(limit):
 		if explain:
 			print(row[0])
 		else:
@@ -228,12 +203,13 @@ def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
 				if isinstance(tag,str):
 					yield tag
 				else:
+					# wat
 					db.execute("DELETE FROM tags WHERE id = $1",(ident,))
+					db.retransaction()
 			else:
 				yield row
 	if explain:
 		raise SystemExit
-
 
 def test():
 	try:
