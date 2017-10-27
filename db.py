@@ -62,16 +62,16 @@ class DBProxy:
 		return self.c.execute(*a,**kw)
 	@export
 	def retransaction(self,rollback=False):
-		return pg.retransaction(self.c,rollback)
+		return self.c.transaction(rollback)
 	@export
 	def cursor(self,name,stmt,args=()):
 		return self.c.cursor(name,stmt,args)
 	@export
 	def transaction(self):
-		return pg.transaction(self.c)
+		return self.c.transaction()
 	@export
 	def saved(self):
-		return pg.saved(self.c)
+		return self.c.saved()
 	@export
 	def registerDecoder(self,decoder,name,namespace='public'):
 		if not self.c: self.reopen()
