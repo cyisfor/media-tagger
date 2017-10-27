@@ -177,8 +177,11 @@ def close_later(cursor):
 	import gevent
 	@gevent.spawn
 	def squeak():
-		gevent.sleep(6)
+		gevent.sleep(10)
 		cursor.close()
+		if not cursor.connection.cursors:
+			cursor.connection.rollback()
+
 	return squeak
 
 def addcursor(key,cursor):

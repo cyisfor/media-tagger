@@ -98,8 +98,8 @@ class DBProxy:
 		except IOError:
 			password = None
 		self.c = pg.Connection(dbname='pics',port=5433,host="/home/run",password=password)
-		#self.c.verbose = True
-		#self.c.out = open('/tmp/self.log','at')
+#		self.c.verbose = True
+#		self.c.out = open('/tmp/self.log','at')
 		password = None
 
 	@export
