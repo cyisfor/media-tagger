@@ -33,6 +33,7 @@ from six import raise_from
 print('bou',time.time()-start)
 sys.stdout.flush()
 oj = os.path.join
+eu = os.path.expanduser
 
 # how has this been working... at all?
 #proxy = urllib.ProxyHandler({"http": "http://127.0.0.1:8123"})
@@ -55,10 +56,10 @@ if not 'skipcookies' in os.environ:
 		#for ff in glob.glob(os.path.expanduser("~/.mozilla/firefox/*/")):
 		ff = os.path.expanduser("~/.moonchild productions/pale moon/rgfop3e3.default/")
 		retrieve.sqlite(oj(ff,'cookies.sqlite'))
-		retrieve.json(oj(ff,'cookies.jsons'))
+		retrieve.json(oj(ff,'cookies.json'))
 
-		retrieve.text("/extra/user/tmp/cookies.txt")	
-		retrieve.json("/extra/user/tmp/cookies.jsons")
+		retrieve.text(eu("~/tmp/cookies.txt"))
+		retrieve.json(eu("~/tmp/cookies.jsons"))
 	else:
 		print("too soon to check for new cookies")
 		

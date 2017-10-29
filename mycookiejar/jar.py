@@ -154,6 +154,10 @@ class Jar(cookiejar.CookieJar):
 				d[key] = getattr(item,key)
 			item = d
 		update(**item)
+	# def import_sqlite(self,path):
+	# 	execute("ATTACH "+repr(self.path)+" AS import")
+	# 	execute("""INSERT INTO cookies SELECT
+	# 	? AS name
 
 Jar.now = now
 

@@ -17,7 +17,7 @@ def fileProcessor(f):
 	def wrapper(path):
 		if not os.path.exists(path): return
 		print('getting',path)
-		with jar:
+		with jar.transaction():
 			for fields in f(path):
 				jar.set_cookie(fields)
 	return wrapper
