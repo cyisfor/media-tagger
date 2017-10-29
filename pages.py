@@ -732,7 +732,7 @@ def desktop_base(history,base,progress,pageLink,n):
 				d.img(class_='wid',
 				      src=base+"/".join((
 					      "media",'{:x}'.format(current),type,name)))
-			d.p("Having tags ",doTags(place,tags))
+			d.p("Having tags ",doTags('',tags))
 			d.hr()
 
 			d.p("Past Desktops")
