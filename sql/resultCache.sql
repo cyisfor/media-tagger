@@ -69,11 +69,31 @@ $$ language 'plpgsql';
 
 -- a medium's tags have to match the tag query before alteration, for that query to expire
 
+-- so... add an image, for each cached query, test that query against the image's tags
+-- before remove an image, also do so
+-- when re-tag an image, both the tags before and after have to be checked for matches.
+
+-- query "red, blue" would not match "blue, green" but would match if you added "red" to that.
+-- query "red, blue" would match "red, blue, green" but would not match if you removed "blue"
+-- query "red, -blue" would not match "red, blue" but would match if you removed "blue"
+-- query "red, -blue" would match "red" but would match if you added "blue"
+-- add blue tag -> invalidates -blue BEFORE
+-- remove blue tag -> invalidates -blue AFTER
+-- add red tag -> invalidates red AFTER
+-- remove red tag -> invalidates red BEFORE
+
+
 -- so... can't do that on a trigger, since the query could have any number of tags
 -- so just delete them all.
-DROP FUNCTION resultCache.expireQueriesTrigger();
 
-CREATE FUNCTION resultCache.removeQueries(_added int[], _removed int[]) 
+CREATE FUNCTION resultCache.expireQueriesTrigger();
+ RETURNS trigger AS
+$$
+BEGIN
+    PERFORM resultCache.expireQueries();
+    RETURN OLD;
+END;
+$$ language 'plpgsql';
 
 CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
     EXECUTE PROCEDURE resultCache.expireQueriesTrigger();
