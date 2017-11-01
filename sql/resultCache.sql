@@ -1,4 +1,4 @@
-DROP SCHEMA resultCache CASCADE; -- derp debugging
+-- DROP SCHEMA resultCache CASCADE; -- derp debugging
 
 CREATE SCHEMA IF NOT EXISTS resultCache;
 
@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS resultcache.doomed (
 			 digest text NOT NULL UNIQUE);
 
 
-CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false) RETURNS VOID
-AS
+CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false)
+RETURNS VOID AS
 $$
 BEGIN
 	EXECUTE 'REFRESH MATERIALIZED VIEW ' ||
@@ -41,8 +41,8 @@ $$ language 'plpgsql';
 -- if cleanQuery returns false, then create the materialized view
 -- otherwise, it's already been refreshed, so we're just done
 -- we create a new one, with new results!
-CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text) RETURNS bool
-AS
+CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text)
+RETURNS bool AS
 $$
 DECLARE
 _nr bool;
@@ -54,7 +54,7 @@ BEGIN
 		EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
 		RETURN FALSE;
 	END IF;
-	_nr, _id := needRefresh, id FROM resultCache.queries WHERE digest = _digest;
+	SELECT id,needRefresh into _id,_nr FROM resultCache.queries WHERE digest = _digest;
 	IF NOT found THEN
 		 RETURN FALSE; -- need to create it
 	END IF;
@@ -69,7 +69,8 @@ $$ language 'plpgsql';
 
 -- be sure to call cleanQuery before you create the MV, then updateQuery after you do!
 -- we successfully created the query, now mark it as active
-CREATE OR REPLACE FUNCTION resultCache.updateQuery(_digest text) RETURNS void AS
+CREATE OR REPLACE FUNCTION resultCache.updateQuery(_digest text)
+RETURNS void AS
 $$
 BEGIN
     LOOP
@@ -115,7 +116,8 @@ $$ language 'plpgsql';
 -- this actually deletes the queries.
 -- you must run it in a loop, since no postgresql function can commit a transaction.
 -- until it returns less than 1000, or returns 0
-CREATE OR REPLACE FUNCTION resultCache.purgeQueries() RETURNS int AS
+CREATE OR REPLACE FUNCTION resultCache.purgeQueries()
+RETURNS int AS
 $$
 DECLARE
 _id integer;
@@ -143,7 +145,7 @@ $$ language 'plpgsql';
 -- could run it in a separate process, even
 -- no idea how to notify if refresh is needed though (stuff got deleted)
 -- just call it, and get 0 results I guess
-CREATE OR REPLACE FUNCTION resultCache.refresh(_limit int default 100);
+CREATE OR REPLACE FUNCTION resultCache.refresh(_limit int default 100)
 RETURNS int AS
 $$
 DECLARE
@@ -157,8 +159,8 @@ BEGIN
 				LIMIT _limit
 		LOOP
         BEGIN
-						RAISE NOTICE 'Refreshing query %i', _digest
-						PERFORM refreshOne(_id,_digest,true)
+						RAISE NOTICE 'Refreshing query %i', _digest;
+						PERFORM refreshOne(_id,_digest,true);
 						_count := _count + 1;
         EXCEPTION
             WHEN undefined_table THEN
@@ -169,8 +171,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE or replace FUNCTION resultCache.expireQueriesTrigger();
- RETURNS trigger AS
+CREATE or replace FUNCTION resultCache.expireQueriesTrigger()
+RETURNS trigger AS
 $$
 BEGIN
 		-- see below for why we can't do this selectively.
