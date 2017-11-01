@@ -4,15 +4,17 @@ var timeout = null;
 function setsrcs() {
 	let myqueue = queue;
 	queue = {};
-	for(let src in myqueue) {
-		let img = myqueue[src];
+	function jssucks(src,img) {
 		let x = new XMLHttpRequest();
 		x.addEventListener("load",function(e) {
-			console.log("loaded",e);
 			img.src = src;
 		},true);
-		x.open("GET", img.json);
+		x.open("GET", img.json + '?' + (new Date()).getTime());
 		x.send();
+	}
+
+	for(let src in myqueue) {
+		jssucks(src, myqueue[src]);
 	}
 	timeout = null;
 }
