@@ -1,4 +1,4 @@
--- DROP SCHEMA resultCache CASCADE; -- derp debugging
+--DROP SCHEMA resultCache CASCADE; -- derp debugging
 
 CREATE SCHEMA IF NOT EXISTS resultCache;
 
@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS resultCache.queries(
 				touched timestamptz NOT NULL DEFAULT clock_timestamp(),
         created timestamptz NOT NULL DEFAULT clock_timestamp());
 
-
 -- of course, we can't expire more than 10,000 queries, so
 -- just mark them as doomed I guess
 
@@ -20,13 +19,11 @@ CREATE TABLE IF NOT EXISTS resultcache.doomed (
 			 digest text NOT NULL UNIQUE);
 
 
-CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false)
+CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text)
 RETURNS VOID AS
 $$
 BEGIN
-	EXECUTE 'REFRESH MATERIALIZED VIEW ' ||
-	CASE WHEN _concurrent THEN 'CONCURRENTLY ' ELSE '' END
-	|| 'resultCache."q' || _digest || '"';
+	EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
 	UPDATE resultCache.queries SET needRefresh = FALSE WHERE id = _id;
 END
 $$ language 'plpgsql';
@@ -38,7 +35,7 @@ $$ language 'plpgsql';
 -- so cleanQuery/updateQuery must be done client-side
 -- in a transaction ofc
 
--- if cleanQuery returns false, then create the materialized view
+-- if cleanQuery returns false, then create the table
 -- otherwise, it's already been refreshed, so we're just done
 -- we create a new one, with new results!
 CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text)
@@ -51,7 +48,7 @@ BEGIN
 	-- we're using this! don't doom it!xs
 	DELETE FROM resultCache.doomed WHERE digest = _digest;
 	IF found THEN
-		_nr = TRUE:
+		_nr = TRUE;
 	ELSE
 		SELECT id,needRefresh into _id,_nr FROM resultCache.queries WHERE digest = _digest;
 		IF NOT found THEN
@@ -87,7 +84,7 @@ END;
 $$ language 'plpgsql';
 
 
-DROP FUNCTION resultCache.expireQueries();
+-- DROP FUNCTION resultCache.expireQueries(); moar debugging
 CREATE OR REPLACE FUNCTION resultCache.expireQueries(_lower_bound int default 1000)
 RETURNS int AS
 $$
@@ -128,7 +125,7 @@ BEGIN
     FOR _id,_digest IN SELECT id,digest from resultCache.doomed LIMIT 1000
 		LOOP
         BEGIN
-            EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
+            EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
             DELETE FROM resultCache.doomed WHERE id = _id;
             _count := _count + 1;
         EXCEPTION
