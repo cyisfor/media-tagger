@@ -6,13 +6,18 @@ function setsrcs() {
 	queue = {};
 	for(let src in myqueue) {
 		let img = myqueue[src];
+		let x = new XMLHttpRequest();
+		x.open("GET", img.json);
+		x.send();
+		
 		img.src = src;
 	}
 	timeout = null;
 }
 
-function reload_later(dest,src) {
+function reload_later(dest,src,json) {
 	var img = document.createElement('img');
+	img.json = json;
 	img.style.height = '190px';
 	img.addEventListener('error', function(e) {
 		queue[src] = img;
