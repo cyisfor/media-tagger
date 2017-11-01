@@ -6,15 +6,23 @@ import db
 
 import hashlib,base64
 
-#db.setup("sql/resultCache.sql",source=True,named=False)
-
 def schema(f):
 	def wrapper(*a,**kw):
 		try:
 			return f(*a,**kw)
 		except db.Error as e:
-			print(e)
-			raise SystemExit(23)
+			if not b'schema "resultcache" does not exist' in e['message']:
+				raise
+			
+			intrans = db.c.inTransaction
+			if intrans:
+				db.rollback()
+			print("loading schema...")
+			db.setup("sql/resultCache.sql",source=True,named=False)
+			if intrans:
+				db.begin()
+		# now try it with the db setup
+		return f(*a,**kw)
 	return wrapper
 
 @schema
