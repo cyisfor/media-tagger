@@ -8,29 +8,29 @@ db.setup("sql/resultCache.sql",source=True,named=False)
 
 def get(query,args,docache=True):
 	#db.c.verbose = True
+	if hasattr(args,'values'):
+		vals = sorted(n+str(v) for n,v in args.items())
+	else:
+		args = list(args)
+		vals = args
+	name = hashlib.sha1((query +
+											 ''.join(str(arg) for arg in vals)).encode('utf-8'))
+	name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
+	if docache == False:
+		return name
+	print(query)
+	print("caching",args)
 	with db.transaction():
-		if hasattr(args,'values'):
-			vals = sorted(n+str(v) for n,v in args.items())
-		else:
-			args = list(args)
-			vals = args
-		name = hashlib.sha1((query +
-												 ''.join(str(arg) for arg in vals)).encode('utf-8'))
-		name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
-		if docache == False:
-			return name
-		print(query)
-		print("caching",args)
 		exists = db.execute("SELECT resultCache.cleanQuery($1)",(name,))[0][0]
 		if exists:
 			print("cleaned old results, I guess")
 		try: 
 			db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query,args)
-			#raise SystemExit
+			# only updateQuery if it's actually created without error
 			db.execute('SELECT resultCache.updateQuery($1)',(name,))
 		except db.ProgrammingError as e:
 			if not 'already exists' in e.info['message'].decode('utf-8'): raise
-		return name;
+	return name;
 
 def fetch(name,offset,limit):
 	db.retransaction()

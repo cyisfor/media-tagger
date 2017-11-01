@@ -1,3 +1,5 @@
+DROP SCHEMA resultCache CASCADE; -- derp debugging
+
 CREATE SCHEMA IF NOT EXISTS resultCache;
 
 CREATE TABLE IF NOT EXISTS resultCache.queries(
@@ -18,9 +20,7 @@ CREATE TABLE IF NOT EXISTS resultcache.doomed (
 			 digest text NOT NULL UNIQUE);
 
 
-CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false)
-RETURNS VOID
-language 'plpgsql';
+CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false) RETURNS VOID
 AS
 $$
 BEGIN
@@ -29,6 +29,8 @@ BEGIN
 	|| 'resultCache."q' || _digest || '"';
 	UPDATE resultCache.queries SET needRefresh = FALSE WHERE id = _id;
 END
+$$ language 'plpgsql';
+
 
 -- note: since postgresql sucks, we can't take "any" type parameters
 -- and then pass on the values prepared for us, to EXECUTE
@@ -39,9 +41,7 @@ END
 -- if cleanQuery returns false, then create the materialized view
 -- otherwise, it's already been refreshed, so we're just done
 -- we create a new one, with new results!
-CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text)
-RETURNS bool
-language 'plpgsql';
+CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text) RETURNS bool
 AS
 $$
 DECLARE
@@ -53,8 +53,8 @@ BEGIN
 		-- maybe we should do this anyway...?
 		EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
 		RETURN FALSE;
-	END IF
-	SELECT needRefresh into _nr, id INTO _id FROM resultCache.queries WHERE digest = _digest;
+	END IF;
+	_nr, _id := needRefresh, id FROM resultCache.queries WHERE digest = _digest;
 	IF NOT found THEN
 		 RETURN FALSE; -- need to create it
 	END IF;
@@ -65,7 +65,7 @@ BEGIN
 
 	RETURN TRUE;
 END
-$$
+$$ language 'plpgsql';
 
 -- be sure to call cleanQuery before you create the MV, then updateQuery after you do!
 -- we successfully created the query, now mark it as active
