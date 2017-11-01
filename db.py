@@ -62,7 +62,7 @@ class DBProxy:
 		return self.c.execute(*a,**kw)
 	@export
 	def retransaction(self,rollback=False):
-		return self.c.transaction(rollback)
+		return self.c.retransaction(rollback=rollback)
 	@export
 	def cursor(self,name,stmt,args=()):
 		return self.c.cursor(name,stmt,args)

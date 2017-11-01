@@ -30,12 +30,13 @@ def get(query,args,docache=True):
 			if not 'already exists' in e.info['message'].decode('utf-8'): raise
 		return name;
 
-def query(name,offset,limit):
+def fetch(name,offset,limit):
 	db.retransaction()
 	return db.execute('SELECT * FROM resultCache."q'+name+'" OFFSET $1 LIMIT $2',
 										(offset,limit))
 
 def clear():
+	
 	while True:
 		result = db.execute('SELECT resultCache.expireQueries()')[0][0];
 		if result:
