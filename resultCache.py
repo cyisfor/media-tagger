@@ -24,12 +24,16 @@ def get(query,args,docache=True):
 		exists = db.execute("SELECT resultCache.cleanQuery($1)",(name,))[0][0]
 		if exists:
 			print("cleaned old results, I guess")
-		try: 
-			db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query,args)
-			# only updateQuery if it's actually created without error
-			db.execute('SELECT resultCache.updateQuery($1)',(name,))
-		except db.ProgrammingError as e:
-			if not 'already exists' in e.info['message'].decode('utf-8'): raise
+		else:
+			try:
+				# so materialized views BAN THE USE OF PARAMETERS xp
+				# have to format(%I) the damn things.
+				db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query,args)
+			except db.ProgrammingError as e:
+				if not 'already exists' in e.info['message'].decode('utf-8'): raise
+		# only updateQuery if it's actually created/refreshed without error
+		db.execute('SELECT resultCache.updateQuery($1)',(name,))
+
 	return name;
 
 def fetch(name,offset,limit):

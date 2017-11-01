@@ -58,6 +58,7 @@ BEGIN
 	IF NOT found THEN
 		 RETURN FALSE; -- need to create it
 	END IF;
+	-- if doesn't need refresh, this function is a no-op, just returns TRUE
 	IF _nr THEN
 		 -- we need it refreshed ASAP at this point
 		 PERFORM refreshOne(_id, _digest, false);
