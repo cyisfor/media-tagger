@@ -206,8 +206,8 @@ def test():
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args.args)
-		for thing in db.execute("EXPLAIN ANALYZE "+stmt.sql(),args.args):
-			print(thing[0]);
+#		for thing in db.execute("EXPLAIN ANALYZE "+stmt.sql(),args.args):
+#			print(thing[0]);
 #		return
 		for tag in searchForTags(bags):
 			print(tag)

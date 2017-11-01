@@ -28,9 +28,24 @@ def get(query,args,docache=True):
 			try:
 				# so materialized views BAN THE USE OF PARAMETERS xp
 				# have to format(%L) the damn things.
-				for i,arg in args:
+				for i,arg in enumerate(args):
 					# herderp should edit postgresql-python to use PQescapeLiteral
-					arg = db.execute("SELECT format('%L',$1)",(arg,))[0][0]
+					print("encoding",i+1,repr(arg))
+					pgtype = None
+					def checkone(arg):
+						nonlocal pgtype
+						if isinstance(arg,(str,bytes)):
+							pgtype = 'text'
+						elif isinstance(arg,int):
+							pgtype = 'int'
+						else:
+							raise RuntimeError("Postgresql sucks!")
+					if isinstance(arg,(list,tuple,set)):
+						checkone(arg[0])
+						pgtype += '[]'
+					else:
+						checkone(arg)
+					arg = db.execute("SELECT format('%L',$1::"+pgtype+")",(arg,))[0][0]
 					query = query.replace('$'+str(i+1), arg)
 				print(query)
 				raise SystemExit(23)
