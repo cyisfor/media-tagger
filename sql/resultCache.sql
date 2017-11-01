@@ -26,7 +26,7 @@ BEGIN
 	DELETE FROM resultCache.doomed WHERE digest = _digest;
 	IF found THEN
 		-- maybe we should do this anyway...?
-		EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
+		EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
 		RETURN TRUE;
 	END IF
 	RETURN FALSE;
@@ -92,7 +92,7 @@ BEGIN
     FOR _id,_digest IN SELECT id,digest from resultCache.doomed LIMIT 1000
 		LOOP
         BEGIN
-            EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
+            EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
             DELETE FROM resultCache.doomed WHERE id = _id;
             _count := _count + 1;
         EXCEPTION
@@ -104,13 +104,34 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE OR REPLACE FUNCTION resultCache.refresh(_limit int default 100);
+RETURNS int AS
+$$
+DECLARE
+_id integer;
+_count integer default 0;
+_digest text;
+BEGIN
+		-- this should take next to forever...
+    FOR _id,_digest IN SELECT id,digest from resultCache.refresh LIMIT _limit
+		LOOP
+        BEGIN
+            EXECUTE 'REFRESH MATERIALIZED VIEW resultCache."q' || _digest || '"';
+						_count := _count + 1;
+        EXCEPTION
+            WHEN undefined_table THEN
+                -- do nothing
+				END;
+		END LOOP;
+END;
+$$ language 'plpgsql';
 
 CREATE or replace FUNCTION resultCache.expireQueriesTrigger();
  RETURNS trigger AS
 $$
 BEGIN
 		-- see below for why we can't do this selectively.
-		insert into resultCache.doomed select id, digest from resultcache.queries;
+		insert into resultCache.refresh select id, digest from resultcache.queries;
 		delete from resultcache.queries;
     RETURN OLD;
 END;
