@@ -48,17 +48,16 @@ DECLARE
 _nr bool;
 _id int;
 BEGIN
+	-- we're using this! don't doom it!xs
 	DELETE FROM resultCache.doomed WHERE digest = _digest;
 	IF found THEN
-		-- maybe we should do this anyway...?
-		EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
-		RETURN FALSE;
-	END IF;
-	SELECT id,needRefresh into _id,_nr FROM resultCache.queries WHERE digest = _digest;
-	IF NOT found THEN
-		 RETURN FALSE; -- need to create it
-	END IF;
-	-- if doesn't need refresh, this function is a no-op, just returns TRUE
+		_nr = TRUE:
+	ELSE
+		SELECT id,needRefresh into _id,_nr FROM resultCache.queries WHERE digest = _digest;
+		IF NOT found THEN
+			 RETURN FALSE; -- need to create it
+		END IF;
+	END IF;	-- if doesn't need refresh, this function is a no-op, just returns TRUE
 	IF _nr THEN
 		 -- we need it refreshed ASAP at this point
 		 PERFORM refreshOne(_id, _digest, false);

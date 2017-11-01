@@ -27,8 +27,16 @@ def get(query,args,docache=True):
 		else:
 			try:
 				# so materialized views BAN THE USE OF PARAMETERS xp
-				# have to format(%I) the damn things.
-				db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query,args)
+				# have to format(%L) the damn things.
+				for i,arg in args:
+					# herderp should edit postgresql-python to use PQescapeLiteral
+					arg = db.execute("SELECT format('%L',$1)",(arg,))[0][0]
+					query = query.replace('$'+str(i+1), arg)
+				print(query)
+				raise SystemExit(23)
+				db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query)
+
+				resultCache.create(name,query,args)
 			except db.ProgrammingError as e:
 				if not 'already exists' in e.info['message'].decode('utf-8'): raise
 		# only updateQuery if it's actually created/refreshed without error
