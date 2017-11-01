@@ -187,7 +187,6 @@ def makeLinks(info,linkfor=None):
 		src='/stuff/loading.gif'
 		if type == 'application/x-shockwave-flash':
 			src = '/flash.jpg'
-			fid = None
 		else:
 			for attempt in range(3):
 				fid,oneexists = filedb.check(id)
@@ -197,7 +196,8 @@ def makeLinks(info,linkfor=None):
 				elif User.loadjs:
 					src='/stuff/loading.gif'
 					tagid = str(fid)
-					missing.add((tagid,'/thumb/'+fid))
+					json=placeLink(fid,'info')+'.json'
+					missing.add((tagid,'/thumb/'+fid,json))
 					allexists = False
 					break
 				else:
@@ -231,8 +231,8 @@ def makeLinks(info,linkfor=None):
 			d.script("\n".join(("reload_later(document.getElementById("+repr(tagid)+"),"+
 													repr(src)+
 													","+
-													repr(pageLink(fid,'info')+'.json')+
-													");") for tagid,src in missing))
+													repr(json)+
+													");") for tagid,src,json in missing))
 		else:
 			Session.refresh = True
 

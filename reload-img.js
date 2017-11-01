@@ -7,10 +7,12 @@ function setsrcs() {
 	for(let src in myqueue) {
 		let img = myqueue[src];
 		let x = new XMLHttpRequest();
+		x.addEventListener("load",function(e) {
+			console.log("loaded",e);
+			img.src = src;
+		},true);
 		x.open("GET", img.json);
 		x.send();
-		
-		img.src = src;
 	}
 	timeout = null;
 }
@@ -23,11 +25,11 @@ function reload_later(dest,src,json) {
 		queue[src] = img;
 		if(timeout != null)
 			clearTimeout(timeout);
-		timeout = setTimeout(setsrcs,1000);
+		timeout = setTimeout(setsrcs,3000);
 	},false);
 	img.addEventListener('load',function() {
 		img.style.height = '';
 		dest.parentNode.replaceChild(img,dest);
 	},false);
-	setsrc()
+	img.src = src;
 }
