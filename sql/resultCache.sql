@@ -2,9 +2,10 @@ CREATE SCHEMA IF NOT EXISTS resultCache;
 
 CREATE TABLE resultCache.queries(
         id SERIAL PRIMARY KEY,
-        digest TEXT UNIQUE,
-				touched timestamptz DEFAULT clock_timestamp(),
-        created timestamptz DEFAULT clock_timestamp());
+        digest TEXT NOT NULL UNIQUE,
+				used INTEGER NOT NULL DEFAULT 0,
+				touched timestamptz NOT NULL DEFAULT clock_timestamp(),
+        created timestamptz NOT NULL DEFAULT clock_timestamp());
 
 
 -- of course, we can't expire more than 10,000 queries, so
@@ -12,7 +13,7 @@ CREATE TABLE resultCache.queries(
 
 create table if not exists resultcache.doomed (
 			 id integer primary key,
-			 digest text UNIQUE);
+			 digest text NOT NULL UNIQUE);
 
 -- if a query is in doomed, the actual table needs to be purged, before
 -- we create a new one, with new results!
@@ -78,6 +79,8 @@ $$ language 'plpgsql';
 
 
 -- this actually deletes the queries.
+-- you must run it in a loop, since no postgresql function can commit a transaction.
+-- until it returns less than 1000, or returns 0
 CREATE OR REPLACE FUNCTION resultCache.purgeQueries() RETURNS int AS
 $$
 DECLARE
@@ -102,12 +105,11 @@ END;
 $$ language 'plpgsql';
 
 
-
 CREATE or replace FUNCTION resultCache.expireQueriesTrigger();
  RETURNS trigger AS
 $$
 BEGIN
-		-- see below why we can't do this selectively.
+		-- see below for why we can't do this selectively.
 		insert into resultCache.doomed select id, digest from resultcache.queries;
 		delete from resultcache.queries;
     RETURN OLD;
@@ -116,15 +118,6 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
     EXECUTE PROCEDURE resultCache.expireQueriesTrigger();
-RETURNS int AS
-$$
-DECLARE
-_id integer;
-_count integer default 0;
-_digest text;
-BEGIN
-
-
 
 
 -- we only want to drop queries depending on these particular tags
@@ -154,8 +147,8 @@ BEGIN
 -- remove blue tag -> invalidates -blue AFTER
 -- add red tag -> invalidates red AFTER
 -- remove red tag -> invalidates red BEFORE
+-- so, if only adding tags... (creating an image)
+--   then any query with only positive tags would only have to be checked AFTER
+--   any query with only negative tags would only have to be checked BEFORE
 
-
--- so... can't do that on a trigger, since the query could have any number of tags
--- so just delete them all.
-	
+-- meh, too complicated

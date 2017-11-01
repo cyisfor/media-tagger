@@ -3,9 +3,8 @@
 import db
 
 import hashlib,base64
-print("BAR")
+
 db.setup("sql/resultCache.sql",source=True,named=False)
-print("BAR")
 
 def get(query,args,docache=True):
 	#db.c.verbose = True
@@ -22,6 +21,9 @@ def get(query,args,docache=True):
 			return name
 		print(query)
 		print("caching",args)
+		exists = db.execute("SELECT resultCache.cleanQuery($1)",(name,))[0][0]
+		if exists:
+			print("cleaned old results, I guess")
 		try: 
 			db.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)
 			#raise SystemExit
@@ -35,9 +37,14 @@ def fetch(name,offset,limit):
 	return db.execute('SELECT * FROM resultCache."q'+name+'" OFFSET $1 LIMIT $2',
 										(offset,limit))
 
+def expire():
+	result = db.execute('SELECT resultCache.expireQueries()')[0][0]
+	if result:
+		print('expired',result,'queries')
+
 def clear():
 	while True:
-		result = db.execute('SELECT resultCache.expireQueries()')[0][0];
+		result = db.execute('SELECT resultCache.purgeQueries()')[0][0];
 		if result:
-			print('cleared',result,'results')
+			print('purged',result,'queries')
 		if result < 1000: break
