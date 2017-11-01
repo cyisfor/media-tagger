@@ -2,10 +2,22 @@
 
 import db
 
+#db.execute("DROP SCHEMA resultCache CASCADE")
+
 import hashlib,base64
 
-db.setup("sql/resultCache.sql",source=True,named=False)
+#db.setup("sql/resultCache.sql",source=True,named=False)
 
+def schema(f):
+	def wrapper(*a,**kw):
+		try:
+			return f(*a,**kw)
+		except db.Error as e:
+			print(e)
+			raise SystemExit(23)
+	return wrapper
+
+@schema
 def get(query,args,docache=True):
 	#db.c.verbose = True
 	if hasattr(args,'values'):
@@ -33,19 +45,25 @@ def get(query,args,docache=True):
 		db.execute('SELECT resultCache.updateQuery($1)',(name,))
 		return name;
 
+@schema
 def fetch(name,offset,limit):
 	db.retransaction()
 	return db.execute('SELECT * FROM resultCache."q'+name+'" OFFSET $1 LIMIT $2',
 										(offset,limit))
 
+@schema
 def expire():
 	result = db.execute('SELECT resultCache.expireQueries()')[0][0]
 	if result:
 		print('expired',result,'queries')
 
+@schema
 def clear():
 	while True:
 		result = db.execute('SELECT resultCache.purgeQueries()')[0][0];
 		if result:
 			print('purged',result,'queries')
 		if result < 1000: break
+
+if __name__ == '__main__':
+  clear()
