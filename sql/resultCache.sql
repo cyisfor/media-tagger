@@ -6,23 +6,50 @@ CREATE TABLE resultCache.queries(
 				touched timestamptz DEFAULT clock_timestamp(),
         created timestamptz DEFAULT clock_timestamp());
 
+
+-- of course, we can't expire more than 10,000 queries, so
+-- just mark them as doomed I guess
+
+create table if not exists resultcache.doomed (
+			 id integer primary key,
+			 digest text UNIQUE);
+
+-- if a query is in doomed, the actual table needs to be purged, before
+-- we create a new one, with new results!
+CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text)
+RETURNS bool
+language 'plpgsql';
+AS
+$$
+BEGIN
+	DELETE FROM resultCache.doomed WHERE digest = _digest;
+	IF found THEN
+		-- maybe we should do this anyway...?
+		EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
+		RETURN TRUE;
+	END IF
+	RETURN FALSE;
+END
+$$
+
+-- be sure to call cleanQuery before you create the table, then updateQuery after you do!
+-- we successfully created the query, now mark it as active
 CREATE OR REPLACE FUNCTION resultCache.updateQuery(_digest text) RETURNS void AS
 $$
 BEGIN
     LOOP
-        UPDATE resultCache.queries SET touched = clock_timestamp() WHERE digest = _digest;
-        IF found THEN
-            RETURN;
-        END IF;
-        BEGIN
-            INSERT INTO resultCache.queries (digest) VALUES (_digest);
-        EXCEPTION
-            WHEN unique_violation THEN
-                -- do nothing
-        END;
+				-- this might be good for debugging, but shouldn't be necessary with good code
+				-- PERFORM FROM resultCache.doomed WHERE digest = _digest;
+				-- IF found THEN
+				-- 	 -- uh... this is bad.
+				-- 	 RAISE EXCEPTION 'please cleanQuery %i before updateQuerying it', _digest;
+				-- END IF;
+				INSERT INTO resultCache.queries (digest) VALUES (_digest)
+				ON CONFLICT DO UPDATE SET touched = clock_timestamp();
     END LOOP;
 END;
 $$ language 'plpgsql';
+
 
 DROP FUNCTION resultCache.expireQueries();
 CREATE OR REPLACE FUNCTION resultCache.expireQueries(_lower_bound int default 1000)
@@ -34,16 +61,36 @@ _count integer default 0;
 _digest text;
 BEGIN
 	-- always leave the latest _lower_bound unexpired
-    FOR _id,_digest IN SELECT id, digest FROM
+	WITH results AS (
+    INSERT INTO resultCache.doomed SELECT id, digest FROM
 				(SELECT id,digest,touched FROM resultCache.queries
 													 ORDER BY touched ASC OFFSET _lower_bound) AS Q
 				-- but still expire older queries first
 				ORDER BY touched DESC LIMIT 1000
+		ON CONFLICT DO NOTHING
+		RETURNING 1
+		)
+		SELECT count(*) INTO _count FROM results;
+	RETURN _count;
+	-- still need to purge these though!
+END;
+$$ language 'plpgsql';
 
+
+-- this actually deletes the queries.
+CREATE OR REPLACE FUNCTION resultCache.purgeQueries() RETURNS int AS
+$$
+DECLARE
+_id integer;
+_count integer default 0;
+_digest text;
+BEGIN
+	-- always leave the latest _lower_bound unexpired
+    FOR _id,_digest IN SELECT id,digest from resultCache.doomed LIMIT 1000
 		LOOP
         BEGIN
             EXECUTE 'DROP TABLE resultCache."q' || _digest || '"';
-            DELETE FROM resultcache.queries WHERE id = _id;
+            DELETE FROM resultCache.doomed WHERE id = _id;
             _count := _count + 1;
         EXCEPTION
             WHEN undefined_table THEN
@@ -53,6 +100,32 @@ BEGIN
     RETURN _count;
 END;
 $$ language 'plpgsql';
+
+
+
+CREATE or replace FUNCTION resultCache.expireQueriesTrigger();
+ RETURNS trigger AS
+$$
+BEGIN
+		-- see below why we can't do this selectively.
+		insert into resultCache.doomed select id, digest from resultcache.queries;
+		delete from resultcache.queries;
+    RETURN OLD;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
+    EXECUTE PROCEDURE resultCache.expireQueriesTrigger();
+RETURNS int AS
+$$
+DECLARE
+_id integer;
+_count integer default 0;
+_digest text;
+BEGIN
+
+
+
 
 -- we only want to drop queries depending on these particular tags
 -- any of the tags added, or removed
@@ -85,23 +158,4 @@ $$ language 'plpgsql';
 
 -- so... can't do that on a trigger, since the query could have any number of tags
 -- so just delete them all.
-
-CREATE FUNCTION resultCache.expireQueriesTrigger();
- RETURNS trigger AS
-$$
-BEGIN
-    PERFORM resultCache.expireQueries();
-    RETURN OLD;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER expireTrigger AFTER INSERT OR UPDATE OR DELETE ON things
-    EXECUTE PROCEDURE resultCache.expireQueriesTrigger();
-RETURNS int AS
-$$
-DECLARE
-_id integer;
-_count integer default 0;
-_digest text;
-BEGIN
 	

@@ -36,7 +36,6 @@ def fetch(name,offset,limit):
 										(offset,limit))
 
 def clear():
-	
 	while True:
 		result = db.execute('SELECT resultCache.expireQueries()')[0][0];
 		if result:
