@@ -78,7 +78,7 @@ BEGIN
 				-- 	 RAISE EXCEPTION 'please cleanQuery %i before updateQuerying it', _digest;
 				-- END IF;
 				INSERT INTO resultCache.queries (digest) VALUES (_digest)
-				ON CONFLICT DO UPDATE SET used = used + 1, touched = clock_timestamp();
+				ON CONFLICT (digest) DO UPDATE SET used = EXCLUDED.used + 1, touched = clock_timestamp();
     END LOOP;
 END;
 $$ language 'plpgsql';

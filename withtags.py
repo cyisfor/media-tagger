@@ -1,5 +1,8 @@
 from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Order,AS,EXISTS,Type,ANY,Func,Union,EVERY,GroupBy,argbuilder,Group
 #ehhh
+# TODO: declare a cursor, then FETCH to scroll around it, deleting when the query changes
+# no LIMIT or OFFSET clauses
+# one cursor per user...
 
 from user import User
 import db												#
@@ -59,7 +62,7 @@ tagsWhat = (
 			)
 
 
-def tagStatement(tags,wantRelated=False):
+def tagStatement(tags,wantRelated=False,taglimit=0x30):
 	From = InnerJoin('media','things',EQ('things.id','media.id'))
 	negaWanted = Select('id','unwanted')
 	negaClause = NOT(Intersects('neighbors',array(negaWanted)))
@@ -98,7 +101,7 @@ def tagStatement(tags,wantRelated=False):
 
 
 	if wantRelated:
-		mainOrdered = Group(Limit(mainOrdered,limit=arg(0x30)))
+		mainOrdered = Group(Limit(mainOrdered,limit=arg(taglimit)))
 		mainOrdered.is_array = True
 		mainOrdered = EQ('things.id',ANY(mainOrdered))
 		if tags.posi:
@@ -168,19 +171,57 @@ def tagStatement(tags,wantRelated=False):
 
 	return stmt,arg
 
+cursors = {}
+
+def close_later(cursor):
+	import gevent
+	@gevent.spawn
+	def squeak():
+		gevent.sleep(10)
+		cursor.close()
+
+	return squeak
+
+def addcursor(key,cursor):
+	cursors[key] = cursor
+	def poke():
+		if cursor.timeout:
+			cursor.timeout.kill()
+		cursor.timeout = close_later(cursor)
+		# the gevent SHOULD keep a ref until the timeout...
+	cursor.poke = poke
+	cursor.timeout = None
+	cursor.poke()
+
 from hashlib import sha1
 from base64 import b64encode
 
 def searchForTags(tags,offset=0,limit=0x30,taglimit=0x10,wantRelated=False):
-	stmt,args = tagStatement(tags,wantRelated)
+	cursor = cursors.get((User.id,wantRelated))
+	stmt,args = tagStatement(tags,wantRelated,taglimit)
 	stmt = stmt.sql()
 	args = args.args
-	if explain:
-		print(stmt)
-		print(args)
-		stmt = "EXPLAIN ANALYZE "+stmt
-	name = resultCache.get(stmt,args)
-	for row in resultCache.fetch(name,offset,limit):
+	if cursor:
+		if not cursor.same(stmt,args):
+			cursor.timeout.kill()
+			cursor.close()
+			cursor = None
+	else:
+		cursor = None
+	if cursor:
+		cursor.poke()
+	else:
+		if explain:
+			print(stmt)
+			print(args)
+			stmt = "EXPLAIN ANALYZE "+stmt
+
+		name = "c"+str(str(User.id)+("t" if wantRelated else "f"))
+		cursor = db.cursor(name,stmt,args)
+		addcursor((User.id,wantRelated), cursor)
+
+	cursor.move(offset)
+	for row in cursor.fetch(limit):
 		if explain:
 			print(row[0])
 		else:
@@ -206,9 +247,9 @@ def test():
 		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args.args)
-#		for thing in db.execute("EXPLAIN ANALYZE "+stmt.sql(),args.args):
-#			print(thing[0]);
-#		return
+		for thing in db.execute("EXPLAIN ANALYZE DECLARE derp SCROLL CURSOR WITH HOLD FOR "+stmt.sql(),args.args):
+			print(thing[0]);
+		return
 		for tag in searchForTags(bags):
 			print(tag)
 	except db.ProgrammingError as e:
