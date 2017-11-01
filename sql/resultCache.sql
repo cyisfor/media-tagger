@@ -1,9 +1,11 @@
 CREATE SCHEMA IF NOT EXISTS resultCache;
 
-CREATE TABLE resultCache.queries(
+CREATE TABLE IF NOT EXISTS resultCache.queries(
         id SERIAL PRIMARY KEY,
         digest TEXT NOT NULL UNIQUE,
 				used INTEGER NOT NULL DEFAULT 0,
+				-- queries that aren't expired but need to be refreshed.
+				needrefresh BOOL NOT NULL DEFAULT TRUE,
 				touched timestamptz NOT NULL DEFAULT clock_timestamp(),
         created timestamptz NOT NULL DEFAULT clock_timestamp());
 
@@ -11,29 +13,61 @@ CREATE TABLE resultCache.queries(
 -- of course, we can't expire more than 10,000 queries, so
 -- just mark them as doomed I guess
 
-create table if not exists resultcache.doomed (
+CREATE TABLE IF NOT EXISTS resultcache.doomed (
 			 id integer primary key,
 			 digest text NOT NULL UNIQUE);
 
--- if a query is in doomed, the actual table needs to be purged, before
+
+CREATE OR REPLACE FUNCTION resultCache.refreshOne(_id int, _digest text,_concurrent bool default false)
+RETURNS VOID
+language 'plpgsql';
+AS
+$$
+BEGIN
+	EXECUTE 'REFRESH MATERIALIZED VIEW ' ||
+	CASE WHEN _concurrent THEN 'CONCURRENTLY ' ELSE '' END
+	|| 'resultCache."q' || _digest || '"';
+	UPDATE resultCache.queries SET needRefresh = FALSE WHERE id = _id;
+END
+
+-- note: since postgresql sucks, we can't take "any" type parameters
+-- and then pass on the values prepared for us, to EXECUTE
+-- in any general fashion.
+-- so cleanQuery/updateQuery must be done client-side
+-- in a transaction ofc
+
+-- if cleanQuery returns false, then create the materialized view
+-- otherwise, it's already been refreshed, so we're just done
 -- we create a new one, with new results!
 CREATE OR REPLACE FUNCTION resultCache.cleanQuery(_digest text)
 RETURNS bool
 language 'plpgsql';
 AS
 $$
+DECLARE
+_nr bool;
+_id int;
 BEGIN
 	DELETE FROM resultCache.doomed WHERE digest = _digest;
 	IF found THEN
 		-- maybe we should do this anyway...?
 		EXECUTE 'DROP MATERIALIZED VIEW resultCache."q' || _digest || '"';
-		RETURN TRUE;
+		RETURN FALSE;
 	END IF
-	RETURN FALSE;
+	SELECT needRefresh into _nr, id INTO _id FROM resultCache.queries WHERE digest = _digest;
+	IF NOT found THEN
+		 RETURN FALSE; -- need to create it
+	END IF;
+	IF _nr THEN
+		 -- we need it refreshed ASAP at this point
+		 PERFORM refreshOne(_id, _digest, false);
+	END IF;
+
+	RETURN TRUE;
 END
 $$
 
--- be sure to call cleanQuery before you create the table, then updateQuery after you do!
+-- be sure to call cleanQuery before you create the MV, then updateQuery after you do!
 -- we successfully created the query, now mark it as active
 CREATE OR REPLACE FUNCTION resultCache.updateQuery(_digest text) RETURNS void AS
 $$
@@ -46,7 +80,7 @@ BEGIN
 				-- 	 RAISE EXCEPTION 'please cleanQuery %i before updateQuerying it', _digest;
 				-- END IF;
 				INSERT INTO resultCache.queries (digest) VALUES (_digest)
-				ON CONFLICT DO UPDATE SET touched = clock_timestamp();
+				ON CONFLICT DO UPDATE SET used = used + 1, touched = clock_timestamp();
     END LOOP;
 END;
 $$ language 'plpgsql';
@@ -64,10 +98,10 @@ BEGIN
 	-- always leave the latest _lower_bound unexpired
 	WITH results AS (
     INSERT INTO resultCache.doomed SELECT id, digest FROM
-				(SELECT id,digest,touched FROM resultCache.queries
-													 ORDER BY touched ASC OFFSET _lower_bound) AS Q
+				(SELECT id,digest,used FROM resultCache.queries
+													 ORDER BY used ASC OFFSET _lower_bound) AS Q
 				-- but still expire older queries first
-				ORDER BY touched DESC LIMIT 1000
+				ORDER BY used DESC LIMIT 1000
 		ON CONFLICT DO NOTHING
 		RETURNING 1
 		)
@@ -104,6 +138,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- running this every now and again will refresh queries in the background
+-- rather than refreshing them when queried, causing a delay
+-- could run it in a separate process, even
+-- no idea how to notify if refresh is needed though (stuff got deleted)
+-- just call it, and get 0 results I guess
 CREATE OR REPLACE FUNCTION resultCache.refresh(_limit int default 100);
 RETURNS int AS
 $$
@@ -113,13 +152,17 @@ _count integer default 0;
 _digest text;
 BEGIN
 		-- this should take next to forever...
-    FOR _id,_digest IN SELECT id,digest from resultCache.refresh LIMIT _limit
+    FOR _id,_digest IN SELECT id,digest from resultCache.queries WHERE needRefresh
+				ORDER BY used DESC
+				LIMIT _limit
 		LOOP
         BEGIN
-            EXECUTE 'REFRESH MATERIALIZED VIEW resultCache."q' || _digest || '"';
+						RAISE NOTICE 'Refreshing query %i', _digest
+						PERFORM refreshOne(_id,_digest,true)
 						_count := _count + 1;
         EXCEPTION
             WHEN undefined_table THEN
+							DELETE FROM resultCache.queries WHERE id = _id;
                 -- do nothing
 				END;
 		END LOOP;
@@ -131,8 +174,7 @@ CREATE or replace FUNCTION resultCache.expireQueriesTrigger();
 $$
 BEGIN
 		-- see below for why we can't do this selectively.
-		insert into resultCache.refresh select id, digest from resultcache.queries;
-		delete from resultcache.queries;
+		update resultCache.queries set needRefresh = TRUE;
     RETURN OLD;
 END;
 $$ language 'plpgsql';

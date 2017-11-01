@@ -1,4 +1,4 @@
-# SELECT id FROM -> CREATE TABLE FROM SELECT etc
+# SELECT id FROM etc -> CREATE TABLE resultCache... AS SELECT id FROM etc
 
 import db
 
@@ -25,7 +25,7 @@ def get(query,args,docache=True):
 		if exists:
 			print("cleaned old results, I guess")
 		try: 
-			db.execute('CREATE TABLE resultCache."q'+name+'" AS '+query,args)
+			db.execute('CREATE MATERIALIZED VIEW resultCache."q'+name+'" AS '+query,args)
 			#raise SystemExit
 			db.execute('SELECT resultCache.updateQuery($1)',(name,))
 		except db.ProgrammingError as e:
@@ -43,8 +43,12 @@ def expire():
 		print('expired',result,'queries')
 
 def clear():
+	expire()
 	while True:
 		result = db.execute('SELECT resultCache.purgeQueries()')[0][0];
 		if result:
 			print('purged',result,'queries')
 		if result < 1000: break
+
+if __name__ == '__main__':
+  clear()
