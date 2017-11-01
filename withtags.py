@@ -179,8 +179,6 @@ def close_later(cursor):
 	def squeak():
 		gevent.sleep(10)
 		cursor.close()
-		if not cursor.connection.cursors:
-			cursor.connection.rollback()
 
 	return squeak
 
@@ -244,12 +242,12 @@ def test():
 	try:
 		import tags
 		from pprint import pprint
-		bags = os.environ.get('tags','evil, red, -apple, -wagon')
+		bags = os.environ.get('tags','evil, red, -apple, -explicit')
 		bags = tags.parse(bags)
-		stmt,args = tagStatement(bags,offset=0x10)
+		stmt,args = tagStatement(bags)
 		print(stmt.sql())
 		print(args.args)
-		for thing in db.execute("EXPLAIN ANALYZE "+stmt.sql(),args.args):
+		for thing in db.execute("EXPLAIN ANALYZE DECLARE derp SCROLL CURSOR WITH HOLD FOR "+stmt.sql(),args.args):
 			print(thing[0]);
 		return
 		for tag in searchForTags(bags):

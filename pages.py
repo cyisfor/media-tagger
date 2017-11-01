@@ -200,7 +200,7 @@ def makeLinks(info,linkfor=None):
 					allexists = False
 					break
 				else:
-					time.sleep(0.1)
+					time.sleep(0.01)
 			else:
 				allexists = False
 		link = linkfor(id,i)

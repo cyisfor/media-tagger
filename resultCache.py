@@ -7,21 +7,19 @@ print("BAR")
 db.setup("sql/resultCache.sql",source=True,named=False)
 print("BAR")
 
-def encache(query,args,docache=True):
+def get(query,args,docache=True):
 	#db.c.verbose = True
 	with db.transaction():
-		name = hashlib.sha1()
-		name.update(query.encode('utf-8'))
 		if hasattr(args,'values'):
 			vals = sorted(n+str(v) for n,v in args.items())
 		else:
 			args = list(args)
 			vals = args
-		for arg in vals:
-			name.update(str(arg).encode('utf-8'))
+		name = hashlib.sha1((query +
+												 ''.join(str(arg) for arg in vals)).encode('utf-8'))
 		name = base64.b64encode(name.digest(),altchars=b'-_').decode().replace('=','')
 		if docache == False:
-			return db.execute(query,args)
+			return name
 		print(query)
 		print("caching",args)
 		try: 
@@ -30,8 +28,12 @@ def encache(query,args,docache=True):
 			db.execute('SELECT resultCache.updateQuery($1)',(name,))
 		except db.ProgrammingError as e:
 			if not 'already exists' in e.info['message'].decode('utf-8'): raise
-		db.retransaction()
-		return db.execute('SELECT * FROM resultCache."q'+name+'"')
+		return name;
+
+def query(name,offset,limit):
+	db.retransaction()
+	return db.execute('SELECT * FROM resultCache."q'+name+'" OFFSET $1 LIMIT $2',
+										(offset,limit))
 
 def clear():
 	while True:
