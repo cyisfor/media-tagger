@@ -7,7 +7,7 @@ from orm import Select,InnerJoin,AND,OR,With,EQ,NOT,Intersects,array,IN,Limit,Or
 from user import User
 import db												#
 from versions import Versioner
-import resultCache
+
 from itertools import count
 from tags import Taglist
 
@@ -177,7 +177,7 @@ def close_later(cursor):
 	import gevent
 	@gevent.spawn
 	def squeak():
-		gevent.sleep(10)
+		gevent.sleep(60)
 		cursor.close()
 
 	return squeak
@@ -190,8 +190,7 @@ def addcursor(key,cursor):
 		cursor.timeout = close_later(cursor)
 		# the gevent SHOULD keep a ref until the timeout...
 	cursor.poke = poke
-	cursor.timeout = None
-	cursor.poke()
+	cursor.timeout = close_later(cursor)
 
 from hashlib import sha1
 from base64 import b64encode
