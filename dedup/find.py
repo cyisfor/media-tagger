@@ -9,9 +9,11 @@ import queue
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
 mergequeue = queue.Queue(0x100)
 
+import filedb
+import db
+
+
 def regularlyCommit():
-	import filedb
-	import db
 	import merge
 	while True:
 		message = None
@@ -33,9 +35,6 @@ def regularlyCommit():
 
 t = Thread(target=regularlyCommit)
 t.start()
-
-import filedb
-import db
 
 import gi
 from gi.repository import Gtk,GLib
@@ -158,7 +157,6 @@ class Finder:
 	def dupe(self,inferior):
 		print('dupe',hex(self.dest),hex(self.source))
 		mergequeue.put((self.dest,self.source,inferior))
-		sleep(0.1)
 		self.next()
 
 finder = Finder()
@@ -325,7 +323,9 @@ def cleanup(e):
 
 win.connect('destroy',cleanup)
 win.show_all()
-loop.run()
-print('Waiting for merges to finish')
-mergequeue.put('done')
-mergequeue.join()
+try:
+	loop.run()
+finally:
+	print('Waiting for merges to finish')
+	mergequeue.put('done')
+	mergequeue.join()
