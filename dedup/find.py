@@ -3,12 +3,15 @@ try:
 	pgi.install_as_gi()
 except ImportError: pass
 
-import threading, queue
+from threading import Thread
+import queue
 
 #merge.merge(0x26cf5,0x26bbe,True) # corrupt image
-mergequeue = queue.Queue()
+mergequeue = queue.Queue(0x100)
 
 def regularlyCommit():
+	import filedb
+	import db
 	import merge
 	while True:
 		message = None
@@ -28,16 +31,16 @@ def regularlyCommit():
 			if message:
 				mergequeue.task_done()
 
-t = threading.Thread(target=regularlyCommit)
-t.setDaemon(True)
+t = Thread(target=regularlyCommit)
 t.start()
+
+import filedb
+import db
 
 import gi
 from gi.repository import Gtk,GLib
 from functools import partial
 
-import filedb
-import db
 
 import merge
 
@@ -155,6 +158,7 @@ class Finder:
 	def dupe(self,inferior):
 		print('dupe',hex(self.dest),hex(self.source))
 		mergequeue.put((self.dest,self.source,inferior))
+		sleep(0.1)
 		self.next()
 
 finder = Finder()
