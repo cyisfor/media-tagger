@@ -14,7 +14,7 @@ def getID(path):
 def simple(path,params):
     if Session.head: return
     id = getID(path)
-    return id,db.execute("SELECT type FROM media WHERE id = $1",(id,))[0][0]
+    return id,db.execute("SELECT type,name FROM media WHERE id = $1",(id,))[0]
 
 def oembed(path,params):
     if Session.head: return
